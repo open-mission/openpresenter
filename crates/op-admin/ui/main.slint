@@ -1,0 +1,252 @@
+import { Brand } from "theme.slint";
+import { MaterialWindow } from "@material";
+
+component InfoRow inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> value;
+
+    spacing: 16px;
+    cross-axis-alignment: start;
+
+    Text {
+        text: root.label;
+        color: Brand.muted;
+        font-size: 13px;
+        width: 120px;
+        vertical-alignment: TextVerticalAlignment.top;
+    }
+
+    Text {
+        text: root.value;
+        color: Brand.ink;
+        font-size: 13px;
+        horizontal-alignment: TextHorizontalAlignment.right;
+        vertical-alignment: TextVerticalAlignment.top;
+        wrap: word-wrap;
+        horizontal-stretch: 1;
+    }
+}
+
+export component MainWindow inherits MaterialWindow {
+    in property <string> app-name: "OpenPresenter";
+    in property <string> app-tagline: "Projeção para igrejas e eventos";
+    in property <string> app-version: "0.1.0";
+    in property <string> db-path: "";
+    in property <bool> db-ready: false;
+    in property <string> db-error: "";
+    in property <int> schema-version: 0;
+    in property <string> first-run-at: "";
+    in property <string> last-run-at: "";
+    in property <bool> is-first-run: true;
+    in property <string> theme-label: "Sistema";
+    in property <string> locale: "pt-BR";
+    in property <string> stack: "Rust · Slint · SQLite";
+
+    title: app-name;
+    icon: @image-url("../../../assets/branding/open-presenter-app-icon.svg");
+    width: 960px;
+    height: 640px;
+    background: Brand.page;
+
+    VerticalLayout {
+        padding: 36px;
+        spacing: 22px;
+
+        HorizontalLayout {
+            spacing: 16px;
+            cross-axis-alignment: center;
+
+            Image {
+                source: Brand.dark
+                    ? @image-url("../../../assets/branding/open-presenter-wordmark-dark.svg")
+                    : @image-url("../../../assets/branding/open-presenter-wordmark.svg");
+                width: 210px;
+                height: 68px;
+                image-fit: contain;
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                background: transparent;
+            }
+
+            Rectangle {
+                width: 76px;
+                height: 30px;
+                border-radius: 15px;
+                background: Brand.surface-muted;
+                border-width: 1px;
+                border-color: Brand.outline;
+
+                Text {
+                    text: "v" + app-version;
+                    color: Brand.muted;
+                    font-size: 12px;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    width: 100%;
+                    height: 100%;
+                }
+            }
+        }
+
+        VerticalLayout {
+            spacing: 8px;
+
+            Text {
+                text: "A fundação está pronta.";
+                color: Brand.ink;
+                font-size: 38px;
+                font-weight: 700;
+            }
+
+            Text {
+                text: app-tagline;
+                color: Brand.ink;
+                font-size: 17px;
+            }
+
+            Text {
+                text: "Interface nativa, banco local e versões organizadas. O próximo passo é construir a experiência de projeção.";
+                color: Brand.muted;
+                font-size: 14px;
+                wrap: word-wrap;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 20px;
+            vertical-stretch: 1;
+
+            Rectangle {
+                horizontal-stretch: 1;
+                vertical-stretch: 1;
+                background: Brand.surface;
+                border-radius: Brand.radius;
+                border-width: 1px;
+                border-color: Brand.outline;
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 14px;
+
+                    Text {
+                        text: "APLICAÇÃO";
+                        color: Brand.subtle;
+                        font-size: 11px;
+                        font-weight: 700;
+                        letter-spacing: 1.2px;
+                    }
+
+                    Text {
+                        text: "Sobre";
+                        color: Brand.ink;
+                        font-size: 22px;
+                        font-weight: 600;
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: Brand.outline;
+                    }
+
+                    InfoRow { label: "Versão"; value: "v" + app-version; }
+                    InfoRow { label: "Tema"; value: theme-label + " · " + (Brand.dark ? "escuro" : "claro"); }
+                    InfoRow { label: "Idioma"; value: locale; }
+                    InfoRow { label: "Stack"; value: stack; }
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                vertical-stretch: 1;
+                background: Brand.surface;
+                border-radius: Brand.radius;
+                border-width: 1px;
+                border-color: Brand.outline;
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 14px;
+
+                    Text {
+                        text: "BANCO DE DADOS";
+                        color: Brand.subtle;
+                        font-size: 11px;
+                        font-weight: 700;
+                        letter-spacing: 1.2px;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 16px;
+                        cross-axis-alignment: center;
+
+                        Text {
+                            text: "Estado local";
+                            color: Brand.ink;
+                            font-size: 22px;
+                            font-weight: 600;
+                            horizontal-stretch: 1;
+                        }
+
+                        Rectangle {
+                            width: 8px;
+                            height: 8px;
+                            border-radius: 4px;
+                            background: db-ready ? Brand.success : Brand.warning;
+                        }
+
+                        Text {
+                            text: db-ready ? "Conectado" : "Banco indisponível";
+                            color: db-ready ? Brand.success : Brand.warning;
+                            font-size: 12px;
+                            font-weight: 600;
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: Brand.outline;
+                    }
+
+                    InfoRow { label: "Arquivo"; value: db-path; }
+                    InfoRow { label: "Schema"; value: db-ready ? "v" + schema-version : "—"; }
+                    InfoRow { label: "Primeira execução"; value: db-ready ? first-run-at : "—"; }
+                    InfoRow {
+                        label: "Última execução";
+                        value: db-ready ? (is-first-run ? "Esta é a primeira execução" : last-run-at) : "—";
+                    }
+
+                    if !db-ready : Text {
+                        text: db-error;
+                        color: Brand.warning;
+                        font-size: 12px;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            cross-axis-alignment: center;
+
+            Text {
+                text: "Dados salvos localmente";
+                color: Brand.subtle;
+                font-size: 11px;
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                background: transparent;
+            }
+
+            Text {
+                text: "OpenPresenter v" + app-version;
+                color: Brand.subtle;
+                font-size: 11px;
+            }
+        }
+    }
+}

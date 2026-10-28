@@ -1,0 +1,18 @@
+import { Palette } from "std-widgets.slint";
+
+// Tokens monocromáticos do OpenPresenter. Seguem o tema claro/escuro do sistema.
+export global Brand {
+    out property <bool> dark: Palette.color_scheme == ColorScheme.dark;
+
+    out property <color> page: root.dark ? #0B0D12 : #F4F4F2;
+    out property <color> surface: root.dark ? #12151C : #FFFFFF;
+    out property <color> surface-muted: root.dark ? #1A1E27 : #F0F1F3;
+    out property <color> ink: root.dark ? #F5F6F8 : #111318;
+    out property <color> muted: root.dark ? #A1A7B3 : #6B7280;
+    out property <color> subtle: root.dark ? #6B7280 : #9CA3AF;
+    out property <color> outline: root.dark ? #252A34 : #E3E5E9;
+    out property <color> success: root.dark ? #4ADE80 : #15803D;
+    out property <color> warning: root.dark ? #FBBF24 : #B45309;
+
+    out property <length> radius: 18px;
+}
