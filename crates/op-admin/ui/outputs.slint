@@ -1,6 +1,6 @@
 import { Brand } from "theme.slint";
 
-// Saída visível ao público. Placeholder de marca, sem controles interativos.
+// Saída visível ao público. Placeholder de marca, responsivo e adaptável à resolução.
 export component PublicWindow inherits Window {
     title: "OpenPresenter — Público";
     icon: @image-url("../../../assets/branding/open-presenter-app-icon.svg");
@@ -8,37 +8,41 @@ export component PublicWindow inherits Window {
     height: 540px;
     background: Brand.output-bg;
 
+    // Escala dinâmica proporcional às dimensões da janela
+    property <float> scale-factor: max(0.8, min(root.width / 960px, root.height / 540px));
+
     VerticalLayout {
         alignment: center;
         cross-axis-alignment: center;
-        spacing: 28px;
+        spacing: 28px * root.scale-factor;
+        padding: 32px * root.scale-factor;
 
         Image {
             source: @image-url("../../../assets/branding/open-presenter-wordmark-dark.svg");
-            width: 300px;
-            height: 98px;
+            width: min(root.width * 0.65, 320px * root.scale-factor);
+            height: self.width * 0.3267;
             image-fit: contain;
         }
 
         Text {
             text: "SAÍDA PÚBLICA";
             color: Brand.output-muted;
-            font-size: 12px;
+            font-size: max(11px, 13px * root.scale-factor);
             font-weight: 700;
-            letter-spacing: 3px;
+            letter-spacing: 3px * root.scale-factor;
             horizontal-alignment: center;
         }
 
         Text {
             text: "Aguardando conteúdo da apresentação";
             color: Brand.output-ink;
-            font-size: 18px;
+            font-size: max(16px, 20px * root.scale-factor);
             horizontal-alignment: center;
         }
     }
 }
 
-// Retorno para o palco: relógio e data, sem controles interativos.
+// Retorno para o palco: relógio e data, com layout distribuído e responsivo para tela cheia.
 export component StageWindow inherits Window {
     in property <string> clock-time: "00:00:00";
     in property <string> date-label: "";
@@ -49,51 +53,76 @@ export component StageWindow inherits Window {
     height: 480px;
     background: Brand.output-bg;
 
+    // Escala dinâmica para preencher e distribuir o retorno de palco em tela cheia
+    property <float> scale-factor: max(0.8, min(root.width / 720px, root.height / 480px));
+
     VerticalLayout {
-        padding: 44px;
-        spacing: 16px;
+        padding: 32px * root.scale-factor;
+        spacing: 16px * root.scale-factor;
+        alignment: space-between;
 
-        Text {
-            text: "RETORNO DE PALCO";
-            color: Brand.output-accent;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 3px;
+        // Cabeçalho: Identificação e Data
+        HorizontalLayout {
+            alignment: space-between;
+            cross-axis-alignment: center;
+
+            Text {
+                text: "RETORNO DE PALCO";
+                color: Brand.output-accent;
+                font-size: max(12px, 14px * root.scale-factor);
+                font-weight: 700;
+                letter-spacing: 3px * root.scale-factor;
+            }
+
+            Text {
+                text: date-label;
+                color: Brand.output-muted;
+                font-size: max(13px, 16px * root.scale-factor);
+                font-weight: 500;
+            }
         }
 
-        Text {
-            text: clock-time;
-            color: Brand.output-ink;
-            font-size: 88px;
-            font-weight: 700;
-            horizontal-alignment: center;
+        // Centro: Relógio em destaque visível a longa distância
+        VerticalLayout {
+            alignment: center;
+            cross-axis-alignment: center;
+
+            Text {
+                text: clock-time;
+                color: Brand.output-ink;
+                font-size: min(root.height * 0.35, 110px * root.scale-factor);
+                font-weight: 700;
+                horizontal-alignment: center;
+            }
         }
 
-        Text {
-            text: date-label;
-            color: Brand.output-muted;
-            font-size: 15px;
-            horizontal-alignment: center;
-        }
+        // Base: Divisor e Informação do Evento / Apresentação
+        VerticalLayout {
+            spacing: 12px * root.scale-factor;
 
-        Rectangle {
-            height: 1px;
-            background: Brand.output-surface;
-        }
+            Rectangle {
+                height: max(1px, 2px * root.scale-factor);
+                background: Brand.output-surface;
+            }
 
-        Text {
-            text: "Nenhum evento carregado";
-            color: Brand.output-ink;
-            font-size: 20px;
-            font-weight: 600;
-            horizontal-alignment: center;
-        }
+            VerticalLayout {
+                spacing: 6px * root.scale-factor;
 
-        Text {
-            text: "Aguardando apresentação";
-            color: Brand.output-muted;
-            font-size: 14px;
-            horizontal-alignment: center;
+                Text {
+                    text: "Nenhum evento carregado";
+                    color: Brand.output-ink;
+                    font-size: max(18px, 22px * root.scale-factor);
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                }
+
+                Text {
+                    text: "Aguardando apresentação";
+                    color: Brand.output-muted;
+                    font-size: max(13px, 15px * root.scale-factor);
+                    horizontal-alignment: center;
+                }
+            }
         }
     }
 }

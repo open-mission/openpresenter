@@ -11,6 +11,7 @@
 ## Saídas multi-tela (v0.2.0)
 
 - [Spec — Saídas Public e Stage](specs/2026-10-28-multi-telas.md)
+- [Spec — Ajuste de tela cheia e conteúdo responsivo](specs/2026-10-28-ajuste-fullscreen-e-conteudo-responsivo.md)
 - [Plano — Saídas Public e Stage](plans/2026-10-28-multi-telas.md)
 
 ## Arquitetura e decisões

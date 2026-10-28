@@ -158,15 +158,21 @@ impl OutputsController {
         }
     }
 
-    /// Reaplica geometria e modo apenas às janelas visíveis.
-    pub fn apply_config(&mut self) {
-        if let Some(slot) = self.public.as_ref().filter(|slot| slot.visible.get()) {
-            let resolution = self.resolution(OutputKind::Public);
-            reposition(OutputKind::Public, &slot.window, &resolution);
-        }
-        if let Some(slot) = self.stage.as_ref().filter(|slot| slot.visible.get()) {
-            let resolution = self.resolution(OutputKind::Stage);
-            reposition(OutputKind::Stage, &slot.window, &resolution);
+    /// Reaplica geometria e modo exclusivamente à saída indicada, se visível.
+    pub fn apply_config_for(&mut self, kind: OutputKind) {
+        match kind {
+            OutputKind::Public => {
+                if let Some(slot) = self.public.as_ref().filter(|slot| slot.visible.get()) {
+                    let resolution = self.resolution(OutputKind::Public);
+                    reposition(OutputKind::Public, &slot.window, &resolution);
+                }
+            }
+            OutputKind::Stage => {
+                if let Some(slot) = self.stage.as_ref().filter(|slot| slot.visible.get()) {
+                    let resolution = self.resolution(OutputKind::Stage);
+                    reposition(OutputKind::Stage, &slot.window, &resolution);
+                }
+            }
         }
     }
 
@@ -194,7 +200,7 @@ impl OutputsController {
 
         self.config.get_mut(kind).monitor = selection;
         self.persist(kind);
-        self.apply_config();
+        self.apply_config_for(kind);
     }
 
     /// Define o modo de exibição de uma saída, persistindo e aplicando a mudança.
@@ -205,7 +211,7 @@ impl OutputsController {
 
         self.config.get_mut(kind).mode = mode;
         self.persist(kind);
-        self.apply_config();
+        self.apply_config_for(kind);
     }
 
     /// Mostra uma saída habilitada, criando a janela se necessário.
@@ -454,7 +460,7 @@ impl OutputsController {
                 if let Some(slot) = self.public.as_ref() {
                     slot.visible.set(true);
                 }
-                self.apply_config();
+                self.apply_config_for(OutputKind::Public);
             }
             Some(Err(error)) => {
                 self.public = None;
@@ -476,7 +482,7 @@ impl OutputsController {
                 if let Some(slot) = self.stage.as_ref() {
                     slot.visible.set(true);
                 }
-                self.apply_config();
+                self.apply_config_for(OutputKind::Stage);
             }
             Some(Err(error)) => {
                 self.stage_timer = None;
@@ -599,17 +605,48 @@ fn apply_mode<W: ComponentHandle>(window: &W, mode: EffectiveMode) {
     let target = window.window();
     match mode {
         EffectiveMode::Windowed => {}
-        EffectiveMode::Maximized => target.set_maximized(true),
-        EffectiveMode::Fullscreen => target.set_fullscreen(true),
+        EffectiveMode::Maximized => {
+            if !target.is_maximized() {
+                target.set_maximized(true);
+            }
+        }
+        EffectiveMode::Fullscreen => {
+            if !target.is_fullscreen() {
+                target.set_fullscreen(true);
+            }
+        }
     }
 }
 
 fn reposition<W: ComponentHandle>(kind: OutputKind, window: &W, resolution: &Resolution) {
     let target = window.window();
-    target.set_fullscreen(false);
-    target.set_maximized(false);
+    let is_fullscreen = target.is_fullscreen();
+    let is_maximized = target.is_maximized();
+    let should_fullscreen = resolution.mode == EffectiveMode::Fullscreen;
+    let should_maximized = resolution.mode == EffectiveMode::Maximized;
+
+    // Se a janela já está no estado desejado (tela cheia ou maximizada), não dispare transições redundantes
+    if is_fullscreen && should_fullscreen {
+        return;
+    }
+    if is_maximized && should_maximized {
+        return;
+    }
+
+    if is_fullscreen && !should_fullscreen {
+        target.set_fullscreen(false);
+    }
+    if is_maximized && !should_maximized {
+        target.set_maximized(false);
+    }
+
     apply_geometry(kind, window, resolution);
-    apply_mode(window, resolution.mode);
+
+    if !is_fullscreen && should_fullscreen {
+        target.set_fullscreen(true);
+    } else if !is_maximized && should_maximized {
+        target.set_maximized(true);
+    }
 }
 
 /// Data por extenso em português do Brasil, sem depender do locale do sistema.
@@ -781,6 +818,14 @@ mod tests {
         controller.set_mode(OutputKind::Public, OutputMode::Fullscreen);
         assert_eq!(controller.config().public.mode, OutputMode::Fullscreen);
         assert!(controller.persistence_error().is_some());
+    }
+
+    #[test]
+    fn apply_config_updates_visible_windows_without_panicking() {
+        let mut controller = OutputsController::new(None, None);
+        controller.set_monitors(vec![test_monitor()]);
+        controller.apply_config_for(OutputKind::Public);
+        controller.apply_config_for(OutputKind::Stage);
     }
 
     #[test]

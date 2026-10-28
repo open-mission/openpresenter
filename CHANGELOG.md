@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Corrigido
+
+- Correção do cancelamento involuntário de tela cheia ao configurar saídas: `reposition` passa a ser ciente de estado e não força saída de tela cheia se a janela já estiver no modo desejado.
+- Aplicação de configuração isolada por saída (`apply_config_for`), evitando reprocessar e resetar o modo de outras saídas abertas.
+- Conteúdo das janelas de saída Public e Stage agora é responsivo e proporcional às dimensões da tela, preenchendo o espaço em tela cheia e resoluções elevadas.
+- Retorno de palco (`Stage`) com layout distribuído: cabeçalho e data no topo, relógio ampliado em destaque central e rodapé de evento/apresentação.
+
 ## [0.2.0] - 2026-10-28
 
 ### Adicionado
