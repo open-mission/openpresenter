@@ -6,7 +6,9 @@ use crate::session::load_session;
 
 /// Monta a janela com os dados da sessão e executa o loop de eventos.
 pub fn run() -> anyhow::Result<()> {
-    let view = load_session();
+    let loaded = load_session();
+    let _db = loaded.db;
+    let view = loaded.view;
 
     let ui = MainWindow::new()?;
 

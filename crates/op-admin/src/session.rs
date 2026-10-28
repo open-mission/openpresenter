@@ -22,11 +22,17 @@ pub struct SessionView {
     pub is_first_run: bool,
 }
 
+/// Sessão carregada: a visão pronta para a tela e a conexão viva do banco.
+pub struct LoadedSession {
+    pub view: SessionView,
+    pub db: Option<Database>,
+}
+
 /// Carrega a sessão usando o diretório padrão ou o override de ambiente.
-pub fn load_session() -> SessionView {
+pub fn load_session() -> LoadedSession {
     match resolve_data_dir() {
         Ok(dir) => load_session_from_dir(&dir),
-        Err(error) => degraded_view(Path::new("(não resolvido)"), &error.to_string()),
+        Err(error) => degraded_session(Path::new("(não resolvido)"), &error.to_string()),
     }
 }
 
@@ -43,11 +49,11 @@ fn resolve_data_dir() -> anyhow::Result<PathBuf> {
     Ok(base_dirs.data_local_dir().join("OpenPresenter"))
 }
 
-fn load_session_from_dir(dir: &Path) -> SessionView {
+fn load_session_from_dir(dir: &Path) -> LoadedSession {
     let db_path = dir.join("open-presenter.db");
 
     if let Err(error) = std::fs::create_dir_all(dir) {
-        return degraded_view(
+        return degraded_session(
             &db_path,
             &format!("não foi possível criar o diretório de dados: {error}"),
         );
@@ -55,34 +61,44 @@ fn load_session_from_dir(dir: &Path) -> SessionView {
 
     let db = match Database::open(&db_path) {
         Ok(db) => db,
-        Err(error) => return degraded_view(&db_path, &error_message(&error)),
+        Err(error) => return degraded_session(&db_path, &error_message(&error)),
     };
 
     let schema_version = match db.schema_version() {
         Ok(version) => version as i32,
-        Err(error) => return degraded_view(&db_path, &error_message(&error)),
+        Err(error) => return degraded_session(&db_path, &error_message(&error)),
     };
 
     match db.begin_session(VERSION, Utc::now()) {
-        Ok(info) => SessionView {
-            app_version: VERSION.to_string(),
-            tagline: TAGLINE.to_string(),
-            stack: STACK.to_string(),
-            db_path: db.path().display().to_string(),
-            db_ready: true,
-            db_error: String::new(),
-            schema_version,
-            theme_label: info.current.theme.label_pt_br().to_string(),
-            locale: info.current.locale,
-            first_run_at: format_timestamp(&info.current.first_run_at),
-            last_run_at: info
-                .previous_last_run_at
-                .as_ref()
-                .map(format_timestamp)
-                .unwrap_or_default(),
-            is_first_run: info.previous_last_run_at.is_none(),
+        Ok(info) => LoadedSession {
+            view: SessionView {
+                app_version: VERSION.to_string(),
+                tagline: TAGLINE.to_string(),
+                stack: STACK.to_string(),
+                db_path: db.path().display().to_string(),
+                db_ready: true,
+                db_error: String::new(),
+                schema_version,
+                theme_label: info.current.theme.label_pt_br().to_string(),
+                locale: info.current.locale,
+                first_run_at: format_timestamp(&info.current.first_run_at),
+                last_run_at: info
+                    .previous_last_run_at
+                    .as_ref()
+                    .map(format_timestamp)
+                    .unwrap_or_default(),
+                is_first_run: info.previous_last_run_at.is_none(),
+            },
+            db: Some(db),
         },
-        Err(error) => degraded_view(&db_path, &error_message(&error)),
+        Err(error) => degraded_session(&db_path, &error_message(&error)),
+    }
+}
+
+fn degraded_session(db_path: &Path, error: &str) -> LoadedSession {
+    LoadedSession {
+        view: degraded_view(db_path, error),
+        db: None,
     }
 }
 
@@ -127,7 +143,8 @@ mod tests {
     #[test]
     fn first_session_view_is_ready_and_reports_version() {
         let dir = tempfile::tempdir().unwrap();
-        let view = load_session_from_dir(dir.path());
+        let loaded = load_session_from_dir(dir.path());
+        let view = loaded.view;
         assert!(view.db_ready);
         assert_eq!(view.app_version, op_core::VERSION);
         assert_eq!(view.schema_version, 2);
@@ -139,8 +156,8 @@ mod tests {
     #[test]
     fn second_session_view_keeps_first_run_and_fills_last_run() {
         let dir = tempfile::tempdir().unwrap();
-        let first = load_session_from_dir(dir.path());
-        let second = load_session_from_dir(dir.path());
+        let first = load_session_from_dir(dir.path()).view;
+        let second = load_session_from_dir(dir.path()).view;
         assert!(second.db_ready);
         assert!(!second.is_first_run);
         assert_eq!(second.first_run_at, first.first_run_at);
@@ -148,13 +165,24 @@ mod tests {
     }
 
     #[test]
+    fn successful_session_returns_live_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let loaded = load_session_from_dir(dir.path());
+        assert!(loaded.view.db_ready);
+        assert!(loaded.db.is_some());
+        assert_eq!(loaded.view.schema_version, 2);
+    }
+
+    #[test]
     fn unwritable_data_dir_returns_degraded_view() {
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("not-a-dir");
         std::fs::write(&file, "x").unwrap();
-        let view = load_session_from_dir(&file);
+        let loaded = load_session_from_dir(&file);
+        let view = loaded.view;
         assert!(!view.db_ready);
         assert!(!view.db_error.is_empty());
         assert_eq!(view.schema_version, 0);
+        assert!(loaded.db.is_none());
     }
 }
