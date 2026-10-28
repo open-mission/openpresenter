@@ -51,7 +51,7 @@ O repositório está vazio. Os assets de branding fornecidos ficam em `/Users/cl
 - **SQLite:** local, embutido via `rusqlite` com a feature `bundled`, para não depender de SQLite instalado na máquina.
 - **Plataformas:** desenvolvimento em macOS; a base deve compilar em Windows e Linux. Recursos específicos de empacotamento ficam para depois.
 - **Idioma:** documentação e textos de interface em português do Brasil; código, nomes de tipos e APIs em inglês.
-- **Licença:** o código do projeto será licenciado sob **GPL-3.0-only**. É uma licença open source que exige que derivados permaneçam abertos, impedindo um clone proprietário. Slint e Material são usados sob a opção GPLv3. A GPL não proíbe forks abertos — isso é inerente ao open source. O nome e a identidade visual do OpenPresenter são protegidos separadamente por uma política de marca: forks devem usar nome e marca próprios.
+- **Licença:** o código do projeto será licenciado sob **GPL-3.0-only**. É uma licença open source que exige que derivados permaneçam abertos, impedindo um clone proprietário. O Slint é usado sob a opção GPLv3; os Material Components estão sob a licença MIT. A GPL não proíbe forks abertos — isso é inerente ao open source. O nome e a identidade visual do OpenPresenter são protegidos separadamente por uma política de marca: forks devem usar nome e marca próprios.
 - **Branding:** os SVGs fornecidos são a referência de marca. Serão copiados sem alteração para `assets/branding/`.
 
 ## 6. Abordagens consideradas
