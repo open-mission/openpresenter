@@ -1,8 +1,9 @@
 import { Brand } from "theme.slint";
 import { PublicWindow, StageWindow } from "outputs.slint";
-import { MaterialWindow } from "@material";
+import { SettingsWindow } from "settings.slint";
+import { IconButton, MaterialWindow, MenuItem, PopupMenu } from "@material";
 
-export { PublicWindow, StageWindow }
+export { PublicWindow, SettingsWindow, StageWindow }
 
 component InfoRow inherits HorizontalLayout {
     in property <string> label;
@@ -45,6 +46,8 @@ export component MainWindow inherits MaterialWindow {
     in property <string> locale: "pt-BR";
     in property <string> stack: "Rust · Slint · SQLite";
 
+    callback open-settings();
+
     title: app-name;
     icon: @image-url("../../../assets/branding/open-presenter-app-icon.svg");
     width: 960px;
@@ -73,6 +76,15 @@ export component MainWindow inherits MaterialWindow {
                 background: transparent;
             }
 
+            menu-button := IconButton {
+                icon: @image-url("../../../vendor/material-1.1.0/ui/icons/menu.svg");
+                tooltip: "Menu";
+
+                clicked => {
+                    settings-menu.show();
+                }
+            }
+
             Rectangle {
                 width: 76px;
                 height: 30px;
@@ -98,7 +110,7 @@ export component MainWindow inherits MaterialWindow {
             spacing: 8px;
 
             Text {
-                text: "A fundação está pronta.";
+                text: "Duas telas, uma apresentação.";
                 color: Brand.ink;
                 font-size: 38px;
                 font-weight: 700;
@@ -111,7 +123,7 @@ export component MainWindow inherits MaterialWindow {
             }
 
             Text {
-                text: "Interface nativa, banco local e versões organizadas. O próximo passo é construir a experiência de projeção.";
+                text: "Configure o Public e o Stage em Configurações. As saídas habilitadas reabrem automaticamente na próxima execução.";
                 color: Brand.muted;
                 font-size: 14px;
                 wrap: word-wrap;
@@ -250,6 +262,23 @@ export component MainWindow inherits MaterialWindow {
                 color: Brand.subtle;
                 font-size: 11px;
             }
+        }
+    }
+
+    // O popup é irmão do conteúdo para que `absolute-position` seja relativo à janela.
+    settings-menu := PopupMenu {
+        items: [
+            {
+                text: "Configurações…",
+                enabled: true,
+            },
+        ];
+        x: menu-button.absolute-position.x + menu-button.width - settings-menu.width;
+        y: menu-button.absolute-position.y + menu-button.height;
+
+        activated(index) => {
+            settings-menu.close();
+            root.open-settings();
         }
     }
 }
