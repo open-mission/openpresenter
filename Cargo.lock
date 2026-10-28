@@ -3197,7 +3197,7 @@ dependencies = [
 
 [[package]]
 name = "op-admin"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3211,14 +3211,14 @@ dependencies = [
 
 [[package]]
 name = "op-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
 ]
 
 [[package]]
 name = "op-db"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "op-core",
