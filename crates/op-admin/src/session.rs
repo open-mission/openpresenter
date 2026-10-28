@@ -130,7 +130,7 @@ mod tests {
         let view = load_session_from_dir(dir.path());
         assert!(view.db_ready);
         assert_eq!(view.app_version, op_core::VERSION);
-        assert_eq!(view.schema_version, 1);
+        assert_eq!(view.schema_version, 2);
         assert!(view.is_first_run);
         assert!(view.db_path.ends_with("open-presenter.db"));
         assert!(!view.first_run_at.is_empty());

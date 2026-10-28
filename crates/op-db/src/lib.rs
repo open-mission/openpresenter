@@ -2,7 +2,10 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use chrono::{DateTime, SecondsFormat, Utc};
-use op_core::{AppMeta, DEFAULT_LOCALE, SessionInfo, Theme};
+use op_core::{
+    AppMeta, DEFAULT_LOCALE, MonitorSelection, OutputConfig, OutputKind, OutputMode, OutputsConfig,
+    SessionInfo, Theme,
+};
 use rusqlite::Connection;
 use rusqlite_migration::{M, Migrations};
 use thiserror::Error;
@@ -53,8 +56,10 @@ impl Database {
         conn.busy_timeout(Duration::from_secs(5))
             .map_err(DbError::Open)?;
 
-        let migrations =
-            Migrations::new(vec![M::up(include_str!("../migrations/0001_initial.sql"))]);
+        let migrations = Migrations::new(vec![
+            M::up(include_str!("../migrations/0001_initial.sql")),
+            M::up(include_str!("../migrations/0002_output_config.sql")),
+        ]);
         migrations
             .to_latest(&mut conn)
             .map_err(DbError::Migration)?;
@@ -166,13 +171,78 @@ impl Database {
             previous_last_run_at,
         })
     }
+
+    /// Lê a configuração das saídas, preenchendo ausências com os padrões.
+    pub fn load_outputs(&self) -> Result<OutputsConfig, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT output, enabled, monitor_key, monitor_name, mode
+                 FROM output_config",
+            )
+            .map_err(DbError::Read)?;
+        let mut rows = stmt.query([]).map_err(DbError::Read)?;
+        let mut outputs = OutputsConfig::default();
+
+        while let Some(row) = rows.next().map_err(DbError::Read)? {
+            let output_value: String = row.get(0).map_err(DbError::Read)?;
+            // Linhas com saída desconhecida não devem impedir a abertura.
+            let Some(kind) = OutputKind::from_db_str(&output_value) else {
+                continue;
+            };
+            let enabled: i64 = row.get(1).map_err(DbError::Read)?;
+            let monitor_key: String = row.get(2).map_err(DbError::Read)?;
+            let monitor_name: String = row.get(3).map_err(DbError::Read)?;
+            let mode_value: String = row.get(4).map_err(DbError::Read)?;
+
+            let config = outputs.get_mut(kind);
+            config.enabled = enabled != 0;
+            // Valores inválidos, possíveis apenas por edição manual, caem para Auto.
+            config.monitor = MonitorSelection::from_db_key(&monitor_key, monitor_name);
+            config.mode = OutputMode::from_db_str(&mode_value).unwrap_or_default();
+        }
+
+        Ok(outputs)
+    }
+
+    /// Grava a configuração de uma saída, preservando a outra.
+    pub fn save_output(&self, config: &OutputConfig, now: DateTime<Utc>) -> Result<(), DbError> {
+        let monitor_name = match &config.monitor {
+            MonitorSelection::Display { name, .. } => name.as_str(),
+            MonitorSelection::Auto | MonitorSelection::Primary => "",
+        };
+        let enabled = i64::from(config.enabled);
+
+        self.conn
+            .execute(
+                "INSERT INTO output_config (output, enabled, monitor_key, monitor_name, mode, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                 ON CONFLICT(output) DO UPDATE SET
+                     enabled = excluded.enabled,
+                     monitor_key = excluded.monitor_key,
+                     monitor_name = excluded.monitor_name,
+                     mode = excluded.mode,
+                     updated_at = excluded.updated_at",
+                rusqlite::params![
+                    config.kind.as_str(),
+                    enabled,
+                    config.monitor.as_db_key(),
+                    monitor_name,
+                    config.mode.as_str(),
+                    format_timestamp(now),
+                ],
+            )
+            .map_err(DbError::Write)?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use chrono::TimeZone;
-    use op_core::Theme;
+    use op_core::{MonitorSelection, OutputConfig, OutputKind, OutputMode, OutputsConfig, Theme};
 
     fn ts(
         year: i32,
@@ -193,7 +263,7 @@ mod tests {
         let path = dir.path().join("open-presenter.db");
         let db = Database::open(&path).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 1);
+        assert_eq!(db.schema_version().unwrap(), 2);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -223,6 +293,123 @@ mod tests {
             .query_row("PRAGMA synchronous", [], |row| row.get(0))
             .unwrap();
         assert_eq!(synchronous, 1);
+    }
+
+    #[test]
+    fn open_creates_schema_v2_with_output_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
+
+        assert_eq!(db.schema_version().unwrap(), 2);
+        let table_count: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'output_config'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(table_count, 1);
+    }
+
+    #[test]
+    fn migrates_v1_database_to_v2_preserving_app_meta() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("open-presenter.db");
+        {
+            let conn = rusqlite::Connection::open(&path).unwrap();
+            conn.execute_batch(include_str!("../migrations/0001_initial.sql"))
+                .unwrap();
+            conn.pragma_update(None, "user_version", 1).unwrap();
+            conn.execute(
+                "INSERT INTO app_meta (id, app_version, first_run_at, last_run_at, theme, locale, updated_at)
+                 VALUES (1, '0.1.0', '2026-10-28T10:00:00.000Z', '2026-10-28T10:00:00.000Z', 'system', 'pt-BR', '2026-10-28T10:00:00.000Z')",
+                [],
+            )
+            .unwrap();
+        }
+
+        let db = Database::open(&path).unwrap();
+        assert_eq!(db.schema_version().unwrap(), 2);
+        let meta = db.load_meta().unwrap().unwrap();
+        assert_eq!(meta.first_run_at, ts(2026, 10, 28, 10, 0));
+        let count: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM output_config", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn load_outputs_without_rows_returns_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
+        assert_eq!(db.load_outputs().unwrap(), OutputsConfig::default());
+    }
+
+    #[test]
+    fn saves_and_loads_public_and_stage_outputs() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
+        let public = OutputConfig {
+            kind: OutputKind::Public,
+            enabled: false,
+            monitor: MonitorSelection::Display {
+                id: "7".into(),
+                name: "DELL".into(),
+            },
+            mode: OutputMode::Fullscreen,
+        };
+        let stage = OutputConfig {
+            kind: OutputKind::Stage,
+            enabled: true,
+            monitor: MonitorSelection::Primary,
+            mode: OutputMode::Windowed,
+        };
+
+        db.save_output(&public, ts(2026, 10, 28, 11, 0)).unwrap();
+        db.save_output(&stage, ts(2026, 10, 28, 11, 1)).unwrap();
+
+        let loaded = db.load_outputs().unwrap();
+        assert_eq!(loaded.public, public);
+        assert_eq!(loaded.stage, stage);
+    }
+
+    #[test]
+    fn updating_one_output_preserves_the_other() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
+        let mut public = OutputConfig::default_for(OutputKind::Public);
+        let stage = OutputConfig::default_for(OutputKind::Stage);
+        db.save_output(&public, ts(2026, 10, 28, 11, 0)).unwrap();
+        db.save_output(&stage, ts(2026, 10, 28, 11, 0)).unwrap();
+
+        public.mode = OutputMode::Maximized;
+        db.save_output(&public, ts(2026, 10, 28, 11, 5)).unwrap();
+
+        let loaded = db.load_outputs().unwrap();
+        assert_eq!(loaded.public.mode, OutputMode::Maximized);
+        assert_eq!(loaded.stage, stage);
+    }
+
+    #[test]
+    fn invalid_stored_mode_and_monitor_fall_back_to_auto() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
+        db.conn
+            .pragma_update(None, "ignore_check_constraints", true)
+            .unwrap();
+        db.conn
+            .execute(
+                "INSERT INTO output_config (output, enabled, monitor_key, monitor_name, mode, updated_at)
+                 VALUES ('public', 1, 'bogus', '', 'invalid', '2026-10-28T11:00:00.000Z')",
+                [],
+            )
+            .unwrap();
+
+        let loaded = db.load_outputs().unwrap();
+        assert_eq!(loaded.public.monitor, MonitorSelection::Auto);
+        assert_eq!(loaded.public.mode, OutputMode::Auto);
     }
 
     #[test]
