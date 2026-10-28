@@ -1,6 +1,9 @@
-// A API de monitores passa a ser consumida pelas janelas de saída na Task 5.
-#[allow(dead_code)]
+slint::include_modules!();
+
 mod monitors;
+// A API restante de saídas será consumida pela janela de Configurações na Task 6.
+#[allow(dead_code)]
+mod outputs;
 mod session;
 mod ui;
 

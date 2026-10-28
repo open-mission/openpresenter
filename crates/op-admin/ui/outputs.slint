@@ -1,0 +1,99 @@
+import { Brand } from "theme.slint";
+
+// Saída visível ao público. Placeholder de marca, sem controles interativos.
+export component PublicWindow inherits Window {
+    title: "OpenPresenter — Público";
+    icon: @image-url("../../../assets/branding/open-presenter-app-icon.svg");
+    width: 960px;
+    height: 540px;
+    background: Brand.output-bg;
+
+    VerticalLayout {
+        alignment: center;
+        cross-axis-alignment: center;
+        spacing: 28px;
+
+        Image {
+            source: @image-url("../../../assets/branding/open-presenter-wordmark-dark.svg");
+            width: 300px;
+            height: 98px;
+            image-fit: contain;
+        }
+
+        Text {
+            text: "SAÍDA PÚBLICA";
+            color: Brand.output-muted;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: "Aguardando conteúdo da apresentação";
+            color: Brand.output-ink;
+            font-size: 18px;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+// Retorno para o palco: relógio e data, sem controles interativos.
+export component StageWindow inherits Window {
+    in property <string> clock-time: "00:00:00";
+    in property <string> date-label: "";
+
+    title: "OpenPresenter — Palco";
+    icon: @image-url("../../../assets/branding/open-presenter-app-icon.svg");
+    width: 720px;
+    height: 480px;
+    background: Brand.output-bg;
+
+    VerticalLayout {
+        padding: 44px;
+        spacing: 16px;
+
+        Text {
+            text: "RETORNO DE PALCO";
+            color: Brand.output-accent;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 3px;
+        }
+
+        Text {
+            text: clock-time;
+            color: Brand.output-ink;
+            font-size: 88px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: date-label;
+            color: Brand.output-muted;
+            font-size: 15px;
+            horizontal-alignment: center;
+        }
+
+        Rectangle {
+            height: 1px;
+            background: Brand.output-surface;
+        }
+
+        Text {
+            text: "Nenhum evento carregado";
+            color: Brand.output-ink;
+            font-size: 20px;
+            font-weight: 600;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: "Aguardando apresentação";
+            color: Brand.output-muted;
+            font-size: 14px;
+            horizontal-alignment: center;
+        }
+    }
+}

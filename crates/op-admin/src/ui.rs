@@ -1,14 +1,21 @@
-slint::include_modules!();
+use std::cell::RefCell;
+use std::rc::Rc;
 
-use slint::ComponentHandle;
+use slint::{CloseRequestResponse, ComponentHandle};
 
-use crate::session::load_session;
+use crate::MainWindow;
+use crate::outputs::OutputsController;
+use crate::session::{LoadedSession, load_session};
 
-/// Monta a janela com os dados da sessão e executa o loop de eventos.
+/// Monta o painel, abre as saídas configuradas e executa o loop de eventos.
 pub fn run() -> anyhow::Result<()> {
-    let loaded = load_session();
-    let _db = loaded.db;
-    let view = loaded.view;
+    let LoadedSession { view, db } = load_session();
+    let database_error = if view.db_ready {
+        None
+    } else {
+        Some(view.db_error.clone())
+    };
+    let controller = Rc::new(RefCell::new(OutputsController::new(db, database_error)));
 
     let ui = MainWindow::new()?;
 
@@ -30,6 +37,22 @@ pub fn run() -> anyhow::Result<()> {
         eprintln!("Banco indisponível ({}): {}", view.db_path, view.db_error);
     }
 
-    ui.run()?;
+    ui.show()?;
+
+    controller.borrow_mut().refresh_monitors();
+    controller.borrow_mut().start();
+
+    {
+        let controller = Rc::clone(&controller);
+        ui.window().on_close_requested(move || {
+            controller.borrow_mut().close_all();
+            if let Err(error) = slint::quit_event_loop() {
+                eprintln!("Não foi possível encerrar o loop de eventos: {error}");
+            }
+            CloseRequestResponse::HideWindow
+        });
+    }
+
+    slint::run_event_loop()?;
     Ok(())
 }
