@@ -7,6 +7,7 @@ use op_db::Database;
 
 /// Dados prontos para a tela inicial, inclusive em estado degradado.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct SessionView {
     pub app_version: String,
     pub tagline: String,

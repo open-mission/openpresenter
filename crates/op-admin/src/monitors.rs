@@ -173,11 +173,28 @@ pub fn resolve(
 
     let (monitor, warning) = match selection {
         MonitorSelection::Auto => {
-            let monitor = monitors
-                .iter()
-                .find(|monitor| !monitor.is_primary && !monitor.is_builtin)
-                .or_else(|| monitors.iter().find(|monitor| monitor.is_primary))
-                .unwrap_or(&monitors[0]);
+            let monitor = match kind {
+                OutputKind::Public => monitors
+                    .iter()
+                    .find(|monitor| !monitor.is_primary && !monitor.is_builtin)
+                    .or_else(|| monitors.iter().find(|monitor| monitor.is_primary))
+                    .unwrap_or(&monitors[0]),
+                OutputKind::Stage => {
+                    let externals: Vec<&MonitorInfo> = monitors
+                        .iter()
+                        .filter(|monitor| !monitor.is_primary && !monitor.is_builtin)
+                        .collect();
+                    if externals.len() >= 2 {
+                        externals[1]
+                    } else {
+                        externals
+                            .first()
+                            .copied()
+                            .or_else(|| monitors.iter().find(|monitor| monitor.is_primary))
+                            .unwrap_or(&monitors[0])
+                    }
+                }
+            };
             (monitor, None)
         }
         MonitorSelection::Primary => {
@@ -364,6 +381,30 @@ mod tests {
         );
         assert_eq!(resolution.monitor.unwrap().key, "2");
         assert_eq!(resolution.mode, EffectiveMode::Windowed);
+    }
+
+    #[test]
+    fn auto_distributes_public_and_stage_across_multiple_external_monitors() {
+        let builtin = monitor("1", "Built-in", 0, true, true);
+        let ext1 = monitor("2", "Projetor", 1920, false, false);
+        let ext2 = monitor("3", "TV Palco", 3840, false, false);
+        let monitors = vec![builtin, ext1, ext2];
+
+        let public_res = resolve(
+            OutputKind::Public,
+            &MonitorSelection::Auto,
+            OutputMode::Auto,
+            &monitors,
+        );
+        let stage_res = resolve(
+            OutputKind::Stage,
+            &MonitorSelection::Auto,
+            OutputMode::Auto,
+            &monitors,
+        );
+
+        assert_eq!(public_res.monitor.unwrap().key, "2");
+        assert_eq!(stage_res.monitor.unwrap().key, "3");
     }
 
     #[test]

@@ -14,6 +14,11 @@
 - [Spec — Ajuste de tela cheia e conteúdo responsivo](specs/2026-10-28-ajuste-fullscreen-e-conteudo-responsivo.md)
 - [Plano — Saídas Public e Stage](plans/2026-10-28-multi-telas.md)
 
+## Painel operacional e Command Palette (v0.3.0)
+
+- [Spec — Painel operacional e Command Palette](specs/2026-10-28-painel-operacional-e-command-palette.md)
+- [Plano — Painel operacional e Command Palette](plans/2026-10-28-painel-operacional-e-command-palette.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

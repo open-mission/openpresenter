@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+
+- Novo painel principal operacional com 3 áreas integradas: Sidebar de Mídias, Painel de Programação (ordem do culto) e Painel de Preview de Mídias com controles de projeção (Ao Vivo, Limpar Tela, Ocultar Texto, Logotipo).
+- Command Palette acionada por `⌘K` (macOS) ou `Ctrl+K` (Windows/Linux) ou clique no header, com busca rápida, categorias (Músicas, Bíblia, Comandos) e arquitetura extensível de comandos.
+- Abertura da janela principal maximizada cobrindo o espaço de trabalho disponível do monitor primário.
+- Isolamento coordenado na inicialização entre a janela administrativa e as janelas de saída de tela cheia.
+
 ### Corrigido
 
 - Correção do cancelamento involuntário de tela cheia ao configurar saídas: `reposition` passa a ser ciente de estado e não força saída de tela cheia se a janela já estiver no modo desejado.

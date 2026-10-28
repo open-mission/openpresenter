@@ -1,5 +1,6 @@
 slint::include_modules!();
 
+mod commands;
 mod monitors;
 mod outputs;
 mod session;

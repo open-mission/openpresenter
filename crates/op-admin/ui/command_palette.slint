@@ -1,0 +1,374 @@
+import { Brand } from "theme.slint";
+import { ListView } from "std-widgets.slint";
+
+export struct PaletteItemData {
+    id: string,
+    title: string,
+    subtitle: string,
+    category-label: string,
+    category-icon: string,
+    shortcut: string,
+}
+
+component CategoryChip inherits Rectangle {
+    in property <string> text;
+    in property <string> icon;
+    in property <bool> is-active: false;
+    callback clicked();
+
+    height: 28px;
+    border-radius: 14px;
+    background: is-active ? (Brand.dark ? #2A303C : #E2E8F0) : (touch.has-hover ? Brand.surface-muted : transparent);
+    border-width: 1px;
+    border-color: is-active ? (Brand.dark ? #4B5563 : #CBD5E1) : transparent;
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 6px;
+        alignment: center;
+        cross-axis-alignment: center;
+
+        Text {
+            text: root.icon;
+            font-size: 11px;
+        }
+
+        Text {
+            text: root.text;
+            color: root.is-active ? Brand.ink : Brand.muted;
+            font-size: 12px;
+            font-weight: root.is-active ? 600 : 500;
+        }
+    }
+}
+
+export component CommandPalette inherits Rectangle {
+    in-out property <bool> is-open: false;
+    in-out property <string> search-query: "";
+    in-out property <int> selected-category: 0;
+    in-out property <int> selected-index: 0;
+    in property <[PaletteItemData]> results: [];
+
+    callback query-changed(string);
+    callback category-selected(int);
+    callback item-activated(string);
+    callback close();
+
+    visible: root.is-open;
+    width: 100%;
+    height: 100%;
+
+    // Fundo escurecido semi-transparente
+    backdrop := Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #00000088;
+
+        TouchArea {
+            clicked => {
+                root.close();
+            }
+        }
+    }
+
+    // Caixa de diálogo da paleta
+    dialog := Rectangle {
+        width: min(620px, parent.width - 40px);
+        height: min(440px, parent.height - 60px);
+        x: (parent.width - self.width) / 2;
+        y: max(40px, (parent.height - self.height) / 4);
+        background: Brand.surface;
+        border-radius: 16px;
+        border-width: 1px;
+        border-color: Brand.outline;
+        clip: true;
+
+        VerticalLayout {
+            // Barra de busca superior
+            search-header := Rectangle {
+                height: 56px;
+
+                HorizontalLayout {
+                    padding-left: 18px;
+                    padding-right: 18px;
+                    spacing: 12px;
+                    alignment: center;
+                    cross-axis-alignment: center;
+
+                    Text {
+                        text: "🔍";
+                        font-size: 16px;
+                    }
+
+                    search-input := TextInput {
+                        text <=> root.search-query;
+                        font-size: 16px;
+                        color: Brand.ink;
+                        horizontal-stretch: 1;
+                        vertical-alignment: center;
+
+                        edited => {
+                            root.query-changed(self.text);
+                        }
+
+                        accepted => {
+                            if root.results.length > 0 && root.selected-index >= 0 && root.selected-index < root.results.length {
+                                root.item-activated(root.results[root.selected-index].id);
+                            }
+                        }
+                    }
+
+                    if root.search-query != "" : Rectangle {
+                        width: 24px;
+                        height: 24px;
+                        border-radius: 12px;
+                        background: clear-touch.has-hover ? Brand.surface-muted : transparent;
+
+                        Text {
+                            text: "✕";
+                            font-size: 12px;
+                            color: Brand.muted;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        clear-touch := TouchArea {
+                            clicked => {
+                                root.search-query = "";
+                                root.query-changed("");
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 44px;
+                        height: 22px;
+                        border-radius: 6px;
+                        background: Brand.surface-muted;
+                        border-width: 1px;
+                        border-color: Brand.outline;
+
+                        Text {
+                            text: "ESC";
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: Brand.muted;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            width: 100%;
+                            height: 100%;
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Brand.outline;
+            }
+
+            // Barra de categorias (Filtros)
+            category-bar := Rectangle {
+                height: 40px;
+                background: Brand.surface-muted;
+
+                HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    spacing: 8px;
+                    alignment: start;
+                    cross-axis-alignment: center;
+
+                    CategoryChip {
+                        text: "Todos";
+                        icon: "✦";
+                        is-active: root.selected-category == 0;
+                        clicked => {
+                            root.selected-category = 0;
+                            root.category-selected(0);
+                        }
+                    }
+
+                    CategoryChip {
+                        text: "Músicas";
+                        icon: "🎵";
+                        is-active: root.selected-category == 1;
+                        clicked => {
+                            root.selected-category = 1;
+                            root.category-selected(1);
+                        }
+                    }
+
+                    CategoryChip {
+                        text: "Bíblia";
+                        icon: "📖";
+                        is-active: root.selected-category == 2;
+                        clicked => {
+                            root.selected-category = 2;
+                            root.category-selected(2);
+                        }
+                    }
+
+                    CategoryChip {
+                        text: "Comandos";
+                        icon: "⚙️";
+                        is-active: root.selected-category == 3;
+                        clicked => {
+                            root.selected-category = 3;
+                            root.category-selected(3);
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Brand.outline;
+            }
+
+            // Lista de resultados
+            results-container := Rectangle {
+                vertical-stretch: 1;
+
+                if root.results.length == 0 : VerticalLayout {
+                    alignment: center;
+                    cross-axis-alignment: center;
+                    spacing: 8px;
+                    padding: 32px;
+
+                    Text {
+                        text: "Nenhum resultado encontrado";
+                        font-size: 15px;
+                        font-weight: 600;
+                        color: Brand.ink;
+                    }
+
+                    Text {
+                        text: root.search-query != ""
+                            ? "Não encontramos itens para \"" + root.search-query + "\""
+                            : "Digite o título de uma música, letra, versículo ou comando";
+                        font-size: 13px;
+                        color: Brand.muted;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                if root.results.length > 0 : ListView {
+                    for item[index] in root.results : Rectangle {
+                        height: 52px;
+                        background: (index == root.selected-index)
+                            ? (Brand.dark ? #222734 : #E2E8F0)
+                            : (item-touch.has-hover ? Brand.surface-muted : transparent);
+
+                        item-touch := TouchArea {
+                            clicked => {
+                                root.selected-index = index;
+                                root.item-activated(item.id);
+                            }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 18px;
+                            padding-right: 18px;
+                            spacing: 14px;
+                            alignment: center;
+                            cross-axis-alignment: center;
+
+                            Text {
+                                text: item.category-icon;
+                                font-size: 16px;
+                                width: 24px;
+                                horizontal-alignment: center;
+                            }
+
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                spacing: 2px;
+                                alignment: center;
+
+                                Text {
+                                    text: item.title;
+                                    font-size: 14px;
+                                    font-weight: 600;
+                                    color: Brand.ink;
+                                    overflow: elide;
+                                }
+
+                                Text {
+                                    text: item.subtitle;
+                                    font-size: 12px;
+                                    color: Brand.muted;
+                                    overflow: elide;
+                                }
+                            }
+
+                            if item.shortcut != "" : Rectangle {
+                                height: 22px;
+                                border-radius: 6px;
+                                background: Brand.surface-muted;
+                                border-width: 1px;
+                                border-color: Brand.outline;
+
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    Text {
+                                        text: item.shortcut;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        color: Brand.muted;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Brand.outline;
+            }
+
+            // Rodapé com dicas de navegação
+            palette-footer := Rectangle {
+                height: 34px;
+                background: Brand.surface-muted;
+
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    spacing: 16px;
+                    alignment: start;
+                    cross-axis-alignment: center;
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        Text { text: "↑↓"; font-size: 11px; font-weight: 700; color: Brand.muted; }
+                        Text { text: "Navegar"; font-size: 11px; color: Brand.subtle; }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        Text { text: "↵"; font-size: 11px; font-weight: 700; color: Brand.muted; }
+                        Text { text: "Selecionar"; font-size: 11px; color: Brand.subtle; }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        Text { text: "ESC"; font-size: 11px; font-weight: 700; color: Brand.muted; }
+                        Text { text: "Fechar"; font-size: 11px; color: Brand.subtle; }
+                    }
+                }
+            }
+        }
+    }
+}
