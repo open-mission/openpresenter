@@ -81,6 +81,7 @@ pub struct OutputsController {
     stage: Option<OutputSlot<StageWindow>>,
     failed: [bool; 2],
     started: bool,
+    public_timer: Option<Rc<slint::Timer>>,
     stage_timer: Option<Rc<slint::Timer>>,
 }
 
@@ -112,6 +113,7 @@ impl OutputsController {
             stage: None,
             failed: [false; 2],
             started: false,
+            public_timer: None,
             stage_timer: None,
         }
     }
@@ -244,6 +246,7 @@ impl OutputsController {
 
     /// Fecha todas as janelas e descarta seus handles.
     pub fn close_all(&mut self) {
+        self.public_timer = None;
         self.stage_timer = None;
         self.failed = [false; 2];
 
@@ -338,6 +341,12 @@ impl OutputsController {
         self.stage_timer.is_some()
     }
 
+    /// Indica se o sincronizador do Public está ativo. Usado apenas nos testes.
+    #[cfg(test)]
+    pub fn has_public_timer(&self) -> bool {
+        self.public_timer.is_some()
+    }
+
     /// Configuração em memória das duas saídas.
     pub fn config(&self) -> &OutputsConfig {
         &self.config
@@ -408,6 +417,7 @@ impl OutputsController {
         apply_mode(&window, resolution.mode);
 
         self.failed[output_index(OutputKind::Public)] = false;
+        self.start_public_timer(&window);
         self.public = Some(OutputSlot { window, visible });
     }
 
@@ -498,6 +508,7 @@ impl OutputsController {
 
         match kind {
             OutputKind::Public => {
+                self.public_timer = None;
                 if let Some(slot) = self.public.take() {
                     slot.hide();
                 }
@@ -509,6 +520,25 @@ impl OutputsController {
                 }
             }
         }
+    }
+
+    fn start_public_timer(&mut self, window: &PublicWindow) {
+        let weak = window.as_weak();
+        let timer = Rc::new(slint::Timer::default());
+        let timer_handle = Rc::downgrade(&timer);
+
+        timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
+            let Some(window) = weak.upgrade() else {
+                if let Some(timer) = timer_handle.upgrade() {
+                    timer.stop();
+                }
+                return;
+            };
+
+            sync_viewport_to_window(&window);
+        });
+
+        self.public_timer = Some(timer);
     }
 
     fn start_stage_timer(&mut self, window: &StageWindow) {
@@ -524,6 +554,8 @@ impl OutputsController {
                 }
                 return;
             };
+
+            sync_viewport_to_window(&window);
 
             let now = Local::now();
             window.set_clock_time(now.format("%H:%M:%S").to_string().into());
@@ -565,11 +597,52 @@ const fn output_index(kind: OutputKind) -> usize {
     }
 }
 
-fn apply_geometry<W: ComponentHandle>(kind: OutputKind, window: &W, resolution: &Resolution) {
+pub(crate) trait OutputWindow: ComponentHandle {
+    fn set_viewport(&self, width: f32, height: f32);
+    fn get_viewport(&self) -> (f32, f32);
+}
+
+impl OutputWindow for PublicWindow {
+    fn set_viewport(&self, width: f32, height: f32) {
+        self.set_viewport_width(width);
+        self.set_viewport_height(height);
+    }
+
+    fn get_viewport(&self) -> (f32, f32) {
+        (self.get_viewport_width(), self.get_viewport_height())
+    }
+}
+
+impl OutputWindow for StageWindow {
+    fn set_viewport(&self, width: f32, height: f32) {
+        self.set_viewport_width(width);
+        self.set_viewport_height(height);
+    }
+
+    fn get_viewport(&self) -> (f32, f32) {
+        (self.get_viewport_width(), self.get_viewport_height())
+    }
+}
+
+fn sync_viewport_to_window<W: OutputWindow>(window: &W) {
+    let size = window.window().size();
+    let scale = window.window().scale_factor();
+    if scale > 0.0 && size.width > 0 && size.height > 0 {
+        let logical_w = size.width as f32 / scale;
+        let logical_h = size.height as f32 / scale;
+        let (current_w, current_h) = window.get_viewport();
+        if (current_w - logical_w).abs() > 1.0 || (current_h - logical_h).abs() > 1.0 {
+            window.set_viewport(logical_w, logical_h);
+        }
+    }
+}
+
+fn apply_geometry<W: OutputWindow>(kind: OutputKind, window: &W, resolution: &Resolution) {
     let target = window.window();
     let (logical_width, logical_height) = monitors::logical_size(kind);
 
     let Some(monitor) = resolution.monitor.as_ref() else {
+        window.set_viewport(logical_width, logical_height);
         target.set_size(WindowSize::Logical(LogicalSize::new(
             logical_width,
             logical_height,
@@ -579,6 +652,7 @@ fn apply_geometry<W: ComponentHandle>(kind: OutputKind, window: &W, resolution: 
 
     match resolution.mode {
         EffectiveMode::Windowed => {
+            window.set_viewport(logical_width, logical_height);
             let cascade = if monitor.is_primary {
                 monitors::cascade_offset(kind)
             } else {
@@ -592,6 +666,15 @@ fn apply_geometry<W: ComponentHandle>(kind: OutputKind, window: &W, resolution: 
             target.set_position(PhysicalPosition::new(placed.x, placed.y));
         }
         EffectiveMode::Maximized | EffectiveMode::Fullscreen => {
+            let scale = if monitor.scale_factor > 0.0 {
+                monitor.scale_factor
+            } else {
+                1.0
+            };
+            let screen_logical_w = monitor.width as f32 / scale;
+            let screen_logical_h = monitor.height as f32 / scale;
+            window.set_viewport(screen_logical_w, screen_logical_h);
+
             target.set_size(WindowSize::Physical(PhysicalSize::new(
                 monitor.width,
                 monitor.height,
@@ -618,18 +701,20 @@ fn apply_mode<W: ComponentHandle>(window: &W, mode: EffectiveMode) {
     }
 }
 
-fn reposition<W: ComponentHandle>(kind: OutputKind, window: &W, resolution: &Resolution) {
+fn reposition<W: OutputWindow>(kind: OutputKind, window: &W, resolution: &Resolution) {
     let target = window.window();
     let is_fullscreen = target.is_fullscreen();
     let is_maximized = target.is_maximized();
     let should_fullscreen = resolution.mode == EffectiveMode::Fullscreen;
     let should_maximized = resolution.mode == EffectiveMode::Maximized;
 
-    // Se a janela já está no estado desejado (tela cheia ou maximizada), não dispare transições redundantes
+    // Se a janela já está no estado desejado (tela cheia ou maximizada), apenas atualiza a geometria sem disparar transições redundantes
     if is_fullscreen && should_fullscreen {
+        apply_geometry(kind, window, resolution);
         return;
     }
     if is_maximized && should_maximized {
+        apply_geometry(kind, window, resolution);
         return;
     }
 
@@ -720,6 +805,7 @@ mod tests {
         controller.start();
 
         assert!(controller.is_visible(OutputKind::Public));
+        assert!(controller.has_public_timer());
         assert!(!controller.is_visible(OutputKind::Stage));
         assert!(!controller.has_stage_timer());
         assert_eq!(controller.status(OutputKind::Public).text_pt_br(), "Aberta");
@@ -753,6 +839,7 @@ mod tests {
 
         controller.set_enabled(OutputKind::Public, false);
         assert!(!controller.is_visible(OutputKind::Public));
+        assert!(!controller.has_public_timer());
         assert!(!controller.config().public.enabled);
         assert_eq!(
             controller.status(OutputKind::Public).text_pt_br(),
@@ -762,6 +849,39 @@ mod tests {
         controller.set_enabled(OutputKind::Stage, false);
         assert!(!controller.has_stage_timer());
         controller.close_all();
+        assert!(!controller.has_public_timer());
+        assert!(!controller.has_stage_timer());
+
+        // Verifica que apply_geometry define o viewport para tela cheia e modo janela
+        let stage_window = StageWindow::new().unwrap();
+        let monitor = MonitorInfo {
+            key: "2".into(),
+            name: "Retina 4K".into(),
+            label: "Retina 4K — 3840×2160".into(),
+            x: 0,
+            y: 0,
+            width: 3840,
+            height: 2160,
+            scale_factor: 2.0,
+            is_primary: false,
+            is_builtin: false,
+        };
+
+        let res_windowed = Resolution {
+            monitor: Some(monitor.clone()),
+            mode: EffectiveMode::Windowed,
+            warning: None,
+        };
+        apply_geometry(OutputKind::Stage, &stage_window, &res_windowed);
+        assert_eq!(stage_window.get_viewport(), (720.0, 480.0));
+
+        let res_fullscreen = Resolution {
+            monitor: Some(monitor),
+            mode: EffectiveMode::Fullscreen,
+            warning: None,
+        };
+        apply_geometry(OutputKind::Stage, &stage_window, &res_fullscreen);
+        assert_eq!(stage_window.get_viewport(), (1920.0, 1080.0));
 
         let mut degraded = OutputsController::new(None, Some("Banco indisponível".into()));
         degraded.start();

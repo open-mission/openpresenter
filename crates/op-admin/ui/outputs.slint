@@ -2,24 +2,27 @@ import { Brand } from "theme.slint";
 
 // Saída visível ao público. Placeholder de marca, responsivo e adaptável à resolução.
 export component PublicWindow inherits Window {
+    in-out property <length> viewport-width: 960px;
+    in-out property <length> viewport-height: 540px;
+
     title: "OpenPresenter — Público";
     icon: @image-url("../../../assets/branding/open-presenter-app-icon.svg");
-    width: 960px;
-    height: 540px;
+    width: root.viewport-width;
+    height: root.viewport-height;
     background: Brand.output-bg;
 
-    // Escala dinâmica proporcional às dimensões da janela
-    property <float> scale-factor: max(0.8, min(root.width / 960px, root.height / 540px));
+    // Escala dinâmica calculada a partir do viewport
+    property <float> scale-factor: max(0.8, min(root.viewport-width / 960px, root.viewport-height / 540px));
 
     VerticalLayout {
         alignment: center;
         cross-axis-alignment: center;
+        padding: 40px;
         spacing: 28px * root.scale-factor;
-        padding: 32px * root.scale-factor;
 
         Image {
             source: @image-url("../../../assets/branding/open-presenter-wordmark-dark.svg");
-            width: min(root.width * 0.65, 320px * root.scale-factor);
+            width: min(root.viewport-width * 0.65, 360px * root.scale-factor);
             height: self.width * 0.3267;
             image-fit: contain;
         }
@@ -27,7 +30,7 @@ export component PublicWindow inherits Window {
         Text {
             text: "SAÍDA PÚBLICA";
             color: Brand.output-muted;
-            font-size: max(11px, 13px * root.scale-factor);
+            font-size: max(12px, 14px * root.scale-factor);
             font-weight: 700;
             letter-spacing: 3px * root.scale-factor;
             horizontal-alignment: center;
@@ -36,7 +39,7 @@ export component PublicWindow inherits Window {
         Text {
             text: "Aguardando conteúdo da apresentação";
             color: Brand.output-ink;
-            font-size: max(16px, 20px * root.scale-factor);
+            font-size: max(18px, 22px * root.scale-factor);
             horizontal-alignment: center;
         }
     }
@@ -46,19 +49,23 @@ export component PublicWindow inherits Window {
 export component StageWindow inherits Window {
     in property <string> clock-time: "00:00:00";
     in property <string> date-label: "";
+    in-out property <length> viewport-width: 720px;
+    in-out property <length> viewport-height: 480px;
 
     title: "OpenPresenter — Palco";
     icon: @image-url("../../../assets/branding/open-presenter-app-icon.svg");
-    width: 720px;
-    height: 480px;
+    width: root.viewport-width;
+    height: root.viewport-height;
     background: Brand.output-bg;
 
-    // Escala dinâmica para preencher e distribuir o retorno de palco em tela cheia
-    property <float> scale-factor: max(0.8, min(root.width / 720px, root.height / 480px));
+    // Escala dinâmica calculada a partir do viewport
+    property <float> scale-factor: max(0.8, min(root.viewport-width / 720px, root.viewport-height / 480px));
 
     VerticalLayout {
-        padding: 32px * root.scale-factor;
-        spacing: 16px * root.scale-factor;
+        padding: 36px;
+        padding-left: 48px;
+        padding-right: 48px;
+        spacing: 20px;
         alignment: space-between;
 
         // Cabeçalho: Identificação e Data
@@ -71,7 +78,7 @@ export component StageWindow inherits Window {
                 color: Brand.output-accent;
                 font-size: max(12px, 14px * root.scale-factor);
                 font-weight: 700;
-                letter-spacing: 3px * root.scale-factor;
+                letter-spacing: 3px;
             }
 
             Text {
@@ -82,15 +89,15 @@ export component StageWindow inherits Window {
             }
         }
 
-        // Centro: Relógio em destaque visível a longa distância
+        // Centro: Relógio em destaque visível a longa distância, ocupando o espaço central
         VerticalLayout {
             alignment: center;
-            cross-axis-alignment: center;
+            vertical-stretch: 1;
 
             Text {
                 text: clock-time;
                 color: Brand.output-ink;
-                font-size: min(root.height * 0.35, 110px * root.scale-factor);
+                font-size: min(max(80px, root.viewport-width * 0.18), 260px);
                 font-weight: 700;
                 horizontal-alignment: center;
             }
@@ -98,15 +105,15 @@ export component StageWindow inherits Window {
 
         // Base: Divisor e Informação do Evento / Apresentação
         VerticalLayout {
-            spacing: 12px * root.scale-factor;
+            spacing: 12px;
 
             Rectangle {
-                height: max(1px, 2px * root.scale-factor);
+                height: 2px;
                 background: Brand.output-surface;
             }
 
             VerticalLayout {
-                spacing: 6px * root.scale-factor;
+                spacing: 6px;
 
                 Text {
                     text: "Nenhum evento carregado";
