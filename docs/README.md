@@ -8,12 +8,18 @@
 - [Spec — Fundação técnica v0.1.0](specs/2026-10-28-fundacao-tecnica.md)
 - [Plano — Fundação técnica v0.1.0](plans/2026-10-28-fundacao-tecnica.md)
 
+## Saídas multi-tela (v0.2.0)
+
+- [Spec — Saídas Public e Stage](specs/2026-10-28-multi-telas.md)
+- [Plano — Saídas Public e Stage](plans/2026-10-28-multi-telas.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
 - [Índice de decisões (ADRs)](decisions/README.md)
 - [ADR 0001 — Workspace, rusqlite e Slint Material](decisions/0001-workspace-rusqlite-slint.md)
 - [ADR 0002 — Licença GPL-3.0-only e política de marca](decisions/0002-licenca-gpl-3.0.md)
+- [ADR 0003 — Saídas Public e Stage em janelas independentes](decisions/0003-saidas-multitela.md)
 
 ## Marca e dependências
 

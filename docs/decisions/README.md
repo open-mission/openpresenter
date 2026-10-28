@@ -2,6 +2,12 @@
 
 Cada decisão arquitetural duradoura é registrada em um arquivo `NNNN-slug.md`, numerado em sequência.
 
+## Índice
+
+- [ADR 0001 — Workspace, rusqlite e Slint Material vendorizado](0001-workspace-rusqlite-slint.md)
+- [ADR 0002 — Licença GPL-3.0-only e política de marca](0002-licenca-gpl-3.0.md)
+- [ADR 0003 — Saídas Public e Stage em janelas independentes](0003-saidas-multitela.md)
+
 ## Formato
 
 - **Contexto** — a situação e as forças em jogo.
