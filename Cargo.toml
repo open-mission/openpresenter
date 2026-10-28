@@ -1,0 +1,22 @@
+[workspace]
+members = ["crates/op-core", "crates/op-db", "crates/op-admin"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "GPL-3.0-only"
+
+[workspace.dependencies]
+anyhow = "1.0"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+directories = "6.0"
+op-core = { path = "crates/op-core" }
+op-db = { path = "crates/op-db" }
+rusqlite = { version = "0.40", features = ["bundled"] }
+rusqlite_migration = "2.6"
+slint = "1.18.1"
+slint-build = "1.18.1"
+tempfile = "3.0"
+thiserror = "2.0"

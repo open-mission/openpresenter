@@ -1,6 +1,6 @@
 # Fundação técnica do OpenPresenter Minimal — v0.1.0
 
-- **Status:** proposto, aguardando aprovação
+- **Status:** aprovado
 - **Data:** 2026-10-28
 - **Versão do app:** 0.1.0
 - **Versão do schema:** 1

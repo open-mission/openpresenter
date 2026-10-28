@@ -6,7 +6,7 @@
 
 **Architecture:** Workspace com três crates: `op-core` (domínio puro), `op-db` (SQLite + migrações) e `op-admin` (UI Slint). O admin resolve o diretório de dados, abre o banco, registra a sessão e monta a tela inicial. Falhas de banco não impedem a janela de abrir; a UI mostra um estado degradado.
 
-**Tech Stack:** Rust 2024 (MSRV 1.95), Slint 1.18.1, Material Components 1.1.0 vendorizado, rusqlite 0.41 (`bundled`), rusqlite_migration 2.6, chrono, directories 6, GPL-3.0-only.
+**Tech Stack:** Rust 2024 (MSRV 1.95), Slint 1.18.1, Material Components 1.1.0 vendorizado, rusqlite 0.40 (`bundled`), rusqlite_migration 2.6, chrono, directories 6, GPL-3.0-only.
 
 **Spec:** `docs/specs/2026-10-28-fundacao-tecnica.md`
 
@@ -69,7 +69,7 @@
 `Cargo.toml` must declare:
 - `[workspace] members = ["crates/op-core", "crates/op-db", "crates/op-admin"]`, `resolver = "3"`.
 - `[workspace.package] version = "0.1.0"`, `edition = "2024"`, `rust-version = "1.95"`, `license = "GPL-3.0-only"`.
-- `[workspace.dependencies]` with `anyhow = "1.0"`, `chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }`, `directories = "6.0"`, `op-core = { path = "crates/op-core" }`, `op-db = { path = "crates/op-db" }`, `rusqlite = { version = "0.41", features = ["bundled"] }`, `rusqlite_migration = "2.6"`, `slint = "1.18.1"`, `slint-build = "1.18.1"`, `tempfile = "3.0"`, `thiserror = "2.0"`.
+- `[workspace.dependencies]` with `anyhow = "1.0"`, `chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }`, `directories = "6.0"`, `op-core = { path = "crates/op-core" }`, `op-db = { path = "crates/op-db" }`, `rusqlite = { version = "0.40", features = ["bundled"] }`, `rusqlite_migration = "2.6"`, `slint = "1.18.1"`, `slint-build = "1.18.1"`, `tempfile = "3.0"`, `thiserror = "2.0"`.
 
 Each crate manifest inherits `version`, `edition`, `rust-version`, `license`, sets `publish = false`, and uses workspace dependencies:
 - `op-core`: `chrono`.
