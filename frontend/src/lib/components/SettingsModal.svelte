@@ -16,11 +16,18 @@
   import {
     themeStore,
     sectionsStore,
+    neutralFamilyStore,
+    wallpaperFitStore,
     setTheme,
+    setNeutralFamily,
+    setWallpaperFit,
     saveSections,
     resetSectionsToDefault,
     COLOR_PRESETS,
+    NEUTRAL_PRESETS,
     type ThemeMode,
+    type NeutralFamily,
+    type WallpaperFitMode,
     type CustomSectionConfig,
   } from '../settings';
   import Badge from './ui/Badge.svelte';
@@ -241,6 +248,41 @@
                   </div>
                 </button>
               </div>
+
+              <!-- Cores Principais do Shadcn-UI (Paletas Neutras) -->
+              <div class="pt-4 border-t border-zinc-800/80 space-y-3">
+                <div>
+                  <h3 class="text-sm font-semibold text-white">Paleta Neutra (Design System)</h3>
+                  <p class="text-xs text-zinc-400 mt-0.5">
+                    Defina a família de tons neutros usada nos painéis, bordas e botões do sistema.
+                  </p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {#each NEUTRAL_PRESETS as preset}
+                    <button
+                      type="button"
+                      onclick={() => setNeutralFamily(preset.id)}
+                      class="p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer {$neutralFamilyStore === preset.id ? 'border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40' : 'border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900'}"
+                    >
+                      <div class="flex items-center gap-2.5 min-w-0">
+                        <div
+                          class="w-5 h-5 rounded-md border border-white/20 shrink-0 shadow-inner"
+                          style="background-color: {preset.previewColor};"
+                        ></div>
+                        <div class="min-w-0">
+                          <div class="text-xs font-semibold text-white truncate">{preset.label}</div>
+                          <div class="text-[10px] text-zinc-400 truncate">{preset.description}</div>
+                        </div>
+                      </div>
+
+                      {#if $neutralFamilyStore === preset.id}
+                        <Check size={14} class="text-emerald-400 shrink-0 ml-2" />
+                      {/if}
+                    </button>
+                  {/each}
+                </div>
+              </div>
             </div>
 
           <!-- ABA 2: PARTES DA MÚSICA E CORES -->
@@ -382,6 +424,45 @@
                     <ExternalLink size={12} />
                   </Button>
                 </div>
+              </div>
+
+              <!-- Ajuste de Papel de Parede Padrão -->
+              <div class="pt-4 border-t border-zinc-800 space-y-3">
+                <div>
+                  <h3 class="text-sm font-semibold text-white">Ajuste de Papel de Parede</h3>
+                  <p class="text-xs text-zinc-400 mt-0.5">
+                    Modo padrão de renderização do papel de parede quando nenhuma música estiver sendo projetada.
+                  </p>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {#each [
+                    { id: 'cover', label: 'Preencher', desc: 'Preenche toda a tela 16:9' },
+                    { id: 'contain', label: 'Ajustar', desc: 'Preserva proporção sem cortes' },
+                    { id: 'center', label: 'Centralizar', desc: 'Exibe no centro sem zoom' },
+                    { id: 'repeat', label: 'Repetir', desc: 'Lado a lado em mosaico' },
+                  ] as mode}
+                    <button
+                      type="button"
+                      onclick={() => setWallpaperFit(mode.id as any)}
+                      class="p-2.5 rounded-lg border text-left transition-all cursor-pointer {$wallpaperFitStore === mode.id ? 'border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 text-emerald-400 font-semibold' : 'border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900 text-zinc-300'}"
+                    >
+                      <div class="text-xs">{mode.label}</div>
+                      <div class="text-[10px] text-zinc-400 font-normal mt-0.5">{mode.desc}</div>
+                    </button>
+                  {/each}
+                </div>
+              </div>
+
+              <!-- Pasta de Mídias no Sistema -->
+              <div class="p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/30 space-y-1.5">
+                <div class="flex items-center gap-2 text-xs font-semibold text-white">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  Pasta de Mídias no Sistema
+                </div>
+                <p class="text-[11px] text-zinc-400 leading-relaxed">
+                  Os papéis de parede e arquivos de mídia ficam salvos no diretório de dados do sistema operacional. Você pode facilmente arrastar novas imagens para a subpasta <code>media/wallpapers</code> ou migrar todos os dados entre computadores.
+                </p>
               </div>
             </div>
 

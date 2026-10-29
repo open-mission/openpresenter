@@ -4,20 +4,28 @@
   import {
     presentationState,
     mediaItemsList,
+    activeSetlist,
     isWsConnected,
     initWebSocket,
     selectSlide,
     setDisplayMode,
     toggleBlackout,
     toggleClearText,
+    removeSetlistItem,
+    renameSetlistItem,
+    reorderSetlistItems,
+    switchActiveSetlist,
   } from '$lib/ws';
-  import type { MediaItem, MediaKind, Slide, Song } from '$lib/types';
+  import type { MediaItem, MediaKind, Setlist, SetlistSummary, Slide, Song } from '$lib/types';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import MediaItemRow from '$lib/components/ui/MediaItemRow.svelte';
   import CommandPalette from '$lib/components/CommandPalette.svelte';
   import SongEditorModal from '$lib/components/SongEditorModal.svelte';
   import SettingsModal from '$lib/components/SettingsModal.svelte';
+  import SetlistModal from '$lib/components/SetlistModal.svelte';
+  import QuickItemModal from '$lib/components/QuickItemModal.svelte';
+  import ContextMenu, { type MenuItem } from '$lib/components/ContextMenu.svelte';
   import {
     themeStore,
     sectionsStore,
@@ -33,6 +41,7 @@
     ExternalLink,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
     Wifi,
     WifiOff,
     Radio,
@@ -42,6 +51,15 @@
     Play,
     Square,
     Settings,
+    Music,
+    Bookmark,
+    FileText,
+    BookOpen,
+    ArrowUpToLine,
+    Pencil,
+    Edit3,
+    Trash2,
+    Check,
   } from 'lucide-svelte';
 
   let selectedMediaId = $state<string>('song-1');
@@ -51,15 +69,35 @@
   let isCommandPaletteOpen = $state(false);
   let isSongEditorOpen = $state(false);
   let isSettingsOpen = $state(false);
+  let isSetlistModalOpen = $state(false);
+  let isQuickItemModalOpen = $state(false);
+  let quickItemMode = $state<'header' | 'announcement'>('header');
+  let isRenameModalOpen = $state(false);
+  let isSetlistSelectorOpen = $state(false);
+  let isAddMenuOpen = $state(false);
+
   let editingSong = $state<Song | null>(null);
+  let editingSetlist = $state<Setlist | null>(null);
+  let editingQuickItem = $state<MediaItem | null>(null);
+  let renamingItemId = $state<string>('');
+  let renamingItemTitle = $state<string>('');
+
+  let setlistsList = $state<SetlistSummary[]>([]);
   let focusedSlideIndex = $state<number>(0);
   let numberBuffer = $state<string>('');
   let numberBufferTimer: ReturnType<typeof setTimeout> | null = null;
   let prevMediaId = $state<string>('');
 
+  // Menu de Contexto
+  let contextMenuOpen = $state(false);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
+  let contextMenuItems = $state<MenuItem[]>([]);
+
   onMount(() => {
     initWebSocket('admin');
     applyTheme($themeStore);
+    loadSetlists();
 
     // Inicializa seleção padrão com a primeira mídia
     if ($mediaItemsList.length > 0 && !selectedMediaId) {
@@ -72,6 +110,24 @@
     }, 1000);
 
     return () => clearInterval(interval);
+  });
+
+  async function loadSetlists() {
+    try {
+      const res = await fetch('/api/setlists');
+      if (res.ok) {
+        setlistsList = await res.json();
+      }
+    } catch (err) {
+      console.error('Erro ao carregar setlists:', err);
+    }
+  }
+
+  // Título da Setlist atual
+  const currentSetlistTitle = $derived.by(() => {
+    if ($activeSetlist) return $activeSetlist.title;
+    const found = setlistsList.find((s) => s.id === $presentationState.active_setlist_id || s.is_active);
+    return found?.title || 'Culto Principal';
   });
 
   // Filtro de mídias por busca e tipo
@@ -184,7 +240,7 @@
     }
   }
 
-  // Atalho rápido para seções da música (r = refrao, v = verso, p = ponte, i = intro, f = final, etc.)
+  // Atalho rápido para seções da música
   function jumpToSection(key: string): boolean {
     if (!selectedMedia || selectedMedia.slides.length === 0) return false;
     const k = key.toLowerCase();
@@ -215,7 +271,6 @@
 
     if (matchingIndices.length === 0) return false;
 
-    // Se já estiver em um deles, pula para o próximo, ou cicla de volta para o primeiro
     const nextIdx = matchingIndices.find((idx) => idx > focusedSlideIndex) ?? matchingIndices[0];
     focusedSlideIndex = nextIdx;
     if (isSelectedMediaLive) {
@@ -224,7 +279,7 @@
     return true;
   }
 
-  // Buffer numérico para saltar para slide ordinal (ex: digitar 2 + Enter vai para slide 2)
+  // Buffer numérico para saltar para slide ordinal
   function appendNumberKey(digit: string) {
     if (numberBufferTimer) clearTimeout(numberBufferTimer);
     numberBuffer += digit;
@@ -262,11 +317,23 @@
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
     // Se algum modal estiver aberto
-    if (isCommandPaletteOpen || isSongEditorOpen || isSettingsOpen) {
+    if (
+      isCommandPaletteOpen ||
+      isSongEditorOpen ||
+      isSettingsOpen ||
+      isSetlistModalOpen ||
+      isQuickItemModalOpen ||
+      isRenameModalOpen
+    ) {
       if (e.key === 'Escape') {
         isCommandPaletteOpen = false;
         isSongEditorOpen = false;
         isSettingsOpen = false;
+        isSetlistModalOpen = false;
+        isQuickItemModalOpen = false;
+        isRenameModalOpen = false;
+        isSetlistSelectorOpen = false;
+        isAddMenuOpen = false;
       }
       return;
     }
@@ -274,6 +341,11 @@
     // Tecla Escape: Para a apresentação
     if (e.key === 'Escape') {
       e.preventDefault();
+      if (isSetlistSelectorOpen || isAddMenuOpen) {
+        isSetlistSelectorOpen = false;
+        isAddMenuOpen = false;
+        return;
+      }
       if (numberBuffer) {
         numberBuffer = '';
         if (numberBufferTimer) clearTimeout(numberBufferTimer);
@@ -283,7 +355,7 @@
       return;
     }
 
-    // Tecla Enter: Submete buffer numérico ou apresenta o slide focado
+    // Tecla Enter
     if (e.key === 'Enter') {
       e.preventDefault();
       if (numberBuffer) {
@@ -301,7 +373,7 @@
       return;
     }
 
-    // Teclas de letras para salto de seção (sem modificadores)
+    // Letras para salto de seção
     if (!e.metaKey && !e.ctrlKey && !e.altKey && /^[a-zA-Z]$/.test(e.key)) {
       if (jumpToSection(e.key)) {
         e.preventDefault();
@@ -309,7 +381,7 @@
       }
     }
 
-    // F1: Blackout, F2: Clear text
+    // F1 / F2
     if (e.key === 'F1') {
       e.preventDefault();
       toggleBlackout();
@@ -322,6 +394,214 @@
     } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
       e.preventDefault();
       prevSlide();
+    }
+  }
+
+  // Ações de Setlist
+  async function handleSwitchSetlist(setlistId: string) {
+    isSetlistSelectorOpen = false;
+    await switchActiveSetlist(setlistId);
+    await loadSetlists();
+  }
+
+  function handleOpenCreateSetlist() {
+    isSetlistSelectorOpen = false;
+    editingSetlist = null;
+    isSetlistModalOpen = true;
+  }
+
+  async function handleOpenEditSetlist() {
+    isSetlistSelectorOpen = false;
+    const currentId = $presentationState.active_setlist_id;
+    if (!currentId) return;
+    try {
+      const res = await fetch(`/api/setlists/${currentId}`);
+      if (res.ok) {
+        editingSetlist = await res.json();
+        isSetlistModalOpen = true;
+      }
+    } catch (err) {
+      console.error('Erro ao buscar setlist para edição:', err);
+    }
+  }
+
+  async function handleDeleteSetlist() {
+    isSetlistSelectorOpen = false;
+    const currentId = $presentationState.active_setlist_id;
+    if (!currentId) return;
+    if (setlistsList.length <= 1) {
+      alert('Não é possível excluir a única setlist existente.');
+      return;
+    }
+    if (!confirm('Deseja realmente excluir esta setlist?')) return;
+
+    try {
+      await fetch(`/api/setlists/${currentId}`, { method: 'DELETE' });
+      await loadSetlists();
+      if (setlistsList.length > 0) {
+        await switchActiveSetlist(setlistsList[0].id);
+      }
+    } catch (err) {
+      console.error('Erro ao excluir setlist:', err);
+    }
+  }
+
+  // Menu de Contexto nos Itens da Setlist
+  function handleItemContextMenu(e: MouseEvent, item: MediaItem) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    contextMenuItems = [
+      {
+        id: 'pin_top',
+        label: 'Fixar no topo',
+        icon: ArrowUpToLine,
+        onclick: () => handlePinToTop(item),
+      },
+      {
+        id: 'edit',
+        label: item.kind === 'song' ? 'Editar Música' : 'Editar',
+        icon: Pencil,
+        onclick: () => handleEditItem(item),
+      },
+      {
+        id: 'rename',
+        label: 'Renomear',
+        icon: Edit3,
+        onclick: () => handleOpenRename(item),
+      },
+      {
+        id: 'div_1',
+        divider: true,
+      },
+      {
+        id: 'remove',
+        label: 'Remover da Setlist',
+        icon: Trash2,
+        destructive: true,
+        onclick: () => handleRemoveItem(item),
+      },
+    ];
+
+    contextMenuOpen = true;
+  }
+
+  // Menu de Contexto em Área Vazia da Setlist
+  function handleEmptyContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    contextMenuItems = [
+      {
+        id: 'add_song',
+        label: 'Adicionar Música',
+        icon: Music,
+        onclick: () => (isCommandPaletteOpen = true),
+      },
+      {
+        id: 'add_section',
+        label: 'Adicionar Seção',
+        icon: Bookmark,
+        onclick: () => {
+          quickItemMode = 'header';
+          editingQuickItem = null;
+          isQuickItemModalOpen = true;
+        },
+      },
+      {
+        id: 'add_text',
+        label: 'Adicionar Texto Livre / Aviso',
+        icon: FileText,
+        onclick: () => {
+          quickItemMode = 'announcement';
+          editingQuickItem = null;
+          isQuickItemModalOpen = true;
+        },
+      },
+      {
+        id: 'div_empty_1',
+        divider: true,
+      },
+      {
+        id: 'add_scripture',
+        label: 'Versículo Bíblico (Em breve)',
+        icon: BookOpen,
+        disabled: true,
+      },
+    ];
+
+    contextMenuOpen = true;
+  }
+
+  function handlePinToTop(item: MediaItem) {
+    const list = [...$mediaItemsList];
+    const idx = list.findIndex((m) => m.id === item.id);
+    if (idx > 0) {
+      const [removed] = list.splice(idx, 1);
+      list.unshift(removed);
+      reorderSetlistItems(list);
+    }
+  }
+
+  async function handleEditItem(item: MediaItem) {
+    if (item.kind === 'song') {
+      try {
+        const res = await fetch(`/api/songs/${item.id}`);
+        if (res.ok) {
+          editingSong = await res.json();
+          isSongEditorOpen = true;
+          return;
+        }
+      } catch {}
+      editingSong = {
+        id: item.id,
+        title: item.title,
+        artist: item.artist_or_ref || '',
+        sections: [],
+        lyrics_raw: item.slides.map((s) => s.content).join('\n\n'),
+      };
+      isSongEditorOpen = true;
+    } else if (item.kind === 'header' || item.kind === 'announcement') {
+      quickItemMode = item.kind;
+      editingQuickItem = item;
+      isQuickItemModalOpen = true;
+    }
+  }
+
+  function handleOpenRename(item: MediaItem) {
+    renamingItemId = item.id;
+    renamingItemTitle = item.title;
+    isRenameModalOpen = true;
+  }
+
+  async function handleSaveRename() {
+    if (renamingItemId && renamingItemTitle.trim()) {
+      await renameSetlistItem(renamingItemId, renamingItemTitle.trim());
+    }
+    isRenameModalOpen = false;
+  }
+
+  async function handleRemoveItem(item: MediaItem) {
+    await removeSetlistItem(item.id);
+    if (selectedMediaId === item.id) {
+      selectedMediaId = $mediaItemsList.find((m) => m.id !== item.id)?.id || '';
+    }
+  }
+
+  async function handleSaveQuickItem(item: MediaItem) {
+    try {
+      await fetch('/api/setlist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item }),
+      });
+      selectedMediaId = item.id;
+    } catch (err) {
+      console.error('Erro ao adicionar item:', err);
     }
   }
 
@@ -339,6 +619,10 @@
     selectedMediaId = song.id;
   }
 
+  function handleSetlistSaved(setlist: Setlist) {
+    loadSetlists();
+  }
+
   // Abertura de janelas de saída
   function openPublicWindow() {
     window.open('/public', 'OpenPresenterPublic', 'width=1280,height=720,menubar=no,toolbar=no,location=no');
@@ -351,38 +635,36 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="h-screen w-screen flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
+<div class="h-screen w-screen flex flex-col bg-neutral-950 text-neutral-100 overflow-hidden font-sans">
   <!-- Top Bar / Header Operacional -->
-  <header class="h-14 border-b border-zinc-800/80 bg-zinc-900/60 px-4 flex items-center justify-between shrink-0">
+  <header class="h-14 border-b border-neutral-800/80 bg-neutral-900/60 px-4 flex items-center justify-between shrink-0">
     <div class="flex items-center gap-3">
-      <div class="flex items-center gap-2.5">
+      <!-- Logo Oficial com Tamanho Nítido e Sem Duplicação -->
+      <a href="/" class="flex items-center gap-2.5 group cursor-pointer" title="OpenPresenter Minimal">
         <img
           src="/branding/open-presenter-app-icon.svg"
           alt="OpenPresenter"
-          class="w-7 h-7 rounded-md shadow-sm"
+          class="w-8 h-8 rounded-lg shadow-sm group-hover:scale-105 transition-transform shrink-0"
         />
-        <img
-          src="/branding/open-presenter-wordmark-dark.svg"
-          alt="OpenPresenter"
-          class="h-5 opacity-90 hidden sm:block"
-        />
-        <span class="font-bold text-base tracking-tight text-white sm:hidden">OpenPresenter</span>
-      </div>
-      <span class="text-zinc-600">|</span>
-      <span class="text-xs text-zinc-400 hidden xl:inline">Projeção para igrejas e eventos</span>
+        <div class="flex items-center text-lg leading-none font-sans select-none tracking-tight">
+          <span class="font-bold text-white">Open</span><span class="font-normal text-neutral-300 ml-0.5">Presenter</span>
+        </div>
+      </a>
+      <span class="text-neutral-700 hidden sm:inline">|</span>
+      <span class="text-xs text-neutral-400 hidden xl:inline">Projeção para igrejas e eventos</span>
     </div>
 
     <!-- Busca Global e Command Palette (⌘K) -->
     <button
       type="button"
       onclick={() => (isCommandPaletteOpen = true)}
-      class="flex items-center gap-2 h-8 px-3 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/60 text-xs text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer w-44 sm:w-64 md:w-80 justify-between mx-2"
+      class="flex items-center gap-2 h-8 px-3 rounded-lg bg-neutral-900/80 hover:bg-neutral-800 border border-neutral-800 text-xs text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer w-44 sm:w-64 md:w-80 justify-between mx-2"
     >
       <span class="flex items-center gap-2 truncate">
-        <Search size={14} class="text-zinc-400 shrink-0" />
+        <Search size={14} class="text-neutral-400 shrink-0" />
         <span class="truncate">Buscar música ou comando...</span>
       </span>
-      <kbd class="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-700/80 text-[10px] font-mono text-zinc-300 shrink-0">
+      <kbd class="px-1.5 py-0.5 rounded bg-neutral-950 border border-neutral-800 text-[10px] font-mono text-neutral-400 shrink-0">
         ⌘K
       </kbd>
     </button>
@@ -390,7 +672,7 @@
     <!-- Status e Ações Rápidas -->
     <div class="flex items-center gap-2 sm:gap-2.5">
       <!-- Status WebSocket -->
-      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-800/70 border border-zinc-700/50 text-xs">
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-900/70 border border-neutral-800 text-xs">
         {#if $isWsConnected}
           <Wifi size={13} class="text-emerald-400" />
           <span class="text-emerald-400 font-medium">Online</span>
@@ -408,7 +690,7 @@
         class="gap-1.5 text-xs"
         title="Configurações (Aparência, Atalhos, Cores)"
       >
-        <Settings size={14} class="text-zinc-400" />
+        <Settings size={14} class="text-neutral-400" />
         <span class="hidden md:inline">Configurações</span>
       </Button>
 
@@ -429,38 +711,181 @@
 
   <!-- Workspace Principal de 3 Colunas -->
   <div class="flex-1 flex overflow-hidden">
-    <!-- COLUNA 1: SIDEBAR DE MÍDIAS (Esquerda) -->
-    <aside class="w-72 lg:w-80 border-r border-zinc-800/80 bg-zinc-900/30 flex flex-col shrink-0">
-      <!-- Cabeçalho da Setlist -->
-      <div class="p-3 border-b border-zinc-800/60 space-y-2.5">
+    <!-- COLUNA 1: SIDEBAR DE MÍDIAS / SETLIST (Esquerda) -->
+    <aside class="w-72 lg:w-80 border-r border-neutral-800/80 bg-neutral-900/30 flex flex-col shrink-0">
+      <!-- Cabeçalho da Setlist com Seletor e Ações -->
+      <div class="p-3 border-b border-neutral-800/80 space-y-2.5">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Layers size={14} class="text-emerald-400" />
-            Setlist
-          </span>
-          <div class="flex items-center gap-1.5">
+          <!-- Dropdown Seletor de Setlist -->
+          <div class="relative min-w-0 flex-1 mr-2">
+            <button
+              type="button"
+              onclick={() => (isSetlistSelectorOpen = !isSetlistSelectorOpen)}
+              class="w-full flex items-center justify-between gap-1.5 px-2 py-1 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-left transition-colors cursor-pointer group"
+              title="Alternar ou gerenciar Setlists"
+            >
+              <div class="flex items-center gap-1.5 min-w-0">
+                <Layers size={14} class="text-emerald-400 shrink-0" />
+                <span class="text-xs font-bold text-neutral-100 truncate">
+                  {currentSetlistTitle}
+                </span>
+              </div>
+              <ChevronDown size={13} class="text-neutral-500 group-hover:text-neutral-300 shrink-0" />
+            </button>
+
+            <!-- Dropdown Menu de Setlists -->
+            {#if isSetlistSelectorOpen}
+              <div
+                class="absolute left-0 top-full mt-1 w-64 rounded-xl border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
+              >
+                <div class="px-2 py-1 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">
+                  Setlists Cadastradas
+                </div>
+
+                <div class="max-h-48 overflow-y-auto space-y-0.5 py-1">
+                  {#each setlistsList as s (s.id)}
+                    <button
+                      type="button"
+                      onclick={() => handleSwitchSetlist(s.id)}
+                      class={cn(
+                        'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer',
+                        s.is_active || s.id === $presentationState.active_setlist_id
+                          ? 'bg-neutral-800 text-emerald-400 font-semibold'
+                          : 'hover:bg-neutral-850 text-neutral-300 hover:text-white'
+                      )}
+                    >
+                      <div class="min-w-0">
+                        <div class="truncate text-xs">{s.title}</div>
+                        {#if s.description}
+                          <div class="text-[10px] text-neutral-500 truncate">{s.description}</div>
+                        {/if}
+                      </div>
+
+                      {#if s.is_active || s.id === $presentationState.active_setlist_id}
+                        <Check size={13} class="text-emerald-400 shrink-0 ml-1.5" />
+                      {/if}
+                    </button>
+                  {/each}
+                </div>
+
+                <div class="h-[1px] bg-neutral-800 my-1"></div>
+
+                <button
+                  type="button"
+                  onclick={handleOpenCreateSetlist}
+                  class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-neutral-200 hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                >
+                  <Plus size={13} class="text-emerald-400" />
+                  <span>+ Nova Setlist</span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={handleOpenEditSetlist}
+                  class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-neutral-200 hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                >
+                  <Settings size={13} class="text-neutral-400" />
+                  <span>Editar Setlist Atual...</span>
+                </button>
+
+                {#if setlistsList.length > 1}
+                  <button
+                    type="button"
+                    onclick={handleDeleteSetlist}
+                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors cursor-pointer"
+                  >
+                    <Trash2 size={13} />
+                    <span>Excluir Setlist</span>
+                  </button>
+                {/if}
+              </div>
+            {/if}
+          </div>
+
+          <!-- Botão + com Menu Suspenso de Adição -->
+          <div class="relative shrink-0 flex items-center gap-1.5">
             <Badge variant="secondary" class="text-[11px] py-0 px-1.5">
               {$mediaItemsList.length} itens
             </Badge>
+
             <button
               type="button"
-              title="Adicionar música à Setlist (⌘K)"
-              onclick={() => (isCommandPaletteOpen = true)}
-              class="w-6 h-6 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center transition-colors cursor-pointer"
+              title="Adicionar à Setlist"
+              onclick={() => (isAddMenuOpen = !isAddMenuOpen)}
+              class="w-7 h-7 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center transition-colors cursor-pointer"
             >
-              <Plus size={13} />
+              <Plus size={14} />
             </button>
+
+            <!-- Dropdown Menu do Botão + -->
+            {#if isAddMenuOpen}
+              <div
+                class="absolute right-0 top-full mt-1.5 w-48 rounded-xl border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
+              >
+                <button
+                  type="button"
+                  onclick={() => {
+                    isAddMenuOpen = false;
+                    isCommandPaletteOpen = true;
+                  }}
+                  class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                >
+                  <Music size={14} class="text-emerald-400" />
+                  <span>Música (⌘K)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => {
+                    isAddMenuOpen = false;
+                    quickItemMode = 'header';
+                    editingQuickItem = null;
+                    isQuickItemModalOpen = true;
+                  }}
+                  class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                >
+                  <Bookmark size={14} class="text-cyan-400" />
+                  <span>Seção / Divisor</span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => {
+                    isAddMenuOpen = false;
+                    quickItemMode = 'announcement';
+                    editingQuickItem = null;
+                    isQuickItemModalOpen = true;
+                  }}
+                  class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                >
+                  <FileText size={14} class="text-amber-400" />
+                  <span>Texto Livre / Aviso</span>
+                </button>
+
+                <div class="h-[1px] bg-neutral-800 my-1"></div>
+
+                <div
+                  class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-neutral-500 opacity-50 cursor-not-allowed"
+                >
+                  <div class="flex items-center gap-2.5">
+                    <BookOpen size={14} />
+                    <span>Versículo Bíblico</span>
+                  </div>
+                  <span class="text-[9px] uppercase tracking-wider font-mono">Em breve</span>
+                </div>
+              </div>
+            {/if}
           </div>
         </div>
 
         <!-- Barra de Busca -->
         <div class="relative">
-          <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
           <input
             type="text"
             bind:value={searchQuery}
             placeholder="Filtrar setlist (ou ⌘K p/ buscar)..."
-            class="w-full h-8 pl-8 pr-3 bg-zinc-800/60 border border-zinc-700/60 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
+            class="w-full h-8 pl-8 pr-3 bg-neutral-900 border border-neutral-800 rounded-md text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
           />
         </div>
 
@@ -478,8 +903,8 @@
               class={cn(
                 'px-2 py-1 rounded text-[11px] font-medium transition-colors shrink-0 cursor-pointer',
                 filterKind === tab.id
-                  ? 'bg-zinc-800 text-emerald-400 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850'
+                  ? 'bg-neutral-800 text-emerald-400 font-semibold'
+                  : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'
               )}
             >
               {tab.label}
@@ -488,35 +913,40 @@
         </div>
       </div>
 
-      <!-- Lista de Itens de Mídia -->
-      <div class="flex-1 overflow-y-auto p-2.5 space-y-1.5">
+      <!-- Lista de Itens de Mídia com Suporte a Context Menu -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="flex-1 overflow-y-auto p-2.5 space-y-1.5"
+        oncontextmenu={handleEmptyContextMenu}
+      >
         {#each filteredMedia as item (item.id)}
           <MediaItemRow
             {item}
             selected={selectedMediaId === item.id}
             isLive={$presentationState.active_media_id === item.id}
             onclick={() => (selectedMediaId = item.id)}
+            oncontextmenu={(e) => handleItemContextMenu(e, item)}
           />
         {:else}
-          <div class="p-6 text-center text-xs text-zinc-500">
-            Nenhuma mídia encontrada para os filtros atuais.
+          <div class="p-6 text-center text-xs text-neutral-500">
+            Nenhuma mídia encontrada na Setlist. Clique com o botão direito para adicionar.
           </div>
         {/each}
       </div>
     </aside>
 
     <!-- COLUNA 2: PAINEL CENTRAL DE SLIDES / PREVIEW -->
-    <main class="flex-1 flex flex-col min-w-0 bg-zinc-950/60 overflow-hidden">
+    <main class="flex-1 flex flex-col min-w-0 bg-neutral-950/60 overflow-hidden">
       {#if selectedMedia}
         <!-- Cabeçalho da Mídia Selecionada com Ações de Apresentação -->
-        <div class="h-14 px-5 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between shrink-0">
+        <div class="h-14 px-5 border-b border-neutral-800/80 bg-neutral-900/40 flex items-center justify-between shrink-0">
           <div class="min-w-0">
             <div class="flex items-center gap-2">
               <h2 class="text-base font-bold text-white truncate leading-tight">
                 {selectedMedia.title}
               </h2>
               <Badge variant="default" class="text-[10px] py-0 px-1.5">
-                {selectedMedia.kind === 'song' ? 'Louvor' : selectedMedia.kind === 'scripture' ? 'Bíblia' : 'Aviso'}
+                {selectedMedia.kind === 'song' ? 'Louvor' : selectedMedia.kind === 'scripture' ? 'Bíblia' : selectedMedia.kind === 'header' ? 'Seção' : 'Aviso'}
               </Badge>
               {#if isSelectedMediaLive}
                 <Badge variant="live" class="text-[10px] py-0 px-1.5 animate-pulse">
@@ -525,7 +955,7 @@
               {/if}
             </div>
             {#if selectedMedia.artist_or_ref}
-              <p class="text-xs text-zinc-400 truncate mt-0.5">
+              <p class="text-xs text-neutral-400 truncate mt-0.5">
                 {selectedMedia.artist_or_ref}
               </p>
             {/if}
@@ -557,7 +987,7 @@
               Apresentar (Enter)
             </Button>
 
-            <div class="h-4 w-[1px] bg-zinc-700/60 mx-1"></div>
+            <div class="h-4 w-[1px] bg-neutral-700/60 mx-1"></div>
 
             <Button
               variant="secondary"
@@ -595,10 +1025,10 @@
                 class={cn(
                   'group flex flex-col rounded-lg border transition-all duration-150 overflow-hidden cursor-pointer select-none relative',
                   isLive
-                    ? 'border-emerald-500 bg-zinc-900 shadow-lg ring-2 ring-emerald-500/50'
+                    ? 'border-emerald-500 bg-neutral-900 shadow-lg ring-2 ring-emerald-500/50'
                     : isFocused
-                      ? 'border-sky-500 bg-zinc-900 shadow-md ring-2 ring-sky-500/40'
-                      : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700 hover:bg-zinc-850'
+                      ? 'border-sky-500 bg-neutral-900 shadow-md ring-2 ring-sky-500/40'
+                      : 'border-neutral-800 bg-neutral-900/50 hover:border-neutral-700 hover:bg-neutral-850'
                 )}
                 onclick={() => selectSlideForFocus(idx)}
                 ondblclick={() => presentSlide(idx)}
@@ -649,7 +1079,7 @@
                             ? 'text-emerald-200'
                             : isFocused
                               ? 'text-white'
-                              : 'text-zinc-200 group-hover:text-white'
+                              : 'text-neutral-200 group-hover:text-white'
                         )}
                       >
                         {line}
@@ -657,7 +1087,7 @@
                     {/each}
                   </div>
 
-                  <span class="absolute bottom-1.5 right-2 text-[10px] text-zinc-600 font-mono">
+                  <span class="absolute bottom-1.5 right-2 text-[10px] text-neutral-600 font-mono">
                     16:9
                   </span>
                 </div>
@@ -666,17 +1096,17 @@
           </div>
         </div>
       {:else}
-        <div class="flex-1 flex items-center justify-center text-zinc-500 text-sm">
+        <div class="flex-1 flex items-center justify-center text-neutral-500 text-sm">
           Selecione uma mídia na setlist para visualizar os slides.
         </div>
       {/if}
     </main>
 
     <!-- COLUNA 3: PAINEL DE PREVIEWS (PUBLIC E STAGE - 16:9) -->
-    <aside class="w-80 lg:w-96 border-l border-zinc-800/80 bg-zinc-900/30 flex flex-col shrink-0 overflow-y-auto">
+    <aside class="w-80 lg:w-96 border-l border-neutral-800/80 bg-neutral-900/30 flex flex-col shrink-0 overflow-y-auto">
       <!-- Botões de Controle Global da Projeção -->
-      <div class="p-3 border-b border-zinc-800/80 space-y-2 bg-zinc-900/60 shrink-0">
-        <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
+      <div class="p-3 border-b border-neutral-800/80 space-y-2 bg-neutral-900/60 shrink-0">
+        <span class="text-xs font-semibold text-neutral-400 uppercase tracking-wider block">
           Controle de Saídas
         </span>
 
@@ -719,11 +1149,11 @@
       </div>
 
       <!-- PREVIEW PUBLIC (16:9) -->
-      <div class="p-3 border-b border-zinc-800/80 space-y-2">
+      <div class="p-3 border-b border-neutral-800/80 space-y-2">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-1.5">
             <MonitorPlay size={14} class="text-emerald-400" />
-            <span class="text-xs font-bold text-zinc-200">Public (Projetor)</span>
+            <span class="text-xs font-bold text-neutral-200">Public (Projetor)</span>
           </div>
 
           <Badge variant={$presentationState.public_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
@@ -732,35 +1162,46 @@
         </div>
 
         <!-- Caixa de Preview do Public com Aspect Ratio 16:9 -->
-        <div class="w-full aspect-video rounded-lg bg-black border border-zinc-800 flex flex-col items-center justify-center p-3 text-center relative overflow-hidden shadow-inner">
+        <div class="w-full aspect-video rounded-lg bg-black border border-neutral-800 flex flex-col items-center justify-center p-3 text-center relative overflow-hidden shadow-inner">
           {#if $presentationState.display_mode === 'blackout'}
-            <div class="text-[11px] font-bold text-red-500 uppercase tracking-widest">
+            <div class="text-[11px] font-bold text-red-500 uppercase tracking-widest z-10">
               Blackout Ativo
             </div>
-          {:else if $presentationState.display_mode === 'cleartext'}
-            <div class="text-[11px] font-medium text-zinc-600 italic">
-              Texto Oculto
-            </div>
-          {:else if liveSlide}
-            <div class="space-y-1 my-auto max-w-full">
-              {#each liveSlide.content.split('\n') as line}
-                <p class="text-[11px] sm:text-xs font-bold text-white truncate leading-tight">
-                  {line}
-                </p>
-              {/each}
-            </div>
-            {#if liveMedia?.artist_or_ref}
-              <span class="text-[9px] text-zinc-500 truncate mt-auto">
-                {liveMedia.title}
-              </span>
-            {/if}
           {:else}
-            <div class="text-[11px] text-zinc-600">
-              Nenhum slide ao vivo
-            </div>
+            <!-- Wallpaper Preview -->
+            {#if $presentationState.wallpaper_path}
+              <img
+                src={$presentationState.wallpaper_path}
+                alt="Wallpaper"
+                class="absolute inset-0 w-full h-full object-cover opacity-60 pointer-events-none"
+              />
+            {/if}
+
+            {#if $presentationState.display_mode === 'cleartext'}
+              <div class="text-[11px] font-medium text-neutral-300 italic z-10 drop-shadow-sm">
+                Texto Oculto (Plano de Fundo Ativo)
+              </div>
+            {:else if liveSlide}
+              <div class="space-y-1 my-auto max-w-full z-10">
+                {#each liveSlide.content.split('\n') as line}
+                  <p class="text-[11px] sm:text-xs font-bold text-white truncate leading-tight drop-shadow-md">
+                    {line}
+                  </p>
+                {/each}
+              </div>
+              {#if liveMedia?.artist_or_ref}
+                <span class="text-[9px] text-neutral-400 truncate mt-auto z-10">
+                  {liveMedia.title}
+                </span>
+              {/if}
+            {:else}
+              <div class="text-[11px] text-neutral-400 z-10">
+                {$presentationState.wallpaper_path ? 'Papel de Parede em Repouso' : 'Nenhum slide ao vivo'}
+              </div>
+            {/if}
           {/if}
 
-          <span class="absolute top-1.5 right-2 text-[9px] text-zinc-600 font-mono">16:9</span>
+          <span class="absolute top-1.5 right-2 text-[9px] text-neutral-500 font-mono z-20">16:9</span>
         </div>
 
         <Button variant="secondary" size="sm" onclick={openPublicWindow} class="w-full text-xs gap-1.5">
@@ -774,7 +1215,7 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-1.5">
             <Tv size={14} class="text-emerald-400" />
-            <span class="text-xs font-bold text-zinc-200">Stage (Retorno Palco)</span>
+            <span class="text-xs font-bold text-neutral-200">Stage (Retorno Palco)</span>
           </div>
 
           <Badge variant={$presentationState.stage_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
@@ -783,9 +1224,9 @@
         </div>
 
         <!-- Caixa de Preview do Stage com Aspect Ratio 16:9 -->
-        <div class="w-full aspect-video rounded-lg bg-[#070709] border border-zinc-800 p-2.5 flex flex-col justify-between relative overflow-hidden shadow-inner font-mono text-[10px]">
+        <div class="w-full aspect-video rounded-lg bg-[#070709] border border-neutral-800 p-2.5 flex flex-col justify-between relative overflow-hidden shadow-inner font-mono text-[10px]">
           <!-- Topo do Stage Preview -->
-          <div class="flex items-center justify-between text-zinc-400 border-b border-zinc-800/60 pb-1">
+          <div class="flex items-center justify-between text-neutral-400 border-b border-neutral-800/60 pb-1">
             <span class="text-[9px] uppercase font-bold text-emerald-400">Retorno</span>
             <div class="flex items-center gap-1 text-white font-bold">
               <Clock size={10} class="text-emerald-400" />
@@ -796,27 +1237,27 @@
           <!-- Meio do Stage Preview -->
           <div class="my-auto py-1 space-y-1">
             {#if liveSlide}
-              <div class="p-1 rounded bg-zinc-900/80 border border-emerald-500/30">
+              <div class="p-1 rounded bg-neutral-900/80 border border-emerald-500/30">
                 <span class="text-[8px] text-emerald-400 font-bold block">ATUAL:</span>
-                <p class="text-[9px] font-bold text-zinc-100 truncate">
+                <p class="text-[9px] font-bold text-neutral-100 truncate">
                   {liveSlide.content.split('\n')[0]}
                 </p>
               </div>
             {:else}
-              <p class="text-zinc-600 text-center text-[9px]">Aguardando slide</p>
+              <p class="text-neutral-600 text-center text-[9px]">Aguardando slide</p>
             {/if}
 
             {#if nextLiveSlide}
-              <div class="p-1 rounded bg-zinc-900/40 border border-zinc-800">
-                <span class="text-[8px] text-zinc-500 font-bold block">A SEGUIR:</span>
-                <p class="text-[9px] text-zinc-400 truncate">
+              <div class="p-1 rounded bg-neutral-900/40 border border-neutral-800">
+                <span class="text-[8px] text-neutral-500 font-bold block">A SEGUIR:</span>
+                <p class="text-[9px] text-neutral-400 truncate">
                   {nextLiveSlide.content.split('\n')[0]}
                 </p>
               </div>
             {/if}
           </div>
 
-          <span class="absolute bottom-1 right-2 text-[9px] text-zinc-700 font-mono">16:9</span>
+          <span class="absolute bottom-1 right-2 text-[9px] text-neutral-700 font-mono">16:9</span>
         </div>
 
         <Button variant="secondary" size="sm" onclick={openStageWindow} class="w-full text-xs gap-1.5">
@@ -838,7 +1279,54 @@
     </div>
   {/if}
 
-  <!-- Modais Operacionais: Command Palette, Editor de Músicas e Configurações -->
+  <!-- Modal de Renomear Item -->
+  {#if isRenameModalOpen}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-100"
+      onclick={() => (isRenameModalOpen = false)}
+    >
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="w-full max-w-sm rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl space-y-4"
+        onclick={(e) => e.stopPropagation()}
+      >
+        <h3 class="text-sm font-bold text-white">Renomear Item na Setlist</h3>
+        <!-- svelte-ignore a11y_autofocus -->
+        <input
+          type="text"
+          bind:value={renamingItemTitle}
+          class="w-full h-9 px-3 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-white focus:outline-none focus:border-emerald-500"
+          autofocus
+          onkeydown={(e) => {
+            if (e.key === 'Enter') handleSaveRename();
+            if (e.key === 'Escape') isRenameModalOpen = false;
+          }}
+        />
+        <div class="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" onclick={() => (isRenameModalOpen = false)}>
+            Cancelar
+          </Button>
+          <Button variant="default" size="sm" onclick={handleSaveRename} class="bg-emerald-500 hover:bg-emerald-400 text-black font-semibold">
+            Salvar
+          </Button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Menu de Contexto Flutuante -->
+  <ContextMenu
+    open={contextMenuOpen}
+    x={contextMenuX}
+    y={contextMenuY}
+    items={contextMenuItems}
+    onclose={() => (contextMenuOpen = false)}
+  />
+
+  <!-- Modais Operacionais: Command Palette, Editor de Músicas, Setlist e Configurações -->
   <CommandPalette
     open={isCommandPaletteOpen}
     onclose={() => (isCommandPaletteOpen = false)}
@@ -854,6 +1342,27 @@
       editingSong = null;
     }}
     onsave={handleSongSaved}
+  />
+
+  <SetlistModal
+    open={isSetlistModalOpen}
+    initialSetlist={editingSetlist}
+    onclose={() => {
+      isSetlistModalOpen = false;
+      editingSetlist = null;
+    }}
+    onsave={handleSetlistSaved}
+  />
+
+  <QuickItemModal
+    open={isQuickItemModalOpen}
+    mode={quickItemMode}
+    initialItem={editingQuickItem}
+    onclose={() => {
+      isQuickItemModalOpen = false;
+      editingQuickItem = null;
+    }}
+    onsave={handleSaveQuickItem}
   />
 
   <SettingsModal

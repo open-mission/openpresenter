@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { DisplayMode, MediaItem, PresentationState, WsMessage } from './types';
+import type { DisplayMode, MediaItem, PresentationState, Setlist, WsMessage } from './types';
 
 export const presentationState = writable<PresentationState>({
   active_media_id: null,
@@ -7,9 +7,13 @@ export const presentationState = writable<PresentationState>({
   display_mode: 'live',
   public_connected: false,
   stage_connected: false,
+  active_setlist_id: undefined,
+  wallpaper_path: undefined,
+  wallpaper_mode: 'cover',
 });
 
 export const mediaItemsList = writable<MediaItem[]>([]);
+export const activeSetlist = writable<Setlist | null>(null);
 export const isWsConnected = writable<boolean>(false);
 
 let socket: WebSocket | null = null;
@@ -84,6 +88,11 @@ function handleIncomingMessage(msg: WsMessage) {
     mediaItemsList.set(msg.payload.media_items);
   } else if (msg.type === 'state_updated') {
     presentationState.set(msg.payload.presentation);
+  } else if (msg.type === 'media_items_updated') {
+    mediaItemsList.set(msg.payload.media_items);
+  } else if (msg.type === 'setlist_updated') {
+    activeSetlist.set(msg.payload.setlist);
+    mediaItemsList.set(msg.payload.setlist.items);
   }
 }
 
@@ -126,4 +135,55 @@ export function toggleBlackout() {
 
 export function toggleClearText() {
   fetch('/api/presentation/clear', { method: 'POST' }).catch(() => {});
+}
+
+export async function removeSetlistItem(itemId: string) {
+  try {
+    await fetch('/api/setlists/items/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId }),
+    });
+  } catch (err) {
+    console.error('Erro ao remover item da setlist:', err);
+  }
+}
+
+export async function renameSetlistItem(itemId: string, newTitle: string) {
+  try {
+    await fetch('/api/setlists/items/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId, new_title: newTitle }),
+    });
+  } catch (err) {
+    console.error('Erro ao renomear item da setlist:', err);
+  }
+}
+
+export async function reorderSetlistItems(items: MediaItem[]) {
+  try {
+    await fetch('/api/setlists/items/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    });
+  } catch (err) {
+    console.error('Erro ao reordenar setlist:', err);
+  }
+}
+
+export async function switchActiveSetlist(setlistId: string) {
+  try {
+    const res = await fetch(`/api/setlists/${setlistId}/active`, {
+      method: 'POST',
+    });
+    if (res.ok) {
+      const data: Setlist = await res.json();
+      activeSetlist.set(data);
+      mediaItemsList.set(data.items);
+    }
+  } catch (err) {
+    console.error('Erro ao ativar setlist:', err);
+  }
 }

@@ -1,4 +1,4 @@
-export type MediaKind = 'song' | 'scripture' | 'announcement' | 'media';
+export type MediaKind = 'song' | 'scripture' | 'announcement' | 'media' | 'header';
 
 export interface Slide {
   id: string;
@@ -14,6 +14,35 @@ export interface MediaItem {
   slides: Slide[];
 }
 
+export interface Setlist {
+  id: string;
+  title: string;
+  description?: string;
+  wallpaper_path?: string;
+  wallpaper_mode?: string; // "cover" | "contain" | "center" | "repeat"
+  items: MediaItem[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SetlistSummary {
+  id: string;
+  title: string;
+  description?: string;
+  wallpaper_path?: string;
+  wallpaper_mode?: string;
+  item_count: number;
+  is_active: boolean;
+  updated_at: string;
+}
+
+export interface WallpaperItem {
+  name: string;
+  url: string;
+  is_default: boolean;
+}
+
 export type DisplayMode = 'live' | 'blackout' | 'cleartext';
 
 export interface PresentationState {
@@ -22,6 +51,9 @@ export interface PresentationState {
   display_mode: DisplayMode;
   public_connected: boolean;
   stage_connected: boolean;
+  active_setlist_id?: string;
+  wallpaper_path?: string;
+  wallpaper_mode?: string;
 }
 
 export interface OutputConfig {
@@ -40,6 +72,7 @@ export interface SessionView {
   tagline: string;
   stack: string;
   db_path: string;
+  media_path?: string;
   db_ready: boolean;
   db_error: string;
   schema_version: number;
@@ -64,6 +97,8 @@ export type WsMessage =
   | { type: 'set_display_mode'; payload: { mode: DisplayMode } }
   | { type: 'identify'; payload: { client_type: string } }
   | { type: 'state_updated'; payload: { presentation: PresentationState } }
+  | { type: 'media_items_updated'; payload: { media_items: MediaItem[] } }
+  | { type: 'setlist_updated'; payload: { setlist: Setlist } }
   | { type: 'ping' }
   | { type: 'pong' };
 
