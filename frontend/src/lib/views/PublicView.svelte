@@ -3,6 +3,7 @@
   import { presentationState, mediaItemsList, initWebSocket } from '$lib/ws';
   import type { MediaItem, Slide } from '$lib/types';
   import { renderFormattedText } from '$lib/markdown';
+  import { resolveBackground } from '$lib/backgrounds';
   import { Maximize, Minimize } from 'lucide-svelte';
 
   let isFullscreen = $state(false);
@@ -48,6 +49,7 @@
 
   const wallpaper = $derived($presentationState.wallpaper_path);
   const wallpaperFit = $derived($presentationState.wallpaper_mode || 'cover');
+  const resolvedBg = $derived(resolveBackground(wallpaper));
 </script>
 
 <svelte:window onkeydown={(e) => { if (e.key.toLowerCase() === 'f') toggleFullscreen(); }} />
@@ -62,29 +64,34 @@
     <div class="absolute inset-0 bg-black z-30"></div>
   {:else}
     <!-- Fundo / Papel de Parede da Setlist Ativa -->
-    {#if wallpaper}
+    {#if resolvedBg.isCss || resolvedBg.isImage}
       <div class="absolute inset-0 z-0 overflow-hidden flex items-center justify-center pointer-events-none">
-        {#if wallpaperFit === 'repeat'}
+        {#if resolvedBg.isCss}
+          <div
+            class="w-full h-full {resolvedBg.className}"
+            style={resolvedBg.style}
+          ></div>
+        {:else if wallpaperFit === 'repeat'}
           <div
             class="w-full h-full"
-            style="background-image: url('{wallpaper}'); background-repeat: repeat;"
+            style="background-image: url('{resolvedBg.url}'); background-repeat: repeat;"
           ></div>
         {:else if wallpaperFit === 'contain'}
           <img
-            src={wallpaper}
+            src={resolvedBg.url}
             alt="Plano de Fundo"
             class="w-full h-full object-contain"
           />
         {:else if wallpaperFit === 'center'}
           <img
-            src={wallpaper}
+            src={resolvedBg.url}
             alt="Plano de Fundo"
             class="max-w-full max-h-full object-none"
           />
         {:else}
           <!-- cover (padrão) -->
           <img
-            src={wallpaper}
+            src={resolvedBg.url}
             alt="Plano de Fundo"
             class="w-full h-full object-cover"
           />

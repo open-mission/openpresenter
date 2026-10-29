@@ -129,6 +129,29 @@ export function setDisplayMode(mode: DisplayMode) {
   }).catch(() => {});
 }
 
+export function stopPresentation() {
+  sendWsMessage({
+    type: 'stop_presentation',
+  });
+
+  fetch('/api/presentation/stop', {
+    method: 'POST',
+  }).catch(() => {});
+}
+
+export function setPresentationWallpaper(path?: string, mode: string = 'cover') {
+  sendWsMessage({
+    type: 'set_wallpaper',
+    payload: { path, mode },
+  });
+
+  fetch('/api/presentation/wallpaper', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, mode }),
+  }).catch(() => {});
+}
+
 export function toggleBlackout() {
   fetch('/api/presentation/blackout', { method: 'POST' }).catch(() => {});
 }

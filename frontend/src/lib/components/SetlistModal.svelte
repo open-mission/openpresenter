@@ -4,7 +4,9 @@
   import type { Setlist, WallpaperItem } from '$lib/types';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
-  import { X, Image, Upload, Check, Sparkles, Folder } from 'lucide-svelte';
+  import { X, Image, Upload, Check, Sparkles, Folder, Palette } from 'lucide-svelte';
+  import BackgroundSelectorModal from './BackgroundSelectorModal.svelte';
+  import { resolveBackground } from '../backgrounds';
 
   interface Props {
     open: boolean;
@@ -22,7 +24,10 @@
   let availableWallpapers = $state<WallpaperItem[]>([]);
   let isLoading = $state(false);
   let isUploading = $state(false);
+  let isBackgroundModalOpen = $state(false);
   let errorMessage = $state('');
+
+  const resolvedWallpaper = $derived(resolveBackground(selectedWallpaper));
   let fileInputRef = $state<HTMLInputElement | null>(null);
 
   $effect(() => {
@@ -231,8 +236,18 @@
               </p>
             </div>
 
-            <!-- Botão de Upload de Wallpaper -->
-            <div>
+            <!-- Ações de Escolha de Fundo -->
+            <div class="flex items-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                onclick={() => (isBackgroundModalOpen = true)}
+                class="gap-1.5 text-xs font-semibold"
+              >
+                <Palette size={13} />
+                Explorar Fundos & Gradientes
+              </Button>
+
               <input
                 bind:this={fileInputRef}
                 type="file"
@@ -252,6 +267,34 @@
               </Button>
             </div>
           </div>
+
+          <!-- Destaque do Fundo Selecionado (se for CSS/Gradiente) -->
+          {#if resolvedWallpaper.isCss}
+            <div class="p-3 rounded-xl border border-primary bg-primary/5 flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="w-16 aspect-video rounded-lg overflow-hidden border border-border relative">
+                  <div
+                    class="w-full h-full {resolvedWallpaper.className}"
+                    style={resolvedWallpaper.style}
+                  ></div>
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Sparkles size={13} class="text-primary" /> Fundo CSS / Gradiente Ativo
+                  </h4>
+                  <p class="text-[11px] text-muted-foreground">Fundo procedural de alta resolução para o projetor</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onclick={() => (isBackgroundModalOpen = true)}
+                class="text-xs"
+              >
+                Alterar...
+              </Button>
+            </div>
+          {/if}
 
           <!-- Grade de Wallpapers Disponíveis -->
           <div class="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
@@ -351,4 +394,15 @@
       </div>
     </div>
   </div>
+
+  <BackgroundSelectorModal
+    open={isBackgroundModalOpen}
+    currentValue={selectedWallpaper}
+    onselect={(val) => {
+      selectedWallpaper = val;
+    }}
+    onclose={() => {
+      isBackgroundModalOpen = false;
+    }}
+  />
 {/if}

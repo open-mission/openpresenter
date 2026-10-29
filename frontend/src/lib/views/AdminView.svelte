@@ -9,6 +9,7 @@
     initWebSocket,
     selectSlide,
     setDisplayMode,
+    stopPresentation as wsStopPresentation,
     toggleBlackout,
     toggleClearText,
     removeSetlistItem,
@@ -36,6 +37,7 @@
     initAppTheme,
     getSectionStyle,
   } from '$lib/settings';
+  import { resolveBackground } from '$lib/backgrounds';
   import {
     Search,
     MonitorPlay,
@@ -208,6 +210,8 @@
     );
   });
 
+  const resolvedWallpaper = $derived(resolveBackground($presentationState.wallpaper_path));
+
   // Sincroniza o slide focado quando a mídia selecionada muda
   $effect(() => {
     if (selectedMediaId !== prevMediaId) {
@@ -237,7 +241,7 @@
   }
 
   function stopPresentation() {
-    setDisplayMode('cleartext');
+    wsStopPresentation();
   }
 
   // Navegação de slides
@@ -1407,17 +1411,29 @@
             </button>
           </div>
 
-          <div class="grid grid-cols-4 gap-1.5">
+          <div class="grid grid-cols-5 gap-1">
             <!-- Botão Ao Vivo -->
             <Button
-              variant={$presentationState.display_mode === 'live' ? 'live' : 'secondary'}
+              variant={$presentationState.display_mode === 'live' && $presentationState.active_media_id ? 'live' : 'secondary'}
               size="sm"
               onclick={() => setDisplayMode('live')}
-              class="text-xs px-1.5"
+              class="text-xs px-1"
               title="Colocar projeção ao vivo"
             >
-              <Radio size={13} />
-              <span class="truncate">Ao Vivo</span>
+              <Radio size={12} />
+              <span class="truncate text-[10px]">Ao Vivo</span>
+            </Button>
+
+            <!-- Botão Parar Apresentação -->
+            <Button
+              variant="secondary"
+              size="sm"
+              onclick={stopPresentation}
+              class="text-xs px-1 hover:bg-red-950/40 hover:text-red-400"
+              title="Parar apresentação (Esc)"
+            >
+              <Square size={12} class="text-red-400" />
+              <span class="truncate text-[10px]">Parar</span>
             </Button>
 
             <!-- Botão Blackout -->
@@ -1425,11 +1441,11 @@
               variant={$presentationState.display_mode === 'blackout' ? 'destructive' : 'secondary'}
               size="sm"
               onclick={toggleBlackout}
-              class="text-xs px-1.5"
+              class="text-xs px-1"
               title="Blackout total (. ou Alt+B ou F1)"
             >
-              <EyeOff size={13} />
-              <span class="truncate">Blackout</span>
+              <EyeOff size={12} />
+              <span class="truncate text-[10px]">Black</span>
             </Button>
 
             <!-- Botão Limpar Texto -->
@@ -1437,11 +1453,11 @@
               variant={$presentationState.display_mode === 'cleartext' ? 'default' : 'secondary'}
               size="sm"
               onclick={toggleClearText}
-              class="text-xs px-1.5"
+              class="text-xs px-1"
               title="Ocultar texto (, ou Alt+C ou F2)"
             >
-              <Slash size={13} />
-              <span class="truncate">Limpar</span>
+              <Slash size={12} />
+              <span class="truncate text-[10px]">Limpar</span>
             </Button>
 
             <!-- Botão Papel de Parede / Fundo -->
@@ -1449,11 +1465,11 @@
               variant={$presentationState.display_mode === 'cleartext' && $presentationState.wallpaper_path ? 'default' : 'secondary'}
               size="sm"
               onclick={() => setDisplayMode('cleartext')}
-              class="text-xs px-1.5"
+              class="text-xs px-1"
               title="Tela de repouso / Papel de parede (/ ou Alt+W ou F3)"
             >
-              <ImageIcon size={13} />
-              <span class="truncate">Fundo</span>
+              <ImageIcon size={12} />
+              <span class="truncate text-[10px]">Fundo</span>
             </Button>
           </div>
         </div>
@@ -1478,26 +1494,31 @@
                 Blackout Ativo
               </div>
             {:else}
-              <!-- Wallpaper Preview -->
-              {#if $presentationState.wallpaper_path}
+              <!-- Wallpaper / Background Preview -->
+              {#if resolvedWallpaper.isCss}
+                <div
+                  class="absolute inset-0 w-full h-full {resolvedWallpaper.className} opacity-85 pointer-events-none"
+                  style={resolvedWallpaper.style}
+                ></div>
+              {:else if resolvedWallpaper.isImage}
                 <img
-                  src={$presentationState.wallpaper_path}
+                  src={resolvedWallpaper.url}
                   alt="Wallpaper"
                   class="absolute inset-0 w-full h-full object-cover opacity-60 pointer-events-none"
                 />
               {/if}
 
-              {#if liveMedia?.kind === 'image' && liveSlide}
+              {#if $presentationState.display_mode === 'cleartext'}
+                <div class="text-[11px] font-medium text-neutral-300 italic z-10 drop-shadow-sm">
+                  Texto Oculto (Plano de Fundo Ativo)
+                </div>
+              {:else if liveMedia?.kind === 'image' && liveSlide && $presentationState.display_mode === 'live'}
                 <img
                   src={liveSlide.content}
                   alt={liveMedia.title}
                   class="absolute inset-0 w-full h-full object-contain z-10"
                 />
-              {:else if $presentationState.display_mode === 'cleartext'}
-                <div class="text-[11px] font-medium text-neutral-300 italic z-10 drop-shadow-sm">
-                  Texto Oculto (Plano de Fundo Ativo)
-                </div>
-              {:else if liveSlide}
+              {:else if liveSlide && $presentationState.display_mode === 'live'}
                 <div
                   class={cn(
                     'w-full h-full flex flex-col p-2.5 z-10 leading-tight',
@@ -1526,7 +1547,7 @@
                 {/if}
               {:else}
                 <div class="text-[11px] text-neutral-400 z-10">
-                  {$presentationState.wallpaper_path ? 'Papel de Parede em Repouso' : 'Nenhum slide ao vivo'}
+                  {resolvedWallpaper.isCss || resolvedWallpaper.isImage ? 'Papel de Parede em Repouso' : 'Nenhum slide ao vivo'}
                 </div>
               {/if}
             {/if}

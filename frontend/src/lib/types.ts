@@ -127,6 +127,8 @@ export type WsMessage =
   | { type: 'sync_state'; payload: { presentation: PresentationState; media_items: MediaItem[] } }
   | { type: 'select_slide'; payload: { media_id: string; slide_index: number } }
   | { type: 'set_display_mode'; payload: { mode: DisplayMode } }
+  | { type: 'stop_presentation' }
+  | { type: 'set_wallpaper'; payload: { path?: string; mode?: string } }
   | { type: 'identify'; payload: { client_type: string } }
   | { type: 'state_updated'; payload: { presentation: PresentationState } }
   | { type: 'media_items_updated'; payload: { media_items: MediaItem[] } }

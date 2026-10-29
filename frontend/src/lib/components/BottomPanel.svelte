@@ -13,17 +13,35 @@
     ListPlus,
     Upload,
     FolderPlus,
-    ExternalLink,
     Folder,
     RefreshCw,
     FileText,
     Eye,
     X,
+    Palette,
+    Sparkles,
+    ChevronRight,
+    Check,
+    Layers,
+    FolderOpen,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
   import { renderFormattedText } from '../markdown';
-  import type { SongSummary, Song, ImageMediaItem, MediaFolder, MediaItem } from '../types';
+  import {
+    BACKGROUND_PRESETS,
+    encodeBackground,
+    resolveBackground,
+    type BackgroundPreset,
+  } from '../backgrounds';
+  import { presentationState, setPresentationWallpaper } from '../ws';
+  import type {
+    SongSummary,
+    Song,
+    ImageMediaItem,
+    MediaFolder,
+    WallpaperItem,
+  } from '../types';
 
   interface Props {
     onaddsongtosetlist?: (songId: string) => void;
@@ -45,30 +63,38 @@
 
   let isCollapsed = $state(true);
   let isMaximized = $state(false);
-  let activeTab = $state<'songs' | 'images'>('songs');
-  let panelHeight = $state(280);
+  let activeTab = $state<'songs' | 'images' | 'backgrounds'>('songs');
+  let panelHeight = $state(290);
   let isDragging = $state(false);
   let startY = 0;
-  let startHeight = 280;
+  let startHeight = 290;
 
-  // Catálogo de Músicas
+  // --- CATÁLOGO DE MÚSICAS ---
   let songSearch = $state('');
   let songs = $state<SongSummary[]>([]);
   let isLoadingSongs = $state(false);
   let viewingSong = $state<Song | null>(null);
   let isLoadingLyrics = $state(false);
 
-  // Galeria de Imagens
+  // --- GALERIA DE IMAGENS ---
   let images = $state<ImageMediaItem[]>([]);
   let folders = $state<MediaFolder[]>([]);
   let selectedFolderFilter = $state<string>('all');
+  let isFoldersTreeExpanded = $state(true);
   let isLoadingImages = $state(false);
   let fileInputEl: HTMLInputElement | null = $state(null);
+
+  // --- ABA DE FUNDOS & GRADIENTES ---
+  let selectedBgCategory = $state<'all' | 'gradients' | 'mesh' | 'animated' | 'local'>('all');
+  let bgSearchQuery = $state('');
+  let localWallpapers = $state<WallpaperItem[]>([]);
+  let isLoadingWallpapers = $state(false);
 
   onMount(() => {
     loadSongs();
     loadImages();
     loadFolders();
+    loadWallpapers();
   });
 
   async function loadSongs() {
@@ -126,12 +152,51 @@
     }
   }
 
+  async function loadWallpapers() {
+    isLoadingWallpapers = true;
+    try {
+      const res = await fetch('/api/media/wallpapers');
+      if (res.ok) {
+        localWallpapers = await res.json();
+      }
+    } catch (err) {
+      console.error('Erro ao carregar papéis de parede:', err);
+    } finally {
+      isLoadingWallpapers = false;
+    }
+  }
+
   // Filtragem de imagens
   const filteredImages = $derived.by(() => {
     if (selectedFolderFilter === 'all') return images;
     if (selectedFolderFilter === 'app') return images.filter((img) => !img.is_external);
     return images.filter((img) => img.folder_id === selectedFolderFilter);
   });
+
+  // Nome da pasta selecionada para Breadcrumbs
+  const currentFolderName = $derived.by(() => {
+    if (selectedFolderFilter === 'all') return 'Todas as Imagens';
+    if (selectedFolderFilter === 'app') return 'Pasta do App';
+    const f = folders.find((item) => item.id === selectedFolderFilter);
+    return f ? f.name : 'Pasta Selecionada';
+  });
+
+  // Filtragem de fundos
+  const filteredBackgrounds = $derived.by(() => {
+    return BACKGROUND_PRESETS.filter((p) => {
+      const matchesCat = selectedBgCategory === 'all' || p.category === selectedBgCategory;
+      const matchesSearch =
+        bgSearchQuery === '' ||
+        p.name.toLowerCase().includes(bgSearchQuery.toLowerCase()) ||
+        (p.description && p.description.toLowerCase().includes(bgSearchQuery.toLowerCase()));
+      return matchesCat && matchesSearch;
+    });
+  });
+
+  // Aplicação instantânea de fundo no projetor
+  function applyBackground(encodedOrUrl: string) {
+    setPresentationWallpaper(encodedOrUrl, 'cover');
+  }
 
   // Arraste para redimensionamento de altura
   function startResize(e: MouseEvent) {
@@ -147,7 +212,7 @@
   function handleResizeMove(e: MouseEvent) {
     if (!isDragging) return;
     const delta = startY - e.clientY;
-    const newHeight = Math.min(Math.max(160, startHeight + delta), window.innerHeight - 80);
+    const newHeight = Math.min(Math.max(180, startHeight + delta), window.innerHeight - 80);
     panelHeight = newHeight;
     if (isCollapsed) isCollapsed = false;
   }
@@ -197,7 +262,7 @@
   }
 </script>
 
-<!-- Input Oculto de Arquivo -->
+<!-- Input Oculto de Arquivo de Imagem -->
 <input
   type="file"
   accept="image/*"
@@ -228,13 +293,14 @@
   >
     <!-- Abas Disponíveis -->
     <div class="flex items-center gap-1">
+      <!-- Aba Músicas -->
       <button
         type="button"
         onclick={() => {
           activeTab = 'songs';
           if (isCollapsed) isCollapsed = false;
         }}
-        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {activeTab === 'songs' && !isCollapsed ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'}"
+        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {activeTab === 'songs' && !isCollapsed ? 'bg-neutral-800 text-white shadow-xs' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'}"
       >
         <Music size={13} class="text-primary" />
         <span>Músicas</span>
@@ -243,18 +309,35 @@
         </Badge>
       </button>
 
+      <!-- Aba Imagens -->
       <button
         type="button"
         onclick={() => {
           activeTab = 'images';
           if (isCollapsed) isCollapsed = false;
         }}
-        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {activeTab === 'images' && !isCollapsed ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'}"
+        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {activeTab === 'images' && !isCollapsed ? 'bg-neutral-800 text-white shadow-xs' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'}"
       >
         <ImageIcon size={13} class="text-cyan-400" />
-        <span>Imagens & Mídias</span>
+        <span>Imagens & Pastas</span>
         <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
           {images.length}
+        </Badge>
+      </button>
+
+      <!-- Aba Fundos & Gradientes -->
+      <button
+        type="button"
+        onclick={() => {
+          activeTab = 'backgrounds';
+          if (isCollapsed) isCollapsed = false;
+        }}
+        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {activeTab === 'backgrounds' && !isCollapsed ? 'bg-neutral-800 text-white shadow-xs' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'}"
+      >
+        <Palette size={13} class="text-fuchsia-400" />
+        <span>Fundos & Gradientes</span>
+        <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+          {BACKGROUND_PRESETS.length + localWallpapers.length}
         </Badge>
       </button>
     </div>
@@ -292,7 +375,7 @@
   <!-- Conteúdo das Abas (Exibido quando não estiver colapsado) -->
   {#if !isCollapsed}
     <div class="flex-1 flex flex-col overflow-hidden bg-neutral-950/40 p-3">
-      <!-- ABA: MÚSICAS -->
+      <!-- ================= ABA 1: MÚSICAS ================= -->
       {#if activeTab === 'songs'}
         <!-- Barra de Ações da Aba Músicas -->
         <div class="flex items-center justify-between gap-3 mb-2 shrink-0">
@@ -302,7 +385,7 @@
               type="text"
               bind:value={songSearch}
               oninput={loadSongs}
-              placeholder="Pesquisar catálogo de músicas..."
+              placeholder="Pesquisar catálogo de músicas (clique no card para abrir letra)..."
               class="w-full h-7 pl-8 pr-3 bg-neutral-900 border border-neutral-800 rounded-md text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-primary/60"
             />
           </div>
@@ -339,8 +422,13 @@
             {:else}
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                 {#each songs as song (song.id)}
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
                   <div
-                    class="p-2.5 rounded-lg border border-border bg-card/60 hover:bg-muted/40 transition-colors flex flex-col justify-between group {viewingSong?.id === song.id ? 'ring-1 ring-primary border-primary' : ''}"
+                    onclick={() => handleViewSongLyrics(song.id)}
+                    onkeydown={(e) => { if (e.key === 'Enter') handleViewSongLyrics(song.id); }}
+                    role="button"
+                    tabindex="0"
+                    class="p-2.5 rounded-lg border border-border bg-card/60 hover:bg-muted/40 transition-all flex flex-col justify-between group cursor-pointer {viewingSong?.id === song.id ? 'ring-1 ring-primary border-primary bg-primary/5' : ''}"
                   >
                     <div>
                       <div class="flex items-center justify-between gap-1 mb-1">
@@ -362,20 +450,17 @@
                     </div>
 
                     <div class="flex items-center justify-between gap-1.5 mt-2 pt-2 border-t border-border">
-                      <button
-                        type="button"
-                        onclick={() => handleViewSongLyrics(song.id)}
-                        class="px-2 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] text-foreground font-medium flex items-center gap-1 transition-colors cursor-pointer"
-                        title="Visualizar Letra Completa"
-                      >
-                        <FileText size={11} class="text-primary" />
-                        Letra
-                      </button>
+                      <span class="text-[10px] text-primary font-semibold flex items-center gap-1">
+                        <FileText size={11} /> Ver Letra
+                      </span>
 
                       <div class="flex items-center gap-1">
                         <button
                           type="button"
-                          onclick={() => onaddsongtosetlist?.(song.id)}
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            onaddsongtosetlist?.(song.id);
+                          }}
                           class="px-2 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] text-foreground font-medium flex items-center gap-1 transition-colors cursor-pointer"
                           title="Adicionar à Setlist"
                         >
@@ -385,8 +470,11 @@
 
                         <button
                           type="button"
-                          onclick={() => onpresentsong?.(song.id)}
-                          class="px-2 py-0.5 rounded bg-primary/20 hover:bg-primary/30 text-[10px] text-primary font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            onpresentsong?.(song.id);
+                          }}
+                          class="px-2 py-0.5 rounded bg-primary/20 hover:bg-primary/30 text-[10px] text-primary font-bold flex items-center gap-1 transition-colors cursor-pointer"
                           title="Apresentar Imediatamente"
                         >
                           <Play size={11} class="fill-current" />
@@ -400,195 +488,528 @@
             {/if}
           </div>
 
-          <!-- Sheet / Gaveta Lateral de Visualização de Letra -->
+          <!-- Sheet Ampliado de Visualização de Letra (2 Colunas de Slides Preview) -->
           {#if viewingSong}
-            <div class="w-80 lg:w-96 border-l border-border bg-card/95 flex flex-col shrink-0 p-3 h-full overflow-hidden shadow-2xl animate-in slide-in-from-right duration-150">
-              <div class="flex items-center justify-between pb-2 border-b border-border shrink-0">
-                <div class="min-w-0 mr-2">
-                  <h4 class="text-xs font-bold text-foreground truncate">{viewingSong.title}</h4>
+            <div class="w-[540px] sm:w-[680px] md:w-[780px] lg:w-[860px] xl:w-[940px] max-w-[95vw] border-l border-border bg-card flex flex-col shrink-0 p-3.5 h-full overflow-hidden shadow-2xl animate-in slide-in-from-right duration-150">
+              <!-- Cabeçalho do Sheet -->
+              <div class="flex items-center justify-between pb-2.5 border-b border-border shrink-0">
+                <div class="min-w-0 mr-3">
+                  <div class="flex items-center gap-2">
+                    <h4 class="text-sm font-bold text-foreground truncate">{viewingSong.title}</h4>
+                    {#if viewingSong.song_key}
+                      <Badge variant="outline" class="text-[10px] py-0 px-1.5 font-mono text-primary">
+                        Tom: {viewingSong.song_key}
+                      </Badge>
+                    {/if}
+                    {#if viewingSong.bpm}
+                      <span class="text-[10px] text-muted-foreground font-mono">
+                        {viewingSong.bpm} BPM
+                      </span>
+                    {/if}
+                  </div>
                   {#if viewingSong.artist}
-                    <p class="text-[11px] text-muted-foreground truncate">{viewingSong.artist}</p>
+                    <p class="text-xs text-muted-foreground truncate mt-0.5">{viewingSong.artist}</p>
                   {/if}
                 </div>
-                <button
-                  type="button"
-                  onclick={() => (viewingSong = null)}
-                  class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
-                  title="Fechar visualização de letra"
-                >
-                  <X size={15} />
-                </button>
+
+                <div class="flex items-center gap-1.5">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onclick={() => viewingSong && onaddsongtosetlist?.(viewingSong.id)}
+                    class="h-7 text-xs gap-1"
+                  >
+                    <ListPlus size={12} class="text-primary" />
+                    + Setlist
+                  </Button>
+                  <Button
+                    variant="live"
+                    size="sm"
+                    onclick={() => viewingSong && onpresentsong?.(viewingSong.id)}
+                    class="h-7 text-xs gap-1 font-bold"
+                  >
+                    <Play size={12} class="fill-current" />
+                    Apresentar Música
+                  </Button>
+                  <button
+                    type="button"
+                    onclick={() => (viewingSong = null)}
+                    class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer ml-1"
+                    title="Fechar visualização de letra"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
               </div>
 
-              <!-- Letra Completa Dividida por Seções -->
-              <div class="flex-1 overflow-y-auto py-2.5 space-y-2.5 pr-1 text-xs">
+              <!-- Prévia dos Slides em DUAS COLUNAS (Aspect Ratio 16:9) -->
+              <div class="flex-1 overflow-y-auto py-3 pr-1">
                 {#if viewingSong.sections && viewingSong.sections.length > 0}
-                  {#each viewingSong.sections as sec, idx}
-                    <div class="p-2.5 rounded-lg border border-border bg-background/50 space-y-1">
-                      <span class="text-[10px] uppercase font-bold text-primary block">{sec.label || `Parte ${idx + 1}`}</span>
-                      <div class="text-[11px] font-medium text-foreground leading-relaxed">
-                        {#each sec.lines as line}
-                          <p>{@html renderFormattedText(line)}</p>
-                        {/each}
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {#each viewingSong.sections as sec, idx}
+                      <div class="rounded-xl border border-border bg-background/60 overflow-hidden flex flex-col shadow-xs">
+                        <!-- Topo da Seção -->
+                        <div class="px-3 py-1.5 bg-muted/40 border-b border-border flex items-center justify-between">
+                          <span class="text-[10px] uppercase font-bold text-primary flex items-center gap-1.5">
+                            <span class="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[9px] font-mono font-bold">
+                              {idx + 1}
+                            </span>
+                            {sec.label || `Parte ${idx + 1}`}
+                          </span>
+                          <span class="text-[9px] text-muted-foreground font-mono">16:9</span>
+                        </div>
+
+                        <!-- Conteúdo dos Slides em proporção 16:9 -->
+                        <div class="aspect-video w-full p-3.5 flex flex-col items-center justify-center text-center bg-black/40">
+                          <div class="text-xs sm:text-[13px] font-semibold text-foreground leading-relaxed">
+                            {#each sec.lines as line}
+                              <p>{@html renderFormattedText(line)}</p>
+                            {/each}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  {/each}
+                    {/each}
+                  </div>
                 {:else}
-                  <div class="p-2.5 rounded-lg border border-border bg-background/50 text-[11px] font-medium text-foreground leading-relaxed whitespace-pre-wrap">
+                  <div class="p-4 rounded-xl border border-border bg-background/50 text-xs font-medium text-foreground leading-relaxed whitespace-pre-wrap">
                     {@html renderFormattedText(viewingSong.lyrics_raw)}
                   </div>
                 {/if}
               </div>
-
-              <!-- Rodapé de Ações do Sheet -->
-              <div class="pt-2 border-t border-border flex items-center justify-between gap-2 shrink-0">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onclick={() => viewingSong && onaddsongtosetlist?.(viewingSong.id)}
-                  class="text-[11px] gap-1 flex-1"
-                >
-                  <ListPlus size={12} class="text-primary" />
-                  + Setlist
-                </Button>
-                <Button
-                  variant="live"
-                  size="sm"
-                  onclick={() => viewingSong && onpresentsong?.(viewingSong.id)}
-                  class="text-[11px] gap-1 flex-1 font-bold"
-                >
-                  <Play size={12} class="fill-current" />
-                  Apresentar
-                </Button>
-              </div>
             </div>
           {/if}
         </div>
 
-      <!-- ABA: IMAGENS -->
+      <!-- ================= ABA 2: IMAGENS & PASTAS ================= -->
       {:else if activeTab === 'images'}
-        <!-- Barra de Ações da Aba Imagens -->
-        <div class="flex items-center justify-between gap-3 mb-2 shrink-0">
-          <!-- Filtro de Pastas -->
-          <div class="flex items-center gap-1.5 overflow-x-auto text-xs">
-            <span class="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-              <Folder size={12} /> Pasta:
+        <div class="flex-1 flex overflow-hidden gap-3">
+          <!-- Tree Navigation Vertical para Pastas de Imagens -->
+          <aside class="w-52 border-r border-border bg-card/40 flex flex-col shrink-0 p-2 overflow-y-auto space-y-1">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1 block">
+              Navegação de Pastas
             </span>
+
+            <!-- Nó: Todas as Imagens -->
             <button
               type="button"
               onclick={() => (selectedFolderFilter = 'all')}
-              class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer {selectedFolderFilter === 'all' ? 'bg-primary/20 text-primary font-bold' : 'text-muted-foreground hover:bg-muted'}"
+              class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedFolderFilter === 'all' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
             >
-              Todas ({images.length})
+              <div class="flex items-center gap-2 truncate">
+                <Layers size={13} />
+                <span class="truncate">Todas as Imagens</span>
+              </div>
+              <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+                {images.length}
+              </Badge>
             </button>
+
+            <!-- Nó: Pasta do App -->
             <button
               type="button"
               onclick={() => (selectedFolderFilter = 'app')}
-              class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer {selectedFolderFilter === 'app' ? 'bg-primary/20 text-primary font-bold' : 'text-muted-foreground hover:bg-muted'}"
+              class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedFolderFilter === 'app' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
             >
-              Pasta do App
+              <div class="flex items-center gap-2 truncate">
+                <Folder size={13} class="text-primary" />
+                <span class="truncate">Pasta do App</span>
+              </div>
+              <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+                {images.filter((i) => !i.is_external).length}
+              </Badge>
             </button>
-            {#each folders as f (f.id)}
+
+            <!-- Seção de Pastas Mapeadas -->
+            <div class="pt-2">
               <button
                 type="button"
-                onclick={() => (selectedFolderFilter = f.id)}
-                class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer {selectedFolderFilter === f.id ? 'bg-primary/20 text-primary font-bold' : 'text-muted-foreground hover:bg-muted'}"
+                onclick={() => (isFoldersTreeExpanded = !isFoldersTreeExpanded)}
+                class="w-full flex items-center justify-between px-2 py-1 text-[11px] font-bold text-muted-foreground hover:text-foreground cursor-pointer"
               >
-                {f.name}
+                <span class="flex items-center gap-1">
+                  {#if isFoldersTreeExpanded}
+                    <ChevronDown size={12} />
+                  {:else}
+                    <ChevronRight size={12} />
+                  {/if}
+                  Pastas Mapeadas
+                </span>
+                <Badge variant="outline" class="text-[9px] py-0 px-1 font-mono">
+                  {folders.length}
+                </Badge>
               </button>
-            {/each}
-          </div>
 
-          <!-- Ações de Upload e Gerenciamento -->
-          <div class="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onclick={loadImages}
-              title="Recarregar imagens"
-              class="h-7 text-xs px-2"
-            >
-              <RefreshCw size={12} class={isLoadingImages ? 'animate-spin' : ''} />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onclick={onopenfolderconfig}
-              class="h-7 text-xs gap-1"
-              title="Configurar pastas externas de mídia"
-            >
-              <FolderPlus size={12} />
-              <span>Pastas</span>
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onclick={() => fileInputEl?.click()}
-              class="h-7 text-xs gap-1"
-            >
-              <Upload size={12} />
-              <span>Importar Imagem</span>
-            </Button>
-          </div>
+              {#if isFoldersTreeExpanded}
+                <div class="space-y-0.5 mt-1 pl-2">
+                  {#if folders.length === 0}
+                    <p class="text-[10px] text-muted-foreground italic px-2 py-1">Nenhuma pasta mapeada</p>
+                  {:else}
+                    {#each folders as f (f.id)}
+                      {@const count = images.filter((i) => i.folder_id === f.id).length}
+                      <button
+                        type="button"
+                        onclick={() => (selectedFolderFilter = f.id)}
+                        class="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer {selectedFolderFilter === f.id ? 'bg-primary/15 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+                        title={f.path}
+                      >
+                        <div class="flex items-center gap-2 min-w-0">
+                          <FolderOpen size={12} class="text-amber-400 shrink-0" />
+                          <span class="truncate text-[11px]">{f.name}</span>
+                        </div>
+                        <span class="text-[9px] font-mono text-muted-foreground ml-1 shrink-0">{count}</span>
+                      </button>
+                    {/each}
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          </aside>
+
+          <!-- Área da Galeria de Imagens com Breadcrumbs no Topo -->
+          <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Barra de Breadcrumbs e Ações -->
+            <div class="flex items-center justify-between gap-3 mb-2 shrink-0 pb-1.5 border-b border-border">
+              <!-- Breadcrumbs -->
+              <nav class="flex items-center gap-1.5 text-xs text-muted-foreground overflow-x-auto">
+                <button
+                  type="button"
+                  onclick={() => (selectedFolderFilter = 'all')}
+                  class="hover:text-foreground transition-colors cursor-pointer"
+                >
+                  Mídias
+                </button>
+                <ChevronRight size={11} />
+                <button
+                  type="button"
+                  onclick={() => (selectedFolderFilter = 'all')}
+                  class="hover:text-foreground transition-colors cursor-pointer"
+                >
+                  Imagens
+                </button>
+                <ChevronRight size={11} />
+                <span class="text-foreground font-bold truncate max-w-xs">
+                  {currentFolderName}
+                </span>
+                <Badge variant="secondary" class="text-[9px] py-0 px-1 ml-1 font-mono">
+                  {filteredImages.length}
+                </Badge>
+              </nav>
+
+              <!-- Ações de Upload e Gerenciamento -->
+              <div class="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={loadImages}
+                  title="Recarregar imagens"
+                  class="h-7 text-xs px-2"
+                >
+                  <RefreshCw size={12} class={isLoadingImages ? 'animate-spin' : ''} />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={onopenfolderconfig}
+                  class="h-7 text-xs gap-1"
+                  title="Configurar pastas externas de mídia"
+                >
+                  <FolderPlus size={12} />
+                  <span>Pastas</span>
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onclick={() => fileInputEl?.click()}
+                  class="h-7 text-xs gap-1 font-semibold"
+                >
+                  <Upload size={12} />
+                  <span>Importar Imagem</span>
+                </Button>
+              </div>
+            </div>
+
+            <!-- Grade de Miniaturas de Imagens com Ação de Apresentar Direta -->
+            <div class="flex-1 overflow-y-auto pr-1">
+              {#if filteredImages.length === 0}
+                <div class="h-32 flex flex-col items-center justify-center text-xs text-muted-foreground">
+                  Nenhuma imagem encontrada nesta pasta.
+                </div>
+              {:else}
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+                  {#each filteredImages as img (img.id)}
+                    <div
+                      ondblclick={() => onpresentimage?.(img)}
+                      role="button"
+                      tabindex="0"
+                      onkeydown={(e) => { if (e.key === 'Enter') onpresentimage?.(img); }}
+                      class="group relative rounded-lg border border-border bg-card overflow-hidden flex flex-col shadow-xs hover:border-primary/50 transition-all cursor-pointer"
+                    >
+                      <!-- Imagem Thumbnail -->
+                      <div class="aspect-video w-full bg-black/60 relative overflow-hidden">
+                        <img
+                          src={img.url}
+                          alt={img.name}
+                          class="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200"
+                          loading="lazy"
+                        />
+
+                        <!-- Overlay com nome e pasta -->
+                        <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1 pt-3">
+                          <p class="text-[10px] text-white font-medium truncate drop-shadow">{img.name}</p>
+                        </div>
+                      </div>
+
+                      <!-- Barra de Ações Rápidas -->
+                      <div class="p-1.5 bg-muted/30 border-t border-border flex items-center justify-between gap-1">
+                        <button
+                          type="button"
+                          onclick={() => onpresentimage?.(img)}
+                          class="flex-1 h-6 rounded bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                          title="Apresentar Imagem Imediatamente"
+                        >
+                          <Play size={10} class="fill-current" />
+                          <span>Apresentar</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onclick={() => onaddimagetosetlist?.(img)}
+                          class="w-6 h-6 rounded bg-muted hover:bg-muted/80 text-foreground flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                          title="Adicionar à Setlist"
+                        >
+                          <ListPlus size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          </main>
         </div>
 
-        <!-- Grade de Miniaturas de Imagens com Ação de Apresentar Direta -->
-        <div class="flex-1 overflow-y-auto pr-1">
-          {#if filteredImages.length === 0}
-            <div class="h-32 flex flex-col items-center justify-center text-xs text-muted-foreground">
-              Nenhuma imagem encontrada nesta pasta.
-            </div>
-          {:else}
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              {#each filteredImages as img (img.id)}
-                <div
-                  ondblclick={() => onpresentimage?.(img)}
-                  role="button"
-                  tabindex="0"
-                  onkeydown={(e) => { if (e.key === 'Enter') onpresentimage?.(img); }}
-                  class="group relative rounded-lg border border-border bg-card overflow-hidden flex flex-col shadow-sm hover:border-primary/40 transition-all cursor-pointer"
-                >
-                  <!-- Imagem Thumbnail -->
-                  <div class="aspect-video w-full bg-black/60 relative overflow-hidden">
-                    <img
-                      src={img.url}
-                      alt={img.name}
-                      class="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200"
-                      loading="lazy"
-                    />
+      <!-- ================= ABA 3: FUNDOS & GRADIENTES ================= -->
+      {:else if activeTab === 'backgrounds'}
+        <div class="flex-1 flex overflow-hidden gap-3">
+          <!-- Tree Navigation Vertical para Categorias de Fundos -->
+          <aside class="w-52 border-r border-border bg-card/40 flex flex-col shrink-0 p-2 overflow-y-auto space-y-1">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1 block">
+              Tipos de Fundos
+            </span>
 
-                    <!-- Overlay sutil com nome e pasta -->
-                    <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1 pt-3">
-                      <p class="text-[10px] text-white font-medium truncate drop-shadow">{img.name}</p>
+            <button
+              type="button"
+              onclick={() => (selectedBgCategory = 'all')}
+              class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedBgCategory === 'all' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+            >
+              <div class="flex items-center gap-2">
+                <Layers size={13} />
+                <span>Todos</span>
+              </div>
+              <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+                {BACKGROUND_PRESETS.length + localWallpapers.length}
+              </Badge>
+            </button>
+
+            <button
+              type="button"
+              onclick={() => (selectedBgCategory = 'animated')}
+              class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedBgCategory === 'animated' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+            >
+              <div class="flex items-center gap-2">
+                <Sparkles size={13} class="text-amber-400" />
+                <span>Animados (CSS)</span>
+              </div>
+              <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+                {BACKGROUND_PRESETS.filter((p) => p.category === 'animated').length}
+              </Badge>
+            </button>
+
+            <button
+              type="button"
+              onclick={() => (selectedBgCategory = 'mesh')}
+              class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedBgCategory === 'mesh' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+            >
+              <div class="flex items-center gap-2">
+                <Palette size={13} class="text-fuchsia-400" />
+                <span>Mesh Gradients</span>
+              </div>
+              <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+                {BACKGROUND_PRESETS.filter((p) => p.category === 'mesh').length}
+              </Badge>
+            </button>
+
+            <button
+              type="button"
+              onclick={() => (selectedBgCategory = 'gradients')}
+              class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedBgCategory === 'gradients' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+            >
+              <div class="flex items-center gap-2">
+                <Palette size={13} class="text-sky-400" />
+                <span>Gradientes Lineares</span>
+              </div>
+              <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+                {BACKGROUND_PRESETS.filter((p) => p.category === 'gradients').length}
+              </Badge>
+            </button>
+
+            <button
+              type="button"
+              onclick={() => (selectedBgCategory = 'local')}
+              class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedBgCategory === 'local' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+            >
+              <div class="flex items-center gap-2">
+                <Folder size={13} class="text-emerald-400" />
+                <span>Papéis Locais</span>
+              </div>
+              <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+                {localWallpapers.length}
+              </Badge>
+            </button>
+          </aside>
+
+          <!-- Área dos Cartões de Fundo com Breadcrumbs no Topo -->
+          <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Barra de Breadcrumbs e Filtros de Fundos -->
+            <div class="flex items-center justify-between gap-3 mb-2 shrink-0 pb-1.5 border-b border-border">
+              <!-- Breadcrumbs -->
+              <nav class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span>Mídias</span>
+                <ChevronRight size={11} />
+                <span>Fundos</span>
+                <ChevronRight size={11} />
+                <span class="text-foreground font-bold capitalize">
+                  {selectedBgCategory === 'all'
+                    ? 'Todos os Fundos'
+                    : selectedBgCategory === 'gradients'
+                      ? 'Gradientes Lineares'
+                      : selectedBgCategory === 'mesh'
+                        ? 'Mesh Gradients'
+                        : selectedBgCategory === 'animated'
+                          ? 'Gradientes Animados'
+                          : 'Papéis Locais'}
+                </span>
+              </nav>
+
+              <!-- Busca Rápida de Fundos -->
+              <div class="relative w-64">
+                <Search size={12} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  bind:value={bgSearchQuery}
+                  placeholder="Filtrar fundos..."
+                  class="w-full h-6 pl-7 pr-3 bg-neutral-900 border border-neutral-800 rounded-md text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <!-- Grade de Cartões de Fundo 16:9 com Prévia Viva -->
+            <div class="flex-1 overflow-y-auto pr-1">
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                <!-- Presets em Código CSS -->
+                {#if selectedBgCategory !== 'local'}
+                  {#each filteredBackgrounds as preset (preset.id)}
+                    {@const encoded = encodeBackground(preset)}
+                    {@const isLiveBg = $presentationState.wallpaper_path === encoded}
+
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div
+                      onclick={() => applyBackground(encoded)}
+                      role="button"
+                      tabindex="0"
+                      onkeydown={(e) => { if (e.key === 'Enter') applyBackground(encoded); }}
+                      class="group relative rounded-xl border overflow-hidden flex flex-col transition-all cursor-pointer bg-card {isLiveBg ? 'border-primary ring-2 ring-primary shadow-lg' : 'border-border hover:border-primary/50'}"
+                    >
+                      <!-- Prévia 16:9 Viva com CSS e Animações Ativas -->
+                      <div class="aspect-video w-full relative overflow-hidden flex items-center justify-center">
+                        <div
+                          class="absolute inset-0 w-full h-full {preset.animationClass || ''}"
+                          style="background: {preset.style};"
+                        ></div>
+
+                        {#if isLiveBg}
+                          <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center gap-1 shadow-md">
+                            <Check size={10} /> Ativo no Public
+                          </div>
+                        {/if}
+
+                        {#if preset.animationClass}
+                          <span class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-amber-300 font-mono text-[9px] flex items-center gap-1">
+                            <Sparkles size={9} /> Animado
+                          </span>
+                        {/if}
+                      </div>
+
+                      <!-- Barra de Ações Rápidas no Cartão -->
+                      <div class="p-1.5 bg-muted/30 border-t border-border flex items-center justify-between gap-1">
+                        <button
+                          type="button"
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            applyBackground(encoded);
+                          }}
+                          class="flex-1 h-6 rounded bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                          title="Aplicar imediatamente no projetor"
+                        >
+                          <Play size={10} class="fill-current" />
+                          <span>Aplicar</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  {/each}
+                {/if}
 
-                  <!-- Barra de Ações Visíveis em Cada Imagem -->
-                  <div class="p-1.5 bg-muted/30 border-t border-border flex items-center justify-between gap-1">
-                    <button
-                      type="button"
-                      onclick={() => onpresentimage?.(img)}
-                      class="flex-1 h-6 rounded bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      title="Apresentar Imagem Imediatamente"
+                <!-- Papéis de Parede Locais da Pasta Wallpapers -->
+                {#if selectedBgCategory === 'all' || selectedBgCategory === 'local'}
+                  {#each localWallpapers as wall (wall.url)}
+                    {@const isLiveBg = $presentationState.wallpaper_path === wall.url}
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div
+                      onclick={() => applyBackground(wall.url)}
+                      role="button"
+                      tabindex="0"
+                      onkeydown={(e) => { if (e.key === 'Enter') applyBackground(wall.url); }}
+                      class="group relative rounded-xl border overflow-hidden flex flex-col transition-all cursor-pointer bg-card {isLiveBg ? 'border-primary ring-2 ring-primary shadow-lg' : 'border-border hover:border-primary/50'}"
                     >
-                      <Play size={10} class="fill-current" />
-                      <span>Apresentar</span>
-                    </button>
+                      <div class="aspect-video w-full relative overflow-hidden bg-black/60 flex items-center justify-center">
+                        <img
+                          src={wall.url}
+                          alt={wall.name}
+                          class="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200"
+                        />
 
-                    <button
-                      type="button"
-                      onclick={() => onaddimagetosetlist?.(img)}
-                      class="w-6 h-6 rounded bg-muted hover:bg-muted/80 text-foreground flex items-center justify-center transition-colors cursor-pointer shrink-0"
-                      title="Adicionar à Setlist"
-                    >
-                      <ListPlus size={11} />
-                    </button>
-                  </div>
-                </div>
-              {/each}
+                        {#if isLiveBg}
+                          <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center gap-1 shadow-md">
+                            <Check size={10} /> Ativo no Public
+                          </div>
+                        {/if}
+
+                        <span class="absolute bottom-1 inset-x-1 text-[9px] text-white truncate drop-shadow bg-black/60 px-1 rounded">
+                          {wall.name}
+                        </span>
+                      </div>
+
+                      <div class="p-1.5 bg-muted/30 border-t border-border flex items-center justify-between gap-1">
+                        <button
+                          type="button"
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            applyBackground(wall.url);
+                          }}
+                          class="flex-1 h-6 rounded bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                          title="Aplicar imediatamente no projetor"
+                        >
+                          <Play size={10} class="fill-current" />
+                          <span>Aplicar</span>
+                        </button>
+                      </div>
+                    </div>
+                  {/each}
+                {/if}
+              </div>
             </div>
-          {/if}
+          </main>
         </div>
       {/if}
     </div>
