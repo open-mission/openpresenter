@@ -32,6 +32,12 @@
 - [Plano — Controle de Apresentação, Partes da Música e Configurações](plans/2026-10-29-controle-apresentacao-e-configuracoes.md)
 - [ADR 0006 — Controle de Apresentação Desacoplado, Seções Customizadas e Configurações em Abas](decisions/0006-controle-de-apresentacao-secoes-customizadas-e-configuracoes.md)
 
+## Múltiplas Setlists, Context Menu e Papel de Parede (v0.6.0)
+
+- [Spec — Múltiplas Setlists, Context Menu, Papel de Parede e Armazenamento de Mídias](specs/2026-10-29-setlists-context-menu-e-wallpapers.md)
+- [Plano — Múltiplas Setlists, Context Menu, Papel de Parede e Armazenamento de Mídias](plans/2026-10-29-setlists-context-menu-e-wallpapers.md)
+- [ADR 0007 — Múltiplas Setlists, Context Menu e Armazenamento de Mídias](decisions/0007-multiplas-setlists-context-menu-e-armazenamento-de-midias.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
@@ -42,6 +48,7 @@
 - [ADR 0004 — Arquitetura Web com Rust/Axum e Svelte/shadcn-svelte](decisions/0004-arquitetura-web-axum-svelte.md)
 - [ADR 0005 — Command Palette, Catálogo com SQLite FTS5 e Busca Online](decisions/0005-command-palette-e-catalogo-musicas-fts5.md)
 - [ADR 0006 — Controle de Apresentação Desacoplado, Seções Customizadas e Configurações em Abas](decisions/0006-controle-de-apresentacao-secoes-customizadas-e-configuracoes.md)
+- [ADR 0007 — Múltiplas Setlists, Context Menu e Armazenamento de Mídias](decisions/0007-multiplas-setlists-context-menu-e-armazenamento-de-midias.md)
 
 ## Marca e design
 

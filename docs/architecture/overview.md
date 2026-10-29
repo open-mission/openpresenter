@@ -7,16 +7,16 @@ Esta página descreve a arquitetura vigente do OpenPresenter Minimal. Ela deve s
 ```text
 .
 ├── crates/
-│   ├── op-core/    # domínio puro: constantes, modelos de mídia, slides, Song, SongSection, SongSummary, AppMeta, SessionInfo, Theme, saídas e mensagens WsMessage
-│   ├── op-db/      # SQLite, PRAGMAs, migrações numeradas (v1, v2, v3 com FTS5) e persistência da sessão, saídas e catálogo de músicas
-│   └── op-admin/   # binário open-presenter: servidor HTTP (Axum), busca online de letras (Holyrics, Vagalume), WebSocket, estado global e serviço de estáticos
+│   ├── op-core/    # domínio puro: constantes, modelos de mídia, slides, Setlist, SetlistSummary, Song, SongSection, SongSummary, AppMeta, SessionInfo, Theme, saídas e mensagens WsMessage
+│   ├── op-db/      # SQLite, PRAGMAs, migrações numeradas (v1, v2, v3 com FTS5, v4 com Setlists) e persistência da sessão, saídas, catálogo de músicas e múltiplas setlists
+│   └── op-admin/   # binário open-presenter: servidor HTTP (Axum), armazenamento de mídias no sistema, busca online de letras (Holyrics, Vagalume), WebSocket, estado global e serviço de estáticos
 ├── frontend/       # aplicação cliente em Svelte 5 + TypeScript + Vite + Tailwind CSS + shadcn-svelte
 │   ├── src/
 │   │   ├── lib/
 │   │   │   ├── components/ui/  # componentes no padrão shadcn-svelte (Button, Badge, Card, MediaItemRow)
-│   │   │   ├── components/     # CommandPalette.svelte, SongEditorModal.svelte, SettingsModal.svelte
+│   │   │   ├── components/     # CommandPalette.svelte, SongEditorModal.svelte, SettingsModal.svelte, SetlistModal.svelte, QuickItemModal.svelte, ContextMenu.svelte
 │   │   │   ├── views/          # visões principais: AdminView, PublicView, StageView
-│   │   │   ├── settings.ts     # gerenciamento de tema (dark/light/system), seções customizadas e estilos
+│   │   │   ├── settings.ts     # gerenciamento de tema (dark/light/system), paleta neutra, seções customizadas e estilos
 │   │   │   ├── songParser.ts   # segmentador de letras estilo Holyrics (## Partes, quebras de slides)
 │   │   │   ├── types.ts        # tipagens e contratos de dados sincronizados com op-core
 │   │   │   ├── utils.ts        # utilitários de classe (cn, twMerge, clsx)
