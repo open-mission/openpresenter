@@ -16,6 +16,9 @@
     renameSetlistItem,
     reorderSetlistItems,
     switchActiveSetlist,
+    startTimer,
+    pauseTimer,
+    resetTimer,
   } from '$lib/ws';
   import type { MediaItem, MediaKind, Setlist, SetlistSummary, Slide, Song, ImageMediaItem } from '$lib/types';
   import { renderFormattedText } from '$lib/markdown';
@@ -57,6 +60,9 @@
     Layers,
     Plus,
     Play,
+    Pause,
+    RotateCcw,
+    Timer,
     Square,
     Settings,
     Music,
@@ -214,6 +220,31 @@
   });
 
   const resolvedWallpaper = $derived(resolveBackground($presentationState.wallpaper_path));
+
+  // Timer Global no Header
+  const timer = $derived($presentationState.timer);
+  const isTimerRunning = $derived(timer?.running ?? false);
+  const isTimerOvertime = $derived((timer?.remaining_seconds ?? 0) <= 0 && isTimerRunning);
+  const isTimerWarning = $derived(
+    (timer?.remaining_seconds ?? 0) > 0 &&
+      (timer?.remaining_seconds ?? 0) <= (timer?.warning_threshold_seconds || 60) &&
+      isTimerRunning
+  );
+
+  function formatHeaderTimer(sec: number): { text: string; isNegative: boolean } {
+    const isNegative = sec < 0;
+    const abs = Math.abs(sec);
+    const m = Math.floor(abs / 60);
+    const s = abs % 60;
+    const strM = String(m).padStart(2, '0');
+    const strS = String(s).padStart(2, '0');
+    return {
+      text: `${isNegative ? '-' : ''}${strM}:${strS}`,
+      isNegative,
+    };
+  }
+
+  const formattedHeaderTimer = $derived(formatHeaderTimer(timer?.remaining_seconds ?? 0));
 
   // Sincroniza o slide focado quando a mídia selecionada muda
   $effect(() => {
@@ -860,6 +891,64 @@
 
     <!-- Status e Ações Rápidas -->
     <div class="flex items-center gap-2 sm:gap-2.5">
+      <!-- Widget de Cronômetro Global do Operador -->
+      <div
+        class={cn(
+          'flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-colors',
+          isTimerOvertime
+            ? 'bg-rose-950/40 border-rose-600/70 text-rose-300 animate-pulse'
+            : isTimerWarning
+              ? 'bg-amber-950/40 border-amber-600/70 text-amber-300'
+              : isTimerRunning
+                ? 'bg-primary/10 border-primary/40 text-primary'
+                : 'bg-muted/40 border-border text-muted-foreground'
+        )}
+        title={`Cronômetro: ${timer.label || 'Geral'} (${isTimerRunning ? 'Em execução' : 'Pausado'})`}
+      >
+        <Timer
+          size={13}
+          class={isTimerRunning
+            ? isTimerOvertime
+              ? 'text-rose-400'
+              : isTimerWarning
+                ? 'text-amber-400'
+                : 'text-primary'
+            : 'text-muted-foreground'}
+        />
+        <span class="font-mono text-xs font-semibold tabular-nums tracking-tight">
+          {formattedHeaderTimer.text}
+        </span>
+        <div class="flex items-center gap-0.5 ml-1 pl-1 border-l border-border/60">
+          {#if isTimerRunning}
+            <button
+              type="button"
+              onclick={pauseTimer}
+              class="p-0.5 hover:bg-background/80 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Pausar Cronômetro"
+            >
+              <Pause size={12} />
+            </button>
+          {:else}
+            <button
+              type="button"
+              onclick={startTimer}
+              class="p-0.5 hover:bg-background/80 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Iniciar Cronômetro"
+            >
+              <Play size={12} />
+            </button>
+          {/if}
+          <button
+            type="button"
+            onclick={resetTimer}
+            class="p-0.5 hover:bg-background/80 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            title="Reiniciar Cronômetro"
+          >
+            <RotateCcw size={12} />
+          </button>
+        </div>
+      </div>
+
       <!-- Status WebSocket -->
       <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border text-xs">
         {#if $isWsConnected}

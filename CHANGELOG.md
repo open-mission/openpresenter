@@ -8,6 +8,21 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ### Adicionado
 
+- **Widget de Cronômetro Persistente no Header do Operador:**
+  - Mostrador digital integrado ao cabeçalho principal do painel administrativo (`AdminView`), exibindo a contagem regressiva em tempo real com tipografia tabular mono.
+  - Indicadores visuais de status (ativo em cor primária, alerta em amarelo nos 60s finais e contagem negativa em vermelho pulsante durante overtime).
+  - Ações rápidas de Play/Pause e Reset (`RotateCcw`) diretamente no header, permitindo controle imediato do tempo mesmo com o painel lateral de previews recolhido.
+- **Distribuição Dinâmica de Espaço no Monitor de Palco (`Stage Display`):**
+  - Configuração de proporções percentuais entre o Slide Atual, Próximo Slide e Rodapé de Tempo/Relógio na aba de Configurações de Stage.
+  - Prévia gráfica interativa com simulação da distribuição de tela e botão "Restaurar Proporções" (padrão 60% atual / 30% próximo / 10% rodapé).
+  - Aplicação responsiva das proporções personalizadas nos 4 presets de layout do palco (`split-50-50`, `modern-grid`, `video-focus` e `horizontal-stack`).
+
+### Modificado
+
+- **Estabilização do Modal de Configurações e Salvamento Centralizado:**
+  - Resolução do problema onde alterações na aba de Tela Pública ou outras opções causavam o reset automático da aba de navegação.
+  - Leitura segura em snapshot das stores no momento de abertura do modal e adição de botão explícito "Salvar Alterações" no rodapé com feedback visual de confirmação.
+
 - **Timer Global Sincronizado, Avisos de Palco e Overtime ProPresenter:**
   - Motor de cronômetro e timer regressivo executando em background no backend Rust via task Tokio assíncrona, com broadcast de ticks de 1s via WebSocket para todas as conexões (Admin, Public, Stage).
   - Alerta visual no último minuto (< 60s) e contagem negativa contínua em Overtime (`-01:30`, `-02:30`) em vermelho pulsante quando o tempo expira.

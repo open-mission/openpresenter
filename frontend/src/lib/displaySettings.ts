@@ -37,6 +37,9 @@ export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
   timer_color: '#EF4444',
   clock_color: '#E5E7EB',
   font_size_scale: 1.0,
+  current_slide_percent: 60,
+  next_slide_percent: 30,
+  footer_time_percent: 10,
 };
 
 // Funções utilitárias de carregamento inicial do localStorage

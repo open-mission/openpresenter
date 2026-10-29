@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import {
     X,
     Sun,
@@ -27,6 +28,7 @@
     Upload,
     Church,
     Maximize2,
+    Save,
   } from 'lucide-svelte';
   import {
     themeStore,
@@ -99,6 +101,11 @@
   let localStage = $state<StageDisplaySettings>({ ...DEFAULT_STAGE_SETTINGS });
   let uploadStatus = $state<{ [key: string]: string }>({});
 
+  // Feedback de salvamento
+  let wasModalOpen = false;
+  let isSaving = $state(false);
+  let saveStatusMessage = $state('');
+
   // Estado da Aba Arquivos e Pastas
   let systemPaths = $state<SystemPaths | null>(null);
   let mediaFolders = $state<MediaFolder[]>([]);
@@ -111,18 +118,40 @@
   let isBaseColorMenuOpen = $state(false);
   let isAccentThemeMenuOpen = $state(false);
 
-  // Carrega configurações ao abrir
+  // Carrega configurações estritamente ao abrir o modal, sem criar dependências reativas nas stores
   $effect(() => {
-    if (open) {
+    if (open && !wasModalOpen) {
+      wasModalOpen = true;
       activeTab = initialTab;
-      editableSections = JSON.parse(JSON.stringify($sectionsStore));
-      localPublic = JSON.parse(JSON.stringify($publicSettingsStore));
-      localBrand = JSON.parse(JSON.stringify($churchBrandStore));
-      localStage = JSON.parse(JSON.stringify($stageSettingsStore));
+      editableSections = JSON.parse(JSON.stringify(get(sectionsStore)));
+      localPublic = JSON.parse(JSON.stringify(get(publicSettingsStore)));
+      localBrand = JSON.parse(JSON.stringify(get(churchBrandStore)));
+      localStage = JSON.parse(JSON.stringify(get(stageSettingsStore)));
       loadSystemPaths();
       loadMediaFolders();
+    } else if (!open) {
+      wasModalOpen = false;
+      saveStatusMessage = '';
     }
   });
+
+  async function handleSaveAllSettings() {
+    isSaving = true;
+    try {
+      await savePublicDisplaySettings(localPublic);
+      await saveChurchBrandSettings(localBrand);
+      await saveStageDisplaySettings(localStage);
+      saveSections(editableSections);
+      saveStatusMessage = 'Configurações salvas com sucesso!';
+      setTimeout(() => {
+        saveStatusMessage = '';
+      }, 3500);
+    } catch (err) {
+      saveStatusMessage = 'Erro ao salvar configurações';
+    } finally {
+      isSaving = false;
+    }
+  }
 
   async function handleLogoUpload(
     variant: 'primary' | 'dark' | 'light' | 'full',
@@ -1047,6 +1076,114 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Proporções de Preenchimento dos Blocos na Tela -->
+              <div class="pt-4 border-t border-neutral-800 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="text-xs font-semibold text-white">Distribuição de Espaço na Tela (Proporções dos Blocos)</h4>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">
+                      Defina a porcentagem de área dedicada ao slide atual, próximo slide e barra de tempo no retorno.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="text-[11px] h-7"
+                    onclick={() => {
+                      localStage.current_slide_percent = DEFAULT_STAGE_SETTINGS.current_slide_percent;
+                      localStage.next_slide_percent = DEFAULT_STAGE_SETTINGS.next_slide_percent;
+                      localStage.footer_time_percent = DEFAULT_STAGE_SETTINGS.footer_time_percent;
+                      saveStageDisplaySettings(localStage);
+                    }}
+                  >
+                    Restaurar Proporções
+                  </Button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                    <div class="flex justify-between text-xs">
+                      <span class="text-neutral-400">Slide Atual</span>
+                      <span class="font-mono text-white font-semibold">{localStage.current_slide_percent ?? 60}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="30"
+                      max="80"
+                      step="5"
+                      value={localStage.current_slide_percent ?? 60}
+                      oninput={(e) => updateStageField('current_slide_percent', Number((e.target as HTMLInputElement).value))}
+                      class="w-full accent-primary"
+                    />
+                    <div class="text-[9px] text-neutral-500">Área principal do texto ao vivo</div>
+                  </div>
+
+                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                    <div class="flex justify-between text-xs">
+                      <span class="text-neutral-400">Próximo Slide</span>
+                      <span class="font-mono text-white font-semibold">{localStage.next_slide_percent ?? 30}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="50"
+                      step="5"
+                      value={localStage.next_slide_percent ?? 30}
+                      oninput={(e) => updateStageField('next_slide_percent', Number((e.target as HTMLInputElement).value))}
+                      class="w-full accent-primary"
+                    />
+                    <div class="text-[9px] text-neutral-500">Prévia do próximo trecho</div>
+                  </div>
+
+                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                    <div class="flex justify-between text-xs">
+                      <span class="text-neutral-400">Relógio & Timer</span>
+                      <span class="font-mono text-white font-semibold">{localStage.footer_time_percent ?? 10}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="8"
+                      max="25"
+                      step="1"
+                      value={localStage.footer_time_percent ?? 10}
+                      oninput={(e) => updateStageField('footer_time_percent', Number((e.target as HTMLInputElement).value))}
+                      class="w-full accent-primary"
+                    />
+                    <div class="text-[9px] text-neutral-500">Altura da barra de status</div>
+                  </div>
+                </div>
+
+                <!-- Amostra Gráfica Interativa da Divisão Proporcional -->
+                <div class="p-4 rounded-xl border border-neutral-800 bg-black flex flex-col items-center justify-center">
+                  <div class="text-[10px] text-neutral-500 mb-2 font-mono uppercase">Simulação Proporcional do Retorno</div>
+                  <div class="w-72 h-36 rounded-lg border border-neutral-700 bg-neutral-950 flex flex-col p-1.5 gap-1 overflow-hidden">
+                    <!-- Área dos Slides -->
+                    <div class="flex-1 flex gap-1 min-h-0" style="flex: {100 - (localStage.footer_time_percent ?? 10)};">
+                      <div
+                        class="rounded border border-blue-500/50 bg-blue-500/10 flex items-center justify-center text-[9px] text-blue-300 font-bold transition-all text-center p-1"
+                        style="flex: {localStage.current_slide_percent ?? 60};"
+                      >
+                        Slide Atual ({localStage.current_slide_percent ?? 60}%)
+                      </div>
+                      <div
+                        class="rounded border border-yellow-500/50 bg-yellow-500/10 flex items-center justify-center text-[9px] text-yellow-300 font-bold transition-all text-center p-1"
+                        style="flex: {localStage.next_slide_percent ?? 30};"
+                      >
+                        Próximo ({localStage.next_slide_percent ?? 30}%)
+                      </div>
+                    </div>
+                    <!-- Barra de Tempo -->
+                    <div
+                      class="rounded border border-neutral-700 bg-neutral-900 flex items-center justify-between px-2 text-[8px] text-neutral-400 shrink-0 transition-all font-mono"
+                      style="height: {Math.max(18, ((localStage.footer_time_percent ?? 10) * 1.3))}px;"
+                    >
+                      <span>Relógio Local</span>
+                      <span class="text-red-400 font-bold">Timer ({localStage.footer_time_percent ?? 10}%)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
           <!-- ABA: MARCA DA IGREJA (CHURCH BRAND) -->
@@ -1812,11 +1949,30 @@
       </div>
 
       <!-- Rodapé do Modal -->
-      <div class="h-12 px-6 border-t border-neutral-800 bg-neutral-900/60 flex items-center justify-between shrink-0 text-xs text-neutral-500">
-        <span>Pressione <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 font-mono text-[10px]">Esc</kbd> para fechar</span>
-        <Button variant="default" size="sm" onclick={onclose}>
-          Concluir
-        </Button>
+      <div class="h-14 px-6 border-t border-neutral-800 bg-neutral-900/60 flex items-center justify-between shrink-0 text-xs text-neutral-500">
+        <div class="flex items-center gap-3">
+          <span>Pressione <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 font-mono text-[10px]">Esc</kbd> para fechar</span>
+          {#if saveStatusMessage}
+            <span class="text-xs text-emerald-400 font-medium flex items-center gap-1.5 animate-in fade-in">
+              <Check size={14} class="text-emerald-400" />
+              {saveStatusMessage}
+            </span>
+          {/if}
+        </div>
+
+        <div class="flex items-center gap-2">
+          <Button variant="outline" size="sm" onclick={onclose}>
+            Fechar
+          </Button>
+          <Button variant="default" size="sm" onclick={handleSaveAllSettings} disabled={isSaving} class="gap-1.5 font-semibold">
+            {#if isSaving}
+              <span>Salvando...</span>
+            {:else}
+              <Save size={14} />
+              <span>Salvar Alterações</span>
+            {/if}
+          </Button>
+        </div>
       </div>
     </div>
   </div>

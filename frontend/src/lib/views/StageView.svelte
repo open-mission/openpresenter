@@ -90,6 +90,11 @@
   const timer = $derived($presentationState.timer);
   const stageMessage = $derived($presentationState.stage_message || $presentationState.timer?.stage_message || '');
 
+  // Proporções configuráveis com fallbacks inteligentes
+  const currentRatio = $derived(stageSettings.current_slide_percent || 60);
+  const nextRatio = $derived(stageSettings.next_slide_percent || 30);
+  const footerRatio = $derived(stageSettings.footer_time_percent || 10);
+
   // Determina se o timer está em Overtime (passou do tempo previsto)
   const timerIsOvertime = $derived(
     !!timer &&
@@ -139,12 +144,15 @@
   <!-- ========================================================================= -->
   {#if stageSettings.preset === 'split-50-50'}
     <div class="flex-1 flex flex-col gap-4 min-h-0">
-      <!-- Grade 50/50 com dois cartões com bordas e etiquetas -->
-      <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
+      <!-- Grade dinâmica com dois cartões com bordas e etiquetas -->
+      <div
+        class="flex-1 flex flex-col md:flex-row gap-4 min-h-0"
+        style="flex: {100 - footerRatio};"
+      >
         <!-- Slide Atual -->
         <div
-          class="flex flex-col rounded-2xl bg-zinc-900/60 p-6 overflow-hidden shadow-2xl relative border-2"
-          style="border-color: {stageSettings.current_border_color || '#3b82f6'};"
+          class="flex flex-col rounded-2xl bg-zinc-900/60 p-6 overflow-hidden shadow-2xl relative border-2 transition-all min-h-0 min-w-0"
+          style="flex: {currentRatio}; border-color: {stageSettings.current_border_color || '#3b82f6'};"
         >
           <div class="flex items-center justify-between pb-3 border-b border-zinc-800 shrink-0">
             <span
@@ -186,8 +194,8 @@
 
         <!-- Próximo Slide -->
         <div
-          class="flex flex-col rounded-2xl bg-zinc-900/40 p-6 overflow-hidden shadow-2xl relative border-2"
-          style="border-color: {stageSettings.next_border_color || '#eab308'};"
+          class="flex flex-col rounded-2xl bg-zinc-900/40 p-6 overflow-hidden shadow-2xl relative border-2 transition-all min-h-0 min-w-0"
+          style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
         >
           <div class="flex items-center justify-between pb-3 border-b border-zinc-800 shrink-0">
             <span
@@ -230,7 +238,10 @@
       </div>
 
       <!-- Barra de Rodapé: Relógio, Timer e Mensagem de Palco -->
-      <footer class="h-20 bg-zinc-900/80 rounded-2xl border border-zinc-800 px-6 flex items-center justify-between shrink-0">
+      <footer
+        class="bg-zinc-900/80 rounded-2xl border border-zinc-800 px-6 flex items-center justify-between shrink-0 transition-all"
+        style="min-height: clamp(60px, {footerRatio * 1.5}vh, 120px);"
+      >
         <!-- Relógio de Horário Atual -->
         <div class="flex items-center gap-3">
           <Clock size={20} class="text-zinc-400" />
@@ -280,13 +291,16 @@
   <!-- PRESET 2: MODERN GRID (Slide atual grande, próximo abaixo, lateral com timer) -->
   <!-- ========================================================================= -->
   {:else if stageSettings.preset === 'modern-grid'}
-    <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-5 min-h-0">
-      <!-- Coluna Principal (8 colunas) -->
-      <div class="md:col-span-8 flex flex-col gap-4 min-h-0">
+    <div class="flex-1 flex flex-col md:flex-row gap-5 min-h-0">
+      <!-- Coluna Principal (Slides) -->
+      <div
+        class="flex flex-col gap-4 min-h-0 transition-all"
+        style="flex: {100 - (footerRatio * 2.2)}; min-width: 0;"
+      >
         <!-- Slide Atual Grande -->
         <div
-          class="flex-1 flex flex-col rounded-2xl bg-zinc-900/70 p-6 overflow-hidden shadow-2xl border-2"
-          style="border-color: {stageSettings.current_border_color || '#3b82f6'};"
+          class="flex flex-col rounded-2xl bg-zinc-900/70 p-6 overflow-hidden shadow-2xl border-2 transition-all min-h-0"
+          style="flex: {currentRatio}; border-color: {stageSettings.current_border_color || '#3b82f6'};"
         >
           <div class="flex items-center justify-between pb-3 border-b border-zinc-800 shrink-0">
             <span
@@ -321,8 +335,8 @@
 
         <!-- Próximo Slide Compacto Abaixo -->
         <div
-          class="h-36 rounded-2xl bg-zinc-900/40 p-4 overflow-hidden border flex flex-col shrink-0"
-          style="border-color: {stageSettings.next_border_color || '#eab308'};"
+          class="rounded-2xl bg-zinc-900/40 p-4 overflow-hidden border flex flex-col shrink-0 transition-all min-h-0"
+          style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
         >
           <div class="flex items-center justify-between pb-1.5 border-b border-zinc-800/80 shrink-0">
             <span
@@ -354,11 +368,14 @@
         </div>
       </div>
 
-      <!-- Coluna Lateral Direita (4 colunas): Mensagem, Relógio e Timer Grande -->
-      <div class="md:col-span-4 flex flex-col gap-4 min-h-0">
+      <!-- Coluna Lateral Direita (Tempo, Avisos e Relógio) -->
+      <div
+        class="flex flex-col gap-4 min-h-0 transition-all"
+        style="flex: {footerRatio * 2.2}; min-width: 280px; max-width: 440px;"
+      >
         <!-- Mensagem de Palco com visual proeminente -->
         {#if stageMessage}
-          <div class="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 text-emerald-300 shadow-lg">
+          <div class="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 text-emerald-300 shadow-lg shrink-0">
             <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-1 text-emerald-400">
               <MessageSquare size={14} />
               Aviso para o Palco
@@ -368,7 +385,7 @@
         {/if}
 
         <!-- Relógio de Parede -->
-        <div class="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-center">
+        <div class="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-center shrink-0">
           <div class="text-[11px] text-zinc-400 uppercase tracking-widest font-semibold mb-1 flex items-center gap-1.5">
             <Clock size={14} />
             Horário
@@ -383,7 +400,7 @@
         </div>
 
         <!-- Timer Grande Dedicado com Overtime Negativo -->
-        <div class="flex-1 p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-center items-center text-center relative overflow-hidden">
+        <div class="flex-1 p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-center items-center text-center relative overflow-hidden min-h-0">
           <div class="text-xs text-zinc-400 uppercase tracking-widest font-semibold mb-2 flex items-center gap-1.5">
             <Hourglass size={14} />
             {timer?.label || 'Cronômetro'}
@@ -422,8 +439,8 @@
     <div class="flex-1 flex flex-col gap-4 min-h-0">
       <!-- Área Central de Foco Máximo -->
       <div
-        class="flex-1 flex flex-col rounded-2xl bg-zinc-900/80 p-8 sm:p-12 overflow-hidden shadow-2xl border-2 justify-center items-center text-center relative"
-        style="border-color: {stageSettings.current_border_color || '#3b82f6'};"
+        class="flex flex-col rounded-2xl bg-zinc-900/80 p-8 sm:p-12 overflow-hidden shadow-2xl border-2 justify-center items-center text-center relative transition-all min-h-0"
+        style="flex: {currentRatio}; border-color: {stageSettings.current_border_color || '#3b82f6'};"
       >
         <div class="absolute top-4 left-6 flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -456,7 +473,10 @@
       </div>
 
       <!-- Barra Inferior com Próximo Slide, Relógio e Timer -->
-      <footer class="h-24 bg-zinc-900/60 rounded-2xl border border-zinc-800 p-4 flex items-center justify-between shrink-0 gap-4">
+      <footer
+        class="bg-zinc-900/60 rounded-2xl border border-zinc-800 p-4 flex items-center justify-between shrink-0 gap-4 transition-all"
+        style="min-height: clamp(68px, {footerRatio * 1.5}vh, 130px);"
+      >
         <!-- Próximo Slide Compacto -->
         <div class="flex-1 min-w-0 pr-4 border-r border-zinc-800">
           <div
@@ -514,7 +534,10 @@
   {:else}
     <div class="flex-1 flex flex-col gap-3 min-h-0">
       <!-- Barra Topo com Relógio, Timer e Mensagem -->
-      <header class="h-16 bg-zinc-900/80 rounded-xl border border-zinc-800 px-6 flex items-center justify-between shrink-0">
+      <header
+        class="bg-zinc-900/80 rounded-xl border border-zinc-800 px-6 flex items-center justify-between shrink-0 transition-all"
+        style="min-height: clamp(52px, {footerRatio * 1.2}vh, 85px);"
+      >
         <div class="flex items-center gap-3">
           <Clock size={18} class="text-zinc-400" />
           <span
@@ -548,8 +571,8 @@
 
       <!-- Centro: Slide Atual em Tipografia Gigante -->
       <div
-        class="flex-1 rounded-2xl bg-zinc-900/50 p-8 sm:p-14 overflow-hidden border-2 flex flex-col justify-center items-center text-center shadow-xl"
-        style="border-color: {stageSettings.current_border_color || '#3b82f6'};"
+        class="rounded-2xl bg-zinc-900/50 p-8 sm:p-14 overflow-hidden border-2 flex flex-col justify-center items-center text-center shadow-xl transition-all min-h-0"
+        style="flex: {currentRatio}; border-color: {stageSettings.current_border_color || '#3b82f6'};"
       >
         <div class="my-auto overflow-y-auto max-w-5xl">
           {#if activeSlide}
@@ -567,8 +590,8 @@
 
       <!-- Base: Próximo Slide em Faixa Horizontal -->
       <footer
-        class="h-20 rounded-xl bg-zinc-900/70 p-4 border flex items-center justify-between shrink-0 px-6"
-        style="border-color: {stageSettings.next_border_color || '#eab308'};"
+        class="rounded-xl bg-zinc-900/70 p-4 border flex items-center justify-between shrink-0 px-6 transition-all"
+        style="min-height: clamp(60px, {nextRatio * 0.7}vh, 120px); border-color: {stageSettings.next_border_color || '#eab308'};"
       >
         <div class="flex items-center gap-4 min-w-0 flex-1">
           <span

@@ -51,6 +51,11 @@
 - [Spec — Margens do Public, Marca da Igreja, Presets de Stage e Timer Global](specs/2026-10-29-public-margins-church-brand-stage-presets-e-timer.md)
 - [Plano — Margens do Public, Marca da Igreja, Presets de Stage e Timer Global](plans/2026-10-29-public-margins-church-brand-stage-presets-e-timer.md)
 
+## Estabilidade de Configurações, Proporções no Stage e Widget de Timer no Header
+
+- [Spec — Correção do Modal de Configurações, Proporções no Monitor de Palco e Widget de Timer no Header](specs/2026-10-29-fix-settings-stage-proportions-e-header-timer.md)
+- [Plano — Correção do Modal de Configurações, Proporções no Monitor de Palco e Widget de Timer no Header](plans/2026-10-29-fix-settings-stage-proportions-e-header-timer.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
