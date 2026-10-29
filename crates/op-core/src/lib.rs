@@ -306,9 +306,10 @@ impl MediaKind {
 }
 
 /// Tipo de seção de uma música.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum SectionType {
+    #[default]
     Verse,
     PreChorus,
     Chorus,
@@ -318,6 +319,17 @@ pub enum SectionType {
     Instrumental,
     Tag,
     Ending,
+    Other,
+}
+
+impl<'de> Deserialize<'de> for SectionType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(SectionType::from_label(&s).unwrap_or(SectionType::Other))
+    }
 }
 
 impl SectionType {
@@ -338,6 +350,7 @@ impl SectionType {
             "instrumental" => Some(Self::Instrumental),
             "tag" => Some(Self::Tag),
             "encerramento" | "ending" => Some(Self::Ending),
+            "other" => Some(Self::Other),
             _ => None,
         }
     }
@@ -353,6 +366,7 @@ impl SectionType {
             Self::Instrumental => "instrumental",
             Self::Tag => "tag",
             Self::Ending => "ending",
+            Self::Other => "other",
         }
     }
 
@@ -367,6 +381,7 @@ impl SectionType {
             Self::Instrumental => "Instrumental",
             Self::Tag => "Tag",
             Self::Ending => "Encerramento",
+            Self::Other => "Outro",
         }
     }
 }
@@ -374,8 +389,11 @@ impl SectionType {
 /// Seção estruturada de uma música.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SongSection {
+    #[serde(default)]
     pub section_type: Option<SectionType>,
+    #[serde(default)]
     pub label: String,
+    #[serde(default)]
     pub lines: Vec<String>,
 }
 
@@ -393,6 +411,7 @@ pub struct Song {
     pub song_key: Option<String>,
     #[serde(default)]
     pub bpm: Option<i32>,
+    #[serde(default)]
     pub sections: Vec<SongSection>,
     pub lyrics_raw: String,
 }
@@ -779,5 +798,35 @@ Porque Ele vive, temor não há
             slides[2].content,
             "Porque Ele vive, posso crer no amanhã\nPorque Ele vive, temor não há"
         );
+    }
+
+    #[test]
+    fn section_type_deserialization_is_lenient_and_handles_various_labels() {
+        let json = r#"["verso 1", "refrão", "chorus", "ponte", "desconhecido"]"#;
+        let types: Vec<SectionType> = serde_json::from_str(json).expect("deserializes safely");
+        assert_eq!(types[0], SectionType::Verse);
+        assert_eq!(types[1], SectionType::Chorus);
+        assert_eq!(types[2], SectionType::Chorus);
+        assert_eq!(types[3], SectionType::Bridge);
+        assert_eq!(types[4], SectionType::Other);
+
+        // Testa deserialização de Song com seções flexíveis
+        let song_json = r#"{
+            "id": "song-abc",
+            "title": "Teste",
+            "artist": "Autor",
+            "sections": [
+                {
+                    "section_type": "verso 1",
+                    "label": "Verso 1",
+                    "lines": ["linha 1", "linha 2"]
+                }
+            ],
+            "lyrics_raw": "estrofe 1"
+        }"#;
+
+        let song: Song = serde_json::from_str(song_json).expect("deserializes song");
+        assert_eq!(song.sections.len(), 1);
+        assert_eq!(song.sections[0].section_type, Some(SectionType::Verse));
     }
 }

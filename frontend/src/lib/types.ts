@@ -67,12 +67,22 @@ export type WsMessage =
   | { type: 'ping' }
   | { type: 'pong' };
 
+export type SectionType =
+  | 'verse'
+  | 'pre-chorus'
+  | 'chorus'
+  | 'bridge'
+  | 'intro'
+  | 'outro'
+  | 'instrumental'
+  | 'tag'
+  | 'ending'
+  | 'other';
+
 export interface SongSection {
-  id: string;
-  name: string;
-  section_type: string;
-  color?: string;
-  content: string;
+  section_type?: SectionType;
+  label: string;
+  lines: string[];
 }
 
 export interface Song {

@@ -175,8 +175,13 @@ async fn get_song(
 
 async fn save_song(
     State(state): State<AppState>,
-    Json(payload): Json<SaveSongPayload>,
+    Json(mut payload): Json<SaveSongPayload>,
 ) -> Result<(StatusCode, Json<Song>), (StatusCode, String)> {
+    if payload.song.sections.is_empty() {
+        let (parsed_sections, _) = op_core::parse_raw_lyrics(&payload.song.lyrics_raw);
+        payload.song.sections = parsed_sections;
+    }
+
     if let Some(ref db) = state.db {
         let db_guard = db.lock().await;
         db_guard

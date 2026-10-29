@@ -1,4 +1,36 @@
-import type { Slide, SongSection } from './types';
+import type { SectionType, Slide, SongSection } from './types';
+
+export function getSectionType(name: string): SectionType {
+  const lower = name.toLowerCase().trim();
+  if (lower.includes('pre-refr') || lower.includes('pré-refr') || lower.includes('pre-chorus')) {
+    return 'pre-chorus';
+  }
+  if (lower.includes('refr') || lower.includes('coro') || lower.includes('chorus')) {
+    return 'chorus';
+  }
+  if (lower.includes('ponte') || lower.includes('bridge')) {
+    return 'bridge';
+  }
+  if (lower.includes('intro') || lower.includes('início') || lower.includes('introducao')) {
+    return 'intro';
+  }
+  if (lower.includes('final') || lower.includes('outro')) {
+    return 'outro';
+  }
+  if (lower.includes('instrumental') || lower.includes('solo')) {
+    return 'instrumental';
+  }
+  if (lower.includes('tag')) {
+    return 'tag';
+  }
+  if (lower.includes('encerramento') || lower.includes('ending')) {
+    return 'ending';
+  }
+  if (lower.includes('verso') || lower.includes('verse') || lower.includes('estrofe')) {
+    return 'verse';
+  }
+  return 'other';
+}
 
 export function getSectionColor(name: string): { bg: string; text: string; border: string; accent: string } {
   const lower = name.toLowerCase();
@@ -103,16 +135,15 @@ export function parseRawLyrics(raw: string): { sections: SongSection[]; slides: 
   flushSection();
 
   let globalSlideIdx = 1;
-  let sectionIdx = 1;
 
   for (const sec of rawSections) {
     const totalBlocks = sec.blocks.length;
+    const lines = sec.blocks.flatMap((b) => b.split('\n'));
 
     sections.push({
-      id: `sec-${sectionIdx++}`,
-      name: sec.label,
-      section_type: sec.label.toLowerCase(),
-      content: sec.blocks.join('\n\n'),
+      section_type: getSectionType(sec.label),
+      label: sec.label,
+      lines,
     });
 
     sec.blocks.forEach((block, idx) => {
