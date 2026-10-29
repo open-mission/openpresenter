@@ -9,6 +9,7 @@ Cada decisão arquitetural duradoura é registrada em um arquivo `NNNN-slug.md`,
 - [ADR 0003 — Saídas Public e Stage em janelas independentes](0003-saidas-multitela.md)
 - [ADR 0004 — Arquitetura Web com Rust/Axum e Svelte/shadcn-svelte](0004-arquitetura-web-axum-svelte.md)
 - [ADR 0005 — Command Palette, Catálogo com SQLite FTS5 e Busca Online](0005-command-palette-e-catalogo-musicas-fts5.md)
+- [ADR 0006 — Controle de Apresentação Desacoplado, Seções Customizadas e Configurações em Abas](0006-controle-de-apresentacao-secoes-customizadas-e-configuracoes.md)
 
 ## Formato
 

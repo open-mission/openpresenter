@@ -14,8 +14,9 @@ Esta página descreve a arquitetura vigente do OpenPresenter Minimal. Ela deve s
 │   ├── src/
 │   │   ├── lib/
 │   │   │   ├── components/ui/  # componentes no padrão shadcn-svelte (Button, Badge, Card, MediaItemRow)
-│   │   │   ├── components/     # CommandPalette.svelte, SongEditorModal.svelte
+│   │   │   ├── components/     # CommandPalette.svelte, SongEditorModal.svelte, SettingsModal.svelte
 │   │   │   ├── views/          # visões principais: AdminView, PublicView, StageView
+│   │   │   ├── settings.ts     # gerenciamento de tema (dark/light/system), seções customizadas e estilos
 │   │   │   ├── songParser.ts   # segmentador de letras estilo Holyrics (## Partes, quebras de slides)
 │   │   │   ├── types.ts        # tipagens e contratos de dados sincronizados com op-core
 │   │   │   ├── utils.ts        # utilitários de classe (cn, twMerge, clsx)
@@ -62,7 +63,9 @@ crates/op-admin/src/
 10. Ao acessar `http://localhost:3000` pelo navegador:
     - O frontend Svelte carrega a visão **Admin** por padrão.
     - O cliente estabelece conexão WebSocket com `/ws`, envia identificação e recebe imediatamente o estado completo (`SyncState`).
-    - O operador pode navegar pelas mídias na sidebar (com componentes `MediaItemRow` do Shadui), selecionar slides no painel central e acompanhar previews 16:9 em tempo real do **Public** e do **Stage**.
+    - O operador pode navegar pelas mídias na sidebar (com componentes `MediaItemRow` do Shadui), selecionar e pré-visualizar slides no painel central de forma desacoplada do ar (apresentando com Enter ou duplo clique, parando com Esc, saltando partes por letra e por número de slide).
+    - Pré-visualizar saídas com aspect ratio 16:9 em tempo real do **Public** e do **Stage**.
+    - Acessar o modal de **Configurações** em abas verticais para customização de tema (escuro/claro/sistema), cores de seções da música e atalhos rápidos.
     - Clicar em "Abrir Public" abre a rota `/public` em nova janela ou aba para projetor ou OBS.
     - Clicar em "Abrir Stage" abre a rota `/stage` em nova janela ou aba para retorno do palco com relógio digital em tempo real.
 
