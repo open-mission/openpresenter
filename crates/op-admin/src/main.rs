@@ -420,4 +420,77 @@ mod tests {
             .unwrap();
         assert_eq!(open_valid_resp.status(), StatusCode::OK);
     }
+
+    #[tokio::test]
+    async fn stop_presentation_and_set_wallpaper_work() {
+        let state = mock_state();
+        let app = create_routes(state.clone());
+
+        // Inicia slide
+        let payload = serde_json::to_string(&routes::SelectSlideRequest {
+            media_id: "song-1".into(),
+            slide_index: 0,
+        })
+        .unwrap();
+
+        let _ = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/api/presentation/live")
+                    .body(axum::body::Body::from(payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            state.presentation.read().await.active_media_id,
+            Some("song-1".into())
+        );
+
+        // Altera wallpaper
+        let wall_payload = serde_json::to_string(&serde_json::json!({
+            "path": "linear-gradient(135deg, #1e1b4b, #0f172a)",
+            "mode": "cover"
+        }))
+        .unwrap();
+
+        let wall_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/api/presentation/wallpaper")
+                    .body(axum::body::Body::from(wall_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(wall_resp.status(), StatusCode::OK);
+        assert_eq!(
+            state.presentation.read().await.wallpaper_path,
+            Some("linear-gradient(135deg, #1e1b4b, #0f172a)".into())
+        );
+
+        // Para a apresentação
+        let stop_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/presentation/stop")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(stop_resp.status(), StatusCode::OK);
+
+        let pres = state.presentation.read().await;
+        assert_eq!(pres.active_media_id, None);
+        assert_eq!(pres.active_slide_index, None);
+    }
 }

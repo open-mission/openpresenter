@@ -79,6 +79,12 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     Ok(WsMessage::SetDisplayMode { mode }) => {
                         state.set_display_mode(mode).await;
                     }
+                    Ok(WsMessage::StopPresentation) => {
+                        state.stop_presentation().await;
+                    }
+                    Ok(WsMessage::SetWallpaper { path, mode }) => {
+                        state.set_wallpaper(path, mode).await;
+                    }
                     Ok(WsMessage::Ping) => {
                         let _ = state.broadcast_tx.send(WsMessage::Pong);
                     }

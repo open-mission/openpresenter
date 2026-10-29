@@ -257,6 +257,58 @@ impl AppState {
         updated
     }
 
+    /// Para ou cancela a apresentação ativa, limpando qualquer mídia e slide ao vivo.
+    pub async fn stop_presentation(&self) -> PresentationState {
+        let mut state = self.presentation.write().await;
+        state.active_media_id = None;
+        state.active_slide_index = None;
+        state.display_mode = DisplayMode::Live;
+        let updated = state.clone();
+        drop(state);
+
+        let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
+            presentation: updated.clone(),
+        });
+
+        updated
+    }
+
+    /// Atualiza o papel de parede ou fundo da apresentação ao vivo e sincroniza com a setlist ativa.
+    pub async fn set_wallpaper(
+        &self,
+        path: Option<String>,
+        mode: Option<String>,
+    ) -> PresentationState {
+        let mut state = self.presentation.write().await;
+        state.wallpaper_path = path.clone();
+        if let Some(ref m) = mode {
+            state.wallpaper_mode = Some(m.clone());
+        }
+        let updated = state.clone();
+        drop(state);
+
+        // Se houver uma setlist ativa, atualiza também seu wallpaper
+        {
+            let mut active = self.active_setlist.write().await;
+            if let Some(ref mut s) = *active {
+                s.wallpaper_path = path;
+                if let Some(m) = mode {
+                    s.wallpaper_mode = Some(m);
+                }
+                if let Some(ref db_opt) = self.db {
+                    let mut db = db_opt.lock().await;
+                    let _ = db.save_setlist(s);
+                }
+            }
+        }
+
+        let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
+            presentation: updated.clone(),
+        });
+
+        updated
+    }
+
     /// Alterna o modo Blackout (tela preta total).
     pub async fn toggle_blackout(&self) -> PresentationState {
         let mut state = self.presentation.write().await;

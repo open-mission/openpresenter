@@ -143,6 +143,11 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/presentation/mode", post(set_display_mode))
         .route("/api/presentation/blackout", post(toggle_blackout))
         .route("/api/presentation/clear", post(toggle_clear_text))
+        .route("/api/presentation/stop", post(stop_presentation))
+        .route(
+            "/api/presentation/wallpaper",
+            post(set_presentation_wallpaper),
+        )
         .route("/api/outputs/{kind}/toggle", post(toggle_output))
         .route("/api/songs", get(get_songs).post(save_song))
         .route("/api/songs/{id}", get(get_song))
@@ -218,6 +223,25 @@ async fn toggle_blackout(State(state): State<AppState>) -> Json<PresentationStat
 
 async fn toggle_clear_text(State(state): State<AppState>) -> Json<PresentationState> {
     let updated = state.toggle_clear_text().await;
+    Json(updated)
+}
+
+#[derive(Deserialize)]
+pub struct SetWallpaperRequest {
+    pub path: Option<String>,
+    pub mode: Option<String>,
+}
+
+async fn stop_presentation(State(state): State<AppState>) -> Json<PresentationState> {
+    let updated = state.stop_presentation().await;
+    Json(updated)
+}
+
+async fn set_presentation_wallpaper(
+    State(state): State<AppState>,
+    Json(payload): Json<SetWallpaperRequest>,
+) -> Json<PresentationState> {
+    let updated = state.set_wallpaper(payload.path, payload.mode).await;
     Json(updated)
 }
 

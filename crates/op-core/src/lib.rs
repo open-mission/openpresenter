@@ -705,6 +705,13 @@ pub enum WsMessage {
     SetDisplayMode {
         mode: DisplayMode,
     },
+    /// Comando para parar ou cancelar a apresentação ao vivo.
+    StopPresentation,
+    /// Comando para definir o papel de parede ou fundo ao vivo da apresentação.
+    SetWallpaper {
+        path: Option<String>,
+        mode: Option<String>,
+    },
     /// Identificação do cliente ao se conectar (admin, public, stage).
     Identify {
         client_type: String,
