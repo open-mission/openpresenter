@@ -1,12 +1,13 @@
 use axum::{
     Json, Router,
-    extract::{Path, Query, State},
+    extract::{DefaultBodyLimit, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
 };
 use op_core::{
-    DisplayMode, MediaItem, OnlineLyricHit, OutputKind, OutputsConfig, PresentationState, Setlist,
+    BibleBook, BibleSearchResult, BibleVerse, BibleVersionSummary, DisplayMode, MediaItem,
+    OnlineLyricHit, OutputKind, OutputsConfig, ParsedReference, PresentationState, Setlist,
     SetlistSummary, Song, SongSummary, VERSION,
 };
 use serde::{Deserialize, Serialize};
@@ -175,6 +176,7 @@ pub fn create_routes(state: AppState) -> Router {
         )
         .route("/api/setlists/{id}/active", post(activate_setlist))
         .route("/api/setlists/items/remove", post(remove_setlist_item))
+        .route("/api/setlists/items/clear", post(clear_setlist_items))
         .route("/api/setlists/items/reorder", post(reorder_setlist_items))
         .route("/api/setlists/items/rename", post(rename_setlist_item))
         .route(
@@ -191,6 +193,27 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/media/upload", post(upload_media))
         .route("/api/media/external-file", get(serve_external_file))
         .route("/api/media/files/{*subpath}", get(serve_media_file))
+        .route("/api/bibles", get(list_bibles))
+        .route("/api/bibles/import", post(import_bible))
+        .route(
+            "/api/bibles/{id}",
+            axum::routing::put(update_bible).delete(delete_bible),
+        )
+        .route("/api/bibles/{id}/books", get(get_bible_books))
+        .route(
+            "/api/bibles/{id}/books/{book_id}/chapters",
+            get(get_bible_chapters),
+        )
+        .route(
+            "/api/bibles/{id}/books/{book_id}/chapters/{chapter}/verses",
+            get(get_bible_verses),
+        )
+        .route("/api/bibles/{id}/search", get(search_bible))
+        .route("/api/bibles/parse-reference", get(parse_reference_endpoint))
+        .route("/api/updater/check", get(check_updater))
+        .route("/api/updater/status", get(get_updater_status))
+        .route("/api/updater/install", post(install_updater))
+        .layer(DefaultBodyLimit::max(128 * 1024 * 1024))
         .with_state(state)
 }
 
@@ -262,13 +285,17 @@ async fn set_presentation_wallpaper(
 #[derive(Deserialize)]
 pub struct QuickMediaRequest {
     pub item: MediaItem,
+    #[serde(default)]
+    pub slide_index: Option<usize>,
 }
 
 async fn quick_present_media(
     State(state): State<AppState>,
     Json(payload): Json<QuickMediaRequest>,
 ) -> Json<PresentationState> {
-    let updated = state.quick_present_media(payload.item).await;
+    let updated = state
+        .quick_present_media_with_slide(payload.item, payload.slide_index.unwrap_or(0))
+        .await;
     Json(updated)
 }
 
@@ -295,11 +322,21 @@ pub fn get_local_ip() -> String {
     try_get_ip().unwrap_or_else(|| "127.0.0.1".to_string())
 }
 
-async fn get_network_info() -> Json<NetworkInfoResponse> {
-    let port = std::env::var("PORT")
+async fn get_network_info(State(state): State<AppState>) -> Json<NetworkInfoResponse> {
+    let port: u16 = std::env::var("PORT")
         .ok()
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(3000);
+        .and_then(|p| p.parse::<u16>().ok())
+        .or_else(|| {
+            state.db.as_ref().and_then(|db_mutex| {
+                db_mutex
+                    .try_lock()
+                    .ok()?
+                    .get_setting("server_port")
+                    .ok()?
+                    .and_then(|s| s.parse::<u16>().ok())
+            })
+        })
+        .unwrap_or(18080);
     let local_ip = get_local_ip();
     let public_url = format!("http://{}:{}/public", local_ip, port);
     let stage_url = format!("http://{}:{}/stage", local_ip, port);
@@ -669,6 +706,11 @@ async fn remove_setlist_item(
             "Item não encontrado na setlist".into(),
         ))
     }
+}
+
+async fn clear_setlist_items(State(state): State<AppState>) -> StatusCode {
+    state.clear_active_setlist_items().await;
+    StatusCode::OK
 }
 
 async fn reorder_setlist_items(
@@ -1181,4 +1223,526 @@ async fn serve_external_file(
             .into_response(),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Erro ao ler arquivo").into_response(),
     }
+}
+
+// ==========================================
+// MÓDULO DE BÍBLIAS (SQLITE)
+// ==========================================
+
+#[derive(Deserialize)]
+pub struct ImportBiblePayload {
+    pub name: Option<String>,
+    pub abbreviation: Option<String>,
+    pub source_path: Option<String>,
+    pub filename: Option<String>,
+    pub content_base64: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateBiblePayload {
+    pub name: String,
+    pub abbreviation: String,
+    #[serde(default)]
+    pub is_default: Option<bool>,
+}
+
+#[derive(Deserialize)]
+pub struct BibleSearchQuery {
+    pub q: String,
+    pub limit: Option<usize>,
+    pub exact: Option<bool>,
+}
+
+#[derive(Deserialize)]
+pub struct ParseReferenceQuery {
+    pub q: String,
+}
+
+async fn list_bibles(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<BibleVersionSummary>>, (StatusCode, String)> {
+    let db_opt = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados não disponível".into(),
+    ))?;
+    let db = db_opt.lock().await;
+    let mut bibles = db
+        .list_bibles()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let bibles_dir = crate::session::resolve_bibles_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    for bible in &mut bibles {
+        let path = bibles_dir.join(&bible.filename);
+        if path.exists()
+            && let Ok(reader) = op_db::BibleReader::open(&path)
+            && let Ok((books, verses)) = reader.get_stats()
+        {
+            bible.book_count = books;
+            bible.verse_count = verses;
+        }
+    }
+
+    Ok(Json(bibles))
+}
+
+async fn import_bible(
+    State(state): State<AppState>,
+    Json(payload): Json<ImportBiblePayload>,
+) -> Result<Json<BibleVersionSummary>, (StatusCode, String)> {
+    let bibles_dir = crate::session::resolve_bibles_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let db_opt = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados não disponível".into(),
+    ))?;
+
+    let id = format!("bible-{}", chrono::Utc::now().timestamp_millis());
+    let target_filename = format!("{id}.sqlite");
+    let target_path = bibles_dir.join(&target_filename);
+
+    if let Some(source_path_str) = payload.source_path.filter(|p| !p.trim().is_empty()) {
+        let src = std::path::PathBuf::from(source_path_str.trim());
+        if !src.exists() {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "Arquivo de origem não encontrado".into(),
+            ));
+        }
+        std::fs::copy(&src, &target_path).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Falha ao copiar arquivo de bíblia: {e}"),
+            )
+        })?;
+    } else if let Some(base64_data) = payload.content_base64.filter(|b| !b.trim().is_empty()) {
+        let bytes = decode_base64(&base64_data)
+            .ok_or((StatusCode::BAD_REQUEST, "Base64 inválido".into()))?;
+        std::fs::write(&target_path, bytes).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Falha ao gravar arquivo de bíblia: {e}"),
+            )
+        })?;
+    } else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Forneça o arquivo (base64) ou o caminho local do arquivo SQLite".into(),
+        ));
+    }
+
+    // Valida o arquivo SQLite
+    let reader = op_db::BibleReader::open(&target_path).map_err(|e| {
+        let _ = std::fs::remove_file(&target_path);
+        (
+            StatusCode::BAD_REQUEST,
+            format!("Não foi possível abrir o arquivo SQLite: {e}"),
+        )
+    })?;
+
+    if let Err(e) = reader.validate_schema() {
+        let _ = std::fs::remove_file(&target_path);
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("Estrutura incompatível: o arquivo deve conter tabelas 'book' e 'verse' ({e})"),
+        ));
+    }
+
+    let _ = reader.ensure_indexes();
+
+    let (book_count, verse_count) = reader.get_stats().unwrap_or((66, 31104));
+
+    // Determina o nome
+    let mut name = payload.name.unwrap_or_default().trim().to_string();
+    if name.is_empty() {
+        if let Ok(Some(meta_name)) = reader.get_metadata("name") {
+            name = meta_name;
+        } else if let Some(ref fname) = payload.filename {
+            name = fname
+                .trim_end_matches(".sqlite")
+                .trim_end_matches(".db")
+                .replace('_', " ");
+        } else {
+            name = "Bíblia Sagrada".to_string();
+        }
+    }
+
+    // Determina a sigla / abreviação (ex: ARA, NVI)
+    let mut abbr = payload
+        .abbreviation
+        .unwrap_or_default()
+        .trim()
+        .to_uppercase();
+    if abbr.is_empty() {
+        if let Ok(Some(meta_abbr)) = reader
+            .get_metadata("abbreviation")
+            .or_else(|_| reader.get_metadata("version"))
+        {
+            abbr = meta_abbr.to_uppercase();
+        } else {
+            let combined =
+                format!("{} {}", name, payload.filename.as_deref().unwrap_or("")).to_uppercase();
+            if combined.contains("ARA") {
+                abbr = "ARA".into();
+            } else if combined.contains("NVI") {
+                abbr = "NVI".into();
+            } else if combined.contains("ACF") {
+                abbr = "ACF".into();
+            } else if combined.contains("NVT") {
+                abbr = "NVT".into();
+            } else if combined.contains("ARC") {
+                abbr = "ARC".into();
+            } else if combined.contains("KJV") {
+                abbr = "KJV".into();
+            } else if combined.contains("NAA") {
+                abbr = "NAA".into();
+            } else {
+                let initials: String = name
+                    .split_whitespace()
+                    .filter_map(|w| w.chars().next())
+                    .filter(|c| c.is_alphabetic())
+                    .take(4)
+                    .collect::<String>()
+                    .to_uppercase();
+                abbr = if initials.is_empty() {
+                    "BIB".into()
+                } else {
+                    initials
+                };
+            }
+        }
+    }
+
+    let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    let mut db = db_opt.lock().await;
+    let is_first = db.list_bibles().map(|l| l.is_empty()).unwrap_or(true);
+
+    let summary = BibleVersionSummary {
+        id,
+        name,
+        abbreviation: abbr,
+        filename: target_filename,
+        is_default: is_first,
+        book_count,
+        verse_count,
+        created_at: now.clone(),
+        updated_at: now,
+    };
+
+    db.save_bible(&summary)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(summary))
+}
+
+async fn update_bible(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<UpdateBiblePayload>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let db_opt = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados não disponível".into(),
+    ))?;
+    let mut db = db_opt.lock().await;
+
+    let updated = db
+        .update_bible(
+            &id,
+            &payload.name,
+            &payload.abbreviation,
+            payload.is_default.unwrap_or(false),
+        )
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if updated {
+        Ok(StatusCode::OK)
+    } else {
+        Err((StatusCode::NOT_FOUND, "Bíblia não encontrada".into()))
+    }
+}
+
+async fn delete_bible(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let db_opt = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados não disponível".into(),
+    ))?;
+
+    let bibles_dir = crate::session::resolve_bibles_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let mut db = db_opt.lock().await;
+    if let Ok(Some(bible)) = db.get_bible(&id) {
+        let file_path = bibles_dir.join(&bible.filename);
+        let _ = std::fs::remove_file(file_path);
+    }
+
+    let deleted = db
+        .delete_bible(&id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if deleted {
+        Ok(StatusCode::OK)
+    } else {
+        Err((StatusCode::NOT_FOUND, "Bíblia não encontrada".into()))
+    }
+}
+
+async fn get_bible_books(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<Vec<BibleBook>>, (StatusCode, String)> {
+    let db_opt = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados não disponível".into(),
+    ))?;
+    let db = db_opt.lock().await;
+    let bible = db
+        .get_bible(&id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "Bíblia não encontrada".into()))?;
+
+    let bibles_dir = crate::session::resolve_bibles_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let path = bibles_dir.join(&bible.filename);
+
+    let reader = op_db::BibleReader::open(&path).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Erro ao abrir bíblia: {e}"),
+        )
+    })?;
+
+    let books = reader
+        .get_books()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(books))
+}
+
+async fn get_bible_chapters(
+    State(state): State<AppState>,
+    Path((id, book_id)): Path<(String, i64)>,
+) -> Result<Json<Vec<i64>>, (StatusCode, String)> {
+    let db_opt = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados não disponível".into(),
+    ))?;
+    let db = db_opt.lock().await;
+    let bible = db
+        .get_bible(&id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "Bíblia não encontrada".into()))?;
+
+    let bibles_dir = crate::session::resolve_bibles_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let path = bibles_dir.join(&bible.filename);
+
+    let reader = op_db::BibleReader::open(&path).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Erro ao abrir bíblia: {e}"),
+        )
+    })?;
+
+    let chapters = reader
+        .get_chapters(book_id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(chapters))
+}
+
+async fn get_bible_verses(
+    State(state): State<AppState>,
+    Path((id, book_id, chapter)): Path<(String, i64, i64)>,
+) -> Result<Json<Vec<BibleVerse>>, (StatusCode, String)> {
+    let db_opt = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados não disponível".into(),
+    ))?;
+    let db = db_opt.lock().await;
+    let bible = db
+        .get_bible(&id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "Bíblia não encontrada".into()))?;
+
+    let bibles_dir = crate::session::resolve_bibles_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let path = bibles_dir.join(&bible.filename);
+
+    let reader = op_db::BibleReader::open(&path).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Erro ao abrir bíblia: {e}"),
+        )
+    })?;
+
+    let verses = reader
+        .get_verses(book_id, chapter)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(verses))
+}
+
+async fn search_bible(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(query): Query<BibleSearchQuery>,
+) -> Result<Json<Vec<BibleSearchResult>>, (StatusCode, String)> {
+    let db_opt = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados não disponível".into(),
+    ))?;
+    let db = db_opt.lock().await;
+    let bible = db
+        .get_bible(&id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "Bíblia não encontrada".into()))?;
+
+    let bibles_dir = crate::session::resolve_bibles_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let path = bibles_dir.join(&bible.filename);
+
+    let reader = op_db::BibleReader::open(&path).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Erro ao abrir bíblia: {e}"),
+        )
+    })?;
+
+    // Verifica se a consulta é uma referência bíblica
+    if let Some(parsed) = op_core::parse_bible_reference(&query.q) {
+        let start = parsed.verse_start.unwrap_or(1);
+        let end = parsed.verse_end.unwrap_or(start);
+        if let Ok(verses) = reader.get_verse_range(parsed.book_id, parsed.chapter, start, end)
+            && !verses.is_empty()
+        {
+            let mapped = verses
+                .into_iter()
+                .map(|v| BibleSearchResult {
+                    book_id: v.book_id,
+                    book_name: parsed.book_name.clone(),
+                    book_abbreviation: parsed.book_abbreviation.clone(),
+                    chapter: v.chapter,
+                    verse: v.verse,
+                    text: v.text,
+                })
+                .collect();
+            return Ok(Json(mapped));
+        }
+    }
+
+    // Busca textual livre (com suporte a palavra exata)
+    let is_exact = query.exact.unwrap_or(false);
+    let results = reader
+        .search_verses(&query.q, query.limit.unwrap_or(50), is_exact)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(results))
+}
+
+async fn parse_reference_endpoint(
+    Query(query): Query<ParseReferenceQuery>,
+) -> Json<Option<ParsedReference>> {
+    let res = op_core::parse_bible_reference(&query.q);
+    Json(res)
+}
+
+#[derive(Serialize)]
+pub struct UpdaterStatusPayload {
+    pub stage: crate::updater::UpdateStage,
+    pub last_check: Option<crate::updater::UpdateCheckResponse>,
+}
+
+async fn check_updater(
+    State(state): State<AppState>,
+) -> Result<Json<crate::updater::UpdateCheckResponse>, (StatusCode, String)> {
+    let current_version = op_core::VERSION;
+    match crate::updater::check_for_updates(&state.http_client, current_version).await {
+        Ok(info) => {
+            let mut st = state.updater.write().await;
+            st.last_check = Some(info.clone());
+            Ok(Json(info))
+        }
+        Err(e) => {
+            // Se já tínhamos uma checagem em cache, devolvemos ela
+            let st = state.updater.read().await;
+            if let Some(ref cached) = st.last_check {
+                return Ok(Json(cached.clone()));
+            }
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Erro ao consultar atualizações: {}", e),
+            ))
+        }
+    }
+}
+
+async fn get_updater_status(State(state): State<AppState>) -> Json<UpdaterStatusPayload> {
+    let st = state.updater.read().await;
+    Json(UpdaterStatusPayload {
+        stage: st.stage.clone(),
+        last_check: st.last_check.clone(),
+    })
+}
+
+#[derive(Deserialize)]
+pub struct InstallUpdatePayload {
+    pub download_url: Option<String>,
+    pub asset_name: Option<String>,
+    pub target_version: Option<String>,
+}
+
+async fn install_updater(
+    State(state): State<AppState>,
+    Json(payload): Json<InstallUpdatePayload>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let (url, name, version) = {
+        let st = state.updater.read().await;
+        let last = st.last_check.as_ref();
+        let url = payload
+            .download_url
+            .or_else(|| last.and_then(|l| l.download_url.clone()));
+        let name = payload
+            .asset_name
+            .or_else(|| last.and_then(|l| l.asset_name.clone()));
+        let version = payload
+            .target_version
+            .or_else(|| last.map(|l| l.latest_version.clone()));
+        (url, name, version)
+    };
+
+    let (download_url, asset_name, new_version) = match (url, name, version) {
+        (Some(u), Some(n), Some(v)) => (u, n, v),
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "URL de download ou asset não especificado. Realize uma verificação prévia.".into(),
+            ));
+        }
+    };
+
+    let client = state.http_client.clone();
+    let updater_ref = state.updater.clone();
+
+    tokio::spawn(async move {
+        crate::updater::start_background_update(
+            client,
+            updater_ref,
+            download_url,
+            asset_name,
+            new_version,
+        )
+        .await;
+    });
+
+    Ok(Json(serde_json::json!({
+        "status": "started",
+        "message": "Download e atualização iniciados em segundo plano"
+    })))
 }

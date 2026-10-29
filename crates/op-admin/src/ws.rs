@@ -106,8 +106,10 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     Ok(WsMessage::SetTimerOvertime { allow_overtime }) => {
                         state.set_timer_overtime(allow_overtime).await;
                     }
-                    Ok(WsMessage::QuickPresentMedia { item }) => {
-                        state.quick_present_media(item).await;
+                    Ok(WsMessage::QuickPresentMedia { item, slide_index }) => {
+                        state
+                            .quick_present_media_with_slide(item, slide_index.unwrap_or(0))
+                            .await;
                     }
                     Ok(WsMessage::SetStageMessage { message }) => {
                         state.set_stage_message(message).await;

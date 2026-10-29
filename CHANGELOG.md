@@ -6,7 +6,113 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-29
+
 ### Adicionado
+
+- **Sistema de Atualização Automática Completa (Auto-Updater Multiplataforma):**
+  - Módulo backend [`crates/op-admin/src/updater.rs`] com verificação contínua e sob demanda de novas releases via API oficial do GitHub (`open-mission/openpresenter`).
+  - Comparação semântica de versões (`semver`) garantindo que apenas releases estritamente mais recentes disparem alertas.
+  - Mapeamento inteligente de assets de download conforme arquitetura e SO (`.zip` no Windows, `.tar.gz` no macOS e Linux).
+  - Download em background com relatório de progresso percentual via endpoint `/api/updater/status` e `/api/updater/install`.
+  - Substituição atômica e segura do executável (`std::env::current_exe()`), contornando locks de arquivo em execução no Windows via renomeação temporária `.old.exe` e mantendo permissões executáveis Unix (`0o755`).
+  - 100% de preservação de dados: o banco SQLite (`open-presenter.db`), mídias e bíblias continuam intactos no diretório de dados do usuário.
+  - Interface no Painel de Controle e no System Tray com changelog detalhado da nova versão e botão de atualização em 1 clique.
+- **Executável Nativo Autocontido com System Tray (Windows, macOS e Linux):**
+  - Distribuição do OpenPresenter como binário executável único, pronto para uso com duplo clique sem necessidade de instalação de Node.js, Bun ou ferramentas de terminal.
+  - Ícone nativo na bandeja do sistema operacional (System Tray / Menu Bar) com menu de contexto rápido para abrir o Painel de Controle, a Tela Pública (Projetor), o Retorno de Palco (Stage), configurar a porta do servidor e encerrar o aplicativo com segurança.
+  - Abertura automática do navegador padrão na tela do operador ao iniciar a aplicação.
+  - Suporte à flag `--headless` e variável `OPENPRESENTER_HEADLESS=1` para execução em servidores sem interface gráfica ou contêineres.
+- **Porta Padrão Segura (18080) e Configuração Interativa:**
+  - Alteração da porta padrão do servidor para `18080`, eliminando conflitos frequentes com outros serviços web e ferramentas de desenvolvimento locais (`3000`, `8080`, `8000`).
+  - Diálogo nativo interativo para alterar a porta do servidor diretamente pelo menu do System Tray, com persistência automática no banco SQLite (`app_settings.server_port`) e precedência sobre variável de ambiente `PORT`.
+- **Assets de Frontend Embutidos no Binário (`rust-embed`):**
+  - Incorporação completa da aplicação SPA Svelte compilada (`frontend/dist`) no interior do executável Rust em tempo de compilação, permitindo transporte do binário sem pastas adicionais.
+  - Estratégia híbrida com fallback em tempo de desenvolvimento para recarga rápida do disco.
+- **Automação de CI/CD e Publicação de Releases Multiplataforma (GitHub Actions):**
+  - Workflow `.github/workflows/release.yml` com compilação automatizada em matriz para Windows x64 (`.zip`), macOS Apple Silicon e Intel (`.tar.gz`) e Linux x64 (`.tar.gz`).
+  - Step final com `softprops/action-gh-release@v2` para publicação de release oficial anexando todos os arquivos de build gerados.
+- **Comando no Command Palette e Atalhos de Teclado para Abrir Bíblia Sagrada:**
+  - Novo comando rápido "Abrir Bíblia Sagrada" (`BookOpen`) nas ações do `CommandPalette` (⌘K).
+  - Atalho global de teclado `⌘B` / `Ctrl+B` e tecla de função `F4` no painel administrativo (`AdminView`) para expandir o painel inferior e focar na aba de Bíblia instantaneamente.
+- **Visualização dos Livros Bíblicos em Grade (Grid) no Modo de Siglas:**
+  - Ao alternar para o modo de siglas canônicas (`bookViewMode === 'abbreviations'`), os livros da Bíblia são dispostos em formato de grade compacta (`grid-cols-3 sm:grid-cols-4`) com botões táteis e tooltips informativos, facilitando a escolha rápida sem rolagem vertical extensa.
+- **Suporte a Versão Bíblica na Busca com Ativação Automática:**
+  - O parser de referências bíblicas (`parseBibleReference` e `parse_bible_reference`) agora reconhece a sigla da versão ao final da passagem (ex: `Salmos 91 ARA`, `João 3:16 NVI`, `1 Co 13:4-7 arc`).
+  - Digitar uma passagem com versão instalada ativa a versão correspondente na hora no seletor de versões e carrega os versículos da tradução informada. Digitar a sigla da versão isoladamente também ativa a versão imediatamente.
+- **Busca de Versículos por Palavra Exata (Whole Word) com Input Group e Aspas:**
+  - Botão toggle `[Ab]` integrado na barra de busca em formato de input group para alternar entre busca por substring (`LIKE '%amor%'`) e palavra inteira isolada (`matches_whole_word`).
+  - Suporte automático a sintaxe de busca com aspas (ex: `"amor"`), garantindo que termos como "amor" não tragam falsos positivos como "amorreus" ou "desamor".
+- **Coluna de Capítulos Ampliada e Grade Readequada:**
+  - Aumento da largura padrão da segunda coluna de 140px para 180px no `BiblePanel`, com grade expandida (`grid-cols-4 sm:grid-cols-5`) e botões numéricos mais confortáveis para clique rápido em cultos ao vivo.
+- **Ação Rápida de Limpeza de Itens da Setlist Ativa:**
+  - Novo endpoint HTTP `POST /api/setlists/items/clear` para remover todos os itens (músicas, versículos, avisos e imagens) da setlist ativa com um único clique.
+  - Finalização segura da apresentação caso um item removido estivesse em exibição ao vivo, sincronizando o novo estado via WebSocket.
+  - Botão de ação rápida com ícone de borracha (`Eraser`) diretamente no cabeçalho do painel de Setlist no painel operacional (`AdminView`).
+  - Opção "Limpar Itens da Setlist" no dropdown de gerenciamento de setlists, com confirmação prévia para evitar acionamentos acidentais.
+- **Componente Dedicado de Preview Fiel da Projeção Pública (`PublicPreviewBox`):**
+  - Espelhamento idêntico 16:9 da tela pública no painel operacional (`AdminView`), respeitando papel de parede (cores gradientes CSS ou imagens em modos `cover`, `contain`, `repeat`, `center`), margens proporcionais, modos de quebra (`word_wrap`), preenchimento (`fill_space`), logo da igreja com posicionamento e opacidade, blackout e clear text.
+- **Configuração de Escurecimento Geral de Fundo e Placa de Leitura nos Textos:**
+  - Opção `darken_background` (Padrão: desligado / `false`): película translúcida escura sobre todo o plano de fundo apenas quando houver slide ativo.
+  - Opção `text_box_background` (Padrão: desligado / `false`): placa translúcida com cantos arredondados posicionada diretamente atrás do texto e versículos bíblicos para contraste seletivo sem escurecer a imagem inteira.
+  - Controles e textos explicativos profissionais na aba "Tela Pública" das configurações.
+
+### Alterado
+
+- **Widget de Cronômetro & Palco Colapsável na Coluna Lateral de Saídas:**
+  - O painel de controle de cronômetro e mensagens de palco (`TimerControlPanel`) no rodapé da coluna de saídas agora conta com opção de recolher/expandir com chevron animado, exibindo um cabeçalho compacto com relógio e tempo restante quando colapsado para maximizar a área de trabalho.
+- **Barra de Busca da Setlist com Input Group e Filtros Retráteis:**
+  - O campo de pesquisa da Setlist (`AdminView.svelte`) foi integrado a um botão toggle de filtros em formato de input group (`Filter`), mantendo as pílulas de categorias (Todos, Louvores, Bíblia, Avisos) recolhidas por padrão e reveladas apenas sob demanda.
+- **Ajustes de Proporções e Tipografia no Preset Grid Moderno do Monitor de Palco (`/stage`):**
+  - Equiparação da escala tipográfica do próximo slide ao slide atual (`text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black`), eliminando a diferença excessiva de tamanho de fonte.
+  - Distribuição equilibrada da coluna lateral em repouso: 50% para Horário e 50% para Cronômetro.
+  - Distribuição com aviso de palco ativo: 60% para o card de Aviso com tipografia gigante (`text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black`), 20% para Horário e 20% para Cronômetro.
+  - Atualização do componente `StagePreviewBox` para refletir fielmente as mesmas proporções de 50%/50% e 60%/20%/20%.
+
+- **Ampliação da Referência Bíblica na Projeção Pública:**
+  - Aumento significativo da escala tipográfica das referências bíblicas na tela pública (`PublicView.svelte`) e no preview operacional (de `text-sm` para `text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black`), com badge da versão bíblica em alto contraste para legibilidade nítida à distância em telões e projetores de alta resolução.
+- **Remoção do Backdrop Escuro Fixo Padrão na Tela Pública:**
+  - O papel de parede agora mantém sua luminosidade e cores originais por padrão, ativando escurecimento somente se explicitamente habilitado nas preferências pelo operador.
+- **Preview Dinâmico do Stage nas Configurações:**
+  - Integração do componente real `StagePreviewBox` na área de simulação de retorno do modal de configurações, refletindo instantaneamente as alterações de presets, cores e sliders de proporções (atual, próximo, rodapé) em tempo real.
+
+- **Módulo Completo de Bíblias Sagradas (SQLite) e Projeção de Escrituras:**
+  - Suporte nativo a versões da Bíblia Sagrada em formato SQLite (`.sqlite`, ex: Almeida Revista e Atualizada - ARA, NVI, ARC, NVT), com armazenamento e cópia automática para `<data_dir>/bibles/`.
+  - Migração de schema v7 (`0007_bibles.sql`) adicionando tabela `bibles` com rastreamento de versões, abreviações canônicas e definição de versão padrão.
+  - Leitor de SQLite otimizado (`BibleReader`) com criação automática de índices (`idx_verse_book_chap`), validação de integridade e consultas de livros, capítulos, versículos e busca textual.
+  - Aba de configurações "Bíblias Sagradas" em `SettingsModal` para importação de arquivos `.sqlite`, importação por caminho local, definição de versão padrão, exclusão e edição/renomeação de nomes e siglas canônicas.
+  - Nova aba "Bíblia" no painel inferior (`BottomPanel` / `BiblePanel`) com layout de três colunas redimensionáveis:
+    - Coluna 1: Livros da Bíblia (com filtro Antigo/Novo Testamento, busca rápida e alternância entre nomes completos e abreviações canônicas).
+    - Coluna 2: Lista de capítulos do livro selecionado.
+    - Coluna 3: Grade de slides de versículos em 2 colunas com tipografia clara, identificação visual e indicação de status Ao Vivo.
+  - Interação e navegação ao vivo de versículos:
+    - Duplo clique em qualquer versículo projeta instantaneamente o texto na tela pública e no monitor de palco (`quickPresentMedia`).
+    - Navegação com setas do teclado (`ArrowLeft` e `ArrowRight`) para avançar ou recuar versículos consecutivamente.
+    - Duplo clique em outro slide navega automaticamente a projeção para o novo versículo.
+  - Seleção de múltiplos versículos com `Shift + Clique` para adição de versículos individuais ou intervalos inteiros à setlist ativa com contexto/ação dedicada.
+  - Parser inteligente de referências bíblicas em português (`parseBibleReference` e `parse_bible_reference`):
+    - Reconhecimento automático de formatos variados: `joao 3.16`, `joão 3:16`, `jo 3 16`, `1 co 13:4-7`, `Salmos 91`, `sl 91`.
+    - Suporte a disambiguação canônica refinada (ex: `Jó` vs `João`).
+    - Quando apenas livro e capítulo são informados (ex: `Salmos 91`), o texto abre focando diretamente no verso 1.
+    - Integração no `CommandPalette` (⌘K): digitação de passagem bíblica exibe card dedicado de ação imediata; pressionar `Enter` navega até a passagem e `Shift + Enter` projeta o versículo instantaneamente ao vivo na tela.
+  - Suporte aprimorado no Monitor de Palco (`/stage`) e no telão público (`/public`):
+    - Emblema/badge em destaque para escrituras bíblicas (`📖 {livro} {cap}:{verso} ({versão})`) no slide atual e prévia clara do próximo versículo.
+    - Metadados e referência bíblica destacados na projeção pública.
+
+### Removido
+
+- **Botões Redundantes "Abrir Janela" nos Previews da Barra Lateral:**
+  - Remoção dos botões "Abrir Janela do Public" e "Abrir Janela do Stage" que ficavam abaixo das caixas de preview 16:9 na barra lateral de saídas (`AdminView.svelte`), mantendo a abertura de telas e janelas centralizada na barra superior do operador (header) e no modal de conexões/QR Code.
+
+### Corrigido
+
+- **Sincronização Reativa Automática das Versões da Bíblia ao Fechar Configurações:**
+  - Criação da store reativa `biblesStore` e do utilitário `refreshBibles()`, garantindo que importações, renomeações, exclusões e alterações de versão padrão feitas no modal de configurações atualizem imediatamente o seletor do painel de Bíblias sem necessidade de recarregar a página.
+- **Suporte a Upload de Arquivos SQLite Grandes de Bíblias (Body Limit no Axum):**
+  - Configuração de `DefaultBodyLimit::max(128MB)` nas rotas HTTP do backend Axum, eliminando o erro `Failed to buffer the request body: length limit exceeded` ao importar bancos SQLite de Bíblias (geralmente entre 3MB e 10MB) via upload de arquivo no navegador.
+- **Correção da Simulação Gráfica dos Presets do Monitor de Palco nas Configurações:**
+  - A amostra interativa de distribuição de espaço em `SettingsModal` agora reflete fielmente o layout do preset ativo selecionado (`split-50-50`, `modern-grid`, `video-focus` e `horizontal-stack`).
+  - Aplicação visual das proporções configuradas (atual, próximo, rodapé) e das cores de borda e texto em tempo real na prévia do modal.
 
 - **Compartilhamento de Saídas com QR Code e URLs de Rede Local:**
   - Novo modal `ShareOutputsModal` acessível diretamente pelo cabeçalho do operador via botão "QR Code".

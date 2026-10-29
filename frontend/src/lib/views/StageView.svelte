@@ -94,6 +94,8 @@
     nextSlide?.content && nextSlide.content.startsWith('/media/')
   );
 
+  const isScripture = $derived(activeMedia?.kind === 'scripture');
+
   const stageSettings = $derived($stageSettingsStore);
   const timer = $derived($presentationState.timer);
   const stageMessage = $derived($presentationState.stage_message || $presentationState.timer?.stage_message || '');
@@ -170,7 +172,15 @@
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
               Slide Atual (Público)
             </span>
-            {#if activeSlide}
+            {#if isScripture && activeSlide}
+              <span class="text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded flex items-center gap-1.5">
+                <span>📖</span>
+                <span>{activeSlide.label || activeMedia?.title}</span>
+                {#if activeMedia?.artist_or_ref}
+                  <span class="text-[10px] opacity-75 uppercase font-mono">({activeMedia.artist_or_ref})</span>
+                {/if}
+              </span>
+            {:else if activeSlide}
               <span class="text-xs font-semibold bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded">
                 {activeSlide.label}
               </span>
@@ -222,7 +232,12 @@
               <ArrowRight size={14} />
               A Seguir (Próximo)
             </span>
-            {#if nextSlide}
+            {#if isScripture && nextSlide}
+              <span class="text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded flex items-center gap-1">
+                <span>📖</span>
+                <span>{nextSlide.label}</span>
+              </span>
+            {:else if nextSlide}
               <span class="text-xs font-semibold bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded">
                 {nextSlide.label}
               </span>
@@ -240,7 +255,7 @@
               </div>
             {:else if nextSlide}
               <div
-                class="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight opacity-90 text-center"
+                class="text-4xl sm:text-5xl md:text-6xl font-black leading-tight opacity-95 text-center"
                 style="color: {stageSettings.next_text_color || '#facc15'};"
               >
                 {@html renderFormattedText(nextSlide.content)}
@@ -335,7 +350,15 @@
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
               Slide Atual
             </span>
-            {#if activeSlide}
+            {#if isScripture && activeSlide}
+              <span class="text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded flex items-center gap-1.5">
+                <span>📖</span>
+                <span>{activeSlide.label || activeMedia?.title}</span>
+                {#if activeMedia?.artist_or_ref}
+                  <span class="text-[10px] opacity-75 uppercase font-mono">({activeMedia.artist_or_ref})</span>
+                {/if}
+              </span>
+            {:else if activeSlide}
               <span class="text-xs font-semibold bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded">
                 {activeSlide.label}
               </span>
@@ -380,7 +403,12 @@
               <ArrowRight size={13} />
               A Seguir (Próximo)
             </span>
-            {#if nextSlide}
+            {#if isScripture && nextSlide}
+              <span class="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded flex items-center gap-1">
+                <span>📖</span>
+                <span>{nextSlide.label}</span>
+              </span>
+            {:else if nextSlide}
               <span class="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">
                 {nextSlide.label}
               </span>
@@ -398,7 +426,7 @@
               </div>
             {:else if nextSlide}
               <div
-                class="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight opacity-90 text-center"
+                class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-tight opacity-95 text-center"
                 style="color: {stageSettings.next_text_color || '#facc15'};"
               >
                 {@html renderFormattedText(nextSlide.content)}
@@ -415,60 +443,80 @@
         class="flex flex-col gap-4 min-h-0 transition-all"
         style="flex: {footerRatio * 2.2}; min-width: 280px; max-width: 440px;"
       >
-        <!-- Mensagem de Palco com visual proeminente -->
+        <!-- Mensagem de Palco: 60% se houver aviso com texto gigante -->
         {#if stageMessage}
-          <div class="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 text-emerald-300 shadow-lg shrink-0">
-            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-1 text-emerald-400">
-              <MessageSquare size={14} />
-              Aviso para o Palco
+          <div
+            class="p-5 sm:p-6 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/50 text-emerald-300 shadow-xl flex flex-col justify-between overflow-hidden transition-all animate-in fade-in"
+            style="flex: 60; min-height: 0;"
+          >
+            <div class="flex items-center gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider text-emerald-400 shrink-0">
+              <MessageSquare size={16} />
+              <span>Aviso para o Palco</span>
             </div>
-            <p class="text-sm font-semibold leading-snug">{stageMessage}</p>
+            <div class="my-auto overflow-y-auto py-2">
+              <p class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] break-words">
+                {stageMessage}
+              </p>
+            </div>
+            <div class="text-[10px] text-emerald-400/80 font-mono uppercase tracking-wider shrink-0 text-right">
+              Mensagem do Operador
+            </div>
           </div>
         {/if}
 
-        <!-- Relógio de Parede -->
-        <div class="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-center shrink-0">
-          <div class="text-[11px] text-zinc-400 uppercase tracking-widest font-semibold mb-1 flex items-center gap-1.5">
+        <!-- Relógio de Parede: 50% sem aviso, 20% com aviso -->
+        <div
+          class="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-center transition-all overflow-hidden"
+          style="flex: {stageMessage ? 20 : 50}; min-height: 0;"
+        >
+          <div class="text-[11px] text-zinc-400 uppercase tracking-widest font-semibold mb-1 flex items-center gap-1.5 shrink-0">
             <Clock size={14} />
             Horário
           </div>
           <div
-            class="text-4xl sm:text-5xl font-mono font-bold tracking-tight"
+            class="{stageMessage ? 'text-3xl sm:text-4xl font-mono font-bold' : 'text-4xl sm:text-5xl font-mono font-bold'} tracking-tight my-auto"
             style="color: {stageSettings.clock_color || '#ffffff'};"
           >
             {currentTime}
           </div>
-          <div class="text-xs text-zinc-500 capitalize mt-1">{currentDate}</div>
+          <div class="text-xs text-zinc-500 capitalize mt-1 truncate shrink-0">{currentDate}</div>
         </div>
 
-        <!-- Timer Grande Dedicado com Overtime Negativo -->
-        <div class="flex-1 p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-center items-center text-center relative overflow-hidden min-h-0">
-          <div class="text-xs text-zinc-400 uppercase tracking-widest font-semibold mb-2 flex items-center gap-1.5">
+        <!-- Timer Grande Dedicado com Overtime: 50% sem aviso, 20% com aviso -->
+        <div
+          class="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-center items-center text-center relative overflow-hidden transition-all min-h-0"
+          style="flex: {stageMessage ? 20 : 50};"
+        >
+          <div class="text-xs text-zinc-400 uppercase tracking-widest font-semibold mb-1 flex items-center gap-1.5 shrink-0">
             <Hourglass size={14} />
             {timer?.label || 'Cronômetro'}
           </div>
 
           {#if timer && timer.duration_seconds > 0}
             <div
-              class="text-5xl sm:text-6xl font-mono font-black tracking-tighter {timerIsOvertime ? 'text-red-500 animate-pulse' : timerIsNearEnd ? 'text-amber-400' : ''}"
+              class="{stageMessage ? 'text-4xl sm:text-5xl' : 'text-5xl sm:text-6xl md:text-7xl'} font-mono font-black tracking-tighter my-auto {timerIsOvertime ? 'text-red-500 animate-pulse' : timerIsNearEnd ? 'text-amber-400' : ''}"
               style="color: {timerIsOvertime ? '#ef4444' : timerIsNearEnd ? '#f59e0b' : stageSettings.timer_color || '#ef4444'};"
             >
               {formatTime(timer.remaining_seconds, timerIsOvertime)}
             </div>
 
             {#if timerIsOvertime}
-              <div class="mt-2 text-xs font-bold uppercase tracking-wider text-red-400 flex items-center gap-1 bg-red-500/20 px-2.5 py-1 rounded-full">
+              <div class="mt-1 text-xs font-bold uppercase tracking-wider text-red-400 flex items-center gap-1 bg-red-500/20 px-2.5 py-0.5 rounded-full shrink-0">
                 <AlertTriangle size={12} />
                 Tempo Excedido (Overtime)
               </div>
             {:else if timerIsNearEnd}
-              <div class="mt-2 text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-500/20 px-2.5 py-1 rounded-full">
+              <div class="mt-1 text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-500/20 px-2.5 py-0.5 rounded-full shrink-0">
                 Último Minuto
               </div>
             {/if}
           {:else}
-            <div class="text-3xl font-mono font-bold text-zinc-600">00:00</div>
-            <p class="text-[11px] text-zinc-600 mt-2">Nenhum timer ativo</p>
+            <div class="{stageMessage ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl'} font-mono font-bold text-zinc-600 my-auto">
+              00:00
+            </div>
+            {#if !stageMessage}
+              <p class="text-[11px] text-zinc-600 mt-1 shrink-0">Nenhum timer ativo</p>
+            {/if}
           {/if}
         </div>
       </div>

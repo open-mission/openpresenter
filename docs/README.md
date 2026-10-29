@@ -61,6 +61,49 @@
 - [Spec — Ajustes de Imagens, QR Code de Saídas, Timer sem Overtime Indesejado e Otimização do Monitor de Palco](specs/2026-10-29-image-display-qrcode-timer-stage-media.md)
 - [Plano — Ajustes de Imagens, QR Code, Timer e Otimização do Stage](plans/2026-10-29-image-display-qrcode-timer-stage-media.md)
 
+## Módulo de Bíblias SQLite, Navegação em 3 Colunas, Parser e Projeção
+
+- [Spec — Módulo de Bíblias SQLite, Navegação em 3 Colunas, Parser de Referências e Projeção](specs/2026-10-29-modulo-biblia-sqlite-e-projecao.md)
+- [Plano — Módulo de Bíblias SQLite, Navegação em 3 Colunas, Parser de Referências e Projeção](plans/2026-10-29-modulo-biblia-sqlite-e-projecao.md)
+- [ADR 0010 — Módulo de Bíblias em Arquivos SQLite Desacoplados, Parser de Referências em Português e Exibição de Escrituras no Palco](decisions/0010-modulo-biblia-sqlite-parser-referencias-e-stage.md)
+
+## Preview Fiel da Tela Pública e Ajustes Visuais
+
+- [Spec — Preview Fiel da Tela Pública e Ajustes Visuais](specs/2026-10-29-public-preview-fiel-e-ajustes-visuais.md)
+- [Plano — Preview Fiel da Tela Pública e Ajustes Visuais](plans/2026-10-29-public-preview-fiel-e-ajustes-visuais.md)
+
+## Limpeza de Itens da Setlist Ativa
+
+- [Spec — Limpeza de Itens da Setlist Ativa](specs/2026-10-29-limpar-setlist-ativa.md)
+- [Plano — Limpeza de Itens da Setlist Ativa](plans/2026-10-29-limpar-setlist-ativa.md)
+
+## Ajustes de Layout e Proporções do Preset Modern Grid no Stage
+
+- [Spec — Ajustes de Layout e Proporções do Preset Modern Grid no Stage](specs/2026-10-29-stage-modern-grid-ajustes-layout-e-aviso.md)
+- [Plano — Ajustes de Layout e Proporções do Preset Modern Grid no Stage](plans/2026-10-29-stage-modern-grid-ajustes-layout-e-aviso.md)
+
+## Refinamentos da Interface do Administrador (Previews, Timer e Filtros)
+
+- [Spec — Refinamentos da Interface do Administrador](specs/2026-10-29-admin-ui-refinamentos-previews-e-filtros.md)
+- [Plano — Refinamentos da Interface do Administrador](plans/2026-10-29-admin-ui-refinamentos-previews-e-filtros.md)
+
+## Bíblia: Atalhos de Teclado, Modo Grade de Livros, Ativação de Versão e Busca Exata
+
+- [Spec — Bíblia: Atalhos Globais, Visualização em Grade, Ativação de Versão e Busca Exata](specs/2026-10-29-biblia-atalhos-grid-e-busca-exata.md)
+- [Plano — Bíblia: Atalhos Globais, Visualização em Grade, Ativação de Versão e Busca Exata](plans/2026-10-29-biblia-atalhos-grid-e-busca-exata.md)
+
+## Versão 0.1.0: Executável Autocontido com Tray Icon, Frontend Embutido e CI/CD
+
+- [Spec — Versão 0.1.0: Executável Autocontido com Tray Icon, Frontend Embutido e CI/CD](specs/2026-10-29-versao-0-1-0-tray-icon-e-github-release.md)
+- [Plano — Versão 0.1.0: Executável Autocontido com Tray Icon, Frontend Embutido e CI/CD](plans/2026-10-29-versao-0-1-0-tray-icon-e-github-release.md)
+- [ADR 0011 — Versão 0.1.0: Executável Autocontido com Tray Icon, Frontend Embutido e CI/CD Multiplataforma](decisions/0011-versao-0-1-0-tray-icon-frontend-embutido-e-release-matrix.md)
+
+## Auto-Updater Completo: Verificação de Releases e Atualização In-App
+
+- [Spec — Sistema de Atualização Automática Completa (Auto-Updater)](specs/2026-10-29-auto-updater-completo.md)
+- [Plano — Sistema de Atualização Automática Completa (Auto-Updater)](plans/2026-10-29-auto-updater-completo.md)
+- [ADR 0012 — Sistema de Auto-Updater Completo, Verificação de Releases e Substituição Atômica Multiplataforma](decisions/0012-auto-updater-multiplataforma-e-github-releases.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
@@ -74,6 +117,9 @@
 - [ADR 0007 — Múltiplas Setlists, Context Menu e Armazenamento de Mídias](decisions/0007-multiplas-setlists-context-menu-e-armazenamento-de-midias.md)
 - [ADR 0008 — Temas Shadcn, Pastas de Mídia Externas, Editor Markdown e Layout Flexível](decisions/0008-temas-shadcn-pastas-midia-externas-editor-markdown-e-layout-flexivel.md)
 - [ADR 0009 — Presets de Stage Display, Identidade da Igreja e Timer Global com Overtime](decisions/0009-stage-presets-church-branding-e-timer-global.md)
+- [ADR 0010 — Módulo de Bíblias em Arquivos SQLite Desacoplados, Parser de Referências em Português e Exibição de Escrituras no Palco](decisions/0010-modulo-biblia-sqlite-parser-referencias-e-stage.md)
+- [ADR 0011 — Versão 0.1.0: Executável Autocontido com Tray Icon, Frontend Embutido e CI/CD Multiplataforma](decisions/0011-versao-0-1-0-tray-icon-frontend-embutido-e-release-matrix.md)
+- [ADR 0012 — Sistema de Auto-Updater Completo, Verificação de Releases e Substituição Atômica Multiplataforma](decisions/0012-auto-updater-multiplataforma-e-github-releases.md)
 
 ## Marca e design
 

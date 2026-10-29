@@ -13,6 +13,7 @@
     toggleBlackout,
     toggleClearText,
     removeSetlistItem,
+    clearSetlistItems,
     renameSetlistItem,
     reorderSetlistItems,
     switchActiveSetlist,
@@ -21,14 +22,25 @@
     resetTimer,
     quickPresentMedia,
   } from '$lib/ws';
-  import type { MediaItem, MediaKind, Setlist, SetlistSummary, Slide, Song, ImageMediaItem } from '$lib/types';
+  import type {
+    MediaItem,
+    MediaKind,
+    Setlist,
+    SetlistSummary,
+    Slide,
+    Song,
+    ImageMediaItem,
+    ParsedReference,
+    BibleVersionSummary,
+    BibleVerse,
+  } from '$lib/types';
   import { renderFormattedText } from '$lib/markdown';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import MediaItemRow from '$lib/components/ui/MediaItemRow.svelte';
   import CommandPalette from '$lib/components/CommandPalette.svelte';
   import SongEditorModal from '$lib/components/SongEditorModal.svelte';
-  import SettingsModal from '$lib/components/SettingsModal.svelte';
+  import SettingsModal, { type SettingsTab } from '$lib/components/SettingsModal.svelte';
   import SetlistModal from '$lib/components/SetlistModal.svelte';
   import QuickItemModal from '$lib/components/QuickItemModal.svelte';
   import BottomPanel from '$lib/components/BottomPanel.svelte';
@@ -36,9 +48,17 @@
   import ImagePreviewModal from '$lib/components/ImagePreviewModal.svelte';
   import ShareOutputsModal from '$lib/components/ShareOutputsModal.svelte';
   import StagePreviewBox from '$lib/components/StagePreviewBox.svelte';
+  import PublicPreviewBox from '$lib/components/PublicPreviewBox.svelte';
   import TimerControlPanel from '$lib/components/TimerControlPanel.svelte';
   import ContextMenu, { type MenuItem } from '$lib/components/ContextMenu.svelte';
-  import { syncDisplaySettingsFromBackend, stageSettingsStore } from '$lib/displaySettings';
+  import { fetchUpdateCheck, type UpdateCheckResponse } from '$lib/updater';
+  import {
+    syncDisplaySettingsFromBackend,
+    stageSettingsStore,
+    publicSettingsStore,
+    churchBrandStore,
+  } from '$lib/displaySettings';
+  import { refreshBibles } from '$lib/bibles';
   import {
     themeStore,
     sectionsStore,
@@ -78,6 +98,8 @@
     Edit3,
     Trash2,
     Check,
+    Eraser,
+    Filter,
     PanelLeftClose,
     PanelLeftOpen,
     PanelRightClose,
@@ -85,11 +107,13 @@
     ImageIcon,
     Folder,
     QrCode,
+    Sparkles,
   } from 'lucide-svelte';
 
   let selectedMediaId = $state<string>('song-1');
   let searchQuery = $state<string>('');
   let filterKind = $state<MediaKind | 'all'>('all');
+  let showCategoryFilters = $state(false);
   let stageClock = $state<string>('');
   let isCommandPaletteOpen = $state(false);
   let isSongEditorOpen = $state(false);
@@ -118,7 +142,9 @@
   let editingQuickItem = $state<MediaItem | null>(null);
   let renamingItemId = $state<string>('');
   let renamingItemTitle = $state<string>('');
-  let settingsInitialTab = $state<'appearance' | 'sections' | 'outputs' | 'files' | 'shortcuts' | 'about'>('appearance');
+  let settingsInitialTab = $state<SettingsTab>('appearance');
+  let bottomPanelRequestedTab = $state<'songs' | 'images' | 'backgrounds' | 'bible' | null>(null);
+  let targetScriptureRef = $state<ParsedReference | null>(null);
   let draggedItemIndex = $state<number | null>(null);
 
   let setlistsList = $state<SetlistSummary[]>([]);
@@ -126,6 +152,7 @@
   let numberBuffer = $state<string>('');
   let numberBufferTimer: ReturnType<typeof setTimeout> | null = null;
   let prevMediaId = $state<string>('');
+  let updateInfo = $state<UpdateCheckResponse | null>(null);
 
   // Menu de Contexto
   let contextMenuOpen = $state(false);
@@ -138,6 +165,12 @@
     initAppTheme();
     syncDisplaySettingsFromBackend();
     loadSetlists();
+
+    fetchUpdateCheck()
+      .then((res) => {
+        updateInfo = res;
+      })
+      .catch(() => {});
 
     // Inicializa seleção padrão com a primeira mídia
     if ($mediaItemsList.length > 0 && !selectedMediaId) {
@@ -380,6 +413,13 @@
       return;
     }
 
+    // Atalho global para abrir a aba de Bíblia (⌘B / Ctrl+B ou F4)
+    if (((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) || e.key === 'F4') {
+      e.preventDefault();
+      handleOpenBibleTab();
+      return;
+    }
+
     // Se estiver digitando em input ou textarea, ignorar
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
@@ -525,6 +565,19 @@
       }
     } catch (err) {
       console.error('Erro ao excluir setlist:', err);
+    }
+  }
+
+  async function handleClearSetlist() {
+    isSetlistSelectorOpen = false;
+    if ($mediaItemsList.length === 0) return;
+    if (!confirm('Deseja realmente remover todos os itens da setlist ativa?')) return;
+
+    try {
+      await clearSetlistItems();
+      selectedMediaId = '';
+    } catch (err) {
+      console.error('Erro ao limpar itens da setlist:', err);
     }
   }
 
@@ -773,6 +826,95 @@
     }
   }
 
+  function handlePresentScripture(item: MediaItem, slideIndex: number) {
+    selectedMediaId = item.id;
+    quickPresentMedia(item, slideIndex);
+  }
+
+  async function handleAddScriptureToSetlist(item: MediaItem) {
+    try {
+      await fetch('/api/setlist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item }),
+      });
+      selectedMediaId = item.id;
+    } catch (err) {
+      console.error('Erro ao adicionar texto bíblico à setlist:', err);
+    }
+  }
+
+  function handleOpenBibleTab() {
+    targetScriptureRef = null;
+    bottomPanelRequestedTab = 'bible';
+    setTimeout(() => {
+      bottomPanelRequestedTab = null;
+    }, 150);
+  }
+
+  function handleOpenBibleFromPalette(ref: ParsedReference) {
+    targetScriptureRef = ref;
+    bottomPanelRequestedTab = 'bible';
+    setTimeout(() => {
+      bottomPanelRequestedTab = null;
+    }, 150);
+  }
+
+  async function handlePresentScriptureFromPalette(ref: ParsedReference) {
+    try {
+      const biblesRes = await fetch('/api/bibles');
+      if (!biblesRes.ok) return;
+      const biblesList: BibleVersionSummary[] = await biblesRes.json();
+      if (biblesList.length === 0) return;
+
+      let targetBible = biblesList.find((b) => b.is_default) || biblesList[0];
+      if (ref.version) {
+        const found = biblesList.find(
+          (b) =>
+            b.abbreviation.toLowerCase() === ref.version!.toLowerCase() ||
+            b.name.toLowerCase().includes(ref.version!.toLowerCase())
+        );
+        if (found) {
+          targetBible = found;
+        }
+      }
+
+      const versesRes = await fetch(
+        `/api/bibles/${targetBible.id}/books/${ref.book_id}/chapters/${ref.chapter}/verses`
+      );
+      if (!versesRes.ok) return;
+      const versesList: BibleVerse[] = await versesRes.json();
+      if (versesList.length === 0) return;
+
+      const slides: Slide[] = versesList.map((v) => ({
+        id: `v-${v.verse}`,
+        label: `${ref.book_abbreviation || ref.book_name} ${ref.chapter}:${v.verse}`,
+        content: v.text,
+        align_h: 'center',
+        align_v: 'center',
+      }));
+
+      const scriptureItem: MediaItem = {
+        id: `scripture-${ref.book_id}-${ref.chapter}-${Date.now()}`,
+        title: `${ref.book_name} ${ref.chapter}`,
+        artist_or_ref: targetBible.abbreviation,
+        kind: 'scripture',
+        slides,
+        align_h: 'center',
+        align_v: 'center',
+      };
+
+      const targetVerse = ref.verse_start || 1;
+      const targetIndex = versesList.findIndex((v) => v.verse === targetVerse);
+      const slideIdx = targetIndex >= 0 ? targetIndex : 0;
+
+      selectedMediaId = scriptureItem.id;
+      quickPresentMedia(scriptureItem, slideIdx);
+    } catch (err) {
+      console.error('Erro ao projetar passagem bíblica:', err);
+    }
+  }
+
   function handleItemSaved(item: MediaItem) {
     selectedMediaId = item.id;
   }
@@ -970,11 +1112,27 @@
         size="sm"
         onclick={() => (isSettingsOpen = true)}
         class="gap-1.5 text-xs"
-        title="Configurações (Aparência, Pastas, Atalhos)"
+        title="Configurações (Aparência, Pastas, Atalhos, Atualizações)"
       >
         <Settings size={14} class="text-muted-foreground" />
         <span class="hidden md:inline">Configurações</span>
       </Button>
+
+      <!-- Badge / Botão de Atualização Disponível -->
+      {#if updateInfo?.update_available}
+        <button
+          type="button"
+          onclick={() => {
+            settingsInitialTab = 'about';
+            isSettingsOpen = true;
+          }}
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 text-xs font-semibold animate-pulse transition-colors cursor-pointer"
+          title="Nova versão v{updateInfo.latest_version} disponível! Clique para ver e atualizar."
+        >
+          <Sparkles size={13} class="text-emerald-400" />
+          <span class="hidden sm:inline">Nova Versão</span> v{updateInfo.latest_version}
+        </button>
+      {/if}
 
       <!-- Botões de Abertura das Saídas -->
       <Button variant="outline" size="sm" onclick={openPublicWindow} class="gap-1.5 text-xs">
@@ -1102,6 +1260,16 @@
                     <span>Editar Setlist Atual...</span>
                   </button>
 
+                  <button
+                    type="button"
+                    disabled={$mediaItemsList.length === 0}
+                    onclick={handleClearSetlist}
+                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-neutral-200 hover:bg-neutral-800 hover:text-amber-300 transition-colors cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    <Eraser size={13} class="text-amber-400" />
+                    <span>Limpar Itens da Setlist</span>
+                  </button>
+
                   {#if setlistsList.length > 1}
                     <button
                       type="button"
@@ -1121,6 +1289,18 @@
               <Badge variant="secondary" class="text-[11px] py-0 px-1.5">
                 {$mediaItemsList.length} itens
               </Badge>
+
+              <!-- Botão Rápido de Limpar Setlist -->
+              {#if $mediaItemsList.length > 0}
+                <button
+                  type="button"
+                  title="Limpar todos os itens da Setlist ativa"
+                  onclick={handleClearSetlist}
+                  class="w-7 h-7 rounded-md hover:bg-amber-500/20 text-neutral-400 hover:text-amber-300 border border-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <Eraser size={13} />
+                </button>
+              {/if}
 
               <button
                 type="button"
@@ -1228,39 +1408,55 @@
             </div>
           </div>
 
-          <!-- Barra de Busca -->
-          <div class="relative">
-            <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+          <!-- Barra de Busca com Input Group e Botão de Filtros -->
+          <div class="relative flex items-center">
+            <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             <input
               type="text"
               bind:value={searchQuery}
               placeholder="Filtrar setlist (ou ⌘K p/ buscar)..."
-              class="w-full h-8 pl-8 pr-3 bg-neutral-900 border border-neutral-800 rounded-md text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
+              class="w-full h-8 pl-8 pr-8 bg-neutral-900 border border-neutral-800 rounded-md text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
             />
+            <!-- Botão Toggle de Filtro no Input Group -->
+            <button
+              type="button"
+              onclick={() => (showCategoryFilters = !showCategoryFilters)}
+              title={showCategoryFilters ? 'Ocultar filtros de categoria' : 'Filtrar por categoria (Louvores, Bíblia, Avisos)'}
+              class={cn(
+                'absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center transition-colors cursor-pointer',
+                showCategoryFilters || filterKind !== 'all'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                  : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800'
+              )}
+            >
+              <Filter size={12} />
+            </button>
           </div>
 
-          <!-- Filtros por Categoria -->
-          <div class="flex items-center gap-1 overflow-x-auto pb-0.5">
-            {#each [
-              { id: 'all', label: 'Todos' },
-              { id: 'song', label: 'Louvores' },
-              { id: 'scripture', label: 'Bíblia' },
-              { id: 'announcement', label: 'Avisos' },
-            ] as tab}
-              <button
-                type="button"
-                onclick={() => (filterKind = tab.id as any)}
-                class={cn(
-                  'px-2 py-1 rounded text-[11px] font-medium transition-colors shrink-0 cursor-pointer',
-                  filterKind === tab.id
-                    ? 'bg-neutral-800 text-emerald-400 font-semibold'
-                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'
-                )}
-              >
-                {tab.label}
-              </button>
-            {/each}
-          </div>
+          <!-- Filtros por Categoria (Exibidos apenas quando o toggle estiver ativo) -->
+          {#if showCategoryFilters}
+            <div class="flex items-center gap-1 overflow-x-auto pb-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+              {#each [
+                { id: 'all', label: 'Todos' },
+                { id: 'song', label: 'Louvores' },
+                { id: 'scripture', label: 'Bíblia' },
+                { id: 'announcement', label: 'Avisos' },
+              ] as tab}
+                <button
+                  type="button"
+                  onclick={() => (filterKind = tab.id as any)}
+                  class={cn(
+                    'px-2 py-1 rounded text-[11px] font-medium transition-colors shrink-0 cursor-pointer',
+                    filterKind === tab.id
+                      ? 'bg-neutral-800 text-emerald-400 font-semibold'
+                      : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'
+                  )}
+                >
+                  {tab.label}
+                </button>
+              {/each}
+            </div>
+          {/if}
         </div>
 
         <!-- Lista de Itens de Mídia com Reorganização Drag and Drop e Context Menu -->
@@ -1595,78 +1791,17 @@
             </Badge>
           </div>
 
-          <!-- Caixa de Preview do Public com Aspect Ratio 16:9 -->
-          <div class="w-full aspect-video rounded-lg bg-black border border-neutral-800 flex flex-col items-center justify-center p-3 text-center relative overflow-hidden shadow-inner">
-            {#if $presentationState.display_mode === 'blackout'}
-              <div class="text-[11px] font-bold text-red-500 uppercase tracking-widest z-10">
-                Blackout Ativo
-              </div>
-            {:else}
-              <!-- Wallpaper / Background Preview -->
-              {#if resolvedWallpaper.isCss}
-                <div
-                  class="absolute inset-0 w-full h-full {resolvedWallpaper.className} opacity-85 pointer-events-none"
-                  style={resolvedWallpaper.style}
-                ></div>
-              {:else if resolvedWallpaper.isImage}
-                <img
-                  src={resolvedWallpaper.url}
-                  alt="Wallpaper"
-                  class="absolute inset-0 w-full h-full object-cover opacity-60 pointer-events-none"
-                />
-              {/if}
-
-              {#if $presentationState.display_mode === 'cleartext'}
-                <div class="text-[11px] font-medium text-neutral-300 italic z-10 drop-shadow-sm">
-                  Texto Oculto (Plano de Fundo Ativo)
-                </div>
-              {:else if liveMedia?.kind === 'image' && liveSlide && $presentationState.display_mode === 'live'}
-                <img
-                  src={liveSlide.content}
-                  alt={liveMedia.title}
-                  class="absolute inset-0 w-full h-full object-contain z-10"
-                />
-              {:else if liveSlide && $presentationState.display_mode === 'live'}
-                <div
-                  class={cn(
-                    'w-full h-full flex flex-col p-2.5 z-10 leading-tight',
-                    (liveSlide.align_h || liveMedia?.align_h) === 'left'
-                      ? 'text-left items-start'
-                      : (liveSlide.align_h || liveMedia?.align_h) === 'right'
-                        ? 'text-right items-end'
-                        : (liveSlide.align_h || liveMedia?.align_h) === 'justify'
-                          ? 'text-justify items-center'
-                          : 'text-center items-center',
-                    (liveSlide.align_v || liveMedia?.align_v) === 'top'
-                      ? 'justify-start'
-                      : (liveSlide.align_v || liveMedia?.align_v) === 'bottom'
-                        ? 'justify-end'
-                        : 'justify-center'
-                  )}
-                >
-                  <div class="text-[11px] sm:text-xs font-bold text-white leading-tight drop-shadow-md">
-                    {@html renderFormattedText(liveSlide.content)}
-                  </div>
-                </div>
-                {#if liveMedia?.artist_or_ref}
-                  <span class="text-[9px] text-neutral-400 truncate mt-auto z-10 absolute bottom-1.5 left-2.5">
-                    {liveMedia.title}
-                  </span>
-                {/if}
-              {:else}
-                <div class="text-[11px] text-neutral-400 z-10">
-                  {resolvedWallpaper.isCss || resolvedWallpaper.isImage ? 'Papel de Parede em Repouso' : 'Nenhum slide ao vivo'}
-                </div>
-              {/if}
-            {/if}
-
-            <span class="absolute top-1.5 right-2 text-[9px] text-neutral-500 font-mono z-20">16:9</span>
-          </div>
-
-          <Button variant="secondary" size="sm" onclick={openPublicWindow} class="w-full text-xs gap-1.5">
-            <ExternalLink size={13} />
-            Abrir Janela do Public
-          </Button>
+          <!-- Preview Fiel do Public (16:9) Espelhando a Projeção Real -->
+          <PublicPreviewBox
+            publicSettings={$publicSettingsStore}
+            churchBrand={$churchBrandStore}
+            activeSlide={liveSlide}
+            activeMedia={liveMedia}
+            displayMode={$presentationState.display_mode}
+            wallpaperPath={$presentationState.wallpaper_path}
+            wallpaperMode={$presentationState.wallpaper_mode}
+            resolvedWallpaper={resolvedWallpaper}
+          />
         </div>
 
         <!-- PREVIEW STAGE (16:9) -->
@@ -1691,11 +1826,6 @@
             timer={$presentationState.timer}
             stageClock={stageClock}
           />
-
-          <Button variant="secondary" size="sm" onclick={openStageWindow} class="w-full text-xs gap-1.5">
-            <ExternalLink size={13} />
-            Abrir Janela do Stage
-          </Button>
         </div>
 
         <!-- Painel de Controle de Timer & Mensagens de Palco -->
@@ -1725,8 +1855,10 @@
     {/if}
   </div>
 
-  <!-- Painel Inferior Colapsável e Redimensionável (Músicas e Imagens) -->
+  <!-- Painel Inferior Colapsável e Redimensionável (Músicas, Imagens e Bíblias) -->
   <BottomPanel
+    requestedTab={bottomPanelRequestedTab}
+    targetScriptureRef={targetScriptureRef}
     onaddsongtosetlist={handleAddSongToSetlist}
     onpresentsong={handlePresentSong}
     onpresentimage={handlePresentImage}
@@ -1735,6 +1867,12 @@
     onopensongeditor={handleOpenCreate}
     onopenfolderconfig={() => {
       settingsInitialTab = 'files';
+      isSettingsOpen = true;
+    }}
+    onpresentscripture={handlePresentScripture}
+    onaddscripturetosetlist={handleAddScriptureToSetlist}
+    onopenbibleconfig={() => {
+      settingsInitialTab = 'bibles';
       isSettingsOpen = true;
     }}
   />
@@ -1803,6 +1941,9 @@
     onclose={() => (isCommandPaletteOpen = false)}
     oncreatenew={handleOpenCreate}
     onimportsong={handleImportSong}
+    onopenbible={handleOpenBibleFromPalette}
+    onpresentscripture={handlePresentScriptureFromPalette}
+    onopenbibletab={handleOpenBibleTab}
   />
 
   <SongEditorModal
@@ -1843,7 +1984,13 @@
   <SettingsModal
     open={isSettingsOpen}
     initialTab={settingsInitialTab}
-    onclose={() => (isSettingsOpen = false)}
+    onclose={() => {
+      isSettingsOpen = false;
+      refreshBibles();
+    }}
+    onbibleschanged={() => {
+      refreshBibles();
+    }}
   />
 
   <ImageSelectorModal

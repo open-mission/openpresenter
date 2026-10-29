@@ -4,8 +4,14 @@ use axum::{
     body::Body,
     http::{Response, StatusCode, Uri, header},
 };
+use rust_embed::RustEmbed;
 
-/// Caminho para a pasta onde o frontend Svelte compilado reside (`frontend/dist`).
+/// Assets do frontend Svelte compilado embutidos diretamente dentro do binário executável.
+#[derive(RustEmbed)]
+#[folder = "../../frontend/dist"]
+pub struct EmbeddedFrontend;
+
+/// Caminho opcional para a pasta onde o frontend Svelte compilado reside (`frontend/dist`) no disco local.
 pub fn find_frontend_dist() -> PathBuf {
     if let Ok(dir) = std::env::var("OPENPRESENTER_FRONTEND_DIR") {
         let p = PathBuf::from(dir);
@@ -33,30 +39,55 @@ pub fn find_frontend_dist() -> PathBuf {
 /// Manipulador de fallback para rotas SPA (`/`, `/admin`, `/public`, `/stage`).
 pub async fn static_fallback_handler(uri: Uri) -> Response<Body> {
     let path = uri.path();
-    let dist_dir = find_frontend_dist();
-
-    // Se o arquivo existir na pasta dist, entrega diretamente
     let relative_path = path.trim_start_matches('/');
+
+    // 1. Tenta servir primeiro arquivo estático específico a partir dos assets embutidos
     if !relative_path.is_empty() {
+        if let Some(resp) = serve_embedded_file(relative_path) {
+            return resp;
+        }
+
+        // Fallback para disco local (útil durante desenvolvimento)
+        let dist_dir = find_frontend_dist();
         let asset_file = dist_dir.join(relative_path);
-        if asset_file.is_file() {
-            return match serve_local_file(&asset_file).await {
-                Ok(resp) => resp,
-                Err(_) => fallback_html_response(),
-            };
+        if let Ok(resp) = serve_local_file(&asset_file).await {
+            return resp;
         }
     }
 
-    // Se for uma rota SPA (como /, /admin, /public, /stage), serve o index.html da pasta dist
-    let index_file = dist_dir.join("index.html");
-    if index_file.is_file() {
-        match serve_local_file(&index_file).await {
-            Ok(resp) => resp,
-            Err(_) => fallback_html_response(),
-        }
-    } else {
-        fallback_html_response()
+    // 2. Se for uma rota SPA (como /, /admin, /public, /stage), serve o index.html
+    if let Some(resp) = serve_embedded_file("index.html") {
+        return resp;
     }
+
+    let dist_dir = find_frontend_dist();
+    let index_file = dist_dir.join("index.html");
+    if let Ok(resp) = serve_local_file(&index_file).await {
+        return resp;
+    }
+
+    // 3. Fallback informativo caso o frontend não tenha sido compilado
+    fallback_html_response()
+}
+
+fn serve_embedded_file(path: &str) -> Option<Response<Body>> {
+    let file = EmbeddedFrontend::get(path)?;
+    let mime = mime_guess::from_path(path).first_or_octet_stream();
+
+    let cache_control = if path.starts_with("assets/") {
+        "public, max-age=31536000, immutable"
+    } else {
+        "no-cache"
+    };
+
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, mime.as_ref())
+        .header(header::CACHE_CONTROL, cache_control)
+        .body(Body::from(file.data))
+        .ok()?;
+
+    Some(response)
 }
 
 async fn serve_local_file(path: &Path) -> Result<Response<Body>, std::io::Error> {

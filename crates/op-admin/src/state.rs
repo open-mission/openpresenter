@@ -21,6 +21,7 @@ pub struct AppState {
     pub broadcast_tx: broadcast::Sender<WsMessage>,
     pub db: Option<Arc<tokio::sync::Mutex<op_db::Database>>>,
     pub http_client: reqwest::Client,
+    pub updater: crate::updater::SharedUpdater,
 }
 
 impl AppState {
@@ -67,6 +68,8 @@ impl AppState {
             }
         }
 
+        let updater = Arc::new(RwLock::new(crate::updater::UpdaterState::default()));
+
         let app_state = Self {
             session,
             presentation: Arc::new(RwLock::new(initial_presentation)),
@@ -79,7 +82,29 @@ impl AppState {
                 .timeout(std::time::Duration::from_secs(10))
                 .build()
                 .unwrap_or_default(),
+            updater,
         };
+
+        // Task de verificação automática de updates em segundo plano
+        let updater_client = app_state.http_client.clone();
+        let updater_ref = app_state.updater.clone();
+        let current_ver = op_core::VERSION.to_string();
+        tokio::spawn(async move {
+            // Aguarda 3 segundos após o boot para não competir com a inicialização
+            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+            if let Ok(info) = crate::updater::check_for_updates(&updater_client, &current_ver).await
+            {
+                if info.update_available {
+                    tracing::info!(
+                        "★ Nova versão do OpenPresenter disponível: v{} (atual: v{})",
+                        info.latest_version,
+                        info.current_version
+                    );
+                }
+                let mut st = updater_ref.write().await;
+                st.last_check = Some(info);
+            }
+        });
 
         // Task leve de cronômetro global em segundo plano
         let timer_runner = app_state.clone();
@@ -144,6 +169,38 @@ impl AppState {
         }
 
         removed
+    }
+
+    /// Limpa todos os itens da setlist ativa.
+    pub async fn clear_active_setlist_items(&self) {
+        let mut items = self.media_items.write().await;
+        items.clear();
+        drop(items);
+
+        // Se havia algum item sendo apresentado, encerra a apresentação
+        let mut pres = self.presentation.write().await;
+        if pres.active_media_id.is_some() {
+            pres.active_media_id = None;
+            pres.active_slide_index = None;
+            pres.display_mode = DisplayMode::ClearText;
+        }
+        let updated_pres = pres.clone();
+        drop(pres);
+
+        self.sync_active_setlist_items(&[]).await;
+
+        let active_setlist = self.active_setlist.read().await.clone();
+
+        let _ = self.broadcast_tx.send(WsMessage::SyncState {
+            presentation: updated_pres,
+            media_items: Vec::new(),
+        });
+
+        if let Some(s) = active_setlist {
+            let _ = self
+                .broadcast_tx
+                .send(WsMessage::SetlistUpdated { setlist: s });
+        }
     }
 
     /// Reordena os itens da setlist ativa (ou move um item para o topo).
@@ -456,9 +513,13 @@ impl AppState {
         updated
     }
 
-    /// Apresenta uma mídia avulsa (ex: imagem ou anúncio rápido) ao vivo instantaneamente,
-    /// sem persistir na setlist permanente do banco de dados.
-    pub async fn quick_present_media(&self, item: MediaItem) -> PresentationState {
+    /// Apresenta uma mídia avulsa (ex: imagem, texto bíblico ou anúncio rápido) ao vivo instantaneamente,
+    /// sem persistir na setlist permanente do banco de dados, posicionando no slide indicado.
+    pub async fn quick_present_media_with_slide(
+        &self,
+        item: MediaItem,
+        slide_index: usize,
+    ) -> PresentationState {
         let mut items = self.media_items.write().await;
         if let Some(existing) = items.iter_mut().find(|m| m.id == item.id) {
             *existing = item.clone();
@@ -468,9 +529,15 @@ impl AppState {
         let all_items = items.clone();
         drop(items);
 
+        let target_idx = if slide_index < item.slides.len() {
+            slide_index
+        } else {
+            0
+        };
+
         let mut state = self.presentation.write().await;
         state.active_media_id = Some(item.id);
-        state.active_slide_index = Some(0);
+        state.active_slide_index = Some(target_idx);
         state.display_mode = DisplayMode::Live;
         let updated = state.clone();
         drop(state);
@@ -481,6 +548,12 @@ impl AppState {
         });
 
         updated
+    }
+
+    /// Apresenta uma mídia avulsa ao vivo iniciando pelo primeiro slide (índice 0).
+    #[allow(dead_code)]
+    pub async fn quick_present_media(&self, item: MediaItem) -> PresentationState {
+        self.quick_present_media_with_slide(item, 0).await
     }
 
     /// Define a mensagem para o palco (Stage Message).

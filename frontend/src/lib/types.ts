@@ -46,6 +46,54 @@ export interface SystemPaths {
   fonts_path: string;
 }
 
+export interface BibleVersionSummary {
+  id: string;
+  name: string;
+  abbreviation: string;
+  filename: string;
+  is_default: boolean;
+  book_count: number;
+  verse_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BibleBook {
+  id: number;
+  book_reference_id: number;
+  testament_reference_id: number; // 1 = AT, 2 = NT
+  name: string;
+  abbreviation: string;
+  chapter_count: number;
+}
+
+export interface BibleVerse {
+  id: number;
+  book_id: number;
+  chapter: number;
+  verse: number;
+  text: string;
+}
+
+export interface BibleSearchResult {
+  book_id: number;
+  book_name: string;
+  book_abbreviation: string;
+  chapter: number;
+  verse: number;
+  text: string;
+}
+
+export interface ParsedReference {
+  book_id: number;
+  book_name: string;
+  book_abbreviation: string;
+  chapter: number;
+  verse_start?: number;
+  verse_end?: number;
+  version?: string;
+}
+
 export interface Setlist {
   id: string;
   title: string;
@@ -147,7 +195,7 @@ export type WsMessage =
   | { type: 'reset_timer' }
   | { type: 'set_timer'; payload: { duration_seconds: number; label?: string; allow_overtime?: boolean } }
   | { type: 'set_timer_overtime'; payload: { allow_overtime: boolean } }
-  | { type: 'quick_present_media'; payload: { item: MediaItem } }
+  | { type: 'quick_present_media'; payload: { item: MediaItem; slide_index?: number } }
   | { type: 'set_stage_message'; payload: { message?: string } }
   | { type: 'identify'; payload: { client_type: string } }
   | { type: 'state_updated'; payload: { presentation: PresentationState } }
@@ -167,6 +215,8 @@ export interface PublicDisplaySettings {
   margin_horizontal: number;
   image_fit?: ImageFitMode;
   ignore_margins_for_media?: boolean;
+  darken_background?: boolean;
+  text_box_background?: boolean;
 }
 
 export interface NetworkInfoResponse {

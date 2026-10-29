@@ -27,6 +27,8 @@
     nextSlide?.content && nextSlide.content.startsWith('/media/')
   );
 
+  const isScripture = $derived(activeMedia?.kind === 'scripture');
+
   // Proporções
   const currentRatio = $derived(stageSettings.current_slide_percent ?? 60);
   const nextRatio = $derived(stageSettings.next_slide_percent ?? 30);
@@ -44,14 +46,14 @@
 <div class="w-full aspect-video rounded-lg bg-black border border-neutral-800 p-1.5 flex flex-col justify-between relative overflow-hidden shadow-inner select-none font-sans text-[10px]">
   <!-- PRESET 1: SPLIT 50-50 (LADO A LADO) -->
   {#if stageSettings.preset === 'split-50-50'}
-    <div class="flex-1 flex gap-1 min-h-0">
+    <div class="flex-1 flex gap-1 min-h-0" style="flex: {100 - footerRatio};">
       <!-- Slide Atual -->
       <div
         class="flex-1 rounded border p-1 flex flex-col justify-between overflow-hidden bg-zinc-900/60"
         style="flex: {currentRatio}; border-color: {stageSettings.current_border_color || '#3b82f6'};"
       >
         <span class="text-[8px] font-bold uppercase truncate" style="color: {stageSettings.current_text_color || '#ffffff'};">
-          Atual: {activeSlide?.label || 'Slide'}
+          {isScripture ? `📖 ${activeSlide?.label || 'Bíblia'}` : `Atual: ${activeSlide?.label || 'Slide'}`}
         </span>
         <div class="my-auto overflow-hidden">
           {#if isCurrentMediaImage && activeSlide}
@@ -75,7 +77,7 @@
         style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
       >
         <span class="text-[8px] font-bold uppercase truncate" style="color: {stageSettings.next_text_color || '#facc15'};">
-          A Seguir
+          {isScripture && nextSlide ? `📖 ${nextSlide.label}` : 'A Seguir'}
         </span>
         <div class="my-auto overflow-hidden">
           {#if isNextMediaImage && nextSlide}
@@ -95,7 +97,10 @@
     </div>
 
     <!-- Barra de Rodapé: Relógio e Timer -->
-    <div class="mt-1 pt-1 border-t border-zinc-800/80 flex items-center justify-between text-[8px] shrink-0 font-mono">
+    <div
+      class="mt-1 pt-1 border-t border-zinc-800/80 flex items-center justify-between text-[8px] shrink-0 font-mono"
+      style="height: {Math.max(16, Math.round(footerRatio * 0.4))}px;"
+    >
       <div class="flex items-center gap-1 text-zinc-300">
         <Clock size={9} class="text-zinc-400" />
         <span style="color: {stageSettings.clock_color || '#ffffff'};">{stageClock || '00:00:00'}</span>
@@ -114,14 +119,14 @@
   {:else if stageSettings.preset === 'modern-grid'}
     <div class="flex-1 flex gap-1 min-h-0">
       <!-- Coluna Principal (Atual em cima, Próximo embaixo) -->
-      <div class="flex-1 flex flex-col gap-1 min-h-0 min-w-0">
+      <div class="flex-1 flex flex-col gap-1 min-h-0 min-w-0" style="flex: {100 - (footerRatio * 1.5)};">
         <!-- Atual -->
         <div
           class="rounded border p-1 overflow-hidden bg-zinc-900/70 flex flex-col justify-between"
           style="flex: {currentRatio}; border-color: {stageSettings.current_border_color || '#3b82f6'};"
         >
           <span class="text-[8px] font-bold uppercase truncate" style="color: {stageSettings.current_text_color || '#ffffff'};">
-            ● Atual: {activeSlide?.label || 'Slide'}
+            ● {isScripture ? `📖 ${activeSlide?.label || 'Bíblia'}` : `Atual: ${activeSlide?.label || 'Slide'}`}
           </span>
           {#if isCurrentMediaImage && activeSlide}
             <div class="w-full h-10 flex items-center justify-center my-auto">
@@ -142,14 +147,14 @@
           style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
         >
           <span class="text-[7px] font-bold uppercase truncate" style="color: {stageSettings.next_text_color || '#facc15'};">
-            A Seguir:
+            {isScripture && nextSlide ? `📖 ${nextSlide.label}` : 'A Seguir:'}
           </span>
           {#if isNextMediaImage && nextSlide}
             <div class="w-full h-8 flex items-center justify-center my-auto opacity-85">
               <img src={nextSlide.content} alt="Próximo" class="max-w-full max-h-full object-contain rounded" />
             </div>
           {:else if nextSlide}
-            <p class="text-[9px] font-bold leading-tight line-clamp-1 my-auto opacity-90" style="color: {stageSettings.next_text_color || '#facc15'};">
+            <p class="text-[10px] font-extrabold leading-tight line-clamp-1 my-auto opacity-95" style="color: {stageSettings.next_text_color || '#facc15'};">
               {nextSlide.content.split('\n')[0]}
             </p>
           {:else}
@@ -159,28 +164,71 @@
       </div>
 
       <!-- Coluna Lateral (Relógio, Timer, Mensagem) -->
-      <div class="w-20 rounded border border-zinc-800 bg-zinc-900/50 p-1 flex flex-col justify-between shrink-0 font-mono text-center">
-        <div>
-          <span class="text-[7px] text-zinc-500 uppercase block font-sans">Hora</span>
-          <span class="text-[9px] font-bold block" style="color: {stageSettings.clock_color || '#ffffff'};">
-            {stageClock?.substring(0, 5) || '00:00'}
-          </span>
-        </div>
-        <div class="my-auto py-1 border-y border-zinc-800/60">
-          <span class="text-[7px] text-zinc-500 uppercase block font-sans">Timer</span>
-          <span
-            class="text-[11px] font-black block tracking-tight"
-            style="color: {timer.remaining_seconds <= 0 && timer.running ? '#ef4444' : stageSettings.timer_color || '#ef4444'};"
-          >
-            {formatTime(timer.remaining_seconds)}
-          </span>
-        </div>
+      <div
+        class="rounded border border-zinc-800 bg-zinc-900/50 p-1 flex flex-col gap-1 shrink-0 font-mono text-center overflow-hidden"
+        style="width: {Math.max(48, Math.round(footerRatio * 4.5))}px;"
+      >
         {#if timer.stage_message}
-          <div class="p-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[7px] font-bold truncate">
-            {timer.stage_message}
+          <!-- Aviso de Palco (60%) -->
+          <div
+            class="p-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex flex-col justify-center overflow-hidden"
+            style="flex: 60; min-height: 0;"
+          >
+            <span class="text-[6px] text-emerald-400 uppercase font-bold font-sans">Aviso</span>
+            <p class="text-[8px] sm:text-[9px] font-black leading-tight text-white line-clamp-2 my-auto">
+              {timer.stage_message}
+            </p>
+          </div>
+
+          <!-- Horário (20%) -->
+          <div
+            class="rounded bg-zinc-900/80 p-0.5 flex flex-col justify-center overflow-hidden"
+            style="flex: 20; min-height: 0;"
+          >
+            <span class="text-[6px] text-zinc-500 uppercase block font-sans">Hora</span>
+            <span class="text-[8px] font-bold block" style="color: {stageSettings.clock_color || '#ffffff'};">
+              {stageClock?.substring(0, 5) || '00:00'}
+            </span>
+          </div>
+
+          <!-- Timer (20%) -->
+          <div
+            class="rounded bg-zinc-900/80 p-0.5 flex flex-col justify-center overflow-hidden"
+            style="flex: 20; min-height: 0;"
+          >
+            <span class="text-[6px] text-zinc-500 uppercase block font-sans">Timer</span>
+            <span
+              class="text-[9px] font-black block tracking-tight"
+              style="color: {timer.remaining_seconds <= 0 && timer.running ? '#ef4444' : stageSettings.timer_color || '#ef4444'};"
+            >
+              {formatTime(timer.remaining_seconds)}
+            </span>
           </div>
         {:else}
-          <span class="text-[7px] text-zinc-600 truncate">{activeMedia?.title || 'Palco'}</span>
+          <!-- Horário (50%) -->
+          <div
+            class="rounded bg-zinc-900/60 p-0.5 flex flex-col justify-center overflow-hidden"
+            style="flex: 50; min-height: 0;"
+          >
+            <span class="text-[6px] text-zinc-500 uppercase block font-sans">Hora</span>
+            <span class="text-[9px] font-bold block my-auto" style="color: {stageSettings.clock_color || '#ffffff'};">
+              {stageClock?.substring(0, 5) || '00:00'}
+            </span>
+          </div>
+
+          <!-- Timer (50%) -->
+          <div
+            class="rounded bg-zinc-900/60 p-0.5 flex flex-col justify-center overflow-hidden"
+            style="flex: 50; min-height: 0;"
+          >
+            <span class="text-[6px] text-zinc-500 uppercase block font-sans">Timer</span>
+            <span
+              class="text-[11px] font-black block tracking-tight my-auto"
+              style="color: {timer.remaining_seconds <= 0 && timer.running ? '#ef4444' : stageSettings.timer_color || '#ef4444'};"
+            >
+              {formatTime(timer.remaining_seconds)}
+            </span>
+          </div>
         {/if}
       </div>
     </div>
@@ -205,7 +253,10 @@
         {/if}
       </div>
 
-      <div class="p-1 rounded border border-zinc-800 bg-zinc-900/60 flex items-center justify-between text-[8px] shrink-0 font-mono">
+      <div
+        class="p-1 rounded border border-zinc-800 bg-zinc-900/60 flex items-center justify-between text-[8px] shrink-0 font-mono"
+        style="height: {Math.max(18, Math.round(footerRatio * 1.5))}px;"
+      >
         <span class="text-[8px] truncate max-w-[120px] font-sans" style="color: {stageSettings.next_text_color || '#facc15'};">
           Próx: {nextSlide ? nextSlide.content.split('\n')[0] : 'Fim'}
         </span>
@@ -220,7 +271,10 @@
   {:else}
     <div class="flex-1 flex flex-col gap-1 min-h-0">
       <!-- Topo: Relógio e Timer -->
-      <div class="p-1 rounded border border-zinc-800 bg-zinc-900/80 flex items-center justify-between text-[8px] shrink-0 font-mono">
+      <div
+        class="p-1 rounded border border-zinc-800 bg-zinc-900/80 flex items-center justify-between text-[8px] shrink-0 font-mono"
+        style="height: {Math.max(16, Math.round(footerRatio * 1.2))}px;"
+      >
         <div class="flex items-center gap-1">
           <Clock size={8} class="text-zinc-400" />
           <span style="color: {stageSettings.clock_color || '#ffffff'};">{stageClock || '00:00:00'}</span>
@@ -254,8 +308,8 @@
 
       <!-- Base -->
       <div
-        class="p-1 rounded border flex items-center justify-between bg-zinc-900/70 shrink-0 text-[8px]"
-        style="border-color: {stageSettings.next_border_color || '#eab308'}; color: {stageSettings.next_text_color || '#facc15'};"
+        class="p-1 rounded border flex items-center justify-between bg-zinc-900/70 text-[8px]"
+        style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'}; color: {stageSettings.next_text_color || '#facc15'};"
       >
         <span class="font-bold text-[7px] uppercase tracking-wider shrink-0 mr-1">Próx:</span>
         <span class="truncate flex-1 font-medium">

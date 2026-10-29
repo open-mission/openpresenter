@@ -3,9 +3,9 @@ use std::time::Duration;
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use op_core::{
-    AppMeta, DEFAULT_LOCALE, MediaFolder, MediaItem, MonitorSelection, OutputConfig, OutputKind,
-    OutputMode, OutputsConfig, SectionType, SessionInfo, Setlist, SetlistSummary, Song,
-    SongSection, SongSummary, Theme,
+    AppMeta, BibleBook, BibleSearchResult, BibleVerse, BibleVersionSummary, DEFAULT_LOCALE,
+    MediaFolder, MediaItem, MonitorSelection, OutputConfig, OutputKind, OutputMode, OutputsConfig,
+    SectionType, SessionInfo, Setlist, SetlistSummary, Song, SongSection, SongSummary, Theme,
 };
 use rusqlite::Connection;
 use rusqlite_migration::{M, Migrations};
@@ -64,6 +64,7 @@ impl Database {
             M::up(include_str!("../migrations/0004_setlists.sql")),
             M::up(include_str!("../migrations/0005_media_folders.sql")),
             M::up(include_str!("../migrations/0006_app_settings.sql")),
+            M::up(include_str!("../migrations/0007_bibles.sql")),
         ]);
         migrations
             .to_latest(&mut conn)
@@ -861,6 +862,541 @@ impl Database {
         }
         Ok(res)
     }
+
+    /// Lista todas as versões da Bíblia registradas.
+    pub fn list_bibles(&self) -> Result<Vec<BibleVersionSummary>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, name, abbreviation, filename, is_default, created_at, updated_at
+                 FROM bibles ORDER BY is_default DESC, name ASC",
+            )
+            .map_err(DbError::Read)?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                let is_default_int: i32 = row.get(4)?;
+                Ok(BibleVersionSummary {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    abbreviation: row.get(2)?,
+                    filename: row.get(3)?,
+                    is_default: is_default_int == 1,
+                    book_count: 0,
+                    verse_count: 0,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            })
+            .map_err(DbError::Read)?;
+
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r.map_err(DbError::Read)?);
+        }
+        Ok(list)
+    }
+
+    /// Obtém uma versão da Bíblia pelo ID.
+    pub fn get_bible(&self, id: &str) -> Result<Option<BibleVersionSummary>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, name, abbreviation, filename, is_default, created_at, updated_at
+                 FROM bibles WHERE id = ?1",
+            )
+            .map_err(DbError::Read)?;
+
+        let mut rows = stmt.query(rusqlite::params![id]).map_err(DbError::Read)?;
+        if let Some(row) = rows.next().map_err(DbError::Read)? {
+            let is_default_int: i32 = row.get(4).map_err(DbError::Read)?;
+            Ok(Some(BibleVersionSummary {
+                id: row.get(0).map_err(DbError::Read)?,
+                name: row.get(1).map_err(DbError::Read)?,
+                abbreviation: row.get(2).map_err(DbError::Read)?,
+                filename: row.get(3).map_err(DbError::Read)?,
+                is_default: is_default_int == 1,
+                book_count: 0,
+                verse_count: 0,
+                created_at: row.get(5).map_err(DbError::Read)?,
+                updated_at: row.get(6).map_err(DbError::Read)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Obtém a versão padrão da Bíblia (ou a primeira existente).
+    pub fn get_default_bible(&self) -> Result<Option<BibleVersionSummary>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, name, abbreviation, filename, is_default, created_at, updated_at
+                 FROM bibles ORDER BY is_default DESC, name ASC LIMIT 1",
+            )
+            .map_err(DbError::Read)?;
+
+        let mut rows = stmt.query([]).map_err(DbError::Read)?;
+        if let Some(row) = rows.next().map_err(DbError::Read)? {
+            let is_default_int: i32 = row.get(4).map_err(DbError::Read)?;
+            Ok(Some(BibleVersionSummary {
+                id: row.get(0).map_err(DbError::Read)?,
+                name: row.get(1).map_err(DbError::Read)?,
+                abbreviation: row.get(2).map_err(DbError::Read)?,
+                filename: row.get(3).map_err(DbError::Read)?,
+                is_default: is_default_int == 1,
+                book_count: 0,
+                verse_count: 0,
+                created_at: row.get(5).map_err(DbError::Read)?,
+                updated_at: row.get(6).map_err(DbError::Read)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Salva ou atualiza uma versão da Bíblia.
+    pub fn save_bible(&mut self, bible: &BibleVersionSummary) -> Result<(), DbError> {
+        let is_default_int = if bible.is_default { 1 } else { 0 };
+
+        // Se esta versão for padrão, desmarca as outras
+        if bible.is_default {
+            self.conn
+                .execute("UPDATE bibles SET is_default = 0", [])
+                .map_err(DbError::Write)?;
+        }
+
+        self.conn
+            .execute(
+                r#"
+                INSERT INTO bibles (id, name, abbreviation, filename, is_default, created_at, updated_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    abbreviation = excluded.abbreviation,
+                    filename = excluded.filename,
+                    is_default = excluded.is_default,
+                    updated_at = excluded.updated_at
+                "#,
+                rusqlite::params![
+                    bible.id,
+                    bible.name,
+                    bible.abbreviation,
+                    bible.filename,
+                    is_default_int,
+                    bible.created_at,
+                    bible.updated_at,
+                ],
+            )
+            .map_err(DbError::Write)?;
+        Ok(())
+    }
+
+    /// Atualiza nome, abreviação e padrão de uma Bíblia.
+    pub fn update_bible(
+        &mut self,
+        id: &str,
+        name: &str,
+        abbreviation: &str,
+        is_default: bool,
+    ) -> Result<bool, DbError> {
+        let now = format_timestamp(Utc::now());
+        if is_default {
+            self.conn
+                .execute("UPDATE bibles SET is_default = 0", [])
+                .map_err(DbError::Write)?;
+        }
+        let is_default_int = if is_default { 1 } else { 0 };
+
+        let affected = self
+            .conn
+            .execute(
+                "UPDATE bibles SET name = ?1, abbreviation = ?2, is_default = ?3, updated_at = ?4 WHERE id = ?5",
+                rusqlite::params![name, abbreviation, is_default_int, now, id],
+            )
+            .map_err(DbError::Write)?;
+
+        Ok(affected > 0)
+    }
+
+    /// Define uma Bíblia como padrão.
+    pub fn set_default_bible(&mut self, id: &str) -> Result<bool, DbError> {
+        let now = format_timestamp(Utc::now());
+        self.conn
+            .execute("UPDATE bibles SET is_default = 0", [])
+            .map_err(DbError::Write)?;
+
+        let affected = self
+            .conn
+            .execute(
+                "UPDATE bibles SET is_default = 1, updated_at = ?1 WHERE id = ?2",
+                rusqlite::params![now, id],
+            )
+            .map_err(DbError::Write)?;
+
+        Ok(affected > 0)
+    }
+
+    /// Remove uma versão da Bíblia do banco.
+    pub fn delete_bible(&mut self, id: &str) -> Result<bool, DbError> {
+        let affected = self
+            .conn
+            .execute("DELETE FROM bibles WHERE id = ?1", rusqlite::params![id])
+            .map_err(DbError::Write)?;
+        Ok(affected > 0)
+    }
+}
+
+/// Leitor otimizado de um arquivo SQLite individual de Bíblia.
+pub struct BibleReader {
+    conn: Connection,
+    path: PathBuf,
+}
+
+impl BibleReader {
+    /// Abre uma conexão de leitura ao arquivo SQLite de Bíblia.
+    pub fn open(path: &Path) -> Result<Self, DbError> {
+        let conn = Connection::open(path).map_err(DbError::Open)?;
+        conn.busy_timeout(Duration::from_secs(5))
+            .map_err(DbError::Open)?;
+        Ok(Self {
+            conn,
+            path: path.to_path_buf(),
+        })
+    }
+
+    /// Caminho do arquivo.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Valida se o arquivo SQLite contém as tabelas essenciais (book e verse).
+    pub fn validate_schema(&self) -> Result<(), DbError> {
+        let has_book: i64 = self
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'book'",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(DbError::Read)?;
+        let has_verse: i64 = self
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'verse'",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(DbError::Read)?;
+
+        if has_book == 0 || has_verse == 0 {
+            return Err(DbError::Read(rusqlite::Error::QueryReturnedNoRows));
+        }
+        Ok(())
+    }
+
+    /// Assegura que o índice em (book_id, chapter) exista para buscas ultrarrápidas.
+    pub fn ensure_indexes(&self) -> Result<(), DbError> {
+        let _ = self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_verse_book_chapter ON verse (book_id, chapter)",
+            [],
+        );
+        Ok(())
+    }
+
+    /// Lê o valor de uma chave na tabela metadata, se existir.
+    pub fn get_metadata(&self, key: &str) -> Result<Option<String>, DbError> {
+        let has_meta: i64 = self
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'metadata'",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(DbError::Read)?;
+        if has_meta == 0 {
+            return Ok(None);
+        }
+
+        let mut stmt = self
+            .conn
+            .prepare("SELECT value FROM metadata WHERE key = ?1")
+            .map_err(DbError::Read)?;
+        let mut rows = stmt.query(rusqlite::params![key]).map_err(DbError::Read)?;
+        if let Some(row) = rows.next().map_err(DbError::Read)? {
+            let val: String = row.get(0).map_err(DbError::Read)?;
+            Ok(Some(val.trim_matches('\'').trim_matches('"').to_string()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Retorna contagem de (livros, versículos).
+    pub fn get_stats(&self) -> Result<(usize, usize), DbError> {
+        let book_count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM book", [], |row| row.get(0))
+            .map_err(DbError::Read)?;
+        let verse_count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM verse", [], |row| row.get(0))
+            .map_err(DbError::Read)?;
+        Ok((book_count as usize, verse_count as usize))
+    }
+
+    /// Lista os livros da Bíblia com metadados canônicos e quantidade de capítulos.
+    pub fn get_books(&self) -> Result<Vec<BibleBook>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                r#"
+                SELECT b.id, b.book_reference_id, b.testament_reference_id, b.name,
+                       COALESCE(MAX(v.chapter), 1) as chapter_count
+                FROM book b
+                LEFT JOIN verse v ON v.book_id = b.id
+                GROUP BY b.id
+                ORDER BY b.id ASC
+                "#,
+            )
+            .map_err(DbError::Read)?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                let id: i64 = row.get(0)?;
+                let book_ref: i64 = row.get(1).unwrap_or(id);
+                let testament_ref: i64 = row.get(2).unwrap_or(1);
+                let name: String = row.get(3)?;
+                let chapter_count: i64 = row.get(4)?;
+                let abbreviation = op_core::get_book_abbreviation(id).to_string();
+
+                Ok(BibleBook {
+                    id,
+                    book_reference_id: book_ref,
+                    testament_reference_id: testament_ref,
+                    name,
+                    abbreviation,
+                    chapter_count,
+                })
+            })
+            .map_err(DbError::Read)?;
+
+        let mut books = Vec::new();
+        for r in rows {
+            books.push(r.map_err(DbError::Read)?);
+        }
+        Ok(books)
+    }
+
+    /// Lista os números de capítulos de um determinado livro.
+    pub fn get_chapters(&self, book_id: i64) -> Result<Vec<i64>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT DISTINCT chapter FROM verse WHERE book_id = ?1 ORDER BY chapter ASC")
+            .map_err(DbError::Read)?;
+        let rows = stmt
+            .query_map(rusqlite::params![book_id], |row| row.get(0))
+            .map_err(DbError::Read)?;
+
+        let mut chapters = Vec::new();
+        for r in rows {
+            chapters.push(r.map_err(DbError::Read)?);
+        }
+        Ok(chapters)
+    }
+
+    /// Retorna todos os versículos de um capítulo.
+    pub fn get_verses(&self, book_id: i64, chapter: i64) -> Result<Vec<BibleVerse>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, book_id, chapter, verse, text FROM verse WHERE book_id = ?1 AND chapter = ?2 ORDER BY verse ASC"
+            )
+            .map_err(DbError::Read)?;
+
+        let rows = stmt
+            .query_map(rusqlite::params![book_id, chapter], |row| {
+                Ok(BibleVerse {
+                    id: row.get(0)?,
+                    book_id: row.get(1)?,
+                    chapter: row.get(2)?,
+                    verse: row.get(3)?,
+                    text: row.get(4)?,
+                })
+            })
+            .map_err(DbError::Read)?;
+
+        let mut verses = Vec::new();
+        for r in rows {
+            verses.push(r.map_err(DbError::Read)?);
+        }
+        Ok(verses)
+    }
+
+    /// Retorna um intervalo de versículos de um capítulo.
+    pub fn get_verse_range(
+        &self,
+        book_id: i64,
+        chapter: i64,
+        verse_start: i64,
+        verse_end: i64,
+    ) -> Result<Vec<BibleVerse>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, book_id, chapter, verse, text FROM verse WHERE book_id = ?1 AND chapter = ?2 AND verse >= ?3 AND verse <= ?4 ORDER BY verse ASC"
+            )
+            .map_err(DbError::Read)?;
+
+        let rows = stmt
+            .query_map(
+                rusqlite::params![book_id, chapter, verse_start, verse_end],
+                |row| {
+                    Ok(BibleVerse {
+                        id: row.get(0)?,
+                        book_id: row.get(1)?,
+                        chapter: row.get(2)?,
+                        verse: row.get(3)?,
+                        text: row.get(4)?,
+                    })
+                },
+            )
+            .map_err(DbError::Read)?;
+
+        let mut verses = Vec::new();
+        for r in rows {
+            verses.push(r.map_err(DbError::Read)?);
+        }
+        Ok(verses)
+    }
+
+    /// Busca textual livre em versículos (LIKE com suporte a palavra exata).
+    ///
+    /// Se `exact` for `true`, ou se `query` estiver entre aspas (ex: `"amor"`),
+    /// a busca realiza o casamento estrito por palavra inteira isolada por pontuações ou espaços,
+    /// impedindo que "amor" corresponda a "amorreus" ou "desamor".
+    pub fn search_verses(
+        &self,
+        query: &str,
+        limit: usize,
+        exact: bool,
+    ) -> Result<Vec<BibleSearchResult>, DbError> {
+        let trimmed = query.trim();
+        let has_quotes = (trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() >= 2)
+            || (trimmed.starts_with('“') && trimmed.ends_with('”') && trimmed.len() >= 2);
+
+        let clean_term = if has_quotes {
+            trimmed
+                .trim_matches('"')
+                .trim_matches('“')
+                .trim_matches('”')
+                .trim()
+        } else {
+            trimmed
+        };
+
+        let is_exact = exact || has_quotes;
+        let like_param = format!("%{}%", clean_term);
+
+        // Se a busca for exata, buscamos uma janela maior no banco para permitir o filtro por palavra inteira
+        let sql_limit = if is_exact {
+            (limit * 5).max(150) as i64
+        } else {
+            limit as i64
+        };
+
+        let mut stmt = self
+            .conn
+            .prepare(
+                r#"
+                SELECT b.id, b.name, v.chapter, v.verse, v.text
+                FROM verse v
+                JOIN book b ON b.id = v.book_id
+                WHERE v.text LIKE ?1
+                ORDER BY v.id ASC
+                LIMIT ?2
+                "#,
+            )
+            .map_err(DbError::Read)?;
+
+        let rows = stmt
+            .query_map(rusqlite::params![like_param, sql_limit], |row| {
+                let book_id: i64 = row.get(0)?;
+                let book_name: String = row.get(1)?;
+                let chapter: i64 = row.get(2)?;
+                let verse: i64 = row.get(3)?;
+                let text: String = row.get(4)?;
+                let book_abbreviation = op_core::get_book_abbreviation(book_id).to_string();
+
+                Ok(BibleSearchResult {
+                    book_id,
+                    book_name,
+                    book_abbreviation,
+                    chapter,
+                    verse,
+                    text,
+                })
+            })
+            .map_err(DbError::Read)?;
+
+        let mut results = Vec::new();
+        for r in rows {
+            let res = r.map_err(DbError::Read)?;
+            if is_exact {
+                if matches_whole_word(&res.text, clean_term) {
+                    results.push(res);
+                    if results.len() >= limit {
+                        break;
+                    }
+                }
+            } else {
+                results.push(res);
+            }
+        }
+
+        Ok(results)
+    }
+}
+
+/// Verifica se `query` ocorre como uma palavra inteira (isolada por caracteres não-alfanuméricos)
+/// dentro de `text`. A comparação é case-insensitive e respeita caracteres acentuados Unicode.
+pub fn matches_whole_word(text: &str, query: &str) -> bool {
+    let q = query.trim();
+    if q.is_empty() {
+        return false;
+    }
+
+    let text_lower: Vec<char> = text.to_lowercase().chars().collect();
+    let query_lower: Vec<char> = q.to_lowercase().chars().collect();
+    let q_len = query_lower.len();
+
+    if q_len == 0 || text_lower.len() < q_len {
+        return false;
+    }
+
+    for (i, window) in text_lower.windows(q_len).enumerate() {
+        if window == query_lower.as_slice() {
+            // Verifica o caractere anterior
+            let is_boundary_start = if i == 0 {
+                true
+            } else {
+                !text_lower[i - 1].is_alphanumeric()
+            };
+
+            // Verifica o caractere posterior
+            let end_idx = i + q_len;
+            let is_boundary_end = if end_idx >= text_lower.len() {
+                true
+            } else {
+                !text_lower[end_idx].is_alphanumeric()
+            };
+
+            if is_boundary_start && is_boundary_end {
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 #[cfg(test)]
@@ -888,7 +1424,7 @@ mod tests {
         let path = dir.path().join("open-presenter.db");
         let db = Database::open(&path).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 6);
+        assert_eq!(db.schema_version().unwrap(), 7);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -921,20 +1457,192 @@ mod tests {
     }
 
     #[test]
-    fn open_creates_schema_v6_with_app_settings() {
+    fn open_creates_schema_v7_with_bibles() {
         let dir = tempfile::tempdir().unwrap();
         let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 6);
+        assert_eq!(db.schema_version().unwrap(), 7);
         let table_count: i64 = db
             .conn
             .query_row(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists', 'media_folders', 'app_settings')",
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists', 'media_folders', 'app_settings', 'bibles')",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(table_count, 6);
+        assert_eq!(table_count, 7);
+    }
+
+    #[test]
+    fn save_and_manage_bibles_works() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
+
+        assert!(db.list_bibles().unwrap().is_empty());
+
+        let bible1 = BibleVersionSummary {
+            id: "bible-ara".into(),
+            name: "Almeida Revista e Atualizada".into(),
+            abbreviation: "ARA".into(),
+            filename: "ARA.sqlite".into(),
+            is_default: true,
+            book_count: 66,
+            verse_count: 31104,
+            created_at: "2026-10-29T10:00:00.000Z".into(),
+            updated_at: "2026-10-29T10:00:00.000Z".into(),
+        };
+
+        db.save_bible(&bible1).unwrap();
+
+        let list = db.list_bibles().unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].abbreviation, "ARA");
+        assert!(list[0].is_default);
+
+        // Adiciona segunda bíblia
+        let bible2 = BibleVersionSummary {
+            id: "bible-nvi".into(),
+            name: "Nova Versao Internacional".into(),
+            abbreviation: "NVI".into(),
+            filename: "NVI.sqlite".into(),
+            is_default: false,
+            book_count: 66,
+            verse_count: 31104,
+            created_at: "2026-10-29T11:00:00.000Z".into(),
+            updated_at: "2026-10-29T11:00:00.000Z".into(),
+        };
+        db.save_bible(&bible2).unwrap();
+        assert_eq!(db.list_bibles().unwrap().len(), 2);
+
+        // Atualiza bible1 (renomear)
+        db.update_bible(
+            "bible-ara",
+            "Almeida Revista Atualizada (Oficial)",
+            "ARA-BR",
+            false,
+        )
+        .unwrap();
+        let updated = db.get_bible("bible-ara").unwrap().unwrap();
+        assert_eq!(updated.name, "Almeida Revista Atualizada (Oficial)");
+        assert_eq!(updated.abbreviation, "ARA-BR");
+
+        // Define bible2 como default
+        db.set_default_bible("bible-nvi").unwrap();
+        let def = db.get_default_bible().unwrap().unwrap();
+        assert_eq!(def.id, "bible-nvi");
+
+        // Deleta bible1
+        assert!(db.delete_bible("bible-ara").unwrap());
+        assert_eq!(db.list_bibles().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn bible_reader_and_queries_work() {
+        let dir = tempfile::tempdir().unwrap();
+        let bible_path = dir.path().join("test_bible.sqlite");
+
+        // Cria banco de teste no formato das bíblias
+        {
+            let conn = rusqlite::Connection::open(&bible_path).unwrap();
+            conn.execute_batch(
+                r#"
+                CREATE TABLE metadata (key VARCHAR(255) PRIMARY KEY, value VARCHAR(255));
+                INSERT INTO metadata VALUES ('name', 'Almeida Revista e Atualizada');
+                CREATE TABLE book (id INTEGER PRIMARY KEY, book_reference_id INTEGER, testament_reference_id INTEGER, name VARCHAR(50));
+                INSERT INTO book VALUES (43, 43, 2, 'João');
+                CREATE TABLE verse (id INTEGER PRIMARY KEY, book_id INTEGER, chapter INTEGER, verse INTEGER, text TEXT);
+                INSERT INTO verse VALUES (1, 43, 3, 16, 'Porque Deus amou o mundo...');
+                INSERT INTO verse VALUES (2, 43, 3, 17, 'Porquanto Deus enviou seu Filho...');
+                "#,
+            )
+            .unwrap();
+        }
+
+        let reader = BibleReader::open(&bible_path).unwrap();
+        reader.validate_schema().unwrap();
+        reader.ensure_indexes().unwrap();
+
+        assert_eq!(
+            reader.get_metadata("name").unwrap(),
+            Some("Almeida Revista e Atualizada".to_string())
+        );
+
+        let (books_count, verses_count) = reader.get_stats().unwrap();
+        assert_eq!(books_count, 1);
+        assert_eq!(verses_count, 2);
+
+        let books = reader.get_books().unwrap();
+        assert_eq!(books.len(), 1);
+        assert_eq!(books[0].name, "João");
+        assert_eq!(books[0].abbreviation, "Jo");
+
+        let chapters = reader.get_chapters(43).unwrap();
+        assert_eq!(chapters, vec![3]);
+
+        let verses = reader.get_verses(43, 3).unwrap();
+        assert_eq!(verses.len(), 2);
+        assert_eq!(verses[0].verse, 16);
+
+        let search = reader.search_verses("amou o mundo", 10, false).unwrap();
+        assert_eq!(search.len(), 1);
+        assert_eq!(search[0].chapter, 3);
+        assert_eq!(search[0].verse, 16);
+
+        // Teste de busca exata e sintaxe com aspas
+        let exact_search = reader.search_verses("\"amou\"", 10, false).unwrap();
+        assert_eq!(exact_search.len(), 1);
+        assert_eq!(exact_search[0].verse, 16);
+    }
+
+    #[test]
+    fn test_matches_whole_word_rules() {
+        assert!(matches_whole_word("O amor jamais acaba", "amor"));
+        assert!(matches_whole_word("amor,", "amor"));
+        assert!(matches_whole_word("O amor de Deus", "amor"));
+        assert!(matches_whole_word("Amor!", "amor"));
+        assert!(matches_whole_word("Deus é amor.", "amor"));
+
+        // Casos que não devem casar
+        assert!(!matches_whole_word(
+            "E habitou na terra dos amorreus",
+            "amor"
+        ));
+        assert!(!matches_whole_word("Ele é um namorado fiel", "amor"));
+        assert!(!matches_whole_word("O desamor corrompeu tudo", "amor"));
+        assert!(!matches_whole_word("Sentiu grandes amores", "amor"));
+    }
+
+    #[test]
+    fn real_sample_bible_sqlite_can_be_read_if_present() {
+        let sample_path = std::path::Path::new("/Users/claudio/Downloads/bibles_ARA.sqlite");
+        if !sample_path.exists() {
+            return;
+        }
+
+        let reader = BibleReader::open(sample_path).unwrap();
+        reader.validate_schema().unwrap();
+        let (books_count, verses_count) = reader.get_stats().unwrap();
+        assert_eq!(books_count, 66);
+        assert_eq!(verses_count, 31104);
+
+        let books = reader.get_books().unwrap();
+        assert_eq!(books.len(), 66);
+        assert_eq!(books[0].name, "Gênesis");
+        assert_eq!(books[42].name, "João");
+
+        let verses = reader.get_verses(43, 3).unwrap();
+        assert_eq!(verses.len(), 36);
+        let v16 = verses.iter().find(|v| v.verse == 16).unwrap();
+        assert!(v16.text.contains("amou ao mundo"));
+
+        let search = reader.search_verses("amou ao mundo", 5, false).unwrap();
+        assert!(!search.is_empty());
+
+        // Busca exata por amorreus não deve vir em busca exata por "amor"
+        let amor_exact = reader.search_verses("\"amor\"", 20, true).unwrap();
+        for r in &amor_exact {
+            assert!(matches_whole_word(&r.text, "amor"));
+        }
     }
 
     #[test]
@@ -973,7 +1681,7 @@ mod tests {
     }
 
     #[test]
-    fn migrates_v1_database_to_v6_preserving_app_meta() {
+    fn migrates_v1_database_to_v7_preserving_app_meta() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("open-presenter.db");
         {
@@ -990,7 +1698,7 @@ mod tests {
         }
 
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.schema_version().unwrap(), 6);
+        assert_eq!(db.schema_version().unwrap(), 7);
         let meta = db.load_meta().unwrap().unwrap();
         assert_eq!(meta.first_run_at, ts(2026, 10, 28, 10, 0));
         let count: i64 = db

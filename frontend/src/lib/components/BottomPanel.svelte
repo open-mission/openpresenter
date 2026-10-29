@@ -24,9 +24,11 @@
     Check,
     Layers,
     FolderOpen,
+    BookOpen,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
+  import BiblePanel from './BiblePanel.svelte';
   import { renderFormattedText } from '../markdown';
   import {
     BACKGROUND_PRESETS,
@@ -36,6 +38,7 @@
   } from '../backgrounds';
   import { presentationState, setPresentationWallpaper } from '../ws';
   import { publicSettingsStore, savePublicDisplaySettings } from '../displaySettings';
+  import { refreshBibles } from '../bibles';
   import type {
     SongSummary,
     Song,
@@ -43,6 +46,8 @@
     MediaFolder,
     WallpaperItem,
     ImageFitMode,
+    MediaItem,
+    ParsedReference,
   } from '../types';
 
   interface Props {
@@ -53,6 +58,11 @@
     onpreviewimage?: (image: ImageMediaItem) => void;
     onopensongeditor?: () => void;
     onopenfolderconfig?: () => void;
+    onpresentscripture?: (item: MediaItem, slideIndex: number) => void;
+    onaddscripturetosetlist?: (item: MediaItem) => void;
+    onopenbibleconfig?: () => void;
+    requestedTab?: 'songs' | 'images' | 'backgrounds' | 'bible' | null;
+    targetScriptureRef?: ParsedReference | null;
   }
 
   let {
@@ -63,15 +73,33 @@
     onpreviewimage,
     onopensongeditor,
     onopenfolderconfig,
+    onpresentscripture,
+    onaddscripturetosetlist,
+    onopenbibleconfig,
+    requestedTab = null,
+    targetScriptureRef = null,
   }: Props = $props();
 
   let isCollapsed = $state(true);
   let isMaximized = $state(false);
-  let activeTab = $state<'songs' | 'images' | 'backgrounds'>('songs');
+  let activeTab = $state<'songs' | 'images' | 'backgrounds' | 'bible'>('songs');
   let panelHeight = $state(290);
   let isDragging = $state(false);
   let startY = 0;
   let startHeight = 290;
+
+  $effect(() => {
+    if (requestedTab) {
+      activeTab = requestedTab;
+      isCollapsed = false;
+    }
+  });
+
+  $effect(() => {
+    if (activeTab === 'bible') {
+      refreshBibles();
+    }
+  });
 
   // --- CATÁLOGO DE MÚSICAS ---
   let songSearch = $state('');
@@ -354,6 +382,19 @@
         <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
           {BACKGROUND_PRESETS.length + localWallpapers.length}
         </Badge>
+      </button>
+
+      <!-- Aba Bíblia -->
+      <button
+        type="button"
+        onclick={() => {
+          activeTab = 'bible';
+          if (isCollapsed) isCollapsed = false;
+        }}
+        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {activeTab === 'bible' && !isCollapsed ? 'bg-neutral-800 text-white shadow-xs' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'}"
+      >
+        <BookOpen size={13} class="text-amber-400" />
+        <span>Bíblia</span>
       </button>
     </div>
 
@@ -1062,6 +1103,15 @@
             </div>
           </main>
         </div>
+
+      <!-- ================= ABA 4: BÍBLIA ================= -->
+      {:else if activeTab === 'bible'}
+        <BiblePanel
+          targetPassage={targetScriptureRef}
+          {onpresentscripture}
+          {onaddscripturetosetlist}
+          {onopenbibleconfig}
+        />
       {/if}
     </div>
   {/if}

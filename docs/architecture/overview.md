@@ -41,13 +41,15 @@ frontend (HTTP/WS) → op-admin → op-db → op-core
 
 ```text
 crates/op-admin/src/
-├── main.rs         # ponto de entrada do binário, setup do listener Axum e roteador principal
-├── routes.rs       # rotas REST para status, setlist, catálogo FTS5 e busca online
+├── main.rs         # ponto de entrada, event loop nativo (tao) e inicialização Tokio em background
+├── tray.rs         # System Tray nativo (tray-icon + muda) e diálogos de configuração de porta
+├── routes.rs       # rotas REST para status, setlist, catálogo FTS5, bíblias e busca online
 ├── online_lyrics.rs# clientes para busca e download de letras em Holyrics e Vagalume
 ├── state.rs        # AppState global thread-safe e acervo inicial de demonstração
 ├── ws.rs           # handler WebSocket (/ws) com sincronização inicial e broadcast de eventos
 ├── session.rs      # inicialização de sessão, data directory e metadados no SQLite
-└── static_files.rs # serviço dos arquivos estáticos compilados (frontend/dist) com fallback SPA
+├── static_files.rs # serviço de assets embutidos no binário (rust-embed) com fallback SPA
+└── updater.rs      # verificação de releases no GitHub, download e auto-update in-app
 ```
 
 ## Fluxo de Inicialização
@@ -58,17 +60,15 @@ crates/op-admin/src/
 4. Grava a sessão atual: preserva `first_run_at` e as preferências, atualiza `last_run_at`, `app_version` e `updated_at`.
 5. Monta `SessionView` com versão, schema, caminho do banco, primeira execução e última execução anterior.
 6. Carrega `OutputsConfig` do banco; sem linhas salvas, usa os padrões definidos pela especificação.
-7. Inicializa `AppState` em memória contendo `SessionView`, `OutputsConfig`, `PresentationState`, a biblioteca inicial de mídias e o canal de transmissão `broadcast::Sender<WsMessage>`.
-8. Configura o roteador Axum integrando as rotas de API, o endpoint WebSocket `/ws`, middlewares de CORS e tracing, e o handler de entrega dos arquivos estáticos do frontend.
-9. Inicia o listener TCP na porta configurada (padrão: 3000) e exibe as URLs de acesso no terminal.
-10. Ao acessar `http://localhost:3000` pelo navegador:
-    - O frontend Svelte carrega a visão **Admin** por padrão.
-    - O cliente estabelece conexão WebSocket com `/ws`, envia identificação e recebe imediatamente o estado completo (`SyncState`).
-    - O operador pode navegar pelas mídias na sidebar (com componentes `MediaItemRow` do Shadui), selecionar e pré-visualizar slides no painel central de forma desacoplada do ar (apresentando com Enter ou duplo clique, parando com Esc, saltando partes por letra e por número de slide).
-    - Pré-visualizar saídas com aspect ratio 16:9 em tempo real do **Public** e do **Stage**.
-    - Acessar o modal de **Configurações** em abas verticais para customização de tema (escuro/claro/sistema), cores de seções da música e atalhos rápidos.
-    - Clicar em "Abrir Public" abre a rota `/public` em nova janela ou aba para projetor ou OBS.
-    - Clicar em "Abrir Stage" abre a rota `/stage` em nova janela ou aba para retorno do palco com relógio digital em tempo real.
+7. Resolve a porta do servidor: verifica variável `PORT`, depois `app_settings.server_port` no SQLite, utilizando a porta `18080` como padrão seguro e livre de conflitos.
+8. Inicializa `AppState` em memória contendo `SessionView`, `OutputsConfig`, `PresentationState`, a biblioteca inicial de mídias e o canal de transmissão `broadcast::Sender<WsMessage>`.
+9. Inicia o servidor HTTP Axum em uma runtime assíncrona Tokio dedicada em background, servindo os assets compilados do frontend embutidos diretamente no executável via `rust-embed`.
+10. Se a flag `--headless` estiver ativa, o servidor opera em modo terminal/daemon puro.
+11. Em modo padrão desktop (Windows, macOS e Linux):
+    - A thread principal executa o event loop nativo (`tao`).
+    - O ícone oficial da marca é exibido na bandeja do sistema (**System Tray / Menu Bar**).
+    - O navegador padrão é aberto automaticamente em `http://localhost:18080`.
+    - O menu de contexto na bandeja oferece opções diretas para abrir o Painel Admin, a Tela Pública, o Retorno de Palco, configurar a porta do servidor e encerrar a aplicação.
 
 ## Banco de Dados
 
@@ -80,6 +80,7 @@ crates/op-admin/src/
 - Schema v4: tabelas `setlists` e `setlist_items` para suporte a múltiplas listas de louvor, papel de parede e metadados.
 - Schema v5: tabela `media_folders` para mapeamento externo de diretórios do computador (zero-copy).
 - Schema v6: tabela `app_settings` para armazenamento de pares chave/valor de configurações de telas (`public_display`, `stage_display`) e marca da congregação (`church_brand`).
+- Schema v7: tabela `bibles` para catálogo das versões da Bíblia importadas (`id`, `name`, `abbreviation`, `filename`, `is_default`, `created_at`, `updated_at`). Arquivos `.sqlite` individuais são armazenados em `<data_dir>/bibles/`.
 - As migrações são estritamente aditivas e numeradas.
 - Datas em RFC 3339 UTC com milissegundos.
 
@@ -98,3 +99,11 @@ As mensagens entre o painel do operador, as telas de saída e o servidor utiliza
 - `timer_updated`: broadcast com tick a cada 1 segundo com tempo restante e alerta de overtime.
 - `state_updated`: broadcast emitido a todos os clientes conectados informando alterações de estado.
 - `ping` / `pong`: manutenção de conexão ativa contra timeouts de rede.
+
+## Atualização Automática (Auto-Updater)
+
+- Verificação periódica ou sob demanda via API do GitHub Releases (`open-mission/openpresenter`).
+- Comparação semântica de versões (`semver`) contra a versão do binário em execução.
+- Download atômico do pacote compactado correspondente ao SO (`.zip` no Windows, `.tar.gz` no macOS e Linux) para diretório temporário.
+- Extração e substituição atômica no caminho de `current_exe()`, tratando locks de arquivo no Windows através de renomeação temporária `.old.exe`.
+- Preservação total de dados: banco SQLite (`open-presenter.db`), mídias e bíblias continuam intactos no diretório de dados do usuário.

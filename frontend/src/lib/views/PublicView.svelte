@@ -146,9 +146,9 @@
           />
         {/if}
 
-        <!-- Overlay escuro sutil para garantir legibilidade quando houver slide -->
-        {#if activeSlide && activeMedia?.kind !== 'image'}
-          <div class="absolute inset-0 bg-black/60 backdrop-blur-[2px]"></div>
+        <!-- Overlay escuro opcional sobre o plano de fundo geral -->
+        {#if publicSettings.darken_background && activeSlide && activeMedia?.kind !== 'image'}
+          <div class="absolute inset-0 bg-black/60 backdrop-blur-[2px] transition-all duration-300"></div>
         {/if}
       </div>
     {/if}
@@ -193,23 +193,41 @@
             />
           </div>
         {:else}
-          <!-- Slide de Texto / Música Ao Vivo com Formatação, Margens e Preenchimento -->
+          <!-- Slide de Texto / Música / Bíblia Ao Vivo com Formatação, Margens e Preenchimento -->
           <div
             class="w-full h-full flex flex-col animate-in fade-in duration-150 {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'} {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
           >
-            <div class="space-y-4 my-auto {publicSettings.fill_space ? 'w-full max-w-[96vw]' : 'max-w-5xl'}">
+            <div
+              class="my-auto {publicSettings.fill_space ? 'w-full max-w-[96vw]' : 'max-w-5xl'} {publicSettings.text_box_background ? 'bg-black/65 backdrop-blur-md rounded-3xl p-6 sm:p-10 md:p-14 border border-white/10 shadow-2xl transition-all' : ''}"
+            >
               <div
                 class="font-bold tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight {publicSettings.fill_space ? 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl' : 'text-3xl sm:text-4xl md:text-5xl lg:text-6xl'} {publicSettings.word_wrap ? 'break-words' : 'whitespace-nowrap overflow-hidden text-ellipsis'}"
               >
                 {@html renderFormattedText(activeSlide.content)}
               </div>
-            </div>
 
-            {#if publicSettings.show_metadata && (activeMedia?.title || activeMedia?.artist_or_ref)}
-              <div class="text-neutral-300 text-sm md:text-base font-medium mt-auto opacity-80 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                {activeMedia.title}{activeMedia.artist_or_ref ? ` — ${activeMedia.artist_or_ref}` : ''}
-              </div>
-            {/if}
+              {#if activeMedia?.kind === 'scripture'}
+                <div
+                  class="mt-6 sm:mt-8 md:mt-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4 drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
+                >
+                  <span class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-amber-300 tracking-tight flex items-center gap-2.5">
+                    <span class="opacity-95">📖</span>
+                    <span>{activeSlide.label || activeMedia.title}</span>
+                  </span>
+                  {#if activeMedia.artist_or_ref}
+                    <span
+                      class="text-sm sm:text-base md:text-lg px-3 py-1 rounded-lg bg-white/20 border border-white/25 uppercase font-mono font-bold tracking-wider text-neutral-100 shadow-md"
+                    >
+                      {activeMedia.artist_or_ref}
+                    </span>
+                  {/if}
+                </div>
+              {:else if publicSettings.show_metadata && (activeMedia?.title || activeMedia?.artist_or_ref)}
+                <div class="text-neutral-300 text-sm md:text-base font-medium mt-4 sm:mt-6 opacity-80 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                  {activeMedia.title}{activeMedia.artist_or_ref ? ` — ${activeMedia.artist_or_ref}` : ''}
+                </div>
+              {/if}
+            </div>
           </div>
         {/if}
       {:else if !wallpaper}

@@ -12,8 +12,10 @@
     X,
     ChevronRight,
     FileText,
+    BookOpen,
   } from 'lucide-svelte';
-  import type { SongSummary, OnlineLyricHit, Song } from '../types';
+  import type { SongSummary, OnlineLyricHit, Song, ParsedReference } from '../types';
+  import { parseBibleReference } from '../bibleParser';
   import Badge from './ui/Badge.svelte';
 
   interface Props {
@@ -21,9 +23,20 @@
     onclose: () => void;
     oncreatenew: () => void;
     onimportsong: (song: Song) => void;
+    onopenbible?: (ref: ParsedReference) => void;
+    onpresentscripture?: (ref: ParsedReference) => void;
+    onopenbibletab?: () => void;
   }
 
-  let { open = false, onclose, oncreatenew, onimportsong }: Props = $props();
+  let {
+    open = false,
+    onclose,
+    oncreatenew,
+    onimportsong,
+    onopenbible,
+    onpresentscripture,
+    onopenbibletab,
+  }: Props = $props();
 
   let query = $state('');
   let activeTab = $state<'local' | 'online'>('local');
@@ -35,6 +48,12 @@
   let inputElement = $state<HTMLInputElement | null>(null);
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let prevOpen = false;
+
+  const parsedBibleRef = $derived.by<ParsedReference | null>(() => {
+    const q = query.trim();
+    if (!q || q.length < 2) return null;
+    return parseBibleReference(q);
+  });
 
   // Gerencia abertura/fechamento do Command Palette
   $effect(() => {
@@ -160,7 +179,7 @@
       e.preventDefault();
       const max =
         activeTab === 'local'
-          ? localResults.length + 2 // +2 opções rápidas
+          ? localResults.length + 3 // +3 opções rápidas (Bíblia, Nova Música, Web)
           : onlineResults.length;
       if (max > 0) {
         selectedIndex = (selectedIndex + 1) % max;
@@ -172,7 +191,7 @@
       e.preventDefault();
       const max =
         activeTab === 'local'
-          ? localResults.length + 2
+          ? localResults.length + 3
           : onlineResults.length;
       if (max > 0) {
         selectedIndex = (selectedIndex - 1 + max) % max;
@@ -180,11 +199,27 @@
       return;
     }
 
+    // Atalhos quando uma referência bíblica for digitada (ex: "joao 3.16" ou "Salmos 91")
+    if (parsedBibleRef) {
+      if (e.key === 'Enter' && e.shiftKey) {
+        e.preventDefault();
+        onpresentscripture?.(parsedBibleRef);
+        onclose();
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        onopenbible?.(parsedBibleRef);
+        onclose();
+        return;
+      }
+    }
+
     // Shift + Enter: Adiciona à setlist imediatamente
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       if (activeTab === 'local' && localResults.length > 0) {
-        const targetIdx = selectedIndex >= 2 ? selectedIndex - 2 : 0;
+        const targetIdx = selectedIndex >= 3 ? selectedIndex - 3 : 0;
         const song = localResults[targetIdx];
         if (song) {
           addToSetlist(song.id);
@@ -198,15 +233,19 @@
       e.preventDefault();
       if (activeTab === 'local') {
         if (selectedIndex === 0) {
+          // Abrir Aba Bíblia Sagrada
+          onclose();
+          onopenbibletab?.();
+        } else if (selectedIndex === 1) {
           // Criar nova música manualmente
           onclose();
           oncreatenew();
-        } else if (selectedIndex === 1) {
+        } else if (selectedIndex === 2) {
           // Buscar na internet
           activeTab = 'online';
           searchOnline(query);
         } else {
-          const songIdx = selectedIndex - 2;
+          const songIdx = selectedIndex - 3;
           const song = localResults[songIdx];
           if (song) {
             addToSetlist(song.id);
@@ -316,9 +355,83 @@
 
       <!-- Lista de Resultados e Ações -->
       <div class="max-h-[60vh] overflow-y-auto p-2 space-y-1">
+        {#if parsedBibleRef}
+          <!-- Card de Referência Bíblica Detectada pelo Parser -->
+          <div class="p-3 mb-2 rounded-xl border border-amber-500/40 bg-amber-500/10 text-white flex items-center justify-between gap-3 animate-in fade-in">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <BookOpen size={16} />
+              </div>
+              <div class="min-w-0">
+                <div class="text-[11px] font-bold text-amber-300 flex items-center gap-2">
+                  <span>Passagem Bíblica</span>
+                  <Badge variant="outline" class="text-[9px] border-amber-500/50 text-amber-300 font-mono py-0 px-1 uppercase">
+                    {parsedBibleRef.book_abbreviation}
+                  </Badge>
+                </div>
+                <div class="text-sm font-extrabold text-white truncate">
+                  {parsedBibleRef.book_name} {parsedBibleRef.chapter}:{parsedBibleRef.verse_start || 1}{parsedBibleRef.verse_end && parsedBibleRef.verse_end !== parsedBibleRef.verse_start ? `-${parsedBibleRef.verse_end}` : ''}
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onclick={() => {
+                  onopenbible?.(parsedBibleRef!);
+                  onclose();
+                }}
+                class="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Abrir o texto bíblico (Enter)"
+              >
+                <span>Abrir Texto</span>
+                <kbd class="px-1 py-0.2 rounded bg-black/50 text-[10px] font-mono text-zinc-400">↵</kbd>
+              </button>
+
+              <button
+                type="button"
+                onclick={() => {
+                  onpresentscripture?.(parsedBibleRef!);
+                  onclose();
+                }}
+                class="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-xs font-bold text-black flex items-center gap-1.5 transition-colors cursor-pointer shadow-md"
+                title="Projetar na tela imediatamente (Shift+Enter)"
+              >
+                <span>Projetar Agora</span>
+                <kbd class="px-1 py-0.2 rounded bg-black/20 text-[10px] font-mono">⇧↵</kbd>
+              </button>
+            </div>
+          </div>
+        {/if}
+
         {#if activeTab === 'local'}
           <!-- Ações Rápidas (Sempre no Topo da aba Local) -->
           <div class="space-y-0.5 mb-2 pb-2 border-b border-zinc-800/60">
+            <!-- Ação 0: Abrir Bíblia Sagrada -->
+            <button
+              type="button"
+              onclick={() => {
+                onclose();
+                onopenbibletab?.();
+              }}
+              class="w-full px-3 py-2 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer {selectedIndex === 0 ? 'bg-zinc-800/90 text-white' : 'hover:bg-zinc-900/80 text-zinc-300'}"
+            >
+              <div class="flex items-center gap-2.5">
+                <div class="w-6 h-6 rounded bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                  <BookOpen size={14} />
+                </div>
+                <div>
+                  <div class="text-xs font-semibold text-white">Abrir Bíblia Sagrada</div>
+                  <div class="text-[10px] text-zinc-400">Navegar por livros, capítulos e versículos bíblicos</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1">
+                <kbd class="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700/80 text-[10px] font-mono text-zinc-400">⌘B</kbd>
+                <kbd class="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700/80 text-[10px] font-mono text-zinc-400">F4</kbd>
+              </div>
+            </button>
+
             <!-- Ação 1: Criar Música Manualmente -->
             <button
               type="button"
@@ -326,7 +439,7 @@
                 onclose();
                 oncreatenew();
               }}
-              class="w-full px-3 py-2 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer {selectedIndex === 0 ? 'bg-zinc-800/90 text-white' : 'hover:bg-zinc-900/80 text-zinc-300'}"
+              class="w-full px-3 py-2 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer {selectedIndex === 1 ? 'bg-zinc-800/90 text-white' : 'hover:bg-zinc-900/80 text-zinc-300'}"
             >
               <div class="flex items-center gap-2.5">
                 <div class="w-6 h-6 rounded bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
@@ -347,7 +460,7 @@
                 activeTab = 'online';
                 searchOnline(query);
               }}
-              class="w-full px-3 py-2 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer {selectedIndex === 1 ? 'bg-zinc-800/90 text-white' : 'hover:bg-zinc-900/80 text-zinc-300'}"
+              class="w-full px-3 py-2 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer {selectedIndex === 2 ? 'bg-zinc-800/90 text-white' : 'hover:bg-zinc-900/80 text-zinc-300'}"
             >
               <div class="flex items-center gap-2.5">
                 <div class="w-6 h-6 rounded bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">

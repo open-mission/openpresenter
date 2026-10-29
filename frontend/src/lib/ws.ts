@@ -180,6 +180,17 @@ export async function removeSetlistItem(itemId: string) {
   }
 }
 
+export async function clearSetlistItems() {
+  try {
+    await fetch('/api/setlists/items/clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    console.error('Erro ao limpar itens da setlist:', err);
+  }
+}
+
 export async function renameSetlistItem(itemId: string, newTitle: string) {
   try {
     await fetch('/api/setlists/items/rename', {
@@ -258,15 +269,15 @@ export function setTimerOvertime(allowOvertime: boolean) {
   }).catch(() => {});
 }
 
-export function quickPresentMedia(item: MediaItem) {
+export function quickPresentMedia(item: MediaItem, slideIndex: number = 0) {
   sendWsMessage({
     type: 'quick_present_media',
-    payload: { item },
+    payload: { item, slide_index: slideIndex },
   });
   fetch('/api/presentation/quick-media', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ item }),
+    body: JSON.stringify({ item, slide_index: slideIndex }),
   }).catch(() => {});
 }
 

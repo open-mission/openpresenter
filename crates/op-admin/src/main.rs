@@ -5,23 +5,61 @@ mod routes;
 mod session;
 mod state;
 mod static_files;
+mod tray;
+mod updater;
 mod ws;
 
 use std::net::SocketAddr;
+use std::sync::Arc;
 
-use axum::Router;
+use axum::{Router, extract::DefaultBodyLimit};
+use muda::MenuEvent;
 use op_core::OutputsConfig;
+use tao::{
+    event::{Event, StartCause},
+    event_loop::{ControlFlow, EventLoopBuilder},
+};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use tracing::info;
+use tracing::{info, warn};
+use tray_icon::TrayIconEvent;
 
 use crate::{
-    routes::create_routes, session::load_session, state::AppState,
-    static_files::static_fallback_handler, ws::create_ws_router,
+    routes::create_routes,
+    session::load_session,
+    state::AppState,
+    static_files::static_fallback_handler,
+    tray::{init_tray, prompt_change_port, show_native_alert},
+    ws::create_ws_router,
 };
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+#[derive(Debug)]
+enum UserEvent {
+    Tray(TrayIconEvent),
+    Menu(MenuEvent),
+}
+
+fn resolve_server_port(db_opt: Option<&Arc<tokio::sync::Mutex<op_db::Database>>>) -> u16 {
+    // 1. Variável de ambiente PORT
+    std::env::var("PORT")
+        .ok()
+        .and_then(|p| p.parse::<u16>().ok())
+        // 2. Configuração salva no banco SQLite
+        .or_else(|| {
+            db_opt.and_then(|db_mutex| {
+                db_mutex
+                    .try_lock()
+                    .ok()?
+                    .get_setting("server_port")
+                    .ok()?
+                    .and_then(|s| s.parse::<u16>().ok())
+            })
+        })
+        // 3. Porta padrão exclusiva para evitar conflitos (18080)
+        .unwrap_or(18080)
+}
+
+fn main() -> anyhow::Result<()> {
     // Inicializa logs estruturados
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -32,6 +70,14 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Iniciando {} v{}", op_core::APP_NAME, op_core::VERSION);
 
+    // Inicializa runtime Tokio multithread e entra no seu contexto
+    let rt = Arc::new(
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()?,
+    );
+    let _guard = rt.enter();
+
     // Carrega a sessão e a conexão SQLite
     let session = load_session();
     let outputs = if let Some(ref db) = session.db {
@@ -40,59 +86,169 @@ async fn main() -> anyhow::Result<()> {
         OutputsConfig::default()
     };
 
-    // Inicializa o estado compartilhado com o banco de dados
     let state = AppState::new(session.view, outputs, session.db);
+    let db_ref = state.db.clone();
+    let port = resolve_server_port(db_ref.as_ref());
+    let args: Vec<String> = std::env::args().collect();
+    let is_headless = args.iter().any(|a| a == "--headless" || a == "-h")
+        || std::env::var("OPENPRESENTER_HEADLESS").is_ok();
 
-    // Configura CORS permissivo para facilidade de desenvolvimento local
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    // Inicia o servidor Axum em background no runtime Tokio
+    let state_for_server = state.clone();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
 
-    // Constrói o roteador principal
-    let app = Router::new()
-        .merge(create_routes(state.clone()))
-        .merge(create_ws_router(state.clone()))
-        .fallback(static_fallback_handler)
-        .layer(cors)
-        .layer(TraceLayer::new_for_http());
+    let server_rt = rt.clone();
+    server_rt.spawn(async move {
+        let cors = CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any);
 
-    let port: u16 = std::env::var("PORT")
-        .ok()
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(3000);
+        let app = Router::new()
+            .merge(create_routes(state_for_server.clone()))
+            .merge(create_ws_router(state_for_server.clone()))
+            .fallback(static_fallback_handler)
+            .layer(cors)
+            .layer(DefaultBodyLimit::max(128 * 1024 * 1024))
+            .layer(TraceLayer::new_for_http());
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+        let addr = SocketAddr::from(([0, 0, 0, 0], port));
+        match tokio::net::TcpListener::bind(addr).await {
+            Ok(listener) => {
+                println!(
+                    "\n╔════════════════════════════════════════════════════════════════════╗"
+                );
+                println!(
+                    "║       OpenPresenter Minimal v{:<5} — Servidor Web Ativo             ║",
+                    op_core::VERSION
+                );
+                println!("╠════════════════════════════════════════════════════════════════════╣");
+                println!(
+                    "║  • Painel Admin:   http://localhost:{port:<5}                          ║",
+                    port = port
+                );
+                println!(
+                    "║  • Tela Pública:   http://localhost:{port:<5}/public                   ║",
+                    port = port
+                );
+                println!(
+                    "║  • Tela do Palco:  http://localhost:{port:<5}/stage                    ║",
+                    port = port
+                );
+                println!(
+                    "║  • API Status:     http://localhost:{port:<5}/api/status               ║",
+                    port = port
+                );
+                println!(
+                    "║  • WebSocket:      ws://localhost:{port:<5}/ws                         ║",
+                    port = port
+                );
+                println!(
+                    "╚════════════════════════════════════════════════════════════════════╝\n"
+                );
 
-    println!("\n╔════════════════════════════════════════════════════════════════════╗");
-    println!("║       OpenPresenter Minimal — Servidor Web Ativo                   ║");
-    println!("╠════════════════════════════════════════════════════════════════════╣");
-    println!(
-        "║  • Painel Admin:   http://localhost:{port:<5}                          ║",
-        port = port
-    );
-    println!(
-        "║  • Tela Pública:   http://localhost:{port:<5}/public                   ║",
-        port = port
-    );
-    println!(
-        "║  • Tela do Palco:  http://localhost:{port:<5}/stage                    ║",
-        port = port
-    );
-    println!(
-        "║  • API Status:     http://localhost:{port:<5}/api/status               ║",
-        port = port
-    );
-    println!(
-        "║  • WebSocket:      ws://localhost:{port:<5}/ws                         ║",
-        port = port
-    );
-    println!("╚════════════════════════════════════════════════════════════════════╝\n");
+                let _ = axum::serve(listener, app)
+                    .with_graceful_shutdown(async move {
+                        let _ = shutdown_rx.await;
+                    })
+                    .await;
+            }
+            Err(e) => {
+                eprintln!("Erro ao vincular listener na porta {}: {}", port, e);
+            }
+        }
+    });
 
-    axum::serve(listener, app).await?;
+    if is_headless {
+        info!("Modo headless ativo. Pressione Ctrl+C para encerrar.");
+        rt.block_on(async {
+            let _ = tokio::signal::ctrl_c().await;
+            info!("Sinal de interrupção recebido. Encerrando servidor.");
+        });
+        let _ = shutdown_tx.send(());
+        return Ok(());
+    }
 
-    Ok(())
+    // Modo Desktop com System Tray (Menu Bar / Bandeja do Sistema)
+    let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
+
+    let proxy_tray = event_loop.create_proxy();
+    TrayIconEvent::set_event_handler(Some(move |event| {
+        let _ = proxy_tray.send_event(UserEvent::Tray(event));
+    }));
+
+    let proxy_menu = event_loop.create_proxy();
+    MenuEvent::set_event_handler(Some(move |event| {
+        let _ = proxy_menu.send_event(UserEvent::Menu(event));
+    }));
+
+    let mut tray_holder = None;
+    let mut opened_browser_on_start = false;
+    let mut shutdown_tx_opt = Some(shutdown_tx);
+
+    event_loop.run(move |event, _, control_flow| {
+        *control_flow = ControlFlow::Wait;
+
+        match event {
+            Event::NewEvents(StartCause::Init) => {
+                match init_tray(port) {
+                    Ok(state) => {
+                        tray_holder = Some(state);
+                        info!("System Tray inicializado com sucesso.");
+                    }
+                    Err(e) => {
+                        warn!("Não foi possível inicializar o System Tray: {}", e);
+                    }
+                }
+
+                if !opened_browser_on_start {
+                    opened_browser_on_start = true;
+                    let url = format!("http://localhost:{}", port);
+                    let _ = open::that(&url);
+                }
+            }
+
+            Event::UserEvent(UserEvent::Menu(menu_event)) => {
+                if let Some(ref tray_st) = tray_holder {
+                    let ids = &tray_st.menu_ids;
+
+                    if menu_event.id == ids.open_admin {
+                        let _ = open::that(format!("http://localhost:{}", port));
+                    } else if menu_event.id == ids.open_public {
+                        let _ = open::that(format!("http://localhost:{}/public", port));
+                    } else if menu_event.id == ids.open_stage {
+                        let _ = open::that(format!("http://localhost:{}/stage", port));
+                    } else if menu_event.id == ids.change_port {
+                        if let Some(new_p) = prompt_change_port(port).filter(|&p| p != port) {
+                            if let Some(db) = db_ref.as_ref().and_then(|m| m.try_lock().ok()) {
+                                let _ = db.set_setting("server_port", &new_p.to_string());
+                            }
+                            show_native_alert(
+                                "Porta Configurada",
+                                &format!(
+                                    "A porta {} foi salva com sucesso. Reinicie o OpenPresenter para aplicar a nova porta.",
+                                    new_p
+                                ),
+                            );
+                        }
+                    } else if menu_event.id == ids.quit {
+                        info!("Encerrando OpenPresenter via menu do System Tray.");
+                        if let Some(tx) = shutdown_tx_opt.take() {
+                            let _ = tx.send(());
+                        }
+                        *control_flow = ControlFlow::Exit;
+                    }
+                }
+            }
+
+            Event::UserEvent(UserEvent::Tray(_tray_event)) => {
+                // Clique direto no ícone abre o painel admin
+                let _ = open::that(format!("http://localhost:{}", port));
+            }
+
+            _ => {}
+        }
+    });
 }
 
 #[cfg(test)]
@@ -652,5 +808,409 @@ mod tests {
         let pres = state.presentation.read().await;
         assert_eq!(pres.timer.remaining_seconds, 0);
         assert!(!pres.timer.running); // Parou no zero!
+    }
+
+    #[tokio::test]
+    async fn bibles_endpoints_and_parse_work() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("open-presenter.db");
+        let db = op_db::Database::open(&db_path).unwrap();
+
+        // Cria arquivo de bíblia SQLite de teste
+        let test_bible_path = dir.path().join("ARA.sqlite");
+        {
+            let conn = rusqlite::Connection::open(&test_bible_path).unwrap();
+            conn.execute_batch(
+                r#"
+                CREATE TABLE metadata (key VARCHAR(255) PRIMARY KEY, value VARCHAR(255));
+                INSERT INTO metadata VALUES ('name', 'Almeida Revista e Atualizada');
+                CREATE TABLE book (id INTEGER PRIMARY KEY, book_reference_id INTEGER, testament_reference_id INTEGER, name VARCHAR(50));
+                INSERT INTO book VALUES (43, 43, 2, 'João');
+                CREATE TABLE verse (id INTEGER PRIMARY KEY, book_id INTEGER, chapter INTEGER, verse INTEGER, text TEXT);
+                INSERT INTO verse VALUES (1, 43, 3, 16, 'Porque Deus amou o mundo');
+                "#,
+            )
+            .unwrap();
+        }
+
+        let dummy_view = crate::session::SessionView {
+            app_version: op_core::VERSION.to_string(),
+            tagline: op_core::TAGLINE.to_string(),
+            stack: op_core::STACK.to_string(),
+            db_path: db_path.to_string_lossy().to_string(),
+            media_path: dir.path().join("media").to_string_lossy().to_string(),
+            db_ready: true,
+            db_error: String::new(),
+            schema_version: 7,
+            theme_label: "Sistema".into(),
+            locale: "pt-BR".into(),
+            first_run_at: "agora".into(),
+            last_run_at: "agora".into(),
+            is_first_run: true,
+        };
+
+        unsafe {
+            std::env::set_var("OPENPRESENTER_DATA_DIR", dir.path());
+        }
+
+        let state = AppState::new(dummy_view, OutputsConfig::default(), Some(db));
+        let app = create_routes(state);
+
+        // GET /api/bibles (inicialmente vazio)
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/bibles")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // POST /api/bibles/import com source_path
+        let import_payload = serde_json::to_string(&serde_json::json!({
+            "name": "Almeida Revista e Atualizada",
+            "abbreviation": "ARA",
+            "source_path": test_bible_path.to_string_lossy().to_string(),
+            "filename": "ARA.sqlite"
+        }))
+        .unwrap();
+
+        let import_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/bibles/import")
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(import_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(import_resp.status(), StatusCode::OK);
+
+        let body_bytes = axum::body::to_bytes(import_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let imported: op_core::BibleVersionSummary = serde_json::from_slice(&body_bytes).unwrap();
+        assert_eq!(imported.abbreviation, "ARA");
+        assert!(imported.is_default);
+
+        // GET /api/bibles/:id/books
+        let books_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!("/api/bibles/{}/books", imported.id))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(books_resp.status(), StatusCode::OK);
+
+        // GET /api/bibles/parse-reference?q=joao+3.16
+        let parse_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/bibles/parse-reference?q=joao+3.16")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(parse_resp.status(), StatusCode::OK);
+
+        // GET /api/bibles/parse-reference?q=Salmos+91+ARA (com versão)
+        let parse_v_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/bibles/parse-reference?q=Salmos+91+ARA")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(parse_v_resp.status(), StatusCode::OK);
+        let parse_v_bytes = axum::body::to_bytes(parse_v_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let parsed_ref: Option<op_core::ParsedReference> =
+            serde_json::from_slice(&parse_v_bytes).unwrap();
+        assert_eq!(parsed_ref.unwrap().version, Some("ARA".to_string()));
+
+        // GET /api/bibles/:id/search?q="amou" (busca com aspas)
+        let search_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!("/api/bibles/{}/search?q=%22amou%22", imported.id))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(search_resp.status(), StatusCode::OK);
+        let search_bytes = axum::body::to_bytes(search_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let search_hits: Vec<op_core::BibleSearchResult> =
+            serde_json::from_slice(&search_bytes).unwrap();
+        assert_eq!(search_hits.len(), 1);
+        assert_eq!(search_hits[0].verse, 16);
+    }
+
+    fn encode_base64_test(bytes: &[u8]) -> String {
+        const TABLE: &[u8; 64] =
+            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+        for chunk in bytes.chunks(3) {
+            let b0 = chunk[0];
+            let b1 = chunk.get(1).copied().unwrap_or(0);
+            let b2 = chunk.get(2).copied().unwrap_or(0);
+            out.push(TABLE[(b0 >> 2) as usize] as char);
+            out.push(TABLE[(((b0 & 3) << 4) | (b1 >> 4)) as usize] as char);
+            if chunk.len() > 1 {
+                out.push(TABLE[(((b1 & 15) << 2) | (b2 >> 6)) as usize] as char);
+            } else {
+                out.push('=');
+            }
+            if chunk.len() > 2 {
+                out.push(TABLE[(b2 & 63) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+        out
+    }
+
+    #[tokio::test]
+    async fn large_bible_base64_import_works_exceeding_default_2mb_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test_large_bible.db");
+        let db = op_db::Database::open(&db_path).unwrap();
+        let _ = db
+            .begin_session(op_core::VERSION, chrono::Utc::now())
+            .unwrap();
+
+        let dummy_view = session::SessionView {
+            app_version: op_core::VERSION.into(),
+            tagline: "Projeção".into(),
+            stack: "Rust + Axum".into(),
+            db_path: db_path.to_string_lossy().to_string(),
+            media_path: dir.path().join("media").to_string_lossy().to_string(),
+            db_ready: true,
+            db_error: String::new(),
+            schema_version: 7,
+            theme_label: "Sistema".into(),
+            locale: "pt-BR".into(),
+            first_run_at: "2026-10-29T10:00:00.000Z".into(),
+            last_run_at: "2026-10-29T10:00:00.000Z".into(),
+            is_first_run: true,
+        };
+
+        unsafe {
+            std::env::set_var("OPENPRESENTER_DATA_DIR", dir.path());
+        }
+
+        let state = AppState::new(dummy_view, OutputsConfig::default(), Some(db));
+        let app = create_routes(state);
+
+        let test_bible_path = dir.path().join("Large_Bible.sqlite");
+
+        // Se o arquivo de teste real do usuário estiver presente, usamos ele diretamente (4.5MB)
+        let bytes = if let Ok(real_bytes) =
+            std::fs::read("/Users/claudio/Downloads/bibles_ARA.sqlite")
+        {
+            real_bytes
+        } else {
+            let conn = rusqlite::Connection::open(&test_bible_path).unwrap();
+            conn.execute_batch(
+                    r#"
+                    CREATE TABLE metadata (key VARCHAR(50) PRIMARY KEY, value TEXT);
+                    INSERT INTO metadata VALUES ('name', 'Bíblia de Teste Grande');
+                    CREATE TABLE book (id INTEGER PRIMARY KEY, book_reference_id INTEGER, testament_reference_id INTEGER, name VARCHAR(50));
+                    INSERT INTO book VALUES (1, 1, 1, 'Gênesis');
+                    CREATE TABLE verse (id INTEGER PRIMARY KEY, book_id INTEGER, chapter INTEGER, verse INTEGER, text TEXT);
+                    INSERT INTO verse VALUES (1, 1, 1, 1, 'No princípio...');
+                    CREATE TABLE padding (id INTEGER PRIMARY KEY, content TEXT);
+                    "#,
+                )
+                .unwrap();
+            let chunk = "A".repeat(100_000);
+            for i in 0..26 {
+                conn.execute(
+                    "INSERT INTO padding (id, content) VALUES (?1, ?2)",
+                    rusqlite::params![i, chunk],
+                )
+                .unwrap();
+            }
+            drop(conn);
+            std::fs::read(&test_bible_path).unwrap()
+        };
+
+        assert!(
+            bytes.len() > 2_500_000,
+            "Arquivo deve ter mais de 2.5MB para testar limite do Axum"
+        );
+        let b64 = encode_base64_test(&bytes);
+
+        let import_payload = serde_json::to_string(&serde_json::json!({
+            "name": "Bíblia Grande Importada",
+            "abbreviation": "BGI",
+            "content_base64": b64,
+            "filename": "Large_Bible.sqlite"
+        }))
+        .unwrap();
+
+        let import_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/bibles/import")
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(import_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(import_resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn clear_setlist_items_works() {
+        let (state, _dir) = mock_state_with_db();
+        let app = create_routes(state.clone());
+
+        let initial_len = state.media_items.read().await.len();
+        assert!(initial_len > 0);
+
+        // Adiciona um item na setlist
+        let item = op_core::MediaItem {
+            id: "item-to-clear".into(),
+            title: "Hino da Vitória".into(),
+            artist_or_ref: None,
+            kind: op_core::MediaKind::Song,
+            slides: vec![op_core::Slide {
+                id: "slide-1".into(),
+                label: "Verso 1".into(),
+                content: "Quem é que pode impedir".into(),
+                align_h: None,
+                align_v: None,
+            }],
+            align_h: None,
+            align_v: None,
+        };
+        state.add_media_item(item).await;
+        assert_eq!(state.media_items.read().await.len(), initial_len + 1);
+
+        // Dispara live do item
+        state.select_slide("item-to-clear".into(), 0).await;
+        assert_eq!(
+            state.presentation.read().await.active_media_id.as_deref(),
+            Some("item-to-clear")
+        );
+
+        // Chama POST /api/setlists/items/clear
+        let clear_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/setlists/items/clear")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(clear_resp.status(), StatusCode::OK);
+        assert_eq!(state.media_items.read().await.len(), 0);
+        assert!(state.presentation.read().await.active_media_id.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_updater_endpoints_work() {
+        let dummy_view = crate::session::SessionView {
+            app_version: op_core::VERSION.to_string(),
+            tagline: op_core::TAGLINE.to_string(),
+            stack: op_core::STACK.to_string(),
+            db_path: ":memory:".into(),
+            media_path: "/tmp/media".into(),
+            db_ready: true,
+            db_error: String::new(),
+            schema_version: 7,
+            theme_label: "Sistema".into(),
+            locale: "pt-BR".into(),
+            first_run_at: "agora".into(),
+            last_run_at: "agora".into(),
+            is_first_run: true,
+        };
+
+        let state = AppState::new(dummy_view, OutputsConfig::default(), None);
+        let app = create_routes(state.clone());
+
+        // 1. GET /api/updater/status inicial deve ser Idle
+        let status_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/updater/status")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(status_resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(status_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(status_json["stage"]["type"], "Idle");
+
+        // 2. POST /api/updater/install sem asset_name e download_url deve retornar 400 Bad Request
+        let install_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/updater/install")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(r#"{}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(install_resp.status(), StatusCode::BAD_REQUEST);
+
+        // 3. Atualizando o estado do updater em memória
+        {
+            let mut st = state.updater.write().await;
+            st.stage = crate::updater::UpdateStage::ReadyToRestart {
+                new_version: "0.2.0".into(),
+            };
+        }
+
+        let updated_resp = create_routes(state.clone())
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/updater/status")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated_resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(updated_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(status_json["stage"]["type"], "ReadyToRestart");
+        assert_eq!(status_json["stage"]["new_version"], "0.2.0");
     }
 }

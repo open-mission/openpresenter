@@ -13,6 +13,9 @@ Cada decisão arquitetural duradoura é registrada em um arquivo `NNNN-slug.md`,
 - [ADR 0007 — Múltiplas Setlists, Context Menu e Armazenamento de Mídias](0007-multiplas-setlists-context-menu-e-armazenamento-de-midias.md)
 - [ADR 0008 — Temas Shadcn, Pastas de Mídia Externas, Editor Markdown e Layout Flexível](0008-temas-shadcn-pastas-midia-externas-editor-markdown-e-layout-flexivel.md)
 - [ADR 0009 — Presets de Stage Display, Identidade da Igreja e Timer Global com Overtime](0009-stage-presets-church-branding-e-timer-global.md)
+- [ADR 0010 — Módulo de Bíblias em Arquivos SQLite Desacoplados, Parser de Referências em Português e Exibição de Escrituras no Palco](0010-modulo-biblia-sqlite-parser-referencias-e-stage.md)
+- [ADR 0011 — Versão 0.1.0: Executável Autocontido com Tray Icon, Frontend Embutido e CI/CD Multiplataforma](0011-versao-0-1-0-tray-icon-frontend-embutido-e-release-matrix.md)
+- [ADR 0012 — Sistema de Auto-Updater Completo, Verificação de Releases e Substituição Atômica Multiplataforma](0012-auto-updater-multiplataforma-e-github-releases.md)
 
 ## Formato
 

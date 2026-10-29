@@ -10,6 +10,7 @@
     X,
     AlertCircle,
     Plus,
+    ChevronDown,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
@@ -25,6 +26,7 @@
   let customMinutes = $state(10);
   let stageMessageInput = $state('');
   let clockTime = $state('');
+  let isCollapsed = $state(false);
 
   // Atualiza relógio local a cada segundo
   $effect(() => {
@@ -88,20 +90,38 @@
   }
 </script>
 
-<div class="p-3 border-t border-neutral-800/80 bg-neutral-900/60 space-y-2.5 shrink-0">
-  <!-- Cabeçalho do Painel -->
+<div class="p-3 border-t border-neutral-800/80 bg-neutral-900/60 space-y-2.5 shrink-0 transition-all">
+  <!-- Cabeçalho do Painel com Toggle de Recolher -->
   <div class="flex items-center justify-between">
-    <div class="flex items-center gap-1.5">
+    <button
+      type="button"
+      onclick={() => (isCollapsed = !isCollapsed)}
+      class="flex items-center gap-1.5 text-left hover:text-white transition-colors cursor-pointer group select-none"
+      title={isCollapsed ? 'Expandir painel do cronômetro' : 'Recolher painel do cronômetro'}
+    >
       <TimerIcon size={14} class="text-primary" />
-      <span class="text-xs font-bold text-neutral-200">Cronômetro & Palco</span>
-    </div>
+      <span class="text-xs font-bold text-neutral-200 group-hover:text-white">Cronômetro & Palco</span>
+      <ChevronDown size={13} class="text-neutral-500 group-hover:text-neutral-300 transition-transform duration-200 {isCollapsed ? '-rotate-90' : ''}" />
+    </button>
 
-    <!-- Relógio em Destaque -->
-    <div class="flex items-center gap-1 text-[11px] font-mono text-neutral-400 bg-neutral-950 px-2 py-0.5 rounded border border-neutral-800">
-      <Clock size={11} class="text-primary" />
-      <span class="font-bold text-neutral-200">{clockTime || '00:00:00'}</span>
+    <div class="flex items-center gap-1.5">
+      <!-- Indicador compacto quando recolhido -->
+      {#if isCollapsed}
+        <div class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold {isOvertime ? 'bg-red-500/20 text-red-400' : timer.running ? 'bg-emerald-500/20 text-emerald-400' : 'bg-neutral-800 text-neutral-300'}">
+          <TimerIcon size={10} />
+          <span>{formattedRemaining.text}</span>
+        </div>
+      {/if}
+
+      <!-- Relógio em Destaque -->
+      <div class="flex items-center gap-1 text-[11px] font-mono text-neutral-400 bg-neutral-950 px-2 py-0.5 rounded border border-neutral-800">
+        <Clock size={11} class="text-primary" />
+        <span class="font-bold text-neutral-200">{clockTime || '00:00:00'}</span>
+      </div>
     </div>
   </div>
+
+  {#if !isCollapsed}
 
   <!-- Display Digital do Timer -->
   <div
@@ -284,4 +304,5 @@
       </Button>
     </form>
   </div>
+  {/if}
 </div>

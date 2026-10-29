@@ -15,6 +15,8 @@ export const DEFAULT_PUBLIC_SETTINGS: PublicDisplaySettings = {
   margin_horizontal: 48,
   image_fit: 'contain',
   ignore_margins_for_media: true,
+  darken_background: false,
+  text_box_background: false,
 };
 
 export const DEFAULT_CHURCH_BRAND: ChurchBrandSettings = {

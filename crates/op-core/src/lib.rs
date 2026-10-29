@@ -1,6 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+pub mod bible;
+pub use bible::*;
+
 /// Nome público do aplicativo.
 pub const APP_NAME: &str = "OpenPresenter";
 /// Tagline exibida na interface.
@@ -762,6 +765,8 @@ pub enum WsMessage {
     /// Comando para apresentar mídia avulsa rapidamente sem salvar na setlist permanente.
     QuickPresentMedia {
         item: MediaItem,
+        #[serde(default)]
+        slide_index: Option<usize>,
     },
     /// Comando para enviar ou limpar mensagem para o palco (Stage Message).
     SetStageMessage {

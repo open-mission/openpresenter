@@ -60,6 +60,13 @@ pub fn resolve_media_dir() -> anyhow::Result<PathBuf> {
     Ok(media_dir)
 }
 
+pub fn resolve_bibles_dir() -> anyhow::Result<PathBuf> {
+    let data_dir = resolve_data_dir()?;
+    let bibles_dir = data_dir.join("bibles");
+    std::fs::create_dir_all(&bibles_dir)?;
+    Ok(bibles_dir)
+}
+
 fn ensure_default_wallpapers(wallpapers_dir: &Path) {
     let dark_ambient = r###"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="100%" height="100%">
   <defs>
@@ -217,7 +224,7 @@ mod tests {
         let view = loaded.view;
         assert!(view.db_ready);
         assert_eq!(view.app_version, op_core::VERSION);
-        assert_eq!(view.schema_version, 6);
+        assert_eq!(view.schema_version, 7);
         assert!(view.is_first_run);
         assert!(view.db_path.ends_with("open-presenter.db"));
         assert!(!view.first_run_at.is_empty());
@@ -240,7 +247,7 @@ mod tests {
         let loaded = load_session_from_dir(dir.path());
         assert!(loaded.view.db_ready);
         assert!(loaded.db.is_some());
-        assert_eq!(loaded.view.schema_version, 6);
+        assert_eq!(loaded.view.schema_version, 7);
     }
 
     #[test]

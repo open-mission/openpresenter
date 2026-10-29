@@ -30,7 +30,22 @@
     Maximize2,
     Save,
     Image as ImageIcon,
+    BookOpen,
+    Edit3,
+    Plus,
+    CheckCircle2,
+    Download,
+    RefreshCw,
+    Sparkles,
+    AlertTriangle,
   } from 'lucide-svelte';
+  import {
+    fetchUpdateCheck,
+    fetchUpdaterStatus,
+    triggerInstallUpdate,
+    type UpdateCheckResponse,
+    type UpdaterStatusPayload,
+  } from '../updater';
   import {
     themeStore,
     baseColorStore,
@@ -63,8 +78,10 @@
     DEFAULT_CHURCH_BRAND,
     DEFAULT_STAGE_SETTINGS,
   } from '../displaySettings';
+  import { biblesStore, refreshBibles } from '../bibles';
   import Badge from './ui/Badge.svelte';
   import Button from './ui/Button.svelte';
+  import StagePreviewBox from './StagePreviewBox.svelte';
   import type {
     MediaFolder,
     SystemPaths,
@@ -72,6 +89,7 @@
     ChurchBrandSettings,
     StageDisplaySettings,
     StagePreset,
+    BibleVersionSummary,
   } from '../types';
 
   export type SettingsTab =
@@ -79,6 +97,7 @@
     | 'public'
     | 'stage'
     | 'church'
+    | 'bibles'
     | 'files'
     | 'sections'
     | 'outputs'
@@ -89,9 +108,10 @@
     open: boolean;
     initialTab?: SettingsTab;
     onclose: () => void;
+    onbibleschanged?: () => void;
   }
 
-  let { open = false, initialTab = 'appearance', onclose }: Props = $props();
+  let { open = false, initialTab = 'appearance', onclose, onbibleschanged }: Props = $props();
 
   let activeTab = $state<SettingsTab>('appearance');
   let editableSections = $state<CustomSectionConfig[]>([]);
@@ -115,6 +135,81 @@
   let folderError = $state('');
   let isAddingFolder = $state(false);
 
+  // Estado da Aba Bíblias
+  let biblesList = $state<BibleVersionSummary[]>([]);
+  let isLoadingBibles = $state(false);
+  let bibleError = $state('');
+  let isImportingBible = $state(false);
+  let showPathImport = $state(false);
+  let importPathInput = $state('');
+  let bibleFileInput: HTMLInputElement | null = $state(null);
+
+  // Edição de Versão da Bíblia
+  let isEditingBible = $state(false);
+  let editingBibleId = $state<string | null>(null);
+  let editBibleName = $state('');
+  let editBibleAbbr = $state('');
+  let editBibleIsDefault = $state(false);
+
+  // Estado do Auto-Updater
+  let updateInfo = $state<UpdateCheckResponse | null>(null);
+  let updaterStatus = $state<UpdaterStatusPayload | null>(null);
+  let isCheckingUpdate = $state(false);
+  let updaterError = $state('');
+  let updatePollInterval: ReturnType<typeof setInterval> | null = null;
+
+  async function handleCheckForUpdates() {
+    isCheckingUpdate = true;
+    updaterError = '';
+    try {
+      const res = await fetchUpdateCheck();
+      updateInfo = res;
+      await refreshUpdaterStatus();
+    } catch (err: any) {
+      updaterError = err.message || 'Não foi possível verificar atualizações.';
+    } finally {
+      isCheckingUpdate = false;
+    }
+  }
+
+  async function refreshUpdaterStatus() {
+    try {
+      const st = await fetchUpdaterStatus();
+      updaterStatus = st;
+      if (st.last_check && !updateInfo) {
+        updateInfo = st.last_check;
+      }
+      if (st.stage.type === 'Downloading' || st.stage.type === 'Extracting') {
+        if (!updatePollInterval) {
+          updatePollInterval = setInterval(refreshUpdaterStatus, 1000);
+        }
+      } else if (updatePollInterval) {
+        clearInterval(updatePollInterval);
+        updatePollInterval = null;
+      }
+    } catch {
+      // silencioso
+    }
+  }
+
+  async function handleStartUpdate() {
+    if (!updateInfo?.download_url) return;
+    updaterError = '';
+    try {
+      await triggerInstallUpdate({
+        download_url: updateInfo.download_url,
+        asset_name: updateInfo.asset_name || undefined,
+        target_version: updateInfo.latest_version,
+      });
+      await refreshUpdaterStatus();
+      if (!updatePollInterval) {
+        updatePollInterval = setInterval(refreshUpdaterStatus, 1000);
+      }
+    } catch (err: any) {
+      updaterError = err.message || 'Falha ao iniciar atualização.';
+    }
+  }
+
   // Dropdown open states for Shadcn style selects
   let isBaseColorMenuOpen = $state(false);
   let isAccentThemeMenuOpen = $state(false);
@@ -130,7 +225,17 @@
       localStage = JSON.parse(JSON.stringify(get(stageSettingsStore)));
       loadSystemPaths();
       loadMediaFolders();
+      loadBibles();
+      refreshUpdaterStatus();
     } else if (!open) {
+      if (updatePollInterval) {
+        clearInterval(updatePollInterval);
+        updatePollInterval = null;
+      }
+      if (wasModalOpen) {
+        refreshBibles();
+        onbibleschanged?.();
+      }
       wasModalOpen = false;
       saveStatusMessage = '';
     }
@@ -199,17 +304,17 @@
   }
 
   function updatePublicField<K extends keyof PublicDisplaySettings>(key: K, val: PublicDisplaySettings[K]) {
-    localPublic[key] = val;
+    localPublic = { ...localPublic, [key]: val };
     savePublicDisplaySettings(localPublic);
   }
 
   function updateBrandField<K extends keyof ChurchBrandSettings>(key: K, val: ChurchBrandSettings[K]) {
-    localBrand[key] = val;
+    localBrand = { ...localBrand, [key]: val };
     saveChurchBrandSettings(localBrand);
   }
 
   function updateStageField<K extends keyof StageDisplaySettings>(key: K, val: StageDisplaySettings[K]) {
-    localStage[key] = val;
+    localStage = { ...localStage, [key]: val };
     saveStageDisplaySettings(localStage);
   }
 
@@ -387,6 +492,157 @@
     editableSections = JSON.parse(JSON.stringify($sectionsStore));
   }
 
+  async function loadBibles() {
+    isLoadingBibles = true;
+    bibleError = '';
+    try {
+      const list = await refreshBibles();
+      biblesList = list;
+      onbibleschanged?.();
+    } catch (err: any) {
+      bibleError = err.message || 'Erro de conexão ao buscar Bíblias';
+    } finally {
+      isLoadingBibles = false;
+    }
+  }
+
+  async function handleBibleFileSelect(e: Event) {
+    const input = e.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    isImportingBible = true;
+    bibleError = '';
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const result = reader.result as string;
+        const commaIdx = result.indexOf(',');
+        const base64 = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
+
+        const res = await fetch('/api/bibles/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            content_base64: base64,
+          }),
+        });
+
+        if (!res.ok) {
+          const msg = await res.text();
+          if (msg.includes('length limit exceeded') || res.status === 413) {
+            throw new Error('O arquivo excede o tamanho máximo suportado.');
+          }
+          throw new Error(msg || 'Falha ao importar Bíblia SQLite');
+        }
+
+        await loadBibles();
+        if (bibleFileInput) bibleFileInput.value = '';
+      } catch (err: any) {
+        bibleError = err.message || 'Erro ao importar arquivo de Bíblia';
+      } finally {
+        isImportingBible = false;
+      }
+    };
+    reader.onerror = () => {
+      bibleError = 'Erro ao ler arquivo local.';
+      isImportingBible = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleImportBibleByPath() {
+    const p = importPathInput.trim();
+    if (!p) {
+      bibleError = 'Informe o caminho absoluto do arquivo SQLite da Bíblia.';
+      return;
+    }
+    isImportingBible = true;
+    bibleError = '';
+    try {
+      const res = await fetch('/api/bibles/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file_path: p,
+        }),
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || 'Falha ao importar Bíblia a partir do caminho');
+      }
+      importPathInput = '';
+      showPathImport = false;
+      await loadBibles();
+    } catch (err: any) {
+      bibleError = err.message || 'Erro ao importar arquivo do caminho informado';
+    } finally {
+      isImportingBible = false;
+    }
+  }
+
+  function handleStartEditBible(b: BibleVersionSummary) {
+    editingBibleId = b.id;
+    editBibleName = b.name;
+    editBibleAbbr = b.abbreviation;
+    editBibleIsDefault = b.is_default;
+    isEditingBible = true;
+  }
+
+  async function handleSaveEditBible() {
+    if (!editingBibleId) return;
+    try {
+      const res = await fetch(`/api/bibles/${editingBibleId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editBibleName.trim() || undefined,
+          abbreviation: editBibleAbbr.trim() || undefined,
+          is_default: editBibleIsDefault,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      isEditingBible = false;
+      editingBibleId = null;
+      await loadBibles();
+    } catch (err: any) {
+      bibleError = err.message || 'Erro ao salvar alterações da Bíblia';
+    }
+  }
+
+  async function handleSetDefaultBible(id: string) {
+    try {
+      const res = await fetch(`/api/bibles/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_default: true }),
+      });
+      if (res.ok) {
+        await loadBibles();
+      }
+    } catch (err) {
+      console.error('Erro ao definir Bíblia padrão:', err);
+    }
+  }
+
+  async function handleDeleteBible(id: string, name: string) {
+    if (!confirm(`Tem certeza que deseja excluir a Bíblia "${name}"?`)) return;
+    try {
+      const res = await fetch(`/api/bibles/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        await loadBibles();
+      } else {
+        const msg = await res.text();
+        bibleError = msg || 'Falha ao excluir Bíblia';
+      }
+    } catch (err: any) {
+      bibleError = err.message || 'Erro ao excluir Bíblia';
+    }
+  }
+
   const currentBaseColorPreset = $derived(
     BASE_COLOR_PRESETS.find((p) => p.id === $baseColorStore) || BASE_COLOR_PRESETS[0]
   );
@@ -478,6 +734,15 @@
 
           <button
             type="button"
+            onclick={() => (activeTab = 'bibles')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'bibles' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+          >
+            <BookOpen size={15} class={activeTab === 'bibles' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Bíblias Sagradas</span>
+          </button>
+
+          <button
+            type="button"
             onclick={() => (activeTab = 'files')}
             class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'files' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
           >
@@ -517,10 +782,15 @@
           <button
             type="button"
             onclick={() => (activeTab = 'about')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'about' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center justify-between transition-colors cursor-pointer {activeTab === 'about' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
           >
-            <Info size={15} class={activeTab === 'about' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Sobre o App</span>
+            <div class="flex items-center gap-2.5">
+              <Info size={15} class={activeTab === 'about' ? 'text-primary' : 'text-neutral-500'} />
+              <span>Sobre & Updates</span>
+            </div>
+            {#if updateInfo?.update_available}
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            {/if}
           </button>
         </aside>
 
@@ -782,6 +1052,52 @@
                   </button>
                 </div>
 
+                <!-- Escurecer Plano de Fundo Geral (Backdrop da Tela Toda) -->
+                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                  <div>
+                    <div class="text-xs font-semibold text-white flex items-center gap-2">
+                      <Sun size={14} class="text-primary" />
+                      Escurecer Plano de Fundo Geral (Backdrop Completo)
+                    </div>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">
+                      Aplica uma película escura translúcida sobre todo o papel de parede quando houver um slide ativo na tela para diminuir o brilho do fundo. (Padrão: desligado).
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Alternar escurecimento do plano de fundo"
+                    onclick={() => updatePublicField('darken_background', !localPublic.darken_background)}
+                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.darken_background ? 'bg-primary' : 'bg-neutral-800'}"
+                    role="switch"
+                    aria-checked={Boolean(localPublic.darken_background)}
+                  >
+                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.darken_background ? 'left-6' : 'left-1'}"></span>
+                  </button>
+                </div>
+
+                <!-- Fundo nas Caixas de Texto (Placa de Leitura / Card) -->
+                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                  <div>
+                    <div class="text-xs font-semibold text-white flex items-center gap-2">
+                      <Layers size={14} class="text-primary" />
+                      Fundo nas Caixas de Texto (Card de Leitura)
+                    </div>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">
+                      Adiciona uma placa translúcida com cantos arredondados diretamente atrás dos textos e versículos bíblicos. Garante legibilidade sobre imagens ou fundos com áreas claras sem escurecer toda a projeção. (Padrão: desligado).
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Alternar fundo nas caixas de texto"
+                    onclick={() => updatePublicField('text_box_background', !localPublic.text_box_background)}
+                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.text_box_background ? 'bg-primary' : 'bg-neutral-800'}"
+                    role="switch"
+                    aria-checked={Boolean(localPublic.text_box_background)}
+                  >
+                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.text_box_background ? 'left-6' : 'left-1'}"></span>
+                  </button>
+                </div>
+
                 <!-- Ignorar Margens para Imagens (Edge-to-Edge) -->
                 <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
                   <div>
@@ -845,9 +1161,12 @@
                     size="sm"
                     class="text-[11px] h-7"
                     onclick={() => {
-                      localPublic.margin_top = DEFAULT_PUBLIC_SETTINGS.margin_top;
-                      localPublic.margin_bottom = DEFAULT_PUBLIC_SETTINGS.margin_bottom;
-                      localPublic.margin_horizontal = DEFAULT_PUBLIC_SETTINGS.margin_horizontal;
+                      localPublic = {
+                        ...localPublic,
+                        margin_top: DEFAULT_PUBLIC_SETTINGS.margin_top,
+                        margin_bottom: DEFAULT_PUBLIC_SETTINGS.margin_bottom,
+                        margin_horizontal: DEFAULT_PUBLIC_SETTINGS.margin_horizontal,
+                      };
                       savePublicDisplaySettings(localPublic);
                     }}
                   >
@@ -1140,9 +1459,12 @@
                     size="sm"
                     class="text-[11px] h-7"
                     onclick={() => {
-                      localStage.current_slide_percent = DEFAULT_STAGE_SETTINGS.current_slide_percent;
-                      localStage.next_slide_percent = DEFAULT_STAGE_SETTINGS.next_slide_percent;
-                      localStage.footer_time_percent = DEFAULT_STAGE_SETTINGS.footer_time_percent;
+                      localStage = {
+                        ...localStage,
+                        current_slide_percent: DEFAULT_STAGE_SETTINGS.current_slide_percent,
+                        next_slide_percent: DEFAULT_STAGE_SETTINGS.next_slide_percent,
+                        footer_time_percent: DEFAULT_STAGE_SETTINGS.footer_time_percent,
+                      };
                       saveStageDisplaySettings(localStage);
                     }}
                   >
@@ -1205,31 +1527,44 @@
 
                 <!-- Amostra Gráfica Interativa da Divisão Proporcional -->
                 <div class="p-4 rounded-xl border border-neutral-800 bg-black flex flex-col items-center justify-center">
-                  <div class="text-[10px] text-neutral-500 mb-2 font-mono uppercase">Simulação Proporcional do Retorno</div>
-                  <div class="w-72 h-36 rounded-lg border border-neutral-700 bg-neutral-950 flex flex-col p-1.5 gap-1 overflow-hidden">
-                    <!-- Área dos Slides -->
-                    <div class="flex-1 flex gap-1 min-h-0" style="flex: {100 - (localStage.footer_time_percent ?? 10)};">
-                      <div
-                        class="rounded border border-blue-500/50 bg-blue-500/10 flex items-center justify-center text-[9px] text-blue-300 font-bold transition-all text-center p-1"
-                        style="flex: {localStage.current_slide_percent ?? 60};"
-                      >
-                        Slide Atual ({localStage.current_slide_percent ?? 60}%)
-                      </div>
-                      <div
-                        class="rounded border border-yellow-500/50 bg-yellow-500/10 flex items-center justify-center text-[9px] text-yellow-300 font-bold transition-all text-center p-1"
-                        style="flex: {localStage.next_slide_percent ?? 30};"
-                      >
-                        Próximo ({localStage.next_slide_percent ?? 30}%)
-                      </div>
-                    </div>
-                    <!-- Barra de Tempo -->
-                    <div
-                      class="rounded border border-neutral-700 bg-neutral-900 flex items-center justify-between px-2 text-[8px] text-neutral-400 shrink-0 transition-all font-mono"
-                      style="height: {Math.max(18, ((localStage.footer_time_percent ?? 10) * 1.3))}px;"
-                    >
-                      <span>Relógio Local</span>
-                      <span class="text-red-400 font-bold">Timer ({localStage.footer_time_percent ?? 10}%)</span>
-                    </div>
+                  <div class="flex items-center justify-between w-full max-w-sm mb-2">
+                    <span class="text-[10px] text-neutral-500 font-mono uppercase">Simulação do Retorno</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary font-mono font-semibold uppercase">
+                      Preset: {localStage.preset}
+                    </span>
+                  </div>
+
+                  <div class="w-80 max-w-full">
+                    <StagePreviewBox
+                      stageSettings={localStage}
+                      activeSlide={{
+                        id: 'demo_cur',
+                        label: 'João 3:16',
+                        content: 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito',
+                      }}
+                      nextSlide={{
+                        id: 'demo_next',
+                        label: 'João 3:17',
+                        content: 'Para que todo aquele que nele crê não pereça, mas tenha a vida eterna',
+                      }}
+                      activeMedia={{
+                        id: 'demo_med',
+                        title: 'Evangelho de João',
+                        kind: 'scripture',
+                        artist_or_ref: 'ARA',
+                        slides: [],
+                      }}
+                      timer={{
+                        duration_seconds: 600,
+                        remaining_seconds: 450,
+                        running: true,
+                        is_overtime: false,
+                        allow_overtime: false,
+                        warning_threshold_seconds: 60,
+                        stage_message: 'Aviso Palco',
+                      }}
+                      stageClock="19:45:00"
+                    />
                   </div>
                 </div>
               </div>
@@ -1437,6 +1772,282 @@
                 {/if}
               </div>
             </div>
+
+          <!-- ABA: BÍBLIAS (VERSÕES SQLITE) -->
+          {:else if activeTab === 'bibles'}
+            <div class="space-y-6 w-full max-w-3xl">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <BookOpen size={16} class="text-primary" />
+                    Versões da Bíblia Sagrada
+                  </h3>
+                  <p class="text-xs text-muted-foreground mt-0.5">
+                    Gerencie e importe versões da Bíblia em formato SQLite (.sqlite). Os arquivos são copiados automaticamente para a pasta local de dados.
+                  </p>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                  <input
+                    type="file"
+                    accept=".sqlite,.db"
+                    bind:this={bibleFileInput}
+                    onchange={handleBibleFileSelect}
+                    class="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="text-xs gap-1.5"
+                    onclick={() => (showPathImport = !showPathImport)}
+                  >
+                    Por Caminho...
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    class="text-xs gap-1.5"
+                    disabled={isImportingBible}
+                    onclick={() => bibleFileInput?.click()}
+                  >
+                    <Upload size={13} />
+                    {isImportingBible ? 'Importando...' : 'Importar Bíblia (.sqlite)'}
+                  </Button>
+                </div>
+              </div>
+
+              {#if bibleError}
+                <div class="p-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 text-xs flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <AlertCircle size={15} class="shrink-0" />
+                    <span>{bibleError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="text-red-400 hover:text-white text-xs underline cursor-pointer"
+                    onclick={() => (bibleError = '')}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              {/if}
+
+              <!-- Formulário Opcional para Importação Direta por Caminho Local -->
+              {#if showPathImport}
+                <div class="p-4 rounded-xl border border-border bg-card/60 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-semibold text-foreground">Importar por Caminho de Arquivo Local</h4>
+                    <button
+                      type="button"
+                      class="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                      onclick={() => (showPathImport = false)}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                  <div class="flex gap-2">
+                    <input
+                      type="text"
+                      bind:value={importPathInput}
+                      placeholder="/caminho/completo/para/biblia.sqlite"
+                      class="flex-1 h-8 px-3 rounded-md bg-neutral-900 border border-neutral-700 text-xs text-foreground placeholder:text-neutral-500 focus:outline-none focus:border-primary"
+                    />
+                    <Button
+                      variant="default"
+                      size="sm"
+                      class="text-xs"
+                      disabled={isImportingBible}
+                      onclick={handleImportBibleByPath}
+                    >
+                      {isImportingBible ? 'Copiando...' : 'Importar'}
+                    </Button>
+                  </div>
+                  <p class="text-[11px] text-muted-foreground">
+                    O arquivo SQLite será validado e copiado diretamente para a pasta de dados do OpenPresenter (<code class="text-neutral-300">bibles/</code>).
+                  </p>
+                </div>
+              {/if}
+
+              <!-- Lista de Bíblias Importadas -->
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold text-neutral-300 uppercase tracking-wider">
+                    Versões Instaladas ({biblesList.length})
+                  </span>
+                  {#if isLoadingBibles}
+                    <span class="text-[11px] text-muted-foreground animate-pulse">Carregando...</span>
+                  {/if}
+                </div>
+
+                {#if biblesList.length === 0 && !isLoadingBibles}
+                  <div class="p-8 rounded-xl border border-dashed border-border bg-neutral-900/20 text-center space-y-3">
+                    <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                      <BookOpen size={20} />
+                    </div>
+                    <div class="max-w-sm mx-auto">
+                      <h4 class="text-xs font-semibold text-foreground">Nenhuma versão bíblica instalada</h4>
+                      <p class="text-[11px] text-muted-foreground mt-1">
+                        Importe um arquivo de Bíblia SQLite (.sqlite) para habilitar a pesquisa de passagens, projeção de versículos e controle de slides.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="text-xs gap-1.5"
+                      onclick={() => bibleFileInput?.click()}
+                    >
+                      <Upload size={13} />
+                      Selecionar Arquivo SQLite
+                    </Button>
+                  </div>
+                {:else}
+                  <div class="grid grid-cols-1 gap-2.5">
+                    {#each biblesList as bible (bible.id)}
+                      <div class="p-3.5 rounded-xl border border-border bg-neutral-900/40 hover:bg-neutral-900/70 transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                          <div class="w-9 h-9 rounded-lg bg-primary/15 border border-primary/25 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase tracking-wider">
+                            {bible.abbreviation || 'BIB'}
+                          </div>
+
+                          <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                              <span class="text-xs font-bold text-foreground truncate">{bible.name}</span>
+                              <Badge variant="outline" class="text-[10px] uppercase font-mono py-0 px-1.5">
+                                {bible.abbreviation}
+                              </Badge>
+                              {#if bible.is_default}
+                                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30 flex items-center gap-1">
+                                  <Check size={10} />
+                                  Padrão
+                                </span>
+                              {/if}
+                            </div>
+                            <div class="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 font-mono">
+                              <span>{bible.book_count} livros</span>
+                              <span>•</span>
+                              <span>{bible.verse_count.toLocaleString()} versículos</span>
+                              <span>•</span>
+                              <span class="truncate text-neutral-500 max-w-[200px]" title={bible.filename}>{bible.filename}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Ações da Versão -->
+                        <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                          {#if !bible.is_default}
+                            <button
+                              type="button"
+                              onclick={() => handleSetDefaultBible(bible.id)}
+                              class="px-2.5 py-1 rounded text-xs text-neutral-400 hover:text-emerald-400 hover:bg-neutral-800 transition-colors cursor-pointer"
+                              title="Definir como versão padrão para projeção rápida"
+                            >
+                              Tornar Padrão
+                            </button>
+                          {/if}
+
+                          <button
+                            type="button"
+                            onclick={() => handleStartEditBible(bible)}
+                            class="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+                            title="Renomear versão e abreviação"
+                          >
+                            <Edit3 size={14} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onclick={() => handleDeleteBible(bible.id, bible.name)}
+                            class="p-1.5 rounded text-neutral-400 hover:text-red-400 hover:bg-neutral-800 transition-colors cursor-pointer"
+                            title="Remover Bíblia do app"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            </div>
+
+            <!-- Modal Inline de Edição da Versão da Bíblia (Nome / Sigla / Padrão) -->
+            {#if isEditingBible}
+              <div
+                class="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Editar Versão da Bíblia"
+              >
+                <div class="w-full max-w-sm rounded-xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl space-y-4 text-foreground">
+                  <div>
+                    <h4 class="text-sm font-bold text-white">Editar Versão da Bíblia</h4>
+                    <p class="text-xs text-neutral-400 mt-0.5">
+                      Ajuste o nome de exibição e a sigla canônica da versão (ex: NVI, ARA, ARC, NVT).
+                    </p>
+                  </div>
+
+                  <div class="space-y-3">
+                    <div>
+                      <label for="edit_bible_name" class="block text-xs font-semibold text-neutral-300 mb-1">
+                        Nome da Versão
+                      </label>
+                      <input
+                        id="edit_bible_name"
+                        type="text"
+                        bind:value={editBibleName}
+                        placeholder="Ex: Almeida Revista e Atualizada"
+                        class="w-full h-8 px-2.5 rounded bg-neutral-950 border border-neutral-700 text-xs text-white focus:outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label for="edit_bible_abbr" class="block text-xs font-semibold text-neutral-300 mb-1">
+                        Sigla / Abreviação
+                      </label>
+                      <input
+                        id="edit_bible_abbr"
+                        type="text"
+                        bind:value={editBibleAbbr}
+                        placeholder="Ex: ARA"
+                        maxlength="10"
+                        class="w-full h-8 px-2.5 rounded bg-neutral-950 border border-neutral-700 text-xs text-white uppercase font-mono focus:outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    <label class="flex items-center gap-2 cursor-pointer pt-1">
+                      <input
+                        type="checkbox"
+                        bind:checked={editBibleIsDefault}
+                        class="rounded border-neutral-700 text-primary focus:ring-0 accent-primary"
+                      />
+                      <span class="text-xs text-neutral-300">Definir como versão padrão</span>
+                    </label>
+                  </div>
+
+                  <div class="flex items-center justify-end gap-2 pt-2 border-t border-neutral-800">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      class="text-xs"
+                      onclick={() => {
+                        isEditingBible = false;
+                        editingBibleId = null;
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      class="text-xs"
+                      onclick={handleSaveEditBible}
+                    >
+                      Salvar Alterações
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            {/if}
 
           <!-- ABA 2: ARQUIVOS E PASTAS (Mapeamento Zero-Copy e Pastas do Sistema) -->
           {:else if activeTab === 'files'}
@@ -1969,9 +2580,10 @@
               </div>
             </div>
 
-          <!-- ABA 6: SOBRE -->
+          <!-- ABA 6: SOBRE & UPDATES -->
           {:else if activeTab === 'about'}
-            <div class="space-y-6 max-w-md">
+            <div class="space-y-6 max-w-xl">
+              <!-- Banner da Marca -->
               <div class="p-6 rounded-xl border border-neutral-800 bg-neutral-900/40 text-center space-y-3">
                 <img
                   src="/branding/open-presenter-wordmark-dark.svg"
@@ -1981,16 +2593,154 @@
                 <p class="text-xs text-neutral-400">
                   Sistema moderno e aberto de projeção para igrejas e eventos.
                 </p>
-                <div class="flex items-center justify-center gap-2 pt-1">
-                  <Badge variant="secondary" class="text-[10px]">v0.7.0</Badge>
+                <div class="flex items-center justify-center gap-2 pt-1 flex-wrap">
+                  <Badge variant="secondary" class="text-[10px] font-mono">
+                    v{updateInfo?.current_version || '0.1.0'}
+                  </Badge>
                   <Badge variant="outline" class="text-[10px] text-primary border-primary/40">GPL-3.0</Badge>
-                  <Badge variant="outline" class="text-[10px] text-neutral-400">Rust + Axum + Svelte</Badge>
+                  <Badge variant="outline" class="text-[10px] text-neutral-400">Rust · Axum · Svelte · SQLite</Badge>
                 </div>
               </div>
 
+              <!-- Seção do Auto-Updater -->
+              <div class="p-5 rounded-xl border border-neutral-800 bg-neutral-900/30 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <Sparkles size={16} class="text-primary" />
+                    <h4 class="text-xs font-semibold text-white">Atualizações do Sistema</h4>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="h-7 text-xs gap-1.5"
+                    onclick={handleCheckForUpdates}
+                    disabled={isCheckingUpdate}
+                  >
+                    <RefreshCw size={12} class={isCheckingUpdate ? 'animate-spin' : ''} />
+                    <span>{isCheckingUpdate ? 'Verificando...' : 'Verificar Atualizações'}</span>
+                  </Button>
+                </div>
+
+                {#if updaterError}
+                  <div class="p-3 rounded-lg bg-rose-950/40 border border-rose-600/40 text-rose-300 text-xs flex items-start gap-2">
+                    <AlertTriangle size={15} class="shrink-0 mt-0.5 text-rose-400" />
+                    <span>{updaterError}</span>
+                  </div>
+                {/if}
+
+                {#if updaterStatus?.stage?.type === 'ReadyToRestart'}
+                  <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-600/60 text-emerald-200 text-xs space-y-2">
+                    <div class="flex items-center gap-2 font-semibold text-emerald-300">
+                      <CheckCircle2 size={16} class="text-emerald-400" />
+                      <span>Atualização Instalada com Sucesso!</span>
+                    </div>
+                    <p class="text-[11px] text-emerald-300/80">
+                      A nova versão foi gravada no executável. Reinicie o aplicativo OpenPresenter para aplicar todas as novidades.
+                    </p>
+                  </div>
+                {:else if updaterStatus?.stage?.type === 'Downloading'}
+                  <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/60 space-y-3">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="text-neutral-300 font-medium flex items-center gap-1.5">
+                        <Download size={14} class="animate-bounce text-primary" />
+                        Baixando nova versão...
+                      </span>
+                      <span class="font-mono text-primary font-bold">
+                        {updaterStatus.stage.percent}%
+                      </span>
+                    </div>
+                    <div class="w-full h-2 rounded-full bg-neutral-800 overflow-hidden">
+                      <div
+                        class="h-full bg-primary transition-all duration-200 rounded-full"
+                        style="width: {updaterStatus.stage.percent}%"
+                      ></div>
+                    </div>
+                    <div class="text-[10px] text-neutral-500 font-mono text-right">
+                      {(updaterStatus.stage.downloaded_bytes / (1024 * 1024)).toFixed(1)} MB / {(updaterStatus.stage.total_bytes / (1024 * 1024)).toFixed(1)} MB
+                    </div>
+                  </div>
+                {:else if updaterStatus?.stage?.type === 'Extracting'}
+                  <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/60 flex items-center gap-3 text-xs text-neutral-300">
+                    <RefreshCw size={16} class="animate-spin text-primary shrink-0" />
+                    <span>Extraindo arquivos e aplicando a substituição atômica no executável...</span>
+                  </div>
+                {:else if updaterStatus?.stage?.type === 'Error'}
+                  <div class="p-4 rounded-xl bg-rose-950/30 border border-rose-600/40 text-xs text-rose-300 space-y-2">
+                    <div class="flex items-center gap-2 font-semibold">
+                      <AlertTriangle size={15} class="text-rose-400" />
+                      <span>Erro ao aplicar atualização</span>
+                    </div>
+                    <p class="text-[11px] text-rose-200/80">{updaterStatus.stage.message}</p>
+                    <Button variant="outline" size="sm" class="h-7 text-xs" onclick={handleStartUpdate}>
+                      Tentar Novamente
+                    </Button>
+                  </div>
+                {:else if updateInfo?.update_available}
+                  <!-- Banner de Atualização Disponível -->
+                  <div class="p-4 rounded-xl border border-emerald-600/40 bg-emerald-950/20 space-y-3">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <Badge variant="default" class="bg-emerald-600 text-white hover:bg-emerald-600 text-[10px] font-bold">
+                          NOVO
+                        </Badge>
+                        <span class="text-xs font-bold text-white">Versão {updateInfo.latest_version} disponível</span>
+                      </div>
+                      {#if updateInfo.published_at}
+                        <span class="text-[10px] text-neutral-400">
+                          {new Date(updateInfo.published_at).toLocaleDateString('pt-BR')}
+                        </span>
+                      {/if}
+                    </div>
+
+                    <div class="text-xs text-neutral-200 font-medium">
+                      {updateInfo.release_name}
+                    </div>
+
+                    {#if updateInfo.release_notes}
+                      <div class="p-2.5 rounded-lg bg-neutral-950/70 border border-neutral-800/80 max-h-36 overflow-y-auto text-[11px] text-neutral-300 font-mono whitespace-pre-wrap leading-relaxed">
+                        {updateInfo.release_notes}
+                      </div>
+                    {/if}
+
+                    <div class="flex items-center justify-between pt-1 text-[11px] text-neutral-400">
+                      <span>Arquivo: {updateInfo.asset_name || 'Pacote multiplataforma'}</span>
+                      {#if updateInfo.asset_size}
+                        <span>{(updateInfo.asset_size / (1024 * 1024)).toFixed(1)} MB</span>
+                      {/if}
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-end gap-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        class="gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
+                        onclick={handleStartUpdate}
+                        disabled={!updateInfo.download_url}
+                      >
+                        <Download size={14} />
+                        <span>Baixar e Atualizar Agora</span>
+                      </Button>
+                    </div>
+                  </div>
+                {:else if updateInfo && !updateInfo.update_available}
+                  <div class="p-3.5 rounded-lg border border-neutral-800 bg-neutral-950/40 flex items-center gap-2.5 text-xs text-neutral-300">
+                    <CheckCircle2 size={16} class="text-emerald-400 shrink-0" />
+                    <span>O OpenPresenter está na versão mais recente (v{updateInfo.current_version}).</span>
+                  </div>
+                {:else}
+                  <div class="p-3.5 rounded-lg border border-neutral-800 bg-neutral-950/40 text-xs text-neutral-400 flex items-center justify-between">
+                    <span>Nenhuma verificação de atualização realizada nesta sessão.</span>
+                    <Button variant="ghost" size="sm" class="h-6 text-xs" onclick={handleCheckForUpdates}>
+                      Checar agora
+                    </Button>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Informações adicionais -->
               <div class="text-[11px] text-neutral-500 space-y-1.5 text-center">
-                <p>Inspirado na facilidade do Holyrics e no poder operacional do ProPresenter.</p>
-                <p>Desenvolvido com foco em estabilidade, velocidade instantânea e simplicidade.</p>
+                <p>Repositório de código aberto: <a href="https://github.com/open-mission/openpresenter" target="_blank" rel="noreferrer" class="text-primary hover:underline">github.com/open-mission/openpresenter</a></p>
+                <p>Todos os seus dados (banco SQLite, mídias e bíblias) permanecem preservados em qualquer atualização.</p>
               </div>
             </div>
           {/if}
