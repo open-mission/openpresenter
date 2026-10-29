@@ -6,6 +6,34 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Seletor Gráfico Nativo de Pastas (File Picker):**
+  - Diálogo gráfico nativo do sistema operacional (`osascript` no macOS com fallback web via `input[webkitdirectory]`) para seleção direta de diretórios de mídia em Configurações.
+  - Endpoint `POST /api/system/pick-folder` no backend Rust para integração com o Finder.
+- **Exibição e Abertura do Diretório de Dados do Sistema:**
+  - Card em destaque na aba "Arquivos e Pastas" exibindo o caminho absoluto da pasta raiz de dados do app (`data_dir`), com botões para "Copiar Caminho" e "Abrir no Finder".
+  - Endpoint `POST /api/system/open-path` para revelação direta de diretórios e arquivos no gerenciador do sistema operacional.
+- **Inserção de Imagens e Pastas de Imagens na Setlist:**
+  - Novo modal `ImageSelectorModal` acessível pelo menu suspenso `+` e menu de contexto da Setlist.
+  - Suporte à seleção múltipla de imagens avulsas ou de uma pasta inteira (interna ou mapeada), criando apresentações ordenadas de slides visuais.
+- **Ações Rápidas de Apresentação em Imagens:**
+  - Botão visível de "Apresentar" (Play) e "+ Setlist" em cada miniatura da galeria do painel inferior de mídia, além do suporte a duplo clique.
+- **Sheet Lateral de Visualização de Letras de Música:**
+  - Gaveta lateral (Sheet) deslizante na aba de Músicas do painel de mídia para conferência rápida e leitura da letra completa estruturada por seções musicais, com ações de projetar ao vivo ou adicionar à setlist.
+- **Atalhos Dedicados Livres de Conflito:**
+  - Atalhos globais sem colisão com partes musicais: `.` / `Alt+B` / `F1` para Blackout, `,` / `Alt+C` / `F2` para Limpar Texto, e `/` / `Alt+W` / `F3` para Papel de Parede.
+  - Novo botão de ação rápida "Fundo" (Papel de Parede) na barra de controle de saídas.
+
+### Modificado
+
+- **Aplicação Completa de Temas e Cores Shadcn UI:**
+  - Mapeamento explícito no `@theme` do Tailwind v4 de tokens semânticos (`--color-background`, `--color-primary`, `--color-border`, etc.) apontando para as variáveis do `:root`.
+  - Padrão do sistema configurado como `neutral` com suporte fiel aos modos escuro e claro.
+  - Componentes `Button` e `Badge` atualizados para renderizar as variáveis do tema e destaque ativas.
+- **Layout e Responsividade do Modal de Configurações:**
+  - Largura expandida para `max-w-4xl xl:max-w-5xl`, prevenindo colisão de textos com badges e aplicando truncamento e quebra de linha segura em caminhos longos de diretórios.
+
 ## [0.7.0] - 2026-10-29
 
 ### Adicionado

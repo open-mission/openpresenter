@@ -36,9 +36,17 @@ Expandir o ambiente de apresentação e operação do OpenPresenter Minimal com 
    - Aba Músicas: busca rápida no banco SQLite e botão para adicionar à setlist ou apresentar.
    - Aba Imagens: galeria de miniaturas da pasta do app e de pastas externas importadas.
 6. **Aba de Configurações: Arquivos e Pastas & Pastas de Mídia:**
-   - Exibição das pastas do sistema do app (`data_dir`, `db`, `media/images`, `media/videos`, `media/wallpapers`, `fonts`).
-   - Cadastro de pastas locais externas do usuário (ex: `/Users/usuario/Imagens/Culto`), lendo os arquivos no disco sem copiá-los para o app.
+   - Exibição destacada da pasta raiz de dados do aplicativo (`data_dir`) e caminhos derivados (`db`, `media/images`, `media/videos`, `media/wallpapers`, `fonts`) com opções de copiar caminho e abrir no Finder/Explorador nativo.
+   - Cadastro de pastas locais externas do usuário via File Picker nativo do sistema operacional (`/api/system/pick-folder` ou seletor gráfico de diretórios) além de campo de digitação manual.
+   - Redimensionamento e largura aprimorada da janela de configurações para evitar truncamento ou vazamento de caminhos e textos.
    - Endpoints REST para servir e listar imagens e gerenciar as pastas mapeadas.
+7. **Atalhos Operacionais Dedicados Livres de Conflito:**
+   - Atalhos dedicados para Blackout (`.` ou `Alt+B`), Limpar Texto (`F2`, `,` ou `Alt+C`) e Papel de Parede (`F3`, `/` ou `Alt+W`) que não conflitam com teclas de navegação rápida de partes da música (V, R, P, I, F).
+8. **Integração de Imagens na Setlist:**
+   - Possibilidade de adicionar imagens avulsas ou pastas completas de imagens diretamente à Setlist através do menu `+` e menu de contexto.
+9. **Apresentação Rápida de Imagens e Sheet de Letra no Painel Inferior:**
+   - Botão visível de apresentação rápida direta em cada cartão de imagem do painel inferior.
+   - Gaveta lateral (Sheet) na aba Músicas para visualização instantânea da letra formatada completa e metadados antes de projetar ou adicionar à setlist.
 
 ### Fora do escopo
 - Edição destrutiva de arquivos em pastas externas do usuário.

@@ -53,7 +53,23 @@
    - Visualização dos caminhos do sistema.
    - Gerenciamento de pastas locais importadas com leitura direta sem duplicação.
 
-### Fase 6: Portões de Qualidade e Lançamento
+### Fase 6: Ajustes Refinados de UX, Pastas, Temas e Mídias
+1. **File Picker Nativo e Caminhos do Sistema:**
+   - Adicionar endpoint `POST /api/system/pick-folder` com diálogo nativo do sistema operacional e `POST /api/system/open-path` para abrir a pasta no Finder.
+   - Exibir com destaque o diretório raiz de dados (`data_dir`) com botão de copiar caminho e botão de abrir pasta.
+   - Aumentar a largura do `SettingsModal.svelte` (`max-w-4xl` / `max-w-5xl`) e prevenir truncamento de caminhos e textos.
+2. **Correção e Aplicação Global de Temas (Shadcn UI):**
+   - Mapear variáveis CSS no `@theme` do `app.css` para Tailwind v4 (`--color-primary`, `--color-background`, etc.).
+   - Vincular `Button.svelte`, superfícies e anéis às variáveis temáticas.
+   - Garantir chamada a `applyBaseColor` e `applyAccentTheme` na montagem do app.
+3. **Mídias e Imagens na Setlist:**
+   - Botão visível de apresentação rápida em cada miniatura de imagem no `BottomPanel.svelte`.
+   - Adição de opções "Adicionar Imagem..." e "Adicionar Pasta de Imagens..." no menu da Setlist e modal de seleção `ImageSelectorModal.svelte`.
+   - Sheet / Drawer lateral na aba de Músicas do painel de mídia para visualização instantânea da letra completa com seções.
+4. **Atalhos Dedicados Livres de Conflito:**
+   - Suporte a `.` (Blackout), `,` (Limpar Texto), `/` ou `Alt+W` (Papel de Parede) e teclas `F1`/`F2`/`F3`, sem conflito com atalhos de seções.
+
+### Fase 7: Portões de Qualidade e Lançamento
 1. `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`.
 2. `bun run check` e `bun run build`.
 3. Atualização de `CHANGELOG.md` e commits atômicos.
