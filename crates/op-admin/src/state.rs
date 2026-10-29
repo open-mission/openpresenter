@@ -18,11 +18,13 @@ pub struct AppState {
     pub media_items: Arc<RwLock<Vec<MediaItem>>>,
     pub outputs: Arc<RwLock<OutputsConfig>>,
     pub broadcast_tx: broadcast::Sender<WsMessage>,
+    pub db: Option<Arc<tokio::sync::Mutex<op_db::Database>>>,
+    pub http_client: reqwest::Client,
 }
 
 impl AppState {
-    /// Inicializa o estado com itens de demonstração e canal de transmissão.
-    pub fn new(session: SessionView, outputs: OutputsConfig) -> Self {
+    /// Inicializa o estado com itens de demonstração, canal de transmissão e conexão com banco.
+    pub fn new(session: SessionView, outputs: OutputsConfig, db: Option<op_db::Database>) -> Self {
         let (broadcast_tx, _) = broadcast::channel(BROADCAST_CAPACITY);
         let sample_media = create_sample_media();
 
@@ -32,7 +34,30 @@ impl AppState {
             media_items: Arc::new(RwLock::new(sample_media)),
             outputs: Arc::new(RwLock::new(outputs)),
             broadcast_tx,
+            db: db.map(|d| Arc::new(tokio::sync::Mutex::new(d))),
+            http_client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(10))
+                .build()
+                .unwrap_or_default(),
         }
+    }
+
+    /// Adiciona ou atualiza um item na lista de mídias (Setlist) e transmite o novo estado via WebSocket.
+    pub async fn add_media_item(&self, item: MediaItem) {
+        let mut items = self.media_items.write().await;
+        if let Some(existing) = items.iter_mut().find(|m| m.id == item.id) {
+            *existing = item;
+        } else {
+            items.push(item);
+        }
+        let all_items = items.clone();
+        let pres = self.presentation.read().await.clone();
+        drop(items);
+
+        let _ = self.broadcast_tx.send(WsMessage::SyncState {
+            presentation: pres,
+            media_items: all_items,
+        });
     }
 
     /// Dispara um slide específico de uma mídia para o modo ao vivo.

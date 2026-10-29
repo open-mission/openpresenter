@@ -1,5 +1,6 @@
 //! Binário principal do servidor OpenPresenter (Rust + Axum).
 
+mod online_lyrics;
 mod routes;
 mod session;
 mod state;
@@ -39,8 +40,8 @@ async fn main() -> anyhow::Result<()> {
         OutputsConfig::default()
     };
 
-    // Inicializa o estado compartilhado
-    let state = AppState::new(session.view, outputs);
+    // Inicializa o estado compartilhado com o banco de dados
+    let state = AppState::new(session.view, outputs, session.db);
 
     // Configura CORS permissivo para facilidade de desenvolvimento local
     let cors = CorsLayer::new()
@@ -102,7 +103,7 @@ mod tests {
 
     fn mock_state() -> AppState {
         let dummy_view = session::SessionView {
-            app_version: "0.3.0".into(),
+            app_version: "0.4.0".into(),
             tagline: "Projeção".into(),
             stack: "Rust + Axum".into(),
             db_path: ":memory:".into(),
@@ -116,7 +117,7 @@ mod tests {
             is_first_run: true,
         };
 
-        AppState::new(dummy_view, OutputsConfig::default())
+        AppState::new(dummy_view, OutputsConfig::default(), None)
     }
 
     #[tokio::test]
@@ -210,5 +211,99 @@ mod tests {
         let uri: axum::http::Uri = "/public".parse().unwrap();
         let resp = static_fallback_handler(uri).await;
         assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    fn mock_state_with_db() -> (AppState, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let db = op_db::Database::open(&db_path).unwrap();
+        let _ = db
+            .begin_session(op_core::VERSION, chrono::Utc::now())
+            .unwrap();
+
+        let dummy_view = session::SessionView {
+            app_version: "0.4.0".into(),
+            tagline: "Projeção".into(),
+            stack: "Rust + Axum".into(),
+            db_path: db_path.display().to_string(),
+            db_ready: true,
+            db_error: String::new(),
+            schema_version: 3,
+            theme_label: "Sistema".into(),
+            locale: "pt-BR".into(),
+            first_run_at: "agora".into(),
+            last_run_at: "agora".into(),
+            is_first_run: true,
+        };
+
+        (
+            AppState::new(dummy_view, OutputsConfig::default(), Some(db)),
+            dir,
+        )
+    }
+
+    #[tokio::test]
+    async fn save_song_and_search_endpoints_work() {
+        let (state, _dir) = mock_state_with_db();
+        let app = create_routes(state.clone());
+
+        let song = op_core::Song {
+            id: "song-test-1".into(),
+            title: "Manso e Suave".into(),
+            artist: "Will Thompson".into(),
+            album: None,
+            composer: None,
+            song_key: Some("Ab".into()),
+            bpm: Some(72),
+            sections: vec![],
+            lyrics_raw: "## Verso 1\nManso e suave Jesus tá chamando\n\n## Refrão\nVem já, vem já"
+                .into(),
+        };
+
+        let payload = serde_json::to_string(&routes::SaveSongPayload {
+            song: song.clone(),
+            add_to_setlist: true,
+        })
+        .unwrap();
+
+        let save_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/api/songs")
+                    .body(axum::body::Body::from(payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(save_resp.status(), StatusCode::CREATED);
+
+        // Verifica se foi adicionado ao setlist
+        let items = state.media_items.read().await;
+        assert!(items.iter().any(|m| m.id == "song-test-1"));
+        drop(items);
+
+        // Busca via FTS5
+        let search_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/songs?q=suave")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(search_resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(search_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let results: Vec<op_core::SongSummary> = serde_json::from_slice(&body).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "Manso e Suave");
     }
 }
