@@ -6,6 +6,31 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-29
+
+### Adicionado
+
+- **Controle de Apresentação e Foco de Slides:**
+  - O clique simples em um slide no painel central agora seleciona e foca o slide sem colocá-lo imediatamente no ar (prevenindo disparos acidentais ao vivo).
+  - Adicionado botão dedicado **Apresentar (Enter)** com ícone Play e suporte a duplo clique no slide.
+  - Tecla `Enter` no slide focado dispara a projeção imediatamente.
+  - Tecla `Escape` (`Esc`) encerra a apresentação imediatamente e oculta o texto projetado (`cleartext`).
+  - Navegação contínua por teclado (`←`, `→` ou `Espaço`) respeitando o estado ao vivo da projeção.
+- **Atalhos Rápidos de Seções e Buffer Numérico:**
+  - Atalhos de letras individuais para saltar instantaneamente entre partes da música: `V` para Verso, `R` para Refrão, `P` para Ponte, `I` para Intro, `F` para Final, etc.
+  - Ao pressionar a letra repetidamente, a navegação cicla sequencialmente entre todos os slides daquela seção (ex: Verso 1 → Verso 2 → Verso 3 → Verso 1).
+  - Buffer numérico com feedback visual flutuante (HUD): digitar o número do slide (ex: `2`) e pressionar `Enter` projeta diretamente o slide ordinal indicado.
+- **Painel de Configurações com Abas Verticais (`SettingsModal`):**
+  - Modal de configurações com navegação vertical lateral, inspirado no padrão macOS e ProPresenter.
+  - **Aparência:** alternância em tempo real entre temas Sistema, Escuro (Dark) e Claro (Light), com persistência local.
+  - **Partes e Cores:** personalização completa das seções de música, com customização do nome, atalho de teclado e paleta de cores (Esmeralda, Azul, Âmbar, Ciano, Teal, Roxo, Rosa, Índigo) com reflexo imediato nos cartões da grade central.
+  - **Telas e Saídas:** monitoramento de status e atalhos diretos para abrir as janelas Public e Stage.
+  - **Atalhos Rápidos:** guia interativo e documentado de atalhos de teclado do operador.
+  - **Sobre o App:** informações de versão, arquitetura e licença do OpenPresenter.
+- **Identidade Visual Oficial:**
+  - Aplicação dos logotipos e ícones oficiais vetoriais (`open-presenter-app-icon.svg`, `open-presenter-wordmark-dark.svg`, `favicon.svg`) no cabeçalho do painel do operador, na tela de projeção pública (`/public`) e na tela de retorno (`/stage`).
+
+
 ## [0.4.0] - 2026-10-28
 
 ### Adicionado
