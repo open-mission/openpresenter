@@ -8,6 +8,30 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ### Adicionado
 
+- **Timer Global Sincronizado, Avisos de Palco e Overtime ProPresenter:**
+  - Motor de cronômetro e timer regressivo executando em background no backend Rust via task Tokio assíncrona, com broadcast de ticks de 1s via WebSocket para todas as conexões (Admin, Public, Stage).
+  - Alerta visual no último minuto (< 60s) e contagem negativa contínua em Overtime (`-01:30`, `-02:30`) em vermelho pulsante quando o tempo expira.
+  - Painel de controle integrado na barra lateral direita do operador (`TimerControlPanel`), com mostrador digital, controles de Play/Pause/Reset/Stop, presets rápidos (`5m`, `10m`, `15m`, `+1m`, `+5m`) e campo para envio de mensagens e alertas de palco (`stage_message`).
+- **Layouts e Presets do Monitor de Palco (`/stage`) com Cores Customizáveis:**
+  - Quatro presets estruturais configuráveis:
+    - `split-50-50` (Divisão Equilibrada): Caixas de slide atual e próximo lado a lado com etiquetas em destaque e rodapé de tempo.
+    - `modern-grid` (Grid Moderno Pro): Slide atual em destaque no topo, próximo abaixo e coluna lateral para aviso de palco, relógio de parede e timer regressivo proeminente.
+    - `video-focus` (Foco em Projeção): Centro expandido para leitura e barra inferior compacta de contadores.
+    - `horizontal-stack` (Faixas Horizontais): Header superior com relógio/timer, centro em tipografia máxima e próximo slide em faixa na base.
+  - Personalização de cores com seletores para slide atual (texto e borda), próximo slide (texto e borda), relógio e timer.
+- **Configurações da Projeção Pública (`/public`):**
+  - Opção para maximizar a escala tipográfica das letras na tela pública (`fill_space`).
+  - Opção para controle de quebra de linhas longas (`word_wrap`), permitindo manter cada verso em linha única sem quebra (`whitespace-nowrap`).
+  - Controle de exibição de metadados (`show_metadata`: nome do louvor e cantor/compositor).
+  - Edição de margens personalizadas do slide público (topo, base e laterais) com prévia gráfica de safe area no modal de configurações.
+- **Identidade Visual e Marca da Igreja (`Church Brand`):**
+  - Upload e armazenamento local no servidor dos logotipos da igreja (`logo_primary`, `logo_dark`, `logo_light`, `logo_full`) servidos em `/media/church_brand/`.
+  - Sobreposição de logotipo configurável no slide público com suporte a 4 cantos (`top-left`, `top-right`, `bottom-left`, `bottom-right`), escala de tamanho e opacidade.
+- **Persistência de Preferências com Nova Tabela de Configurações:**
+  - Migração `0006_app_settings.sql` (schema v6) com métodos `get_setting`, `set_setting` e `list_settings` no SQLite para salvar opções de exibição, marca e stage de forma persistente.
+- **Favicon Oficial do Aplicativo:**
+  - Vinculação do ícone minimalista oficial do OpenPresenter como favicon SVG e apple-touch-icon no `index.html`.
+
 - **Cancelamento Completo de Apresentação e Limpeza de "Ao Vivo":**
   - Novo comando `StopPresentation` via WebSocket e endpoint `POST /api/presentation/stop`.
   - Pressionar a tecla `Esc` ou clicar em "Parar" desativa instantaneamente a apresentação ao vivo, zerando `active_media_id` e `active_slide_index`.

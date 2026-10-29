@@ -7,16 +7,17 @@ Esta página descreve a arquitetura vigente do OpenPresenter Minimal. Ela deve s
 ```text
 .
 ├── crates/
-│   ├── op-core/    # domínio puro: constantes, modelos de mídia, slides, Setlist, SetlistSummary, Song, SongSection, SongSummary, MediaFolder, AppMeta, SessionInfo, Theme, saídas e mensagens WsMessage
-│   ├── op-db/      # SQLite, PRAGMAs, migrações numeradas (v1, v2, v3 FTS5, v4 Setlists, v5 Media Folders) e persistência da sessão, saídas, catálogo, setlists e pastas mapeadas
-│   └── op-admin/   # binário open-presenter: servidor HTTP (Axum), armazenamento e streaming de mídias, busca online de letras (Holyrics, Vagalume), WebSocket, estado global e serviço de estáticos
+│   ├── op-core/    # domínio puro: constantes, modelos de mídia, slides, Setlist, SetlistSummary, Song, SongSection, SongSummary, MediaFolder, TimerState, AppMeta, SessionInfo, Theme, saídas e mensagens WsMessage
+│   ├── op-db/      # SQLite, PRAGMAs, migrações numeradas (v1 a v6 app_settings) e persistência da sessão, saídas, catálogo, setlists, pastas mapeadas e configurações
+│   └── op-admin/   # binário open-presenter: servidor HTTP (Axum), armazenamento e streaming de mídias, busca online de letras (Holyrics, Vagalume), WebSocket, loop de timer global, estado global e estáticos
 ├── frontend/       # aplicação cliente em Svelte 5 + TypeScript + Vite + Tailwind CSS + shadcn-svelte
 │   ├── src/
 │   │   ├── lib/
 │   │   │   ├── components/ui/  # componentes no padrão shadcn-svelte (Button, Badge, Card, MediaItemRow)
-│   │   │   ├── components/     # CommandPalette, SongEditorModal (Música/Texto), SettingsModal, SetlistModal, QuickItemModal, ContextMenu, BottomPanel
-│   │   │   ├── views/          # visões principais: AdminView, PublicView, StageView
+│   │   │   ├── components/     # CommandPalette, SongEditorModal (Música/Texto), SettingsModal, SetlistModal, QuickItemModal, ContextMenu, BottomPanel, TimerControlPanel
+│   │   │   ├── views/          # visões principais: AdminView, PublicView, StageView (com 4 presets)
 │   │   │   ├── settings.ts     # gerenciamento de tema (dark/light/system), Base Colors e Theme Accents (Shadcn), seções customizadas
+│   │   │   ├── displaySettings.ts # gerenciamento persistente de margens públicas, marca da igreja e presets do monitor de palco
 │   │   │   ├── songParser.ts   # segmentador de letras e textos estilo Holyrics (## Partes, quebras de slides)
 │   │   │   ├── types.ts        # tipagens e contratos de dados sincronizados com op-core
 │   │   │   ├── utils.ts        # utilitários de classe (cn, twMerge, clsx)
@@ -76,6 +77,9 @@ crates/op-admin/src/
 - Schema v1: tabela singleton `app_meta` (`id = 1`) com `app_version`, `first_run_at`, `last_run_at`, `theme`, `locale` e `updated_at`.
 - Schema v2: tabela `output_config`, com uma linha por saída (`public` ou `stage`), `enabled`, `monitor_key`, `monitor_name`, `mode` e `updated_at`.
 - Schema v3: tabelas `songs`, `song_sections`, `song_lyrics` e virtual table `songs_fts` usando SQLite FTS5 (`unicode61 remove_diacritics 2`) para busca full-text instantânea por título e letra com snippets.
+- Schema v4: tabelas `setlists` e `setlist_items` para suporte a múltiplas listas de louvor, papel de parede e metadados.
+- Schema v5: tabela `media_folders` para mapeamento externo de diretórios do computador (zero-copy).
+- Schema v6: tabela `app_settings` para armazenamento de pares chave/valor de configurações de telas (`public_display`, `stage_display`) e marca da congregação (`church_brand`).
 - As migrações são estritamente aditivas e numeradas.
 - Datas em RFC 3339 UTC com milissegundos.
 
@@ -87,5 +91,10 @@ As mensagens entre o painel do operador, as telas de saída e o servidor utiliza
 - `identify`: enviado pelo cliente ao conectar (`client_type: "admin" | "public" | "stage"`).
 - `select_slide`: enviado pelo operador para definir mídia ativa e índice do slide projetado.
 - `set_display_mode`: enviado pelo operador para alternar modo de exibição (`live`, `blackout`, `cleartext`).
+- `stop_presentation`: limpa a projeção atual e remove indicadores de ao vivo.
+- `set_wallpaper`: atualiza o papel de parede e gradientes de fundo no ar.
+- `start_timer`, `pause_timer`, `reset_timer`, `set_timer`: controle do cronômetro sincronizado com overtime.
+- `set_stage_message`: envia mensagem instantânea ou aviso para o monitor de palco.
+- `timer_updated`: broadcast com tick a cada 1 segundo com tempo restante e alerta de overtime.
 - `state_updated`: broadcast emitido a todos os clientes conectados informando alterações de estado.
 - `ping` / `pong`: manutenção de conexão ativa contra timeouts de rede.

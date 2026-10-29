@@ -38,12 +38,18 @@
 - [Plano — Múltiplas Setlists, Context Menu, Papel de Parede e Armazenamento de Mídias](plans/2026-10-29-setlists-context-menu-e-wallpapers.md)
 - [ADR 0007 — Múltiplas Setlists, Context Menu e Armazenamento de Mídias](decisions/0007-multiplas-setlists-context-menu-e-armazenamento-de-midias.md)
 - [ADR 0008 — Temas Shadcn, Pastas de Mídia Externas, Editor Markdown e Layout Flexível](decisions/0008-temas-shadcn-pastas-midia-externas-editor-markdown-e-layout-flexivel.md)
+- [ADR 0009 — Presets de Stage Display, Identidade da Igreja e Timer Global com Overtime](decisions/0009-stage-presets-church-branding-e-timer-global.md)
 
 ## Temas Shadcn, Pastas de Mídia, Editor Markdown e Painéis Flexíveis (v0.7.0)
 
 - [Spec — Temas Shadcn, Pastas de Mídia Externas, Editor Markdown e Painéis Flexíveis](specs/2026-10-29-temas-pastas-midia-editor-markdown-e-paineis.md)
 - [Plano — Temas Shadcn, Pastas de Mídia, Editor Markdown e Painéis Flexíveis](plans/2026-10-29-temas-pastas-midia-editor-markdown-e-paineis.md)
 - [ADR 0008 — Temas Shadcn, Pastas de Mídia Externas, Editor Markdown e Layout Flexível](decisions/0008-temas-shadcn-pastas-midia-externas-editor-markdown-e-layout-flexivel.md)
+
+## Margens do Public, Marca da Igreja, Presets de Stage e Timer Global (v0.8.0)
+
+- [Spec — Margens do Public, Marca da Igreja, Presets de Stage e Timer Global](specs/2026-10-29-public-margins-church-brand-stage-presets-e-timer.md)
+- [Plano — Margens do Public, Marca da Igreja, Presets de Stage e Timer Global](plans/2026-10-29-public-margins-church-brand-stage-presets-e-timer.md)
 
 ## Arquitetura e decisões
 
@@ -57,6 +63,7 @@
 - [ADR 0006 — Controle de Apresentação Desacoplado, Seções Customizadas e Configurações em Abas](decisions/0006-controle-de-apresentacao-secoes-customizadas-e-configuracoes.md)
 - [ADR 0007 — Múltiplas Setlists, Context Menu e Armazenamento de Mídias](decisions/0007-multiplas-setlists-context-menu-e-armazenamento-de-midias.md)
 - [ADR 0008 — Temas Shadcn, Pastas de Mídia Externas, Editor Markdown e Layout Flexível](decisions/0008-temas-shadcn-pastas-midia-externas-editor-markdown-e-layout-flexivel.md)
+- [ADR 0009 — Presets de Stage Display, Identidade da Igreja e Timer Global com Overtime](decisions/0009-stage-presets-church-branding-e-timer-global.md)
 
 ## Marca e design
 
