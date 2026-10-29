@@ -14,10 +14,11 @@
 - [Spec — Ajuste de tela cheia e conteúdo responsivo](specs/2026-10-28-ajuste-fullscreen-e-conteudo-responsivo.md)
 - [Plano — Saídas Public e Stage](plans/2026-10-28-multi-telas.md)
 
-## Painel operacional e Command Palette (v0.3.0)
+## Arquitetura Web — Rust/Axum + Svelte/shadcn-svelte (v0.3.0)
 
-- [Spec — Painel operacional e Command Palette](specs/2026-10-28-painel-operacional-e-command-palette.md)
-- [Plano — Painel operacional e Command Palette](plans/2026-10-28-painel-operacional-e-command-palette.md)
+- [Spec — Transição para Arquitetura Web](specs/2026-10-28-arquitetura-web-axum-svelte.md)
+- [Plano — Transição para Arquitetura Web](plans/2026-10-28-arquitetura-web-axum-svelte.md)
+- [ADR 0004 — Arquitetura Web com Rust/Axum e Svelte/shadcn-svelte](decisions/0004-arquitetura-web-axum-svelte.md)
 
 ## Arquitetura e decisões
 
@@ -26,11 +27,11 @@
 - [ADR 0001 — Workspace, rusqlite e Slint Material](decisions/0001-workspace-rusqlite-slint.md)
 - [ADR 0002 — Licença GPL-3.0-only e política de marca](decisions/0002-licenca-gpl-3.0.md)
 - [ADR 0003 — Saídas Public e Stage em janelas independentes](decisions/0003-saidas-multitela.md)
+- [ADR 0004 — Arquitetura Web com Rust/Axum e Svelte/shadcn-svelte](decisions/0004-arquitetura-web-axum-svelte.md)
 
-## Marca e dependências
+## Marca e design
 
 - [Branding](../assets/branding/README.md)
-- [Material vendorizado](../vendor/README.md)
 
 ## Governança e licença
 

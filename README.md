@@ -1,52 +1,67 @@
 # OpenPresenter Minimal
 
-Aplicativo desktop de projeção para igrejas e eventos. Esta é a versão **0.2.0**: um painel administrativo em Slint Material com duas saídas independentes — **Public** e **Stage** — configuráveis por monitor, além do estado do banco SQLite local.
+Aplicativo web e servidor de projeção para igrejas e eventos inspirado em ProPresenter e Holyrics. Esta é a versão **0.3.0**: backend robusto em **Rust + Axum** (com API REST, WebSocket em tempo real e SQLite) e frontend moderno em **Svelte 5 + TypeScript + Vite + Tailwind CSS + shadcn-svelte**, permitindo acesso a todas as telas diretamente pelo navegador web.
 
 ## Stack
 
-- Rust 2024 (MSRV 1.95)
-- Slint 1.18.1 com Material Components 1.1.0 vendorizado
-- `display-info` 0.5 para enumeração de monitores
-- SQLite via `rusqlite` (`bundled`) e `rusqlite_migration`
+- **Backend:** Rust 2024 (MSRV 1.95) com Axum 0.8, Tokio 1.44 e Tower-HTTP
+- **Tempo Real:** WebSocket bidirecional em `/ws` via `tokio::sync::broadcast`
+- **Banco de Dados:** SQLite via `rusqlite` (`bundled`) com WAL e `rusqlite_migration`
+- **Frontend:** Svelte 5, TypeScript, Vite, Tailwind CSS e componentes no padrão `shadcn-svelte`
 
-## Requisitos
+## Visões e Rotas
 
-- Rust 1.95 ou superior (validado com 1.96.0)
-- Ferramentas de build da plataforma exigidas pelo Slint (Xcode Command Line Tools no macOS)
+- **Painel do Operador (Admin):** `http://localhost:3000` (ou `/admin`)
+  - **Sidebar de Mídias:** lista de louvores, escrituras bíblicas e avisos usando itens no estilo Shadui (`MediaItemRow`), com busca e filtros por categoria.
+  - **Painel Central:** visualização dos slides da mídia selecionada com proporção 16:9, indicador de slide ao vivo e navegação rápida (`←`, `→`, `Espaço`).
+  - **Painel de Saídas & Previews:** pré-visualização em tempo real do **Public** e do **Stage** respeitando a proporção 16:9, botões para abrir as telas dedicadas e atalhos de projeção (**Ao Vivo**, **Blackout (F1)**, **Limpar Texto (F2)**).
+- **Tela de Projeção Pública:** `http://localhost:3000/public`
+  - Saída limpa para projetor e captura no OBS, com tipografia em alto contraste, proporção 16:9 e tela cheia nativa (`F`).
+- **Tela de Retorno do Palco:** `http://localhost:3000/stage`
+  - Retorno para o palco com relógio digital em tempo real (HH:MM:SS), data por extenso em português, slide atual destacado e prévia do próximo slide.
 
-## Como executar
+## Como Executar
+
+### 1. Construir o frontend:
+
+```bash
+cd frontend
+bun install   # ou npm install / pnpm install
+bun run build # ou npm run build
+cd ..
+```
+
+### 2. Iniciar o servidor OpenPresenter:
 
 ```bash
 cargo run -p op-admin
 ```
 
-## Saídas Public e Stage
+O servidor iniciará em `http://localhost:3000`.
 
-- **Public** — saída visível ao público. Vem ativa, com monitor **Automático** e modo **Automático**; nesse modo, abre em tela cheia quando o monitor não é o principal e em janela quando é o principal.
-- **Stage** — retorno para o palco e o apresentador. É opcional, vem desativado, com monitor **Principal** e modo **Janela**, e mostra relógio e data por extenso.
+### Modo Desenvolvimento com Hot Reload:
 
-Configure as saídas em **☰ → Configurações… → Saídas**:
+Em um terminal:
+```bash
+cargo run -p op-admin
+```
 
-- ativar ou desativar cada saída;
-- escolher o monitor e o modo: **Automático**, **Janela**, **Maximizada** ou **Tela cheia**;
-- reabrir uma saída habilitada que foi oculta com **Abrir agora**.
+Em outro terminal:
+```bash
+cd frontend
+bun run dev
+```
+O Vite proxy roteará automaticamente `/api` e `/ws` para `http://localhost:3000`.
 
-As mudanças são aplicadas imediatamente e persistidas no banco. As saídas habilitadas reabrem na inicialização no monitor salvo; se ele não estiver disponível, a saída usa o principal e mostra um aviso, sem apagar a preferência. Fechar uma saída pelo X apenas a oculta nesta sessão e mantém `enabled`; desativar fecha a janela e persiste a mudança. Com um único monitor, as saídas abrem como janelas normais. Não há detecção de hot-plug nesta versão.
+## Portões de Qualidade
 
-Nesta versão as saídas exibem **placeholders de marca**, não conteúdo de apresentação. A identidade do monitor é *best-effort* entre plataformas; quando ela muda, vale o fallback para o principal.
-
-| Saída | Ativa | Monitor | Modo |
-|-------|-------|---------|------|
-| Public | sim | Automático | Automático |
-| Stage | não | Principal | Janela |
-
-## Qualidade
+Antes de qualquer entrega, todos os testes e verificações estritas devem passar:
 
 ```bash
 cargo fmt --all
-cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cd frontend && bun run check && bun run build
 ```
 
 ## Dados
@@ -57,39 +72,30 @@ O banco `open-presenter.db` fica no diretório local de dados do sistema:
 - Windows: `%LOCALAPPDATA%\OpenPresenter`
 - Linux: `~/.local/share/OpenPresenter`
 
-O banco usa o **schema v2**, com as tabelas `app_meta` e `output_config`. A migração v1 → v2 é automática e preserva o histórico de execução.
-
-Para desenvolvimento, use `OPENPRESENTER_DATA_DIR` para apontar para outro diretório:
+Para desenvolvimento em diretório isolado:
 
 ```bash
 OPENPRESENTER_DATA_DIR=/tmp/openpresenter-dev cargo run -p op-admin
 ```
 
-O banco local, os arquivos `-wal`/`-shm` e os dados de usuário nunca são versionados.
-
-## Estrutura
+## Estrutura do Repositório
 
 ```text
 crates/
-├── op-core/    # tipos e constantes de domínio, sem UI ou SQLite
-├── op-db/      # SQLite, PRAGMAs e migrações
-└── op-admin/   # painel Slint, monitores, saídas e Configurações
-assets/branding/ # SVGs originais da marca
-vendor/          # Material Components vendorizado
-docs/            # specs, planos, arquitetura e decisões
+├── op-core/    # domínio puro: constantes, modelos de mídia, slides, AppMeta e mensagens WsMessage
+├── op-db/      # SQLite, PRAGMAs, migrações numeradas e persistência
+└── op-admin/   # binário open-presenter: Axum, WebSocket, rotas e serviço de arquivos estáticos
+frontend/       # aplicação cliente Svelte + TypeScript + Vite + Tailwind CSS
+assets/branding/ # assets visuais da marca OpenPresenter
+docs/           # especificações, planos de execução e decisões arquiteturais (ADRs)
 ```
 
-A direção de dependências é `op-admin` → `op-db` → `op-core`.
-
-## Versionamento
-
-- A versão do aplicativo segue SemVer e é definida apenas em `[workspace.package] version` no `Cargo.toml` raiz.
-- A versão do schema é independente e controlada por `PRAGMA user_version`; cada mudança de schema cria uma nova migração numerada em `crates/op-db/migrations/`. A versão atual é 2.
+A direção de dependências é: `frontend` → `op-admin` → `op-db` → `op-core`.
 
 ## Documentação
 
-O índice completo está em [`docs/README.md`](docs/README.md). A política de nome e identidade visual está em [`TRADEMARK.md`](TRADEMARK.md).
+O índice completo está em [`docs/README.md`](docs/README.md).
 
 ## Licença
 
-Código distribuído sob **GPL-3.0-only** — veja [`LICENSE`](LICENSE). A licença não concede direitos sobre o nome ou a identidade visual do OpenPresenter; veja [`TRADEMARK.md`](TRADEMARK.md).
+Código distribuído sob licença **GPL-3.0-only** — veja [`LICENSE`](LICENSE). A política de marca e nome está detalhada em [`TRADEMARK.md`](TRADEMARK.md).
