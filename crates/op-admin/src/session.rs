@@ -6,7 +6,7 @@ use op_core::{DEFAULT_LOCALE, STACK, TAGLINE, Theme, VERSION};
 use op_db::Database;
 
 /// Dados prontos para a tela inicial, inclusive em estado degradado.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[allow(dead_code)]
 pub struct SessionView {
     pub app_version: String,
