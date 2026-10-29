@@ -8,6 +8,20 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ### Adicionado
 
+- **Cancelamento Completo de Apresentação e Limpeza de "Ao Vivo":**
+  - Novo comando `StopPresentation` via WebSocket e endpoint `POST /api/presentation/stop`.
+  - Pressionar a tecla `Esc` ou clicar em "Parar" desativa instantaneamente a apresentação ao vivo, zerando `active_media_id` e `active_slide_index`.
+  - Remoção imediata do badge pulsante "AO VIVO" nos slides e limpeza de projeção de imagens e textos nas saídas públicas e nos previews de tela do operador.
+- **Tree Navigation Vertical e Breadcrumbs nas Abas de Mídia:**
+  - Coluna lateral de navegação em árvore vertical para a aba de Imagens (Todas, Pasta do App, e Pastas Mapeadas expansíveis) e para a aba de Fundos.
+  - Barra de Breadcrumbs dinâmica no topo do painel inferior para navegação hierárquica e retorno em um clique.
+- **Aba de Fundos com Gradientes, Mesh e Animações CSS:**
+  - Nova aba "Fundos & Gradientes" no painel inferior com biblioteca visual para projeção em cultos e eventos: Gradientes Lineares escuros, Mesh Gradients multicamadas e Animações CSS suaves (`@keyframes` de aurora boreal, nebulosa e fluxo cósmico).
+  - Aplicação instantânea ao vivo no projetor (`/public`) com 1 clique (mesmo sem apresentação ativa ou durante slides) via endpoint `POST /api/presentation/wallpaper` e WebSocket.
+  - Modal seletor visual `BackgroundSelectorModal` integrado também ao modal de edição de Setlist (`SetlistModal`).
+- **Sheet de Letras de Música Ampliado em 2 Colunas:**
+  - Abertura direta do Sheet ao clicar em qualquer parte do cartão da música no catálogo.
+  - Largura expandida do Sheet lateral e exibição dos slides formatados em grade de 2 colunas no aspecto 16:9.
 - **Seletor Gráfico Nativo de Pastas (File Picker):**
   - Diálogo gráfico nativo do sistema operacional (`osascript` no macOS com fallback web via `input[webkitdirectory]`) para seleção direta de diretórios de mídia em Configurações.
   - Endpoint `POST /api/system/pick-folder` no backend Rust para integração com o Finder.

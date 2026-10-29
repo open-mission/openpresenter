@@ -69,7 +69,23 @@
 4. **Atalhos Dedicados Livres de Conflito:**
    - Suporte a `.` (Blackout), `,` (Limpar Texto), `/` ou `Alt+W` (Papel de Parede) e teclas `F1`/`F2`/`F3`, sem conflito com atalhos de seções.
 
-### Fase 7: Portões de Qualidade e Lançamento
+### Fase 7: Fundos com Gradientes/Mesh/CSS Animado, Tree Navigation e Cancelamento Limpo
+1. **Cancelamento Limpo de Apresentação e Limpeza de "Ao Vivo":**
+   - Criar `stop_presentation` no backend (`POST /api/presentation/stop` e mensagem `WsMessage::StopPresentation`).
+   - Zerar `active_media_id` e `active_slide_index`.
+   - Limpar indicador "AO VIVO" e remover imagem/slide ao vivo dos previews do operador e tela pública no `Esc`.
+2. **Tree Navigation Vertical e Breadcrumbs:**
+   - Adicionar navegação em árvore vertical na coluna lateral esquerda para Imagens (Todas, App, Pastas mapeadas) e Fundos (Categorias de presets e locais).
+   - Adicionar barra de breadcrumbs no topo para navegação fluida entre pastas.
+3. **Sheet de Letras Ampliado em 2 Colunas:**
+   - Disparo do Sheet ao clicar em qualquer lugar do cartão da música.
+   - Largura estendida e exibição de slides em grade de 2 colunas.
+4. **Aba de Fundos e Presets Visuais:**
+   - Implementar catálogo de presets (`backgrounds.ts`): Gradientes, Mesh Gradients e Animações CSS com `@keyframes` no `app.css`.
+   - Grade de seleção com aplicação imediata ao vivo na projeção (`POST /api/presentation/wallpaper` ou WebSocket).
+   - Integração do seletor visual no modal de configuração de setlist (`SetlistModal.svelte`).
+
+### Fase 8: Portões de Qualidade e Lançamento
 1. `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`.
 2. `bun run check` e `bun run build`.
 3. Atualização de `CHANGELOG.md` e commits atômicos.

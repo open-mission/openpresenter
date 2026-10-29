@@ -47,6 +47,19 @@ Expandir o ambiente de apresentação e operação do OpenPresenter Minimal com 
 9. **Apresentação Rápida de Imagens e Sheet de Letra no Painel Inferior:**
    - Botão visível de apresentação rápida direta em cada cartão de imagem do painel inferior.
    - Gaveta lateral (Sheet) na aba Músicas para visualização instantânea da letra formatada completa e metadados antes de projetar ou adicionar à setlist.
+10. **Cancelamento Completo de Apresentação e Remoção de "Ao Vivo":**
+    - Interrupção total de apresentação (`stopPresentation`) ao pressionar `Esc` ou solicitar parada, zerando `active_media_id` e `active_slide_index`.
+    - Desativação imediata do indicador e badge "AO VIVO" nos slides e limpeza de imagens/textos ao vivo nas saídas e no preview do operador, retornando ao papel de parede ou tela de repouso.
+11. **Tree Navigation Vertical e Breadcrumbs nas Pastas de Imagens e Fundos:**
+    - Navegação em árvore vertical expansível/recolhível para pastas internas e externas na aba de Imagens e para categorias na aba de Fundos.
+    - Barra de Breadcrumbs dinâmica no topo do painel para rastreamento do caminho e navegação de retorno em 1 clique.
+12. **Visualização Ampliada da Letra com Slides em Duas Colunas:**
+    - Abertura direta do Sheet ao clicar em qualquer área do card da música no catálogo.
+    - Largura estendida do Sheet com renderização dos slides em grade de 2 colunas no aspecto 16:9.
+13. **Aba de Fundos com Gradientes, Mesh e Animações CSS:**
+    - Aba dedicada "Fundos" no painel inferior com presets de alta resolução para igrejas: Gradientes Lineares, Mesh Gradients e Animações CSS suaves.
+    - Aplicação instantânea ao vivo no projetor (`/public`) com transmissão via WebSocket/REST, mantendo o fundo definido para apresentações subsequentes.
+    - Seletor de fundos integrado ao modal de edição de Setlists (`SetlistModal`).
 
 ### Fora do escopo
 - Edição destrutiva de arquivos em pastas externas do usuário.
