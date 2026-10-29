@@ -33,36 +33,45 @@
   let selectedIndex = $state(0);
   let addedIds = $state<Record<string, boolean>>({});
   let inputElement = $state<HTMLInputElement | null>(null);
-  let debounceTimer: any = null;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let prevOpen = false;
 
+  // Gerencia abertura/fechamento do Command Palette
   $effect(() => {
-    if (open) {
-      // Auto-focus no campo de busca ao abrir
-      setTimeout(() => {
-        inputElement?.focus();
-        inputElement?.select();
-      }, 50);
-      searchLocal(query);
-    } else {
+    if (open && !prevOpen) {
       query = '';
       activeTab = 'local';
       localResults = [];
       onlineResults = [];
       selectedIndex = 0;
+      searchLocal('');
+      setTimeout(() => {
+        inputElement?.focus();
+      }, 50);
+    } else if (!open && prevOpen) {
+      if (debounceTimer) clearTimeout(debounceTimer);
     }
+    prevOpen = open;
   });
 
+  // Busca reativa com debounce ao digitar
   $effect(() => {
-    if (open && query !== undefined) {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        if (activeTab === 'local') {
-          searchLocal(query);
-        } else {
-          searchOnline(query);
-        }
-      }, 180);
-    }
+    if (!open) return;
+    const currentQuery = query;
+    const currentTab = activeTab;
+
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      if (currentTab === 'local') {
+        searchLocal(currentQuery);
+      } else {
+        searchOnline(currentQuery);
+      }
+    }, 150);
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
   });
 
   async function searchLocal(q: string) {

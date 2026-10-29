@@ -25,10 +25,11 @@
   let addToSetlist = $state(true);
   let isSaving = $state(false);
   let errorMessage = $state('');
+  let prevOpen = false;
 
-  // Sincroniza estado quando initialSong ou open mudar
+  // Sincroniza estado apenas na abertura do modal
   $effect(() => {
-    if (open) {
+    if (open && !prevOpen) {
       if (initialSong) {
         id = initialSong.id || `song-${Date.now()}`;
         title = initialSong.title || '';
@@ -57,6 +58,7 @@ Porque Ele vive, temor não há`;
       }
       errorMessage = '';
     }
+    prevOpen = open;
   });
 
   // Geração reativa dos slides e seções
