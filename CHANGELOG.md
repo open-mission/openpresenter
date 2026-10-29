@@ -6,7 +6,35 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
-## [0.6.0] - 2026-10-29
+## [0.7.0] - 2026-10-29
+
+### Adicionado
+
+- **Cores e Temas no Padrão Shadcn UI:**
+  - Configuração independente de **Base Color** (Neutral, Stone, Zinc, Mauve, Olive, Mist, Taupe) para tonalidade de fundo, cartões, bordas e textos neutros.
+  - Configuração de **Theme / Accent Color** (Neutral, Amber, Blue, Cyan, Emerald, Fuchsia, Green, Indigo, Lime, Orange, Pink, Purple, Rose, Violet, Yellow) para destaques operacionais, botões primários e anéis de foco.
+  - Injeção dinâmica de variáveis CSS no `:root` com persistência em `localStorage`.
+- **Sidebars Colapsáveis (Setlist e Previews):**
+  - Possibilidade de recolher a barra lateral da Setlist (esquerda) e o painel de Previews do Public/Stage (direita) com botões dedicados no cabeçalho e nas próprias barras laterais.
+  - Modos rail estreito colapsado com rótulos verticais e botões de restauração em um único clique, liberando largura total para a grade central de slides.
+- **Reorganização de Itens por Arrastar e Soltar (Drag and Drop):**
+  - Reordenação intuitiva de itens na Setlist arrastando os manipuladores `GripVertical`.
+  - Indicadores visuais de drop zone e sincronização automática via WebSocket e persistência no SQLite.
+- **Editor Unificado para Músicas e Textos Livres / Avisos:**
+  - Layout modal ocupando 95% da tela com editor de texto à esquerda e prévia 16:9 de slides à direita.
+  - Criação rápida de apresentações de avisos, anúncios ou orações sem necessidade de metadados musicais.
+- **Suporte a Markdown Typeset e Alinhamento nos Slides:**
+  - Barra de ferramentas typeset com formatação de **negrito** (`**`), *itálico* (`*`), <u>sublinhado</u> (`<u>` / `__`) e 🟨 **realce/highlight** (`==` / `<mark>`).
+  - Alinhamento horizontal (Esquerda, Centro, Direita, Justificado) e vertical (Topo, Centro, Base) dos slides.
+  - Renderização consistente da formatação na tela operacional, na tela pública e no retorno de palco.
+- **Painel Inferior Colapsável e Redimensionável (Bottom Panel):**
+  - Aba "Músicas": catálogo completo do banco com busca instantânea e ações de apresentação imediata ou adição à setlist.
+  - Aba "Imagens": galeria de mídias com visualização em grade, upload para a pasta interna do app e projeção direta.
+  - Borda superior redimensionável por arrasto, botão de recolher em barra discreta de ~36px e botão de maximização em 100%.
+- **Aba "Arquivos e Pastas" nas Configurações:**
+  - Exibição transparente das pastas do sistema do app (`data_dir`, banco de dados, `media/images`, `media/videos`, `media/wallpapers`, `fonts`).
+  - Mapeamento de pastas externas de imagens do usuário no disco sem duplicação de arquivos (zero-copy), servidas com segurança pela API REST.
+  - Nova tabela SQLite `media_folders` (migração `0005_media_folders.sql`) com schema versão 5.
 
 ### Adicionado
 
