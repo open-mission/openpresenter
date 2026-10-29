@@ -1,18 +1,20 @@
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// Nome público do aplicativo.
 pub const APP_NAME: &str = "OpenPresenter";
 /// Tagline exibida na interface.
 pub const TAGLINE: &str = "Projeção para igrejas e eventos";
-/// Stack apresentada na tela inicial.
-pub const STACK: &str = "Rust · Slint · SQLite";
+/// Stack apresentada na tela inicial e metadados.
+pub const STACK: &str = "Rust · Axum · Svelte · SQLite";
 /// Versão do aplicativo, herdada de `[workspace.package] version`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Idioma padrão do aplicativo.
 pub const DEFAULT_LOCALE: &str = "pt-BR";
 
 /// Preferência de tema, espelhada na coluna `theme` de `app_meta`.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Theme {
     #[default]
     System,
@@ -51,7 +53,8 @@ impl Theme {
 }
 
 /// Saída do aplicativo, espelhada na coluna `output` de `output_config`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum OutputKind {
     Public,
     Stage,
@@ -96,7 +99,8 @@ impl OutputKind {
 }
 
 /// Modo de exibição de uma saída, espelhado na coluna `mode` de `output_config`.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum OutputMode {
     #[default]
     Auto,
@@ -147,7 +151,8 @@ impl OutputMode {
 }
 
 /// Preferência de monitor de uma saída, persistida como chave textual.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value", rename_all = "lowercase")]
 pub enum MonitorSelection {
     #[default]
     Auto,
@@ -194,7 +199,7 @@ impl MonitorSelection {
 }
 
 /// Configuração de uma saída.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OutputConfig {
     pub kind: OutputKind,
     pub enabled: bool,
@@ -223,7 +228,7 @@ impl OutputConfig {
 }
 
 /// Configuração das duas saídas do aplicativo.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OutputsConfig {
     pub public: OutputConfig,
     pub stage: OutputConfig,
@@ -262,7 +267,7 @@ impl Default for OutputsConfig {
 }
 
 /// Estado persistido do aplicativo, correspondente ao registro único de `app_meta`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppMeta {
     pub app_version: String,
     pub first_run_at: DateTime<Utc>,
@@ -273,10 +278,122 @@ pub struct AppMeta {
 }
 
 /// Resultado de uma abertura de sessão: o estado atual e a execução anterior.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SessionInfo {
     pub current: AppMeta,
     pub previous_last_run_at: Option<DateTime<Utc>>,
+}
+
+/// Tipo ou categoria de um item de mídia.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MediaKind {
+    Song,
+    Scripture,
+    Announcement,
+    Media,
+}
+
+impl MediaKind {
+    pub const fn label_pt_br(&self) -> &'static str {
+        match self {
+            Self::Song => "Música",
+            Self::Scripture => "Bíblia",
+            Self::Announcement => "Aviso",
+            Self::Media => "Mídia",
+        }
+    }
+}
+
+/// Slide individual de um item de mídia.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Slide {
+    pub id: String,
+    pub label: String,
+    pub content: String,
+}
+
+/// Item de mídia na biblioteca do operador (ex.: louvor, texto bíblico, aviso).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MediaItem {
+    pub id: String,
+    pub title: String,
+    pub artist_or_ref: Option<String>,
+    pub kind: MediaKind,
+    pub slides: Vec<Slide>,
+}
+
+/// Modo de apresentação na tela pública.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DisplayMode {
+    #[default]
+    Live,
+    Blackout,
+    ClearText,
+}
+
+impl DisplayMode {
+    pub const fn label_pt_br(&self) -> &'static str {
+        match self {
+            Self::Live => "Ao Vivo",
+            Self::Blackout => "Blackout",
+            Self::ClearText => "Limpar Texto",
+        }
+    }
+}
+
+/// Estado completo de projeção em tempo real.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PresentationState {
+    pub active_media_id: Option<String>,
+    pub active_slide_index: Option<usize>,
+    pub display_mode: DisplayMode,
+    pub public_connected: bool,
+    pub stage_connected: bool,
+}
+
+impl Default for PresentationState {
+    fn default() -> Self {
+        Self {
+            active_media_id: None,
+            active_slide_index: None,
+            display_mode: DisplayMode::Live,
+            public_connected: false,
+            stage_connected: false,
+        }
+    }
+}
+
+/// Mensagem transmitida via WebSocket entre Admin, Public, Stage e servidor.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "payload", rename_all = "snake_case")]
+pub enum WsMessage {
+    /// Sincronização inicial ou completa enviada pelo backend ao conectar.
+    SyncState {
+        presentation: PresentationState,
+        media_items: Vec<MediaItem>,
+    },
+    /// Comando para disparar um slide específico ao vivo.
+    SelectSlide {
+        media_id: String,
+        slide_index: usize,
+    },
+    /// Comando para alterar o modo de exibição (Live, Blackout, ClearText).
+    SetDisplayMode {
+        mode: DisplayMode,
+    },
+    /// Identificação do cliente ao se conectar (admin, public, stage).
+    Identify {
+        client_type: String,
+    },
+    /// Notificação de atualização enviada aos clientes.
+    StateUpdated {
+        presentation: PresentationState,
+    },
+    /// Ping / Heartbeat para manter conexão viva.
+    Ping,
+    Pong,
 }
 
 #[cfg(test)]
@@ -372,5 +489,31 @@ mod tests {
         assert_eq!(outputs.get(OutputKind::Public).kind, OutputKind::Public);
         assert_eq!(outputs.get(OutputKind::Stage).kind, OutputKind::Stage);
         assert_eq!(outputs.iter().count(), 2);
+    }
+
+    #[test]
+    fn media_and_presentation_state_serialization() {
+        let media = MediaItem {
+            id: "song-1".into(),
+            title: "Porque Ele Vive".into(),
+            artist_or_ref: Some("Harpa Cristã".into()),
+            kind: MediaKind::Song,
+            slides: vec![Slide {
+                id: "s1".into(),
+                label: "Verso 1".into(),
+                content: "Deus enviou Seu Filho amado\nPara morrer em meu lugar".into(),
+            }],
+        };
+
+        let json = serde_json::to_string(&media).expect("serializes");
+        let parsed: MediaItem = serde_json::from_str(&json).expect("deserializes");
+        assert_eq!(parsed, media);
+
+        let ws_msg = WsMessage::SelectSlide {
+            media_id: "song-1".into(),
+            slide_index: 0,
+        };
+        let ws_json = serde_json::to_string(&ws_msg).expect("serializes");
+        assert!(ws_json.contains("select_slide"));
     }
 }
