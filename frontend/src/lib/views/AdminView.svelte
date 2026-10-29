@@ -16,7 +16,8 @@
     reorderSetlistItems,
     switchActiveSetlist,
   } from '$lib/ws';
-  import type { MediaItem, MediaKind, Setlist, SetlistSummary, Slide, Song } from '$lib/types';
+  import type { MediaItem, MediaKind, Setlist, SetlistSummary, Slide, Song, ImageMediaItem } from '$lib/types';
+  import { renderFormattedText } from '$lib/markdown';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import MediaItemRow from '$lib/components/ui/MediaItemRow.svelte';
@@ -25,6 +26,7 @@
   import SettingsModal from '$lib/components/SettingsModal.svelte';
   import SetlistModal from '$lib/components/SetlistModal.svelte';
   import QuickItemModal from '$lib/components/QuickItemModal.svelte';
+  import BottomPanel from '$lib/components/BottomPanel.svelte';
   import ContextMenu, { type MenuItem } from '$lib/components/ContextMenu.svelte';
   import {
     themeStore,
@@ -60,6 +62,10 @@
     Edit3,
     Trash2,
     Check,
+    PanelLeftClose,
+    PanelLeftOpen,
+    PanelRightClose,
+    PanelRightOpen,
   } from 'lucide-svelte';
 
   let selectedMediaId = $state<string>('song-1');
@@ -76,11 +82,20 @@
   let isSetlistSelectorOpen = $state(false);
   let isAddMenuOpen = $state(false);
 
+  // Controle de Sidebars Colapsáveis
+  let isSetlistSidebarOpen = $state(true);
+  let isPreviewSidebarOpen = $state(true);
+
+  // Modo do Editor e Mídia em Edição
+  let songEditorMode = $state<'song' | 'text'>('song');
   let editingSong = $state<Song | null>(null);
+  let editingItem = $state<MediaItem | null>(null);
   let editingSetlist = $state<Setlist | null>(null);
   let editingQuickItem = $state<MediaItem | null>(null);
   let renamingItemId = $state<string>('');
   let renamingItemTitle = $state<string>('');
+  let settingsInitialTab = $state<'appearance' | 'sections' | 'outputs' | 'files' | 'shortcuts' | 'about'>('appearance');
+  let draggedItemIndex = $state<number | null>(null);
 
   let setlistsList = $state<SetlistSummary[]>([]);
   let focusedSlideIndex = $state<number>(0);
@@ -514,12 +529,13 @@
       },
       {
         id: 'add_text',
-        label: 'Adicionar Texto Livre / Aviso',
+        label: 'Adicionar Texto Livre / Apresentação',
         icon: FileText,
         onclick: () => {
-          quickItemMode = 'announcement';
-          editingQuickItem = null;
-          isQuickItemModalOpen = true;
+          songEditorMode = 'text';
+          editingItem = null;
+          editingSong = null;
+          isSongEditorOpen = true;
         },
       },
       {
@@ -549,10 +565,12 @@
 
   async function handleEditItem(item: MediaItem) {
     if (item.kind === 'song') {
+      songEditorMode = 'song';
       try {
         const res = await fetch(`/api/songs/${item.id}`);
         if (res.ok) {
           editingSong = await res.json();
+          editingItem = null;
           isSongEditorOpen = true;
           return;
         }
@@ -564,12 +582,103 @@
         sections: [],
         lyrics_raw: item.slides.map((s) => s.content).join('\n\n'),
       };
+      editingItem = null;
       isSongEditorOpen = true;
-    } else if (item.kind === 'header' || item.kind === 'announcement') {
-      quickItemMode = item.kind;
+    } else if (item.kind === 'header') {
+      quickItemMode = 'header';
       editingQuickItem = item;
       isQuickItemModalOpen = true;
+    } else {
+      // Apresentação de Texto Livre / Aviso
+      songEditorMode = 'text';
+      editingItem = item;
+      editingSong = null;
+      isSongEditorOpen = true;
     }
+  }
+
+  async function handleDropReorder(fromIndex: number | null, toIndex: number) {
+    if (fromIndex === null || fromIndex === toIndex) return;
+    const items = [...$mediaItemsList];
+    const [moved] = items.splice(fromIndex, 1);
+    items.splice(toIndex, 0, moved);
+    draggedItemIndex = null;
+    await reorderSetlistItems(items);
+  }
+
+  async function handleAddSongToSetlist(songId: string) {
+    try {
+      await fetch('/api/setlist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song_id: songId }),
+      });
+      selectedMediaId = songId;
+    } catch (err) {
+      console.error('Erro ao adicionar música:', err);
+    }
+  }
+
+  async function handlePresentSong(songId: string) {
+    await handleAddSongToSetlist(songId);
+    selectSlide(songId, 0);
+  }
+
+  async function handlePresentImage(image: ImageMediaItem) {
+    const item: MediaItem = {
+      id: `img-${Date.now()}`,
+      title: image.name,
+      artist_or_ref: image.folder_name,
+      kind: 'image',
+      slides: [
+        {
+          id: 'slide-1',
+          label: 'Imagem',
+          content: image.url,
+        },
+      ],
+    };
+    try {
+      await fetch('/api/setlist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item }),
+      });
+      selectedMediaId = item.id;
+      selectSlide(item.id, 0);
+    } catch (err) {
+      console.error('Erro ao apresentar imagem:', err);
+    }
+  }
+
+  async function handleAddImageToSetlist(image: ImageMediaItem) {
+    const item: MediaItem = {
+      id: `img-${Date.now()}`,
+      title: image.name,
+      artist_or_ref: image.folder_name,
+      kind: 'image',
+      slides: [
+        {
+          id: 'slide-1',
+          label: 'Imagem',
+          content: image.url,
+        },
+      ],
+    };
+    try {
+      await fetch('/api/setlist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item }),
+      });
+      selectedMediaId = item.id;
+    } catch (err) {
+      console.error('Erro ao adicionar imagem à setlist:', err);
+    }
+  }
+
+  function handleItemSaved(item: MediaItem) {
+    selectedMediaId = item.id;
   }
 
   function handleOpenRename(item: MediaItem) {
@@ -638,13 +747,32 @@
 <div class="h-screen w-screen flex flex-col bg-neutral-950 text-neutral-100 overflow-hidden font-sans">
   <!-- Top Bar / Header Operacional -->
   <header class="h-14 border-b border-neutral-800/80 bg-neutral-900/60 px-4 flex items-center justify-between shrink-0">
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2.5">
+      <!-- Botão Alternar Barra Lateral da Setlist -->
+      <button
+        type="button"
+        onclick={() => (isSetlistSidebarOpen = !isSetlistSidebarOpen)}
+        class={cn(
+          'p-1.5 rounded-lg border transition-colors cursor-pointer',
+          isSetlistSidebarOpen
+            ? 'bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-750'
+            : 'bg-neutral-900/80 text-neutral-400 hover:text-white border-neutral-800 hover:bg-neutral-800'
+        )}
+        title={isSetlistSidebarOpen ? 'Recolher Setlist' : 'Expandir Setlist'}
+      >
+        {#if isSetlistSidebarOpen}
+          <PanelLeftClose size={16} />
+        {:else}
+          <PanelLeftOpen size={16} />
+        {/if}
+      </button>
+
       <!-- Logo Oficial com Tamanho Nítido e Sem Duplicação -->
-      <a href="/" class="flex items-center gap-2.5 group cursor-pointer" title="OpenPresenter Minimal">
+      <a href="/" class="flex items-center gap-2 group cursor-pointer" title="OpenPresenter Minimal">
         <img
           src="/branding/open-presenter-app-icon.svg"
           alt="OpenPresenter"
-          class="w-8 h-8 rounded-lg shadow-sm group-hover:scale-105 transition-transform shrink-0"
+          class="w-7 h-7 rounded-lg shadow-sm group-hover:scale-105 transition-transform shrink-0"
         />
         <div class="flex items-center text-lg leading-none font-sans select-none tracking-tight">
           <span class="font-bold text-white">Open</span><span class="font-normal text-neutral-300 ml-0.5">Presenter</span>
@@ -688,7 +816,7 @@
         size="sm"
         onclick={() => (isSettingsOpen = true)}
         class="gap-1.5 text-xs"
-        title="Configurações (Aparência, Atalhos, Cores)"
+        title="Configurações (Aparência, Pastas, Atalhos)"
       >
         <Settings size={14} class="text-neutral-400" />
         <span class="hidden md:inline">Configurações</span>
@@ -706,234 +834,289 @@
         <span class="hidden md:inline">Iniciar</span> Stage
         <ExternalLink size={12} class="opacity-60" />
       </Button>
+
+      <!-- Botão Alternar Painel de Saídas (Previews) -->
+      <button
+        type="button"
+        onclick={() => (isPreviewSidebarOpen = !isPreviewSidebarOpen)}
+        class={cn(
+          'p-1.5 rounded-lg border transition-colors cursor-pointer ml-1',
+          isPreviewSidebarOpen
+            ? 'bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-750'
+            : 'bg-neutral-900/80 text-neutral-400 hover:text-white border-neutral-800 hover:bg-neutral-800'
+        )}
+        title={isPreviewSidebarOpen ? 'Recolher Previews de Saída' : 'Expandir Previews de Saída'}
+      >
+        {#if isPreviewSidebarOpen}
+          <PanelRightClose size={16} />
+        {:else}
+          <PanelRightOpen size={16} />
+        {/if}
+      </button>
     </div>
   </header>
 
   <!-- Workspace Principal de 3 Colunas -->
   <div class="flex-1 flex overflow-hidden">
     <!-- COLUNA 1: SIDEBAR DE MÍDIAS / SETLIST (Esquerda) -->
-    <aside class="w-72 lg:w-80 border-r border-neutral-800/80 bg-neutral-900/30 flex flex-col shrink-0">
-      <!-- Cabeçalho da Setlist com Seletor e Ações -->
-      <div class="p-3 border-b border-neutral-800/80 space-y-2.5">
-        <div class="flex items-center justify-between">
-          <!-- Dropdown Seletor de Setlist -->
-          <div class="relative min-w-0 flex-1 mr-2">
-            <button
-              type="button"
-              onclick={() => (isSetlistSelectorOpen = !isSetlistSelectorOpen)}
-              class="w-full flex items-center justify-between gap-1.5 px-2 py-1 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-left transition-colors cursor-pointer group"
-              title="Alternar ou gerenciar Setlists"
-            >
-              <div class="flex items-center gap-1.5 min-w-0">
-                <Layers size={14} class="text-emerald-400 shrink-0" />
-                <span class="text-xs font-bold text-neutral-100 truncate">
-                  {currentSetlistTitle}
-                </span>
-              </div>
-              <ChevronDown size={13} class="text-neutral-500 group-hover:text-neutral-300 shrink-0" />
-            </button>
-
-            <!-- Dropdown Menu de Setlists -->
-            {#if isSetlistSelectorOpen}
-              <div
-                class="absolute left-0 top-full mt-1 w-64 rounded-xl border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
+    {#if isSetlistSidebarOpen}
+      <aside class="w-72 lg:w-80 border-r border-neutral-800/80 bg-neutral-900/30 flex flex-col shrink-0">
+        <!-- Cabeçalho da Setlist com Seletor e Ações -->
+        <div class="p-3 border-b border-neutral-800/80 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <!-- Dropdown Seletor de Setlist -->
+            <div class="relative min-w-0 flex-1 mr-2">
+              <button
+                type="button"
+                onclick={() => (isSetlistSelectorOpen = !isSetlistSelectorOpen)}
+                class="w-full flex items-center justify-between gap-1.5 px-2 py-1 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-left transition-colors cursor-pointer group"
+                title="Alternar ou gerenciar Setlists"
               >
-                <div class="px-2 py-1 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">
-                  Setlists Cadastradas
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <Layers size={14} class="text-emerald-400 shrink-0" />
+                  <span class="text-xs font-bold text-neutral-100 truncate">
+                    {currentSetlistTitle}
+                  </span>
                 </div>
+                <ChevronDown size={13} class="text-neutral-500 group-hover:text-neutral-300 shrink-0" />
+              </button>
 
-                <div class="max-h-48 overflow-y-auto space-y-0.5 py-1">
-                  {#each setlistsList as s (s.id)}
-                    <button
-                      type="button"
-                      onclick={() => handleSwitchSetlist(s.id)}
-                      class={cn(
-                        'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer',
-                        s.is_active || s.id === $presentationState.active_setlist_id
-                          ? 'bg-neutral-800 text-emerald-400 font-semibold'
-                          : 'hover:bg-neutral-850 text-neutral-300 hover:text-white'
-                      )}
-                    >
-                      <div class="min-w-0">
-                        <div class="truncate text-xs">{s.title}</div>
-                        {#if s.description}
-                          <div class="text-[10px] text-neutral-500 truncate">{s.description}</div>
+              <!-- Dropdown Menu de Setlists -->
+              {#if isSetlistSelectorOpen}
+                <div
+                  class="absolute left-0 top-full mt-1 w-64 rounded-xl border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
+                >
+                  <div class="px-2 py-1 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">
+                    Setlists Cadastradas
+                  </div>
+
+                  <div class="max-h-48 overflow-y-auto space-y-0.5 py-1">
+                    {#each setlistsList as s (s.id)}
+                      <button
+                        type="button"
+                        onclick={() => handleSwitchSetlist(s.id)}
+                        class={cn(
+                          'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer',
+                          s.is_active || s.id === $presentationState.active_setlist_id
+                            ? 'bg-neutral-800 text-emerald-400 font-semibold'
+                            : 'hover:bg-neutral-850 text-neutral-300 hover:text-white'
+                        )}
+                      >
+                        <div class="min-w-0">
+                          <div class="truncate text-xs">{s.title}</div>
+                          {#if s.description}
+                            <div class="text-[10px] text-neutral-500 truncate">{s.description}</div>
+                          {/if}
+                        </div>
+
+                        {#if s.is_active || s.id === $presentationState.active_setlist_id}
+                          <Check size={13} class="text-emerald-400 shrink-0 ml-1.5" />
                         {/if}
-                      </div>
+                      </button>
+                    {/each}
+                  </div>
 
-                      {#if s.is_active || s.id === $presentationState.active_setlist_id}
-                        <Check size={13} class="text-emerald-400 shrink-0 ml-1.5" />
-                      {/if}
-                    </button>
-                  {/each}
-                </div>
+                  <div class="h-[1px] bg-neutral-800 my-1"></div>
 
-                <div class="h-[1px] bg-neutral-800 my-1"></div>
-
-                <button
-                  type="button"
-                  onclick={handleOpenCreateSetlist}
-                  class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-neutral-200 hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
-                >
-                  <Plus size={13} class="text-emerald-400" />
-                  <span>+ Nova Setlist</span>
-                </button>
-
-                <button
-                  type="button"
-                  onclick={handleOpenEditSetlist}
-                  class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-neutral-200 hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
-                >
-                  <Settings size={13} class="text-neutral-400" />
-                  <span>Editar Setlist Atual...</span>
-                </button>
-
-                {#if setlistsList.length > 1}
                   <button
                     type="button"
-                    onclick={handleDeleteSetlist}
-                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors cursor-pointer"
+                    onclick={handleOpenCreateSetlist}
+                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-neutral-200 hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
                   >
-                    <Trash2 size={13} />
-                    <span>Excluir Setlist</span>
+                    <Plus size={13} class="text-emerald-400" />
+                    <span>+ Nova Setlist</span>
                   </button>
-                {/if}
-              </div>
-            {/if}
-          </div>
 
-          <!-- Botão + com Menu Suspenso de Adição -->
-          <div class="relative shrink-0 flex items-center gap-1.5">
-            <Badge variant="secondary" class="text-[11px] py-0 px-1.5">
-              {$mediaItemsList.length} itens
-            </Badge>
+                  <button
+                    type="button"
+                    onclick={handleOpenEditSetlist}
+                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-neutral-200 hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <Settings size={13} class="text-neutral-400" />
+                    <span>Editar Setlist Atual...</span>
+                  </button>
 
-            <button
-              type="button"
-              title="Adicionar à Setlist"
-              onclick={() => (isAddMenuOpen = !isAddMenuOpen)}
-              class="w-7 h-7 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center transition-colors cursor-pointer"
-            >
-              <Plus size={14} />
-            </button>
-
-            <!-- Dropdown Menu do Botão + -->
-            {#if isAddMenuOpen}
-              <div
-                class="absolute right-0 top-full mt-1.5 w-48 rounded-xl border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
-              >
-                <button
-                  type="button"
-                  onclick={() => {
-                    isAddMenuOpen = false;
-                    isCommandPaletteOpen = true;
-                  }}
-                  class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
-                >
-                  <Music size={14} class="text-emerald-400" />
-                  <span>Música (⌘K)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onclick={() => {
-                    isAddMenuOpen = false;
-                    quickItemMode = 'header';
-                    editingQuickItem = null;
-                    isQuickItemModalOpen = true;
-                  }}
-                  class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
-                >
-                  <Bookmark size={14} class="text-cyan-400" />
-                  <span>Seção / Divisor</span>
-                </button>
-
-                <button
-                  type="button"
-                  onclick={() => {
-                    isAddMenuOpen = false;
-                    quickItemMode = 'announcement';
-                    editingQuickItem = null;
-                    isQuickItemModalOpen = true;
-                  }}
-                  class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
-                >
-                  <FileText size={14} class="text-amber-400" />
-                  <span>Texto Livre / Aviso</span>
-                </button>
-
-                <div class="h-[1px] bg-neutral-800 my-1"></div>
-
-                <div
-                  class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-neutral-500 opacity-50 cursor-not-allowed"
-                >
-                  <div class="flex items-center gap-2.5">
-                    <BookOpen size={14} />
-                    <span>Versículo Bíblico</span>
-                  </div>
-                  <span class="text-[9px] uppercase tracking-wider font-mono">Em breve</span>
+                  {#if setlistsList.length > 1}
+                    <button
+                      type="button"
+                      onclick={handleDeleteSetlist}
+                      class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors cursor-pointer"
+                    >
+                      <Trash2 size={13} />
+                      <span>Excluir Setlist</span>
+                    </button>
+                  {/if}
                 </div>
-              </div>
-            {/if}
+              {/if}
+            </div>
+
+            <!-- Botão + com Menu Suspenso de Adição e Botão Fechar Sidebar -->
+            <div class="relative shrink-0 flex items-center gap-1.5">
+              <Badge variant="secondary" class="text-[11px] py-0 px-1.5">
+                {$mediaItemsList.length} itens
+              </Badge>
+
+              <button
+                type="button"
+                title="Adicionar à Setlist"
+                onclick={() => (isAddMenuOpen = !isAddMenuOpen)}
+                class="w-7 h-7 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <Plus size={14} />
+              </button>
+
+              <button
+                type="button"
+                title="Recolher Setlist"
+                onclick={() => (isSetlistSidebarOpen = false)}
+                class="w-7 h-7 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <PanelLeftClose size={14} />
+              </button>
+
+              <!-- Dropdown Menu do Botão + -->
+              {#if isAddMenuOpen}
+                <div
+                  class="absolute right-0 top-full mt-1.5 w-48 rounded-xl border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
+                >
+                  <button
+                    type="button"
+                    onclick={() => {
+                      isAddMenuOpen = false;
+                      isCommandPaletteOpen = true;
+                    }}
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <Music size={14} class="text-emerald-400" />
+                    <span>Música (⌘K)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => {
+                      isAddMenuOpen = false;
+                      quickItemMode = 'header';
+                      editingQuickItem = null;
+                      isQuickItemModalOpen = true;
+                    }}
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <Bookmark size={14} class="text-cyan-400" />
+                    <span>Seção / Divisor</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => {
+                      isAddMenuOpen = false;
+                      songEditorMode = 'text';
+                      editingItem = null;
+                      editingSong = null;
+                      isSongEditorOpen = true;
+                    }}
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <FileText size={14} class="text-amber-400" />
+                    <span>Texto Livre / Apresentação</span>
+                  </button>
+
+                  <div class="h-[1px] bg-neutral-800 my-1"></div>
+
+                  <div
+                    class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-neutral-500 opacity-50 cursor-not-allowed"
+                  >
+                    <div class="flex items-center gap-2.5">
+                      <BookOpen size={14} />
+                      <span>Versículo Bíblico</span>
+                    </div>
+                    <span class="text-[9px] uppercase tracking-wider font-mono">Em breve</span>
+                  </div>
+                </div>
+              {/if}
+            </div>
+          </div>
+
+          <!-- Barra de Busca -->
+          <div class="relative">
+            <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+            <input
+              type="text"
+              bind:value={searchQuery}
+              placeholder="Filtrar setlist (ou ⌘K p/ buscar)..."
+              class="w-full h-8 pl-8 pr-3 bg-neutral-900 border border-neutral-800 rounded-md text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
+            />
+          </div>
+
+          <!-- Filtros por Categoria -->
+          <div class="flex items-center gap-1 overflow-x-auto pb-0.5">
+            {#each [
+              { id: 'all', label: 'Todos' },
+              { id: 'song', label: 'Louvores' },
+              { id: 'scripture', label: 'Bíblia' },
+              { id: 'announcement', label: 'Avisos' },
+            ] as tab}
+              <button
+                type="button"
+                onclick={() => (filterKind = tab.id as any)}
+                class={cn(
+                  'px-2 py-1 rounded text-[11px] font-medium transition-colors shrink-0 cursor-pointer',
+                  filterKind === tab.id
+                    ? 'bg-neutral-800 text-emerald-400 font-semibold'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'
+                )}
+              >
+                {tab.label}
+              </button>
+            {/each}
           </div>
         </div>
 
-        <!-- Barra de Busca -->
-        <div class="relative">
-          <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
-          <input
-            type="text"
-            bind:value={searchQuery}
-            placeholder="Filtrar setlist (ou ⌘K p/ buscar)..."
-            class="w-full h-8 pl-8 pr-3 bg-neutral-900 border border-neutral-800 rounded-md text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
-          />
-        </div>
-
-        <!-- Filtros por Categoria -->
-        <div class="flex items-center gap-1 overflow-x-auto pb-0.5">
-          {#each [
-            { id: 'all', label: 'Todos' },
-            { id: 'song', label: 'Louvores' },
-            { id: 'scripture', label: 'Bíblia' },
-            { id: 'announcement', label: 'Avisos' },
-          ] as tab}
-            <button
-              type="button"
-              onclick={() => (filterKind = tab.id as any)}
-              class={cn(
-                'px-2 py-1 rounded text-[11px] font-medium transition-colors shrink-0 cursor-pointer',
-                filterKind === tab.id
-                  ? 'bg-neutral-800 text-emerald-400 font-semibold'
-                  : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'
-              )}
-            >
-              {tab.label}
-            </button>
+        <!-- Lista de Itens de Mídia com Reorganização Drag and Drop e Context Menu -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="flex-1 overflow-y-auto p-2.5 space-y-1.5"
+          oncontextmenu={handleEmptyContextMenu}
+        >
+          {#each filteredMedia as item, idx (item.id)}
+            <MediaItemRow
+              {item}
+              index={idx}
+              selected={selectedMediaId === item.id}
+              isLive={$presentationState.active_media_id === item.id}
+              onclick={() => (selectedMediaId = item.id)}
+              oncontextmenu={(e) => handleItemContextMenu(e, item)}
+              ondragstartitem={(e, i) => (draggedItemIndex = i)}
+              ondropitem={(e, targetIdx) => handleDropReorder(draggedItemIndex, targetIdx)}
+            />
+          {:else}
+            <div class="p-6 text-center text-xs text-neutral-500">
+              Nenhuma mídia encontrada na Setlist. Clique com o botão direito para adicionar.
+            </div>
           {/each}
         </div>
-      </div>
-
-      <!-- Lista de Itens de Mídia com Suporte a Context Menu -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="flex-1 overflow-y-auto p-2.5 space-y-1.5"
-        oncontextmenu={handleEmptyContextMenu}
-      >
-        {#each filteredMedia as item (item.id)}
-          <MediaItemRow
-            {item}
-            selected={selectedMediaId === item.id}
-            isLive={$presentationState.active_media_id === item.id}
-            onclick={() => (selectedMediaId = item.id)}
-            oncontextmenu={(e) => handleItemContextMenu(e, item)}
-          />
-        {:else}
-          <div class="p-6 text-center text-xs text-neutral-500">
-            Nenhuma mídia encontrada na Setlist. Clique com o botão direito para adicionar.
-          </div>
-        {/each}
-      </div>
-    </aside>
+      </aside>
+    {:else}
+      <!-- Rail Colapsado da Setlist -->
+      <aside class="w-10 border-r border-neutral-800/80 bg-neutral-900/40 flex flex-col items-center py-3 gap-4 shrink-0 select-none">
+        <button
+          type="button"
+          onclick={() => (isSetlistSidebarOpen = true)}
+          class="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+          title="Expandir Setlist"
+        >
+          <PanelLeftOpen size={16} />
+        </button>
+        <span
+          class="text-[10px] uppercase font-bold tracking-widest text-neutral-400 [writing-mode:vertical-lr] rotate-180 cursor-pointer hover:text-white transition-colors py-2"
+          onclick={() => (isSetlistSidebarOpen = true)}
+          role="button"
+          tabindex="0"
+          onkeydown={(e) => { if (e.key === 'Enter') isSetlistSidebarOpen = true; }}
+        >
+          Setlist ({$mediaItemsList.length})
+        </span>
+      </aside>
+    {/if}
 
     <!-- COLUNA 2: PAINEL CENTRAL DE SLIDES / PREVIEW -->
     <main class="flex-1 flex flex-col min-w-0 bg-neutral-950/60 overflow-hidden">
@@ -1069,12 +1252,35 @@
                 </div>
 
                 <!-- Conteúdo Visual do Slide (Proporção 16:9) -->
-                <div class="aspect-video w-full p-4 flex flex-col items-center justify-center text-center bg-black/60 relative">
-                  <div class="space-y-1.5 max-w-full">
-                    {#each slide.content.split('\n') as line}
-                      <p
+                {#if selectedMedia.kind === 'image'}
+                  <div class="aspect-video w-full bg-black/80 flex items-center justify-center relative overflow-hidden">
+                    <img src={slide.content} alt={selectedMedia.title} class="w-full h-full object-contain" />
+                    <span class="absolute bottom-1.5 right-2 text-[10px] text-neutral-400 font-mono bg-black/60 px-1 rounded">
+                      Imagem 16:9
+                    </span>
+                  </div>
+                {:else}
+                  <div class="aspect-video w-full p-4 flex flex-col bg-black/60 relative overflow-hidden">
+                    <div
+                      class={cn(
+                        'w-full h-full flex flex-col leading-tight',
+                        (slide.align_h || selectedMedia.align_h) === 'left'
+                          ? 'text-left items-start'
+                          : (slide.align_h || selectedMedia.align_h) === 'right'
+                            ? 'text-right items-end'
+                            : (slide.align_h || selectedMedia.align_h) === 'justify'
+                              ? 'text-justify items-center'
+                              : 'text-center items-center',
+                        (slide.align_v || selectedMedia.align_v) === 'top'
+                          ? 'justify-start'
+                          : (slide.align_v || selectedMedia.align_v) === 'bottom'
+                            ? 'justify-end'
+                            : 'justify-center'
+                      )}
+                    >
+                      <div
                         class={cn(
-                          'text-xs sm:text-sm font-semibold truncate leading-tight',
+                          'text-xs sm:text-sm font-semibold select-none leading-relaxed',
                           isLive
                             ? 'text-emerald-200'
                             : isFocused
@@ -1082,15 +1288,15 @@
                               : 'text-neutral-200 group-hover:text-white'
                         )}
                       >
-                        {line}
-                      </p>
-                    {/each}
-                  </div>
+                        {@html renderFormattedText(slide.content)}
+                      </div>
+                    </div>
 
-                  <span class="absolute bottom-1.5 right-2 text-[10px] text-neutral-600 font-mono">
-                    16:9
-                  </span>
-                </div>
+                    <span class="absolute bottom-1.5 right-2 text-[10px] text-neutral-600 font-mono">
+                      16:9
+                    </span>
+                  </div>
+                {/if}
               </div>
             {/each}
           </div>
@@ -1103,175 +1309,241 @@
     </main>
 
     <!-- COLUNA 3: PAINEL DE PREVIEWS (PUBLIC E STAGE - 16:9) -->
-    <aside class="w-80 lg:w-96 border-l border-neutral-800/80 bg-neutral-900/30 flex flex-col shrink-0 overflow-y-auto">
-      <!-- Botões de Controle Global da Projeção -->
-      <div class="p-3 border-b border-neutral-800/80 space-y-2 bg-neutral-900/60 shrink-0">
-        <span class="text-xs font-semibold text-neutral-400 uppercase tracking-wider block">
-          Controle de Saídas
-        </span>
-
-        <div class="grid grid-cols-3 gap-1.5">
-          <!-- Botão Ao Vivo -->
-          <Button
-            variant={$presentationState.display_mode === 'live' ? 'live' : 'secondary'}
-            size="sm"
-            onclick={() => setDisplayMode('live')}
-            class="text-xs"
-          >
-            <Radio size={13} />
-            Ao Vivo
-          </Button>
-
-          <!-- Botão Blackout -->
-          <Button
-            variant={$presentationState.display_mode === 'blackout' ? 'destructive' : 'secondary'}
-            size="sm"
-            onclick={toggleBlackout}
-            class="text-xs"
-            title="Blackout total (F1)"
-          >
-            <EyeOff size={13} />
-            Blackout
-          </Button>
-
-          <!-- Botão Limpar Texto -->
-          <Button
-            variant={$presentationState.display_mode === 'cleartext' ? 'default' : 'secondary'}
-            size="sm"
-            onclick={toggleClearText}
-            class="text-xs"
-            title="Ocultar texto (F2)"
-          >
-            <Slash size={13} />
-            Limpar
-          </Button>
-        </div>
-      </div>
-
-      <!-- PREVIEW PUBLIC (16:9) -->
-      <div class="p-3 border-b border-neutral-800/80 space-y-2">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-1.5">
-            <MonitorPlay size={14} class="text-emerald-400" />
-            <span class="text-xs font-bold text-neutral-200">Public (Projetor)</span>
+    {#if isPreviewSidebarOpen}
+      <aside class="w-80 lg:w-96 border-l border-neutral-800/80 bg-neutral-900/30 flex flex-col shrink-0 overflow-y-auto">
+        <!-- Botões de Controle Global da Projeção e Botão Fechar Sidebar -->
+        <div class="p-3 border-b border-neutral-800/80 space-y-2 bg-neutral-900/60 shrink-0">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-neutral-400 uppercase tracking-wider block">
+              Controle de Saídas
+            </span>
+            <button
+              type="button"
+              onclick={() => (isPreviewSidebarOpen = false)}
+              class="w-6 h-6 rounded hover:bg-neutral-800 text-neutral-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              title="Recolher painel de saídas"
+            >
+              <PanelRightClose size={14} />
+            </button>
           </div>
 
-          <Badge variant={$presentationState.public_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
-            {$presentationState.public_connected ? 'Conectado' : 'Aguardando'}
-          </Badge>
+          <div class="grid grid-cols-3 gap-1.5">
+            <!-- Botão Ao Vivo -->
+            <Button
+              variant={$presentationState.display_mode === 'live' ? 'live' : 'secondary'}
+              size="sm"
+              onclick={() => setDisplayMode('live')}
+              class="text-xs"
+            >
+              <Radio size={13} />
+              Ao Vivo
+            </Button>
+
+            <!-- Botão Blackout -->
+            <Button
+              variant={$presentationState.display_mode === 'blackout' ? 'destructive' : 'secondary'}
+              size="sm"
+              onclick={toggleBlackout}
+              class="text-xs"
+              title="Blackout total (F1)"
+            >
+              <EyeOff size={13} />
+              Blackout
+            </Button>
+
+            <!-- Botão Limpar Texto -->
+            <Button
+              variant={$presentationState.display_mode === 'cleartext' ? 'default' : 'secondary'}
+              size="sm"
+              onclick={toggleClearText}
+              class="text-xs"
+              title="Ocultar texto (F2)"
+            >
+              <Slash size={13} />
+              Limpar
+            </Button>
+          </div>
         </div>
 
-        <!-- Caixa de Preview do Public com Aspect Ratio 16:9 -->
-        <div class="w-full aspect-video rounded-lg bg-black border border-neutral-800 flex flex-col items-center justify-center p-3 text-center relative overflow-hidden shadow-inner">
-          {#if $presentationState.display_mode === 'blackout'}
-            <div class="text-[11px] font-bold text-red-500 uppercase tracking-widest z-10">
-              Blackout Ativo
+        <!-- PREVIEW PUBLIC (16:9) -->
+        <div class="p-3 border-b border-neutral-800/80 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <MonitorPlay size={14} class="text-emerald-400" />
+              <span class="text-xs font-bold text-neutral-200">Public (Projetor)</span>
             </div>
-          {:else}
-            <!-- Wallpaper Preview -->
-            {#if $presentationState.wallpaper_path}
-              <img
-                src={$presentationState.wallpaper_path}
-                alt="Wallpaper"
-                class="absolute inset-0 w-full h-full object-cover opacity-60 pointer-events-none"
-              />
-            {/if}
 
-            {#if $presentationState.display_mode === 'cleartext'}
-              <div class="text-[11px] font-medium text-neutral-300 italic z-10 drop-shadow-sm">
-                Texto Oculto (Plano de Fundo Ativo)
+            <Badge variant={$presentationState.public_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
+              {$presentationState.public_connected ? 'Conectado' : 'Aguardando'}
+            </Badge>
+          </div>
+
+          <!-- Caixa de Preview do Public com Aspect Ratio 16:9 -->
+          <div class="w-full aspect-video rounded-lg bg-black border border-neutral-800 flex flex-col items-center justify-center p-3 text-center relative overflow-hidden shadow-inner">
+            {#if $presentationState.display_mode === 'blackout'}
+              <div class="text-[11px] font-bold text-red-500 uppercase tracking-widest z-10">
+                Blackout Ativo
               </div>
-            {:else if liveSlide}
-              <div class="space-y-1 my-auto max-w-full z-10">
-                {#each liveSlide.content.split('\n') as line}
-                  <p class="text-[11px] sm:text-xs font-bold text-white truncate leading-tight drop-shadow-md">
-                    {line}
-                  </p>
-                {/each}
-              </div>
-              {#if liveMedia?.artist_or_ref}
-                <span class="text-[9px] text-neutral-400 truncate mt-auto z-10">
-                  {liveMedia.title}
-                </span>
+            {:else}
+              <!-- Wallpaper Preview -->
+              {#if $presentationState.wallpaper_path}
+                <img
+                  src={$presentationState.wallpaper_path}
+                  alt="Wallpaper"
+                  class="absolute inset-0 w-full h-full object-cover opacity-60 pointer-events-none"
+                />
               {/if}
-            {:else}
-              <div class="text-[11px] text-neutral-400 z-10">
-                {$presentationState.wallpaper_path ? 'Papel de Parede em Repouso' : 'Nenhum slide ao vivo'}
-              </div>
+
+              {#if liveMedia?.kind === 'image' && liveSlide}
+                <img
+                  src={liveSlide.content}
+                  alt={liveMedia.title}
+                  class="absolute inset-0 w-full h-full object-contain z-10"
+                />
+              {:else if $presentationState.display_mode === 'cleartext'}
+                <div class="text-[11px] font-medium text-neutral-300 italic z-10 drop-shadow-sm">
+                  Texto Oculto (Plano de Fundo Ativo)
+                </div>
+              {:else if liveSlide}
+                <div
+                  class={cn(
+                    'w-full h-full flex flex-col p-2.5 z-10 leading-tight',
+                    (liveSlide.align_h || liveMedia?.align_h) === 'left'
+                      ? 'text-left items-start'
+                      : (liveSlide.align_h || liveMedia?.align_h) === 'right'
+                        ? 'text-right items-end'
+                        : (liveSlide.align_h || liveMedia?.align_h) === 'justify'
+                          ? 'text-justify items-center'
+                          : 'text-center items-center',
+                    (liveSlide.align_v || liveMedia?.align_v) === 'top'
+                      ? 'justify-start'
+                      : (liveSlide.align_v || liveMedia?.align_v) === 'bottom'
+                        ? 'justify-end'
+                        : 'justify-center'
+                  )}
+                >
+                  <div class="text-[11px] sm:text-xs font-bold text-white leading-tight drop-shadow-md">
+                    {@html renderFormattedText(liveSlide.content)}
+                  </div>
+                </div>
+                {#if liveMedia?.artist_or_ref}
+                  <span class="text-[9px] text-neutral-400 truncate mt-auto z-10 absolute bottom-1.5 left-2.5">
+                    {liveMedia.title}
+                  </span>
+                {/if}
+              {:else}
+                <div class="text-[11px] text-neutral-400 z-10">
+                  {$presentationState.wallpaper_path ? 'Papel de Parede em Repouso' : 'Nenhum slide ao vivo'}
+                </div>
+              {/if}
             {/if}
-          {/if}
 
-          <span class="absolute top-1.5 right-2 text-[9px] text-neutral-500 font-mono z-20">16:9</span>
-        </div>
-
-        <Button variant="secondary" size="sm" onclick={openPublicWindow} class="w-full text-xs gap-1.5">
-          <ExternalLink size={13} />
-          Abrir Janela do Public
-        </Button>
-      </div>
-
-      <!-- PREVIEW STAGE (16:9) -->
-      <div class="p-3 space-y-2">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-1.5">
-            <Tv size={14} class="text-emerald-400" />
-            <span class="text-xs font-bold text-neutral-200">Stage (Retorno Palco)</span>
+            <span class="absolute top-1.5 right-2 text-[9px] text-neutral-500 font-mono z-20">16:9</span>
           </div>
 
-          <Badge variant={$presentationState.stage_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
-            {$presentationState.stage_connected ? 'Conectado' : 'Aguardando'}
-          </Badge>
+          <Button variant="secondary" size="sm" onclick={openPublicWindow} class="w-full text-xs gap-1.5">
+            <ExternalLink size={13} />
+            Abrir Janela do Public
+          </Button>
         </div>
 
-        <!-- Caixa de Preview do Stage com Aspect Ratio 16:9 -->
-        <div class="w-full aspect-video rounded-lg bg-[#070709] border border-neutral-800 p-2.5 flex flex-col justify-between relative overflow-hidden shadow-inner font-mono text-[10px]">
-          <!-- Topo do Stage Preview -->
-          <div class="flex items-center justify-between text-neutral-400 border-b border-neutral-800/60 pb-1">
-            <span class="text-[9px] uppercase font-bold text-emerald-400">Retorno</span>
-            <div class="flex items-center gap-1 text-white font-bold">
-              <Clock size={10} class="text-emerald-400" />
-              <span>{stageClock || '00:00:00'}</span>
+        <!-- PREVIEW STAGE (16:9) -->
+        <div class="p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <Tv size={14} class="text-emerald-400" />
+              <span class="text-xs font-bold text-neutral-200">Stage (Retorno Palco)</span>
             </div>
+
+            <Badge variant={$presentationState.stage_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
+              {$presentationState.stage_connected ? 'Conectado' : 'Aguardando'}
+            </Badge>
           </div>
 
-          <!-- Meio do Stage Preview -->
-          <div class="my-auto py-1 space-y-1">
-            {#if liveSlide}
-              <div class="p-1 rounded bg-neutral-900/80 border border-emerald-500/30">
-                <span class="text-[8px] text-emerald-400 font-bold block">ATUAL:</span>
-                <p class="text-[9px] font-bold text-neutral-100 truncate">
-                  {liveSlide.content.split('\n')[0]}
-                </p>
+          <!-- Caixa de Preview do Stage com Aspect Ratio 16:9 -->
+          <div class="w-full aspect-video rounded-lg bg-[#070709] border border-neutral-800 p-2.5 flex flex-col justify-between relative overflow-hidden shadow-inner font-mono text-[10px]">
+            <!-- Topo do Stage Preview -->
+            <div class="flex items-center justify-between text-neutral-400 border-b border-neutral-800/60 pb-1">
+              <span class="text-[9px] uppercase font-bold text-emerald-400">Retorno</span>
+              <div class="flex items-center gap-1 text-white font-bold">
+                <Clock size={10} class="text-emerald-400" />
+                <span>{stageClock || '00:00:00'}</span>
               </div>
-            {:else}
-              <p class="text-neutral-600 text-center text-[9px]">Aguardando slide</p>
-            {/if}
+            </div>
 
-            {#if nextLiveSlide}
-              <div class="p-1 rounded bg-neutral-900/40 border border-neutral-800">
-                <span class="text-[8px] text-neutral-500 font-bold block">A SEGUIR:</span>
-                <p class="text-[9px] text-neutral-400 truncate">
-                  {nextLiveSlide.content.split('\n')[0]}
-                </p>
-              </div>
-            {/if}
+            <!-- Meio do Stage Preview -->
+            <div class="my-auto py-1 space-y-1">
+              {#if liveSlide}
+                <div class="p-1 rounded bg-neutral-900/80 border border-emerald-500/30">
+                  <span class="text-[8px] text-emerald-400 font-bold block">ATUAL:</span>
+                  <p class="text-[9px] font-bold text-neutral-100 truncate">
+                    {liveSlide.content.split('\n')[0]}
+                  </p>
+                </div>
+              {:else}
+                <p class="text-neutral-600 text-center text-[9px]">Aguardando slide</p>
+              {/if}
+
+              {#if nextLiveSlide}
+                <div class="p-1 rounded bg-neutral-900/40 border border-neutral-800">
+                  <span class="text-[8px] text-neutral-500 font-bold block">A SEGUIR:</span>
+                  <p class="text-[9px] text-neutral-400 truncate">
+                    {nextLiveSlide.content.split('\n')[0]}
+                  </p>
+                </div>
+              {/if}
+            </div>
+
+            <span class="absolute bottom-1 right-2 text-[9px] text-neutral-700 font-mono">16:9</span>
           </div>
 
-          <span class="absolute bottom-1 right-2 text-[9px] text-neutral-700 font-mono">16:9</span>
+          <Button variant="secondary" size="sm" onclick={openStageWindow} class="w-full text-xs gap-1.5">
+            <ExternalLink size={13} />
+            Abrir Janela do Stage
+          </Button>
         </div>
-
-        <Button variant="secondary" size="sm" onclick={openStageWindow} class="w-full text-xs gap-1.5">
-          <ExternalLink size={13} />
-          Abrir Janela do Stage
-        </Button>
-      </div>
-    </aside>
+      </aside>
+    {:else}
+      <!-- Rail Colapsado de Previews -->
+      <aside class="w-10 border-l border-neutral-800/80 bg-neutral-900/40 flex flex-col items-center py-3 gap-4 shrink-0 select-none">
+        <button
+          type="button"
+          onclick={() => (isPreviewSidebarOpen = true)}
+          class="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+          title="Expandir Previews de Saída"
+        >
+          <PanelRightOpen size={16} />
+        </button>
+        <span
+          class="text-[10px] uppercase font-bold tracking-widest text-neutral-400 [writing-mode:vertical-lr] cursor-pointer hover:text-white transition-colors py-2"
+          onclick={() => (isPreviewSidebarOpen = true)}
+          role="button"
+          tabindex="0"
+          onkeydown={(e) => { if (e.key === 'Enter') isPreviewSidebarOpen = true; }}
+        >
+          Saídas (Public / Stage)
+        </span>
+      </aside>
+    {/if}
   </div>
+
+  <!-- Painel Inferior Colapsável e Redimensionável (Músicas e Imagens) -->
+  <BottomPanel
+    onaddsongtosetlist={handleAddSongToSetlist}
+    onpresentsong={handlePresentSong}
+    onpresentimage={handlePresentImage}
+    onaddimagetosetlist={handleAddImageToSetlist}
+    onopensongeditor={handleOpenCreate}
+    onopenfolderconfig={() => {
+      settingsInitialTab = 'files';
+      isSettingsOpen = true;
+    }}
+  />
 
   <!-- Floating Number Buffer HUD -->
   {#if numberBuffer}
     <div
-      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-emerald-600 text-white font-mono font-bold text-base rounded-xl shadow-2xl flex items-center gap-2.5 border border-emerald-400/50"
+      class="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-emerald-600 text-white font-mono font-bold text-base rounded-xl shadow-2xl flex items-center gap-2.5 border border-emerald-400/50"
     >
       <span class="text-xs uppercase tracking-wider text-emerald-200">Ir para slide:</span>
       <span class="text-lg underline decoration-2">{numberBuffer}</span>
@@ -1336,12 +1608,16 @@
 
   <SongEditorModal
     open={isSongEditorOpen}
+    mode={songEditorMode}
     initialSong={editingSong}
+    initialItem={editingItem}
     onclose={() => {
       isSongEditorOpen = false;
       editingSong = null;
+      editingItem = null;
     }}
     onsave={handleSongSaved}
+    onsaveItem={handleItemSaved}
   />
 
   <SetlistModal
@@ -1367,6 +1643,7 @@
 
   <SettingsModal
     open={isSettingsOpen}
+    initialTab={settingsInitialTab}
     onclose={() => (isSettingsOpen = false)}
   />
 </div>

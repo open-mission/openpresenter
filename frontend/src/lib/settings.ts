@@ -2,23 +2,72 @@ import { writable } from 'svelte/store';
 
 export type ThemeMode = 'system' | 'dark' | 'light';
 
-export type NeutralFamily = 'neutral' | 'zinc' | 'slate' | 'stone' | 'gray';
+export type BaseColor = 'neutral' | 'stone' | 'zinc' | 'mauve' | 'olive' | 'mist' | 'taupe';
+export type NeutralFamily = BaseColor; // retrocompatibilidade
+
+export type AccentTheme =
+  | 'neutral'
+  | 'amber'
+  | 'blue'
+  | 'cyan'
+  | 'emerald'
+  | 'fuchsia'
+  | 'green'
+  | 'indigo'
+  | 'lime'
+  | 'orange'
+  | 'pink'
+  | 'purple'
+  | 'rose'
+  | 'violet'
+  | 'yellow';
 
 export type WallpaperFitMode = 'cover' | 'contain' | 'center' | 'repeat';
 
-export interface NeutralPreset {
-  id: NeutralFamily;
+export interface BaseColorPreset {
+  id: BaseColor;
   label: string;
   description: string;
   previewColor: string;
 }
 
-export const NEUTRAL_PRESETS: NeutralPreset[] = [
-  { id: 'neutral', label: 'Neutro (Padrão)', description: 'Tons neutros puros e elegantes', previewColor: '#171717' },
-  { id: 'zinc', label: 'Zinc', description: 'Tons neutros modernos ligeiramente azulados', previewColor: '#18181b' },
-  { id: 'slate', label: 'Slate', description: 'Tons frios contemporâneos', previewColor: '#0f172a' },
+export const BASE_COLOR_PRESETS: BaseColorPreset[] = [
+  { id: 'neutral', label: 'Neutral', description: 'Tons neutros puros e equilibrados (Padrão)', previewColor: '#171717' },
   { id: 'stone', label: 'Stone', description: 'Tons quentes e acolhedores', previewColor: '#1c1917' },
-  { id: 'gray', label: 'Gray', description: 'Cinza clássico balanceado', previewColor: '#111827' },
+  { id: 'zinc', label: 'Zinc', description: 'Tons neutros modernos ligeiramente azulados', previewColor: '#18181b' },
+  { id: 'mauve', label: 'Mauve', description: 'Tons sutis com nuances de ardósia e malva', previewColor: '#282338' },
+  { id: 'olive', label: 'Olive', description: 'Tons neutros com nuances de oliva terrosa', previewColor: '#222b25' },
+  { id: 'mist', label: 'Mist', description: 'Tons acinzentados frios e arejados', previewColor: '#202936' },
+  { id: 'taupe', label: 'Taupe', description: 'Tons terrosos clássicos e sóbrios', previewColor: '#2e2b26' },
+];
+
+export const NEUTRAL_PRESETS = BASE_COLOR_PRESETS;
+
+export interface AccentThemePreset {
+  id: AccentTheme;
+  label: string;
+  previewColor: string;
+  primaryColor: string;
+  primaryForeground: string;
+  ringColor: string;
+}
+
+export const ACCENT_THEME_PRESETS: AccentThemePreset[] = [
+  { id: 'neutral', label: 'Neutral', previewColor: '#e5e5e5', primaryColor: '#fafafa', primaryForeground: '#0a0a0a', ringColor: '#a3a3a3' },
+  { id: 'amber', label: 'Amber', previewColor: '#f59e0b', primaryColor: '#f59e0b', primaryForeground: '#000000', ringColor: '#f59e0b' },
+  { id: 'blue', label: 'Blue', previewColor: '#3b82f6', primaryColor: '#3b82f6', primaryForeground: '#ffffff', ringColor: '#3b82f6' },
+  { id: 'cyan', label: 'Cyan', previewColor: '#06b6d4', primaryColor: '#06b6d4', primaryForeground: '#000000', ringColor: '#06b6d4' },
+  { id: 'emerald', label: 'Emerald', previewColor: '#10b981', primaryColor: '#10b981', primaryForeground: '#000000', ringColor: '#10b981' },
+  { id: 'fuchsia', label: 'Fuchsia', previewColor: '#d946ef', primaryColor: '#d946ef', primaryForeground: '#ffffff', ringColor: '#d946ef' },
+  { id: 'green', label: 'Green', previewColor: '#22c55e', primaryColor: '#22c55e', primaryForeground: '#000000', ringColor: '#22c55e' },
+  { id: 'indigo', label: 'Indigo', previewColor: '#6366f1', primaryColor: '#6366f1', primaryForeground: '#ffffff', ringColor: '#6366f1' },
+  { id: 'lime', label: 'Lime', previewColor: '#84cc16', primaryColor: '#84cc16', primaryForeground: '#000000', ringColor: '#84cc16' },
+  { id: 'orange', label: 'Orange', previewColor: '#f97316', primaryColor: '#f97316', primaryForeground: '#ffffff', ringColor: '#f97316' },
+  { id: 'pink', label: 'Pink', previewColor: '#ec4899', primaryColor: '#ec4899', primaryForeground: '#ffffff', ringColor: '#ec4899' },
+  { id: 'purple', label: 'Purple', previewColor: '#a855f7', primaryColor: '#a855f7', primaryForeground: '#ffffff', ringColor: '#a855f7' },
+  { id: 'rose', label: 'Rose', previewColor: '#f43f5e', primaryColor: '#f43f5e', primaryForeground: '#ffffff', ringColor: '#f43f5e' },
+  { id: 'violet', label: 'Violet', previewColor: '#8b5cf6', primaryColor: '#8b5cf6', primaryForeground: '#ffffff', ringColor: '#8b5cf6' },
+  { id: 'yellow', label: 'Yellow', previewColor: '#eab308', primaryColor: '#eab308', primaryForeground: '#000000', ringColor: '#eab308' },
 ];
 
 export interface CustomSectionConfig {
@@ -183,8 +232,9 @@ export const DEFAULT_SECTIONS: CustomSectionConfig[] = [
 ];
 
 const STORAGE_THEME_KEY = 'open_presenter_theme';
+const STORAGE_BASE_COLOR_KEY = 'open_presenter_base_color';
+const STORAGE_ACCENT_THEME_KEY = 'open_presenter_accent_theme';
 const STORAGE_SECTIONS_KEY = 'open_presenter_sections';
-const STORAGE_NEUTRAL_KEY = 'open_presenter_neutral_family';
 const STORAGE_WALLPAPER_FIT_KEY = 'open_presenter_wallpaper_fit';
 
 function loadInitialTheme(): ThemeMode {
@@ -196,11 +246,44 @@ function loadInitialTheme(): ThemeMode {
   return 'system';
 }
 
-function loadInitialNeutralFamily(): NeutralFamily {
+function loadInitialBaseColor(): BaseColor {
   if (typeof window === 'undefined') return 'neutral';
-  const saved = localStorage.getItem(STORAGE_NEUTRAL_KEY);
-  if (saved === 'neutral' || saved === 'zinc' || saved === 'slate' || saved === 'stone' || saved === 'gray') {
-    return saved;
+  const saved = localStorage.getItem(STORAGE_BASE_COLOR_KEY) || localStorage.getItem('open_presenter_neutral_family');
+  if (
+    saved === 'neutral' ||
+    saved === 'stone' ||
+    saved === 'zinc' ||
+    saved === 'mauve' ||
+    saved === 'olive' ||
+    saved === 'mist' ||
+    saved === 'taupe'
+  ) {
+    return saved as BaseColor;
+  }
+  return 'neutral';
+}
+
+function loadInitialAccentTheme(): AccentTheme {
+  if (typeof window === 'undefined') return 'neutral';
+  const saved = localStorage.getItem(STORAGE_ACCENT_THEME_KEY);
+  if (
+    saved === 'neutral' ||
+    saved === 'amber' ||
+    saved === 'blue' ||
+    saved === 'cyan' ||
+    saved === 'emerald' ||
+    saved === 'fuchsia' ||
+    saved === 'green' ||
+    saved === 'indigo' ||
+    saved === 'lime' ||
+    saved === 'orange' ||
+    saved === 'pink' ||
+    saved === 'purple' ||
+    saved === 'rose' ||
+    saved === 'violet' ||
+    saved === 'yellow'
+  ) {
+    return saved as AccentTheme;
   }
   return 'neutral';
 }
@@ -231,60 +314,104 @@ function loadInitialSections(): CustomSectionConfig[] {
 }
 
 export const themeStore = writable<ThemeMode>(loadInitialTheme());
-export const sectionsStore = writable<CustomSectionConfig[]>(loadInitialSections());
-export const neutralFamilyStore = writable<NeutralFamily>(loadInitialNeutralFamily());
+export const baseColorStore = writable<BaseColor>(loadInitialBaseColor());
+export const neutralFamilyStore = baseColorStore; // alias
+export const accentThemeStore = writable<AccentTheme>(loadInitialAccentTheme());
 export const wallpaperFitStore = writable<WallpaperFitMode>(loadInitialWallpaperFit());
+export const sectionsStore = writable<CustomSectionConfig[]>(loadInitialSections());
 
-export function applyNeutralFamily(family: NeutralFamily, isDark = true) {
+export function applyBaseColor(color: BaseColor, isDark = true) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  root.setAttribute('data-neutral-family', family);
+  root.setAttribute('data-base-color', color);
 
-  if (family === 'neutral') {
+  if (color === 'neutral') {
     root.style.setProperty('--background', isDark ? '#0a0a0a' : '#ffffff');
     root.style.setProperty('--card', isDark ? '#141414' : '#fafafa');
     root.style.setProperty('--border', isDark ? '#262626' : '#e5e5e5');
     root.style.setProperty('--muted', isDark ? '#262626' : '#f5f5f5');
     root.style.setProperty('--muted-foreground', isDark ? '#a3a3a3' : '#737373');
     root.style.setProperty('--foreground', isDark ? '#fafafa' : '#0a0a0a');
-  } else if (family === 'zinc') {
-    root.style.setProperty('--background', isDark ? '#09090b' : '#ffffff');
-    root.style.setProperty('--card', isDark ? '#18181b' : '#fafafa');
-    root.style.setProperty('--border', isDark ? '#27272a' : '#e4e4e7');
-    root.style.setProperty('--muted', isDark ? '#27272a' : '#f4f4f5');
-    root.style.setProperty('--muted-foreground', isDark ? '#a1a1aa' : '#71717a');
-    root.style.setProperty('--foreground', isDark ? '#f4f4f5' : '#09090b');
-  } else if (family === 'slate') {
-    root.style.setProperty('--background', isDark ? '#020617' : '#ffffff');
-    root.style.setProperty('--card', isDark ? '#0f172a' : '#f8fafc');
-    root.style.setProperty('--border', isDark ? '#1e293b' : '#e2e8f0');
-    root.style.setProperty('--muted', isDark ? '#1e293b' : '#f1f5f9');
-    root.style.setProperty('--muted-foreground', isDark ? '#94a3b8' : '#64748b');
-    root.style.setProperty('--foreground', isDark ? '#f8fafc' : '#020617');
-  } else if (family === 'stone') {
+  } else if (color === 'stone') {
     root.style.setProperty('--background', isDark ? '#0c0a09' : '#ffffff');
     root.style.setProperty('--card', isDark ? '#1c1917' : '#fafaf9');
     root.style.setProperty('--border', isDark ? '#292524' : '#e7e5e4');
     root.style.setProperty('--muted', isDark ? '#292524' : '#f5f5f4');
     root.style.setProperty('--muted-foreground', isDark ? '#a8a29e' : '#78716c');
     root.style.setProperty('--foreground', isDark ? '#f5f5f4' : '#0c0a09');
-  } else if (family === 'gray') {
-    root.style.setProperty('--background', isDark ? '#030712' : '#ffffff');
-    root.style.setProperty('--card', isDark ? '#111827' : '#f9fafb');
-    root.style.setProperty('--border', isDark ? '#1f2937' : '#e5e7eb');
-    root.style.setProperty('--muted', isDark ? '#1f2937' : '#f3f4f6');
-    root.style.setProperty('--muted-foreground', isDark ? '#9ca3af' : '#6b7280');
-    root.style.setProperty('--foreground', isDark ? '#f9fafb' : '#030712');
+  } else if (color === 'zinc') {
+    root.style.setProperty('--background', isDark ? '#09090b' : '#ffffff');
+    root.style.setProperty('--card', isDark ? '#18181b' : '#fafafa');
+    root.style.setProperty('--border', isDark ? '#27272a' : '#e4e4e7');
+    root.style.setProperty('--muted', isDark ? '#27272a' : '#f4f4f5');
+    root.style.setProperty('--muted-foreground', isDark ? '#a1a1aa' : '#71717a');
+    root.style.setProperty('--foreground', isDark ? '#f4f4f5' : '#09090b');
+  } else if (color === 'mauve') {
+    root.style.setProperty('--background', isDark ? '#0d0b12' : '#ffffff');
+    root.style.setProperty('--card', isDark ? '#181522' : '#faf9fc');
+    root.style.setProperty('--border', isDark ? '#282338' : '#e5e1ed');
+    root.style.setProperty('--muted', isDark ? '#282338' : '#f4f2f8');
+    root.style.setProperty('--muted-foreground', isDark ? '#9e97af' : '#736d85');
+    root.style.setProperty('--foreground', isDark ? '#f5f3fa' : '#0d0b12');
+  } else if (color === 'olive') {
+    root.style.setProperty('--background', isDark ? '#0b0e0c' : '#ffffff');
+    root.style.setProperty('--card', isDark ? '#141a16' : '#f9faf9');
+    root.style.setProperty('--border', isDark ? '#222b25' : '#e1e8e3');
+    root.style.setProperty('--muted', isDark ? '#222b25' : '#f1f5f2');
+    root.style.setProperty('--muted-foreground', isDark ? '#98a69c' : '#6e7d72');
+    root.style.setProperty('--foreground', isDark ? '#f3f7f4' : '#0b0e0c');
+  } else if (color === 'mist') {
+    root.style.setProperty('--background', isDark ? '#0a0d10' : '#ffffff');
+    root.style.setProperty('--card', isDark ? '#141920' : '#f8fafc');
+    root.style.setProperty('--border', isDark ? '#202936' : '#e2e8f0');
+    root.style.setProperty('--muted', isDark ? '#202936' : '#f1f5f9');
+    root.style.setProperty('--muted-foreground', isDark ? '#94a1b2' : '#64748b');
+    root.style.setProperty('--foreground', isDark ? '#f4f7fa' : '#020617');
+  } else if (color === 'taupe') {
+    root.style.setProperty('--background', isDark ? '#0e0d0b' : '#ffffff');
+    root.style.setProperty('--card', isDark ? '#1b1916' : '#faf9f7');
+    root.style.setProperty('--border', isDark ? '#2e2b26' : '#e8e4de');
+    root.style.setProperty('--muted', isDark ? '#2e2b26' : '#f5f3ef');
+    root.style.setProperty('--muted-foreground', isDark ? '#aba49b' : '#787268');
+    root.style.setProperty('--foreground', isDark ? '#f7f6f4' : '#0e0d0b');
   }
 }
 
-export function setNeutralFamily(family: NeutralFamily) {
+export function applyAccentTheme(theme: AccentTheme) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.setAttribute('data-accent-theme', theme);
+
+  const preset = ACCENT_THEME_PRESETS.find((p) => p.id === theme) || ACCENT_THEME_PRESETS[0];
+  root.style.setProperty('--primary', preset.primaryColor);
+  root.style.setProperty('--primary-foreground', preset.primaryForeground);
+  root.style.setProperty('--ring', preset.ringColor);
+}
+
+export function setBaseColor(color: BaseColor) {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_NEUTRAL_KEY, family);
+    localStorage.setItem(STORAGE_BASE_COLOR_KEY, color);
   }
-  neutralFamilyStore.set(family);
-  const isDark = document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
-  applyNeutralFamily(family, isDark);
+  baseColorStore.set(color);
+  const isDark =
+    document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
+  applyBaseColor(color, isDark);
+}
+
+export function setNeutralFamily(family: NeutralFamily) {
+  setBaseColor(family);
+}
+
+export function applyNeutralFamily(family: NeutralFamily, isDark = true) {
+  applyBaseColor(family, isDark);
+}
+
+export function setAccentTheme(theme: AccentTheme) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_ACCENT_THEME_KEY, theme);
+  }
+  accentThemeStore.set(theme);
+  applyAccentTheme(theme);
 }
 
 export function setWallpaperFit(fit: WallpaperFitMode) {
@@ -313,7 +440,8 @@ export function applyTheme(mode: ThemeMode) {
     root.setAttribute('data-theme', 'light');
   }
 
-  applyNeutralFamily(loadInitialNeutralFamily(), isDark);
+  applyBaseColor(loadInitialBaseColor(), isDark);
+  applyAccentTheme(loadInitialAccentTheme());
 }
 
 export function setTheme(mode: ThemeMode) {

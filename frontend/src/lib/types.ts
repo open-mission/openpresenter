@@ -1,9 +1,11 @@
-export type MediaKind = 'song' | 'scripture' | 'announcement' | 'media' | 'header';
+export type MediaKind = 'song' | 'scripture' | 'announcement' | 'media' | 'header' | 'image' | 'text';
 
 export interface Slide {
   id: string;
   label: string;
   content: string;
+  align_h?: 'left' | 'center' | 'right' | 'justify';
+  align_v?: 'top' | 'center' | 'bottom';
 }
 
 export interface MediaItem {
@@ -12,6 +14,36 @@ export interface MediaItem {
   artist_or_ref?: string;
   kind: MediaKind;
   slides: Slide[];
+  align_h?: 'left' | 'center' | 'right' | 'justify';
+  align_v?: 'top' | 'center' | 'bottom';
+}
+
+export interface MediaFolder {
+  id: string;
+  name: string;
+  path: string;
+  kind: string;
+  created_at: string;
+}
+
+export interface ImageMediaItem {
+  id: string;
+  name: string;
+  path: string;
+  folder_id: string;
+  folder_name: string;
+  url: string;
+  is_external: boolean;
+  size_bytes: number;
+}
+
+export interface SystemPaths {
+  data_dir: string;
+  db_path: string;
+  images_path: string;
+  wallpapers_path: string;
+  videos_path: string;
+  fonts_path: string;
 }
 
 export interface Setlist {

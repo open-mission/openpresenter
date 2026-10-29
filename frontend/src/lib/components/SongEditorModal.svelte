@@ -1,19 +1,51 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { X, Save, Music, AlertCircle, Sparkles, Check, Hash } from 'lucide-svelte';
+  import {
+    X,
+    Save,
+    Music,
+    AlertCircle,
+    Sparkles,
+    Check,
+    Hash,
+    Bold,
+    Italic,
+    Underline as UnderlineIcon,
+    Highlighter,
+    AlignLeft,
+    AlignCenter,
+    AlignRight,
+    AlignJustify,
+    AlignVerticalJustifyStart,
+    AlignVerticalJustifyCenter,
+    AlignVerticalJustifyEnd,
+    FileText,
+  } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
   import { parseRawLyrics, getSectionColor } from '../songParser';
-  import type { Song, Slide } from '../types';
+  import { renderFormattedText } from '../markdown';
+  import type { Song, Slide, MediaItem } from '../types';
 
   interface Props {
     open: boolean;
+    mode?: 'song' | 'text';
     initialSong?: Partial<Song> | null;
+    initialItem?: Partial<MediaItem> | null;
     onclose: () => void;
     onsave?: (savedSong: Song) => void;
+    onsaveItem?: (savedItem: MediaItem) => void;
   }
 
-  let { open = false, initialSong = null, onclose, onsave }: Props = $props();
+  let {
+    open = false,
+    mode = 'song',
+    initialSong = null,
+    initialItem = null,
+    onclose,
+    onsave,
+    onsaveItem,
+  }: Props = $props();
 
   let id = $state('');
   let title = $state('');
@@ -27,25 +59,33 @@
   let errorMessage = $state('');
   let prevOpen = false;
 
+  // Alinhamento
+  let alignH = $state<'left' | 'center' | 'right' | 'justify'>('center');
+  let alignV = $state<'top' | 'center' | 'bottom'>('center');
+
+  // Referência ao textarea para inserção de formatação
+  let textareaEl: HTMLTextAreaElement | null = $state(null);
+
   // Sincroniza estado apenas na abertura do modal
   $effect(() => {
     if (open && !prevOpen) {
-      if (initialSong) {
-        id = initialSong.id || `song-${Date.now()}`;
-        title = initialSong.title || '';
-        artist = initialSong.artist || '';
-        composer = initialSong.composer || '';
-        songKey = initialSong.song_key || '';
-        bpm = initialSong.bpm;
-        lyricsRaw = initialSong.lyrics_raw || '';
-      } else {
-        id = `song-${Date.now()}`;
-        title = '';
-        artist = '';
-        composer = '';
-        songKey = '';
-        bpm = undefined;
-        lyricsRaw = `## Verso 1
+      if (mode === 'song') {
+        if (initialSong) {
+          id = initialSong.id || `song-${Date.now()}`;
+          title = initialSong.title || '';
+          artist = initialSong.artist || '';
+          composer = initialSong.composer || '';
+          songKey = initialSong.song_key || '';
+          bpm = initialSong.bpm;
+          lyricsRaw = initialSong.lyrics_raw || '';
+        } else {
+          id = `song-${Date.now()}`;
+          title = '';
+          artist = '';
+          composer = '';
+          songKey = '';
+          bpm = undefined;
+          lyricsRaw = `## Verso 1
 Primeira estrofe da canção
 Segunda linha aqui
 
@@ -55,6 +95,30 @@ Linha vazia separou
 ## Refrão
 Porque Ele vive, posso crer no amanhã
 Porque Ele vive, temor não há`;
+        }
+      } else {
+        // Modo Texto / Apresentação Rápida
+        if (initialItem) {
+          id = initialItem.id || `text-${Date.now()}`;
+          title = initialItem.title || '';
+          artist = initialItem.artist_or_ref || '';
+          alignH = initialItem.align_h || 'center';
+          alignV = initialItem.align_v || 'center';
+          lyricsRaw = initialItem.slides?.map((s) => s.content).join('\n\n') || '';
+        } else {
+          id = `text-${Date.now()}`;
+          title = '';
+          artist = 'Avisos da Semana';
+          alignH = 'center';
+          alignV = 'center';
+          lyricsRaw = `## Boas-vindas
+Sejam bem-vindos à nossa reunião!
+Estamos felizes com sua presença.
+
+## Próximo Evento
+Domingo às 19h00: Culto de Celebração.
+Traga sua família e convidados!`;
+        }
       }
       errorMessage = '';
     }
@@ -74,53 +138,133 @@ Porque Ele vive, temor não há`;
     }
     if ((e.metaKey || e.ctrlKey) && e.key === 's') {
       e.preventDefault();
-      saveSong();
+      saveContent();
     }
   }
 
-  async function saveSong() {
+  // Ferramentas Typeset: envolve texto selecionado no textarea
+  function wrapSelection(prefix: string, suffix: string, defaultText = 'texto') {
+    if (!textareaEl) {
+      lyricsRaw += `${prefix}${defaultText}${suffix}`;
+      return;
+    }
+
+    const start = textareaEl.selectionStart;
+    const end = textareaEl.selectionEnd;
+    const current = lyricsRaw;
+    const selected = current.slice(start, end);
+    const replacement = selected ? `${prefix}${selected}${suffix}` : `${prefix}${defaultText}${suffix}`;
+
+    lyricsRaw = current.slice(0, start) + replacement + current.slice(end);
+
+    setTimeout(() => {
+      if (textareaEl) {
+        textareaEl.focus();
+        textareaEl.setSelectionRange(start + prefix.length, start + prefix.length + (selected ? selected.length : defaultText.length));
+      }
+    }, 10);
+  }
+
+  function applyBold() {
+    wrapSelection('**', '**', 'negrito');
+  }
+
+  function applyItalic() {
+    wrapSelection('*', '*', 'itálico');
+  }
+
+  function applyUnderline() {
+    wrapSelection('<u>', '</u>', 'sublinhado');
+  }
+
+  function applyHighlight() {
+    wrapSelection('==', '==', 'destaque');
+  }
+
+  async function saveContent() {
     if (!title.trim()) {
-      errorMessage = 'O título da música é obrigatório.';
+      errorMessage = mode === 'song' ? 'O título da música é obrigatório.' : 'O título da apresentação é obrigatório.';
       return;
     }
 
     isSaving = true;
     errorMessage = '';
 
-    const songPayload: Song = {
-      id: id || `song-${Date.now()}`,
-      title: title.trim(),
-      artist: artist.trim(),
-      album: undefined,
-      composer: composer.trim() || undefined,
-      song_key: songKey.trim() || undefined,
-      bpm: bpm ? Number(bpm) : undefined,
-      sections: parsed.sections,
-      lyrics_raw: lyricsRaw,
-    };
+    if (mode === 'song') {
+      const songPayload: Song = {
+        id: id || `song-${Date.now()}`,
+        title: title.trim(),
+        artist: artist.trim(),
+        album: undefined,
+        composer: composer.trim() || undefined,
+        song_key: songKey.trim() || undefined,
+        bpm: bpm ? Number(bpm) : undefined,
+        sections: parsed.sections,
+        lyrics_raw: lyricsRaw,
+      };
 
-    try {
-      const resp = await fetch('/api/songs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          song: songPayload,
-          add_to_setlist: addToSetlist,
-        }),
-      });
+      try {
+        const resp = await fetch('/api/songs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            song: songPayload,
+            add_to_setlist: addToSetlist,
+          }),
+        });
 
-      if (!resp.ok) {
-        const errorText = await resp.text();
-        throw new Error(errorText || 'Erro ao salvar música');
+        if (!resp.ok) {
+          const errorText = await resp.text();
+          throw new Error(errorText || 'Erro ao salvar música');
+        }
+
+        const saved: Song = await resp.json();
+        onsave?.(saved);
+        onclose();
+      } catch (err: any) {
+        errorMessage = err.message || 'Falha na conexão ao salvar';
+      } finally {
+        isSaving = false;
       }
+    } else {
+      // Modo Texto / Apresentação Rápida
+      const slidesPayload: Slide[] = parsed.slides.map((s) => ({
+        ...s,
+        align_h: alignH,
+        align_v: alignV,
+      }));
 
-      const saved: Song = await resp.json();
-      onsave?.(saved);
-      onclose();
-    } catch (err: any) {
-      errorMessage = err.message || 'Falha na conexão ao salvar';
-    } finally {
-      isSaving = false;
+      const mediaItemPayload: MediaItem = {
+        id: id || `text-${Date.now()}`,
+        title: title.trim(),
+        artist_or_ref: artist.trim() || undefined,
+        kind: 'announcement',
+        slides: slidesPayload,
+        align_h: alignH,
+        align_v: alignV,
+      };
+
+      try {
+        const resp = await fetch('/api/setlist/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            item: mediaItemPayload,
+          }),
+        });
+
+        if (!resp.ok) {
+          const errorText = await resp.text();
+          throw new Error(errorText || 'Erro ao salvar texto na setlist');
+        }
+
+        onsaveItem?.(mediaItemPayload);
+        onclose();
+      } catch (err: any) {
+        errorMessage = err.message || 'Falha ao salvar apresentação';
+      } finally {
+        isSaving = false;
+      }
     }
   }
 
@@ -135,51 +279,58 @@ Porque Ele vive, temor não há`;
 {#if open}
   <!-- Backdrop -->
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
     role="dialog"
     aria-modal="true"
-    aria-label="Editor de Música"
+    aria-label={mode === 'song' ? 'Editor de Música' : 'Editor de Apresentação e Texto'}
     tabindex="-1"
-    onkeydown={(e) => {
-      if (e.key === 'Escape') onclose();
+    onclick={(e) => {
+      if (e.target === e.currentTarget) onclose();
     }}
   >
     <!-- Modal Container (95% da tela) -->
     <div
-      class="w-[95vw] h-[95vh] max-w-7xl bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl flex flex-col overflow-hidden text-zinc-100"
+      class="w-[95vw] h-[95vh] max-w-7xl bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl flex flex-col overflow-hidden text-neutral-100"
     >
       <!-- Cabeçalho do Modal -->
       <div
-        class="h-14 px-5 border-b border-zinc-800 bg-zinc-900/60 flex items-center justify-between shrink-0"
+        class="h-14 px-5 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-between shrink-0"
       >
         <div class="flex items-center gap-3">
           <div
             class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400"
           >
-            <Music size={18} />
+            {#if mode === 'song'}
+              <Music size={18} />
+            {:else}
+              <FileText size={18} class="text-amber-400" />
+            {/if}
           </div>
           <div>
             <h2 class="text-sm sm:text-base font-semibold tracking-tight text-white flex items-center gap-2">
-              {title ? title : 'Nova Música'}
-              <Badge variant="outline" class="text-[10px] text-zinc-400 font-mono">
+              {title ? title : mode === 'song' ? 'Nova Música' : 'Nova Apresentação de Texto'}
+              <Badge variant="outline" class="text-[10px] text-neutral-400 font-mono">
                 {parsed.slides.length} slides
               </Badge>
             </h2>
-            <p class="text-[11px] text-zinc-400">
-              Editor de letras e partes no padrão Holyrics e ProPresenter
+            <p class="text-[11px] text-neutral-400">
+              {mode === 'song'
+                ? 'Editor de letras e partes no padrão Holyrics e ProPresenter'
+                : 'Editor de slides rápidos, avisos e comunicados com formatação rica'}
             </p>
           </div>
         </div>
 
         <div class="flex items-center gap-2">
-          <span class="text-[11px] text-zinc-500 hidden md:inline">
-            Salvar: <kbd class="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[10px]">⌘S</kbd> / <kbd class="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[10px]">Ctrl+S</kbd>
+          <span class="text-[11px] text-neutral-500 hidden md:inline">
+            Salvar: <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 font-mono text-[10px]">⌘S</kbd> / <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 font-mono text-[10px]">Ctrl+S</kbd>
           </span>
           <button
             type="button"
             onclick={onclose}
-            class="w-8 h-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/80 flex items-center justify-center transition-colors cursor-pointer"
+            class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800/80 flex items-center justify-center transition-colors cursor-pointer"
             aria-label="Fechar"
           >
             <X size={18} />
@@ -197,135 +348,296 @@ Porque Ele vive, temor não há`;
       {/if}
 
       <!-- Conteúdo Dividido em 2 Painéis -->
-      <div class="flex-1 flex flex-col lg:flex-row overflow-hidden divide-y lg:divide-y-0 lg:divide-x divide-zinc-800/80">
-        <!-- PAINEL ESQUERDO: Metadados + Editor de Texto -->
-        <div class="w-full lg:w-1/2 flex flex-col overflow-hidden bg-zinc-950">
+      <div class="flex-1 flex flex-col lg:flex-row overflow-hidden divide-y lg:divide-y-0 lg:divide-x divide-neutral-800/80">
+        <!-- PAINEL ESQUERDO: Metadados + Toolbar Typeset + Editor de Texto -->
+        <div class="w-full lg:w-1/2 flex flex-col overflow-hidden bg-neutral-950">
           <!-- Metadados -->
-          <div class="p-4 border-b border-zinc-800/80 bg-zinc-900/20 space-y-3 shrink-0">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label for="song-title-input" class="block text-[11px] font-medium text-zinc-400 mb-1">
-                  Título da Música <span class="text-emerald-400">*</span>
-                </label>
-                <input
-                  id="song-title-input"
-                  type="text"
-                  bind:value={title}
-                  placeholder="Ex: Porque Ele Vive"
-                  class="w-full h-8 px-2.5 bg-zinc-900 border border-zinc-700/80 rounded-md text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
-                />
+          <div class="p-4 border-b border-neutral-800/80 bg-neutral-900/20 space-y-3 shrink-0">
+            {#if mode === 'song'}
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="song-title-input" class="block text-[11px] font-medium text-neutral-400 mb-1">
+                    Título da Música <span class="text-emerald-400">*</span>
+                  </label>
+                  <input
+                    id="song-title-input"
+                    type="text"
+                    bind:value={title}
+                    placeholder="Ex: Porque Ele Vive"
+                    class="w-full h-8 px-2.5 bg-neutral-900 border border-neutral-700/80 rounded-md text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label for="song-artist-input" class="block text-[11px] font-medium text-neutral-400 mb-1">
+                    Artista / Banda / Autor
+                  </label>
+                  <input
+                    id="song-artist-input"
+                    type="text"
+                    bind:value={artist}
+                    placeholder="Ex: Harpa Cristã / Matt Maher"
+                    class="w-full h-8 px-2.5 bg-neutral-900 border border-neutral-700/80 rounded-md text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label for="song-artist-input" class="block text-[11px] font-medium text-zinc-400 mb-1">
-                  Artista / Banda / Autor
-                </label>
-                <input
-                  id="song-artist-input"
-                  type="text"
-                  bind:value={artist}
-                  placeholder="Ex: Harpa Cristã / Matt Maher"
-                  class="w-full h-8 px-2.5 bg-zinc-900 border border-zinc-700/80 rounded-md text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
-                />
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label for="song-key-input" class="block text-[11px] font-medium text-neutral-400 mb-1">
+                    Tom (Key)
+                  </label>
+                  <input
+                    id="song-key-input"
+                    type="text"
+                    bind:value={songKey}
+                    placeholder="Ex: G, Dm, C#"
+                    class="w-full h-8 px-2.5 bg-neutral-900 border border-neutral-700/80 rounded-md text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label for="song-bpm-input" class="block text-[11px] font-medium text-neutral-400 mb-1">
+                    BPM (Andamento)
+                  </label>
+                  <input
+                    id="song-bpm-input"
+                    type="number"
+                    bind:value={bpm}
+                    placeholder="Ex: 72"
+                    class="w-full h-8 px-2.5 bg-neutral-900 border border-neutral-700/80 rounded-md text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label for="song-composer-input" class="block text-[11px] font-medium text-neutral-400 mb-1">
+                    Compositor
+                  </label>
+                  <input
+                    id="song-composer-input"
+                    type="text"
+                    bind:value={composer}
+                    placeholder="Ex: Bill Gaither"
+                    class="w-full h-8 px-2.5 bg-neutral-900 border border-neutral-700/80 rounded-md text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                  />
+                </div>
               </div>
+            {:else}
+              <!-- Metadados do Modo Texto -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="text-title-input" class="block text-[11px] font-medium text-neutral-400 mb-1">
+                    Título da Apresentação <span class="text-amber-400">*</span>
+                  </label>
+                  <input
+                    id="text-title-input"
+                    type="text"
+                    bind:value={title}
+                    placeholder="Ex: Avisos e Boas-Vindas"
+                    class="w-full h-8 px-2.5 bg-neutral-900 border border-neutral-700/80 rounded-md text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label for="text-subtitle-input" class="block text-[11px] font-medium text-neutral-400 mb-1">
+                    Subtítulo ou Categoria (Opcional)
+                  </label>
+                  <input
+                    id="text-subtitle-input"
+                    type="text"
+                    bind:value={artist}
+                    placeholder="Ex: Comunicação da Semana"
+                    class="w-full h-8 px-2.5 bg-neutral-900 border border-neutral-700/80 rounded-md text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors"
+                  />
+                </div>
+              </div>
+            {/if}
+          </div>
+
+          <!-- BARRA DE FERRAMENTAS TYPESET E ALINHAMENTO -->
+          <div class="px-3 py-2 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-between gap-2 overflow-x-auto text-xs shrink-0 select-none">
+            <!-- Formatação de Texto (Markdown Typeset) -->
+            <div class="flex items-center gap-1 shrink-0">
+              <span class="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mr-1">Typeset:</span>
+              <button
+                type="button"
+                onclick={applyBold}
+                title="Negrito (**texto**)"
+                class="w-7 h-7 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <Bold size={13} />
+              </button>
+              <button
+                type="button"
+                onclick={applyItalic}
+                title="Itálico (*texto*)"
+                class="w-7 h-7 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <Italic size={13} />
+              </button>
+              <button
+                type="button"
+                onclick={applyUnderline}
+                title="Sublinhado (<u>texto</u>)"
+                class="w-7 h-7 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <UnderlineIcon size={13} />
+              </button>
+              <button
+                type="button"
+                onclick={applyHighlight}
+                title="Marca-texto / Highlight (==texto==)"
+                class="w-7 h-7 rounded bg-neutral-800 hover:bg-neutral-700 text-yellow-400 hover:text-yellow-300 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <Highlighter size={13} />
+              </button>
             </div>
 
-            <div class="grid grid-cols-3 gap-3">
-              <div>
-                <label for="song-key-input" class="block text-[11px] font-medium text-zinc-400 mb-1">
-                  Tom (Key)
-                </label>
-                <input
-                  id="song-key-input"
-                  type="text"
-                  bind:value={songKey}
-                  placeholder="Ex: G, Dm, C#"
-                  class="w-full h-8 px-2.5 bg-zinc-900 border border-zinc-700/80 rounded-md text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
-                />
+            <div class="h-4 w-[1px] bg-neutral-800 shrink-0 mx-1"></div>
+
+            <!-- Alinhamento Horizontal e Vertical -->
+            <div class="flex items-center gap-2 shrink-0">
+              <!-- Horizontal -->
+              <div class="flex items-center rounded-md bg-neutral-900 border border-neutral-800 p-0.5">
+                <button
+                  type="button"
+                  onclick={() => (alignH = 'left')}
+                  title="Alinhar à Esquerda"
+                  class="w-6 h-6 rounded flex items-center justify-center transition-colors cursor-pointer {alignH === 'left' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-neutral-200'}"
+                >
+                  <AlignLeft size={12} />
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (alignH = 'center')}
+                  title="Centralizar Horizontalmente"
+                  class="w-6 h-6 rounded flex items-center justify-center transition-colors cursor-pointer {alignH === 'center' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-neutral-200'}"
+                >
+                  <AlignCenter size={12} />
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (alignH = 'right')}
+                  title="Alinhar à Direita"
+                  class="w-6 h-6 rounded flex items-center justify-center transition-colors cursor-pointer {alignH === 'right' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-neutral-200'}"
+                >
+                  <AlignRight size={12} />
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (alignH = 'justify')}
+                  title="Justificado"
+                  class="w-6 h-6 rounded flex items-center justify-center transition-colors cursor-pointer {alignH === 'justify' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-neutral-200'}"
+                >
+                  <AlignJustify size={12} />
+                </button>
               </div>
 
-              <div>
-                <label for="song-bpm-input" class="block text-[11px] font-medium text-zinc-400 mb-1">
-                  BPM (Andamento)
-                </label>
-                <input
-                  id="song-bpm-input"
-                  type="number"
-                  bind:value={bpm}
-                  placeholder="Ex: 72"
-                  class="w-full h-8 px-2.5 bg-zinc-900 border border-zinc-700/80 rounded-md text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
-                />
-              </div>
-
-              <div>
-                <label for="song-composer-input" class="block text-[11px] font-medium text-zinc-400 mb-1">
-                  Compositor
-                </label>
-                <input
-                  id="song-composer-input"
-                  type="text"
-                  bind:value={composer}
-                  placeholder="Ex: Bill Gaither"
-                  class="w-full h-8 px-2.5 bg-zinc-900 border border-zinc-700/80 rounded-md text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
-                />
+              <!-- Vertical -->
+              <div class="flex items-center rounded-md bg-neutral-900 border border-neutral-800 p-0.5">
+                <button
+                  type="button"
+                  onclick={() => (alignV = 'top')}
+                  title="Alinhar ao Topo"
+                  class="w-6 h-6 rounded flex items-center justify-center transition-colors cursor-pointer {alignV === 'top' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-neutral-200'}"
+                >
+                  <AlignVerticalJustifyStart size={12} />
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (alignV = 'center')}
+                  title="Centralizar Verticalmente"
+                  class="w-6 h-6 rounded flex items-center justify-center transition-colors cursor-pointer {alignV === 'center' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-neutral-200'}"
+                >
+                  <AlignVerticalJustifyCenter size={12} />
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (alignV = 'bottom')}
+                  title="Alinhar à Base"
+                  class="w-6 h-6 rounded flex items-center justify-center transition-colors cursor-pointer {alignV === 'bottom' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-neutral-200'}"
+                >
+                  <AlignVerticalJustifyEnd size={12} />
+                </button>
               </div>
             </div>
           </div>
 
           <!-- Barra de Atalhos de Tags de Seções -->
-          <div class="px-4 py-2 border-b border-zinc-800/60 bg-zinc-900/30 flex items-center gap-1.5 overflow-x-auto text-xs shrink-0">
-            <span class="text-[11px] text-zinc-500 font-medium shrink-0 flex items-center gap-1 mr-1">
-              <Hash size={13} class="text-zinc-500" /> Inserir Parte:
+          <div class="px-4 py-2 border-b border-neutral-800/60 bg-neutral-900/30 flex items-center gap-1.5 overflow-x-auto text-xs shrink-0">
+            <span class="text-[11px] text-neutral-500 font-medium shrink-0 flex items-center gap-1 mr-1">
+              <Hash size={13} class="text-neutral-500" /> {mode === 'song' ? 'Inserir Parte:' : 'Inserir Slide:'}
             </span>
-            {#each ['Verso 1', 'Verso 2', 'Verso 3', 'Pré-Refrão', 'Refrão', 'Ponte', 'Intro', 'Final'] as tag}
-              <button
-                type="button"
-                onclick={() => insertSectionTag(tag)}
-                class="px-2 py-0.5 rounded bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700/50 text-[11px] text-zinc-300 font-medium transition-colors shrink-0 cursor-pointer"
-              >
-                + {tag}
-              </button>
-            {/each}
+            {#if mode === 'song'}
+              {#each ['Verso 1', 'Verso 2', 'Verso 3', 'Pré-Refrão', 'Refrão', 'Ponte', 'Intro', 'Final'] as tag}
+                <button
+                  type="button"
+                  onclick={() => insertSectionTag(tag)}
+                  class="px-2 py-0.5 rounded bg-neutral-800/80 hover:bg-neutral-700 border border-neutral-700/50 text-[11px] text-neutral-300 font-medium transition-colors shrink-0 cursor-pointer"
+                >
+                  + {tag}
+                </button>
+              {/each}
+            {:else}
+              {#each ['Boas-vindas', 'Aviso 1', 'Aviso 2', 'Campanha', 'Informações', 'Encerramento'] as tag}
+                <button
+                  type="button"
+                  onclick={() => insertSectionTag(tag)}
+                  class="px-2 py-0.5 rounded bg-neutral-800/80 hover:bg-neutral-700 border border-neutral-700/50 text-[11px] text-neutral-300 font-medium transition-colors shrink-0 cursor-pointer"
+                >
+                  + {tag}
+                </button>
+              {/each}
+            {/if}
           </div>
 
-          <!-- Dica de Sintaxe (Holyrics style) -->
-          <div class="px-4 py-1.5 bg-zinc-900/50 text-[11px] text-zinc-400 flex items-center justify-between shrink-0 border-b border-zinc-800/40">
-            <span>Use <code>## Verso 1</code> ou <code>## Refrão</code> para nomear partes. Linha em branco separa slides.</span>
-            <span class="text-zinc-500 font-mono text-[10px]">{lyricsRaw.length} chars</span>
+          <!-- Dica de Sintaxe -->
+          <div class="px-4 py-1.5 bg-neutral-900/50 text-[11px] text-neutral-400 flex items-center justify-between shrink-0 border-b border-neutral-800/40">
+            <span>Use <code>## Rótulo</code> para nomear slides. Linha em branco separa slides. Suporta markdown: <code>**negrito**</code>, <code>==destaque==</code>.</span>
+            <span class="text-neutral-500 font-mono text-[10px]">{lyricsRaw.length} chars</span>
           </div>
 
-          <!-- Textarea do Editor de Letra -->
+          <!-- Textarea do Editor de Letra/Texto -->
           <div class="flex-1 p-4 overflow-hidden flex flex-col">
             <textarea
+              bind:this={textareaEl}
               bind:value={lyricsRaw}
-              placeholder="Digite ou cole a letra da música aqui..."
-              class="w-full flex-1 p-3 bg-zinc-900/70 border border-zinc-800 rounded-lg text-sm text-zinc-100 font-mono leading-relaxed resize-none focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/50"
+              placeholder={mode === 'song' ? 'Digite ou cole a letra da música aqui...' : 'Digite os slides da sua apresentação aqui...'}
+              class="w-full flex-1 p-3 bg-neutral-900/70 border border-neutral-800 rounded-lg text-sm text-neutral-100 font-mono leading-relaxed resize-none focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/50"
             ></textarea>
           </div>
         </div>
 
-        <!-- PAINEL DIREITO: Prévia ao Vivo dos Slides (ProPresenter Style) -->
-        <div class="w-full lg:w-1/2 flex flex-col overflow-hidden bg-zinc-950/60">
+        <!-- PAINEL DIREITO: Prévia ao Vivo dos Slides com Formatação e Alinhamento -->
+        <div class="w-full lg:w-1/2 flex flex-col overflow-hidden bg-neutral-950/60">
           <div
-            class="h-10 px-4 border-b border-zinc-800/80 bg-zinc-900/30 flex items-center justify-between shrink-0"
+            class="h-10 px-4 border-b border-neutral-800/80 bg-neutral-900/30 flex items-center justify-between shrink-0"
           >
-            <span class="text-xs font-semibold text-zinc-300 flex items-center gap-2">
-              <Sparkles size={14} class="text-emerald-400" />
+            <span class="text-xs font-semibold text-neutral-300 flex items-center gap-2">
+              <Sparkles size={14} class="text-primary" />
               Prévia dos Slides ({parsed.slides.length})
             </span>
-            <span class="text-[11px] text-zinc-500 font-medium">Projeção 16:9 em tempo real</span>
+            <div class="flex items-center gap-2 text-[11px] text-neutral-500 font-mono">
+              <span>Alinhamento: {alignH} / {alignV}</span>
+              <span>•</span>
+              <span>16:9 Real-time</span>
+            </div>
           </div>
 
           <!-- Grid de Slides (Scrollable) -->
           <div class="flex-1 p-4 overflow-y-auto space-y-4">
             {#if parsed.slides.length === 0}
               <div
-                class="h-64 flex flex-col items-center justify-center text-zinc-500 text-xs border border-dashed border-zinc-800 rounded-xl"
+                class="h-64 flex flex-col items-center justify-center text-neutral-500 text-xs border border-dashed border-neutral-800 rounded-xl"
               >
-                <Music size={28} class="mb-2 opacity-40 text-emerald-400" />
+                {#if mode === 'song'}
+                  <Music size={28} class="mb-2 opacity-40 text-primary" />
+                {:else}
+                  <FileText size={28} class="mb-2 opacity-40 text-amber-400" />
+                {/if}
                 <p>Nenhum slide gerado ainda.</p>
-                <p class="text-[11px] text-zinc-600 mt-1">
-                  Digite a letra no painel esquerdo para visualizar os slides aqui.
+                <p class="text-[11px] text-neutral-600 mt-1">
+                  Digite o conteúdo no painel esquerdo para visualizar os slides aqui.
                 </p>
               </div>
             {:else}
@@ -333,26 +645,28 @@ Porque Ele vive, temor não há`;
                 {#each parsed.slides as slide, idx (slide.id)}
                   {@const color = getSectionColor(slide.label)}
                   <div
-                    class="group relative aspect-video bg-zinc-900/90 rounded-lg border border-zinc-800 overflow-hidden flex flex-col shadow-md transition-all hover:border-zinc-700"
+                    class="group relative aspect-video bg-neutral-900/90 rounded-lg border border-neutral-800 overflow-hidden flex flex-col shadow-md transition-all hover:border-neutral-700"
                   >
-                    <!-- Header do Card com Tag da Seção (ProPresenter style) -->
+                    <!-- Header do Card com Tag da Seção -->
                     <div
-                      class="h-6 px-2.5 flex items-center justify-between border-b border-zinc-800/80 text-[10px] font-medium {color.bg}"
+                      class="h-6 px-2.5 flex items-center justify-between border-b border-neutral-800/80 text-[10px] font-medium {color.bg}"
                     >
                       <div class="flex items-center gap-1.5">
                         <span class="w-2 h-2 rounded-full {color.accent}"></span>
                         <span class="font-semibold {color.text}">{slide.label}</span>
                       </div>
-                      <span class="text-zinc-500 font-mono">#{idx + 1}</span>
+                      <span class="text-neutral-500 font-mono">#{idx + 1}</span>
                     </div>
 
-                    <!-- Conteúdo Projetado (Simulação 16:9) -->
-                    <div class="flex-1 p-3 flex items-center justify-center text-center">
-                      <p
-                        class="text-xs sm:text-sm font-semibold text-white tracking-wide leading-snug drop-shadow whitespace-pre-line line-clamp-4"
+                    <!-- Conteúdo Projetado (Simulação 16:9 com Markdown & Alinhamento) -->
+                    <div
+                      class="flex-1 p-3 flex flex-col {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'} {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
+                    >
+                      <div
+                        class="text-xs sm:text-sm font-semibold text-white tracking-wide leading-snug drop-shadow line-clamp-5 max-w-full"
                       >
-                        {slide.content}
-                      </p>
+                        {@html renderFormattedText(slide.content)}
+                      </div>
                     </div>
                   </div>
                 {/each}
@@ -364,16 +678,22 @@ Porque Ele vive, temor não há`;
 
       <!-- Rodapé do Modal com Ações -->
       <div
-        class="h-14 px-5 border-t border-zinc-800 bg-zinc-900/80 flex items-center justify-between shrink-0"
+        class="h-14 px-5 border-t border-neutral-800 bg-neutral-900/80 flex items-center justify-between shrink-0"
       >
-        <label class="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            bind:checked={addToSetlist}
-            class="w-4 h-4 rounded bg-zinc-800 border-zinc-700 text-emerald-500 focus:ring-emerald-500/40 accent-emerald-500"
-          />
-          <span class="text-xs text-zinc-300 font-medium">Adicionar à Setlist ao salvar</span>
-        </label>
+        {#if mode === 'song'}
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              bind:checked={addToSetlist}
+              class="w-4 h-4 rounded bg-neutral-800 border-neutral-700 text-emerald-500 focus:ring-emerald-500/40 accent-emerald-500"
+            />
+            <span class="text-xs text-neutral-300 font-medium">Adicionar à Setlist ao salvar</span>
+          </label>
+        {:else}
+          <div class="text-xs text-neutral-400">
+            Será salvo diretamente na Setlist ativa.
+          </div>
+        {/if}
 
         <div class="flex items-center gap-2.5">
           <Button variant="ghost" size="sm" onclick={onclose} disabled={isSaving}>
@@ -382,7 +702,7 @@ Porque Ele vive, temor não há`;
           <Button
             variant="default"
             size="sm"
-            onclick={saveSong}
+            onclick={saveContent}
             disabled={isSaving}
             class="gap-1.5 min-w-[120px]"
           >
@@ -391,7 +711,7 @@ Porque Ele vive, temor não há`;
               Salvando...
             {:else}
               <Save size={14} />
-              Salvar Música
+              {mode === 'song' ? 'Salvar Música' : 'Salvar Apresentação'}
             {/if}
           </Button>
         </div>

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { presentationState, mediaItemsList, initWebSocket } from '$lib/ws';
   import type { MediaItem, Slide } from '$lib/types';
+  import { renderFormattedText } from '$lib/markdown';
   import { Maximize, Minimize, Clock, ArrowRight } from 'lucide-svelte';
 
   let currentTime = $state('');
@@ -156,12 +157,8 @@
 
       <div class="my-auto py-4">
         {#if activeSlide}
-          <div class="space-y-3">
-            {#each activeSlide.content.split('\n') as line}
-              <p class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white leading-tight">
-                {line}
-              </p>
-            {/each}
+          <div class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white leading-tight">
+            {@html renderFormattedText(activeSlide.content)}
           </div>
         {:else}
           <p class="text-zinc-500 text-xl font-medium text-center">
@@ -194,12 +191,8 @@
 
       <div class="my-auto py-2">
         {#if nextSlide}
-          <div class="space-y-2 opacity-80">
-            {#each nextSlide.content.split('\n') as line}
-              <p class="text-lg sm:text-xl font-medium text-zinc-300 leading-snug">
-                {line}
-              </p>
-            {/each}
+          <div class="text-lg sm:text-xl font-medium text-zinc-300 leading-snug opacity-80">
+            {@html renderFormattedText(nextSlide.content)}
           </div>
         {:else if activeSlide}
           <p class="text-zinc-600 text-sm italic text-center py-8">

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { presentationState, mediaItemsList, initWebSocket } from '$lib/ws';
   import type { MediaItem, Slide } from '$lib/types';
+  import { renderFormattedText } from '$lib/markdown';
   import { Maximize, Minimize } from 'lucide-svelte';
 
   let isFullscreen = $state(false);
@@ -41,6 +42,9 @@
     }
     return activeMedia.slides[p.active_slide_index];
   });
+
+  const alignH = $derived(activeSlide?.align_h || activeMedia?.align_h || 'center');
+  const alignV = $derived(activeSlide?.align_v || activeMedia?.align_v || 'center');
 
   const wallpaper = $derived($presentationState.wallpaper_path);
   const wallpaperFit = $derived($presentationState.wallpaper_mode || 'cover');
@@ -87,7 +91,7 @@
         {/if}
 
         <!-- Overlay escuro sutil para garantir legibilidade quando houver slide -->
-        {#if activeSlide}
+        {#if activeSlide && activeMedia?.kind !== 'image'}
           <div class="absolute inset-0 bg-black/60 backdrop-blur-[2px]"></div>
         {/if}
       </div>
@@ -103,22 +107,35 @@
           </div>
         {/if}
       {:else if activeSlide}
-        <!-- Slide Ao Vivo -->
-        <div class="w-full h-full max-w-[95vw] max-h-[92vh] aspect-video flex flex-col items-center justify-center p-8 sm:p-14 text-center animate-in fade-in duration-150">
-          <div class="space-y-4 my-auto">
-            {#each activeSlide.content.split('\n') as line}
-              <p class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.95)] leading-tight">
-                {line}
-              </p>
-            {/each}
+        <!-- Mídia do Tipo Imagem Direta -->
+        {#if activeMedia?.kind === 'image'}
+          <div class="w-full h-full flex items-center justify-center p-4">
+            <img
+              src={activeSlide.content}
+              alt={activeMedia.title}
+              class="max-w-full max-h-full object-contain rounded shadow-2xl animate-in fade-in duration-200"
+            />
           </div>
-
-          {#if activeMedia?.artist_or_ref}
-            <div class="text-neutral-300 text-sm md:text-base font-medium mt-auto opacity-80 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-              {activeMedia.title} — {activeMedia.artist_or_ref}
+        {:else}
+          <!-- Slide de Texto / Música Ao Vivo com Formatação e Alinhamento -->
+          <div
+            class="w-full h-full max-w-[95vw] max-h-[92vh] aspect-video flex flex-col p-8 sm:p-14 animate-in fade-in duration-150 {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'} {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
+          >
+            <div class="space-y-4 my-auto max-w-5xl">
+              <div
+                class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight"
+              >
+                {@html renderFormattedText(activeSlide.content)}
+              </div>
             </div>
-          {/if}
-        </div>
+
+            {#if activeMedia?.artist_or_ref}
+              <div class="text-neutral-300 text-sm md:text-base font-medium mt-auto opacity-80 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                {activeMedia.title} — {activeMedia.artist_or_ref}
+              </div>
+            {/if}
+          </div>
+        {/if}
       {:else if !wallpaper}
         <!-- Estado de espera padrão sem mídia ativa nem wallpaper -->
         <div class="flex flex-col items-center justify-center text-center text-neutral-500 gap-3">

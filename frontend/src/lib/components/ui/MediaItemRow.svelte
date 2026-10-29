@@ -1,18 +1,44 @@
 <script lang="ts">
   import { cn } from '$lib/utils';
   import Badge from './Badge.svelte';
-  import { Music, BookOpen, Bell, Presentation, ChevronRight, Bookmark } from 'lucide-svelte';
+  import {
+    Music,
+    BookOpen,
+    Bell,
+    Presentation,
+    ChevronRight,
+    Bookmark,
+    GripVertical,
+    ImageIcon,
+    FileText,
+  } from 'lucide-svelte';
   import type { MediaItem } from '$lib/types';
 
   interface Props {
     item: MediaItem;
+    index?: number;
     selected?: boolean;
     isLive?: boolean;
     onclick?: () => void;
     oncontextmenu?: (e: MouseEvent) => void;
+    ondragstartitem?: (e: DragEvent, index: number) => void;
+    ondragoveritem?: (e: DragEvent, index: number) => void;
+    ondropitem?: (e: DragEvent, index: number) => void;
   }
 
-  let { item, selected = false, isLive = false, onclick, oncontextmenu }: Props = $props();
+  let {
+    item,
+    index = 0,
+    selected = false,
+    isLive = false,
+    onclick,
+    oncontextmenu,
+    ondragstartitem,
+    ondragoveritem,
+    ondropitem,
+  }: Props = $props();
+
+  let isDragOver = $state(false);
 
   const kindIcons = {
     song: Music,
@@ -20,15 +46,53 @@
     announcement: Bell,
     media: Presentation,
     header: Bookmark,
+    image: ImageIcon,
+    text: FileText,
   };
 
   const Icon = $derived(kindIcons[item.kind] ?? Presentation);
+
+  function handleDragStart(e: DragEvent) {
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(index));
+    }
+    ondragstartitem?.(e, index);
+  }
+
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+    isDragOver = true;
+    ondragoveritem?.(e, index);
+  }
+
+  function handleDragLeave() {
+    isDragOver = false;
+  }
+
+  function handleDrop(e: DragEvent) {
+    e.preventDefault();
+    isDragOver = false;
+    ondropitem?.(e, index);
+  }
 </script>
 
 {#if item.kind === 'header'}
   <!-- Divisor de Seção na Setlist -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="pt-3 pb-1 px-1 flex items-center justify-between gap-2 group select-none cursor-pointer"
+    draggable="true"
+    ondragstart={handleDragStart}
+    ondragover={handleDragOver}
+    ondragleave={handleDragLeave}
+    ondrop={handleDrop}
+    class={cn(
+      'pt-3 pb-1 px-1 flex items-center justify-between gap-2 group select-none cursor-grab active:cursor-grabbing transition-all',
+      isDragOver && 'border-t-2 border-primary bg-primary/10'
+    )}
     oncontextmenu={(e) => {
       e.preventDefault();
       oncontextmenu?.(e);
@@ -36,6 +100,7 @@
     role="separator"
   >
     <div class="flex items-center gap-1.5 min-w-0">
+      <GripVertical size={13} class="text-neutral-600 group-hover:text-neutral-400 shrink-0 opacity-60 group-hover:opacity-100" />
       <div class="w-4 h-4 rounded text-emerald-400 flex items-center justify-center">
         <Bookmark size={13} />
       </div>
@@ -46,31 +111,49 @@
     <div class="h-[1px] flex-1 bg-neutral-800/80 group-hover:bg-neutral-700 transition-colors"></div>
   </div>
 {:else}
-  <!-- Item Normal de Mídia -->
-  <button
-    type="button"
-    {onclick}
+  <!-- Item Normal de Mídia com Drag Handle e Drop Zone -->
+  <div
+    draggable="true"
+    ondragstart={handleDragStart}
+    ondragover={handleDragOver}
+    ondragleave={handleDragLeave}
+    ondrop={handleDrop}
+    class={cn(
+      'w-full text-left p-2.5 rounded-lg border transition-all duration-150 flex items-center justify-between gap-2 group relative overflow-hidden select-none',
+      isDragOver ? 'border-primary ring-2 ring-primary/40 bg-neutral-800' : '',
+      selected
+        ? 'bg-neutral-800/90 border-primary/50 shadow-sm text-neutral-100 ring-1 ring-primary/30'
+        : 'bg-neutral-900/40 border-neutral-800/60 hover:bg-neutral-850 hover:border-neutral-700 text-neutral-300'
+    )}
     oncontextmenu={(e) => {
       e.preventDefault();
       oncontextmenu?.(e);
     }}
-    class={cn(
-      'w-full text-left p-2.5 rounded-lg border transition-all duration-150 flex items-center justify-between gap-3 group cursor-pointer relative overflow-hidden',
-      selected
-        ? 'bg-neutral-800/90 border-emerald-500/50 shadow-sm text-neutral-100 ring-1 ring-emerald-500/30'
-        : 'bg-neutral-900/40 border-neutral-800/60 hover:bg-neutral-850 hover:border-neutral-700 text-neutral-300'
-    )}
+    role="button"
+    tabindex="0"
+    {onclick}
+    onkeydown={(e) => {
+      if (e.key === 'Enter') onclick?.();
+    }}
   >
     {#if selected}
-      <div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
+      <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
     {/if}
 
-    <div class="flex items-center gap-3 min-w-0">
+    <div class="flex items-center gap-2.5 min-w-0 flex-1">
+      <!-- Drag Handle -->
+      <div
+        class="cursor-grab active:cursor-grabbing text-neutral-600 group-hover:text-neutral-400 p-0.5 hover:bg-neutral-800 rounded transition-colors shrink-0"
+        title="Arrastar para reordenar"
+      >
+        <GripVertical size={14} />
+      </div>
+
       <div
         class={cn(
           'w-8 h-8 rounded-md flex items-center justify-center shrink-0 border transition-colors',
           selected
-            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+            ? 'bg-primary/10 border-primary/30 text-primary'
             : 'bg-neutral-800/80 border-neutral-700/50 text-neutral-400 group-hover:text-neutral-200'
         )}
       >
@@ -83,7 +166,7 @@
             {item.title}
           </h4>
           {#if isLive}
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0"></span>
           {/if}
         </div>
         {#if item.artist_or_ref}
@@ -107,9 +190,9 @@
         size={14}
         class={cn(
           'transition-transform text-neutral-500 group-hover:text-neutral-300',
-          selected ? 'text-emerald-400 translate-x-0.5' : ''
+          selected ? 'text-primary translate-x-0.5' : ''
         )}
       />
     </div>
-  </button>
+  </div>
 {/if}
