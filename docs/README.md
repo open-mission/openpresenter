@@ -20,6 +20,12 @@
 - [Plano — Transição para Arquitetura Web](plans/2026-10-28-arquitetura-web-axum-svelte.md)
 - [ADR 0004 — Arquitetura Web com Rust/Axum e Svelte/shadcn-svelte](decisions/0004-arquitetura-web-axum-svelte.md)
 
+## Catálogo de Músicas e Command Palette (v0.4.0)
+
+- [Spec — Command Palette, Catálogo com SQLite FTS5 e Cadastro de Músicas](specs/2026-10-28-command-palette-e-cadastro-musicas.md)
+- [Plano — Command Palette, Catálogo com SQLite FTS5 e Cadastro de Músicas](plans/2026-10-28-command-palette-e-cadastro-musicas.md)
+- [ADR 0005 — Command Palette, Catálogo com SQLite FTS5 e Busca Online](decisions/0005-command-palette-e-catalogo-musicas-fts5.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
@@ -28,6 +34,7 @@
 - [ADR 0002 — Licença GPL-3.0-only e política de marca](decisions/0002-licenca-gpl-3.0.md)
 - [ADR 0003 — Saídas Public e Stage em janelas independentes](decisions/0003-saidas-multitela.md)
 - [ADR 0004 — Arquitetura Web com Rust/Axum e Svelte/shadcn-svelte](decisions/0004-arquitetura-web-axum-svelte.md)
+- [ADR 0005 — Command Palette, Catálogo com SQLite FTS5 e Busca Online](decisions/0005-command-palette-e-catalogo-musicas-fts5.md)
 
 ## Marca e design
 

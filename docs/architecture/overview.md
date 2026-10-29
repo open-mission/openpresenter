@@ -7,14 +7,16 @@ Esta página descreve a arquitetura vigente do OpenPresenter Minimal. Ela deve s
 ```text
 .
 ├── crates/
-│   ├── op-core/    # domínio puro: constantes, modelos de mídia, slides, AppMeta, SessionInfo, Theme, saídas e mensagens WsMessage
-│   ├── op-db/      # SQLite, PRAGMAs, migrações numeradas e persistência da sessão e das saídas
-│   └── op-admin/   # binário open-presenter: servidor HTTP (Axum), WebSocket, estado global e serviço de estáticos
+│   ├── op-core/    # domínio puro: constantes, modelos de mídia, slides, Song, SongSection, SongSummary, AppMeta, SessionInfo, Theme, saídas e mensagens WsMessage
+│   ├── op-db/      # SQLite, PRAGMAs, migrações numeradas (v1, v2, v3 com FTS5) e persistência da sessão, saídas e catálogo de músicas
+│   └── op-admin/   # binário open-presenter: servidor HTTP (Axum), busca online de letras (Holyrics, Vagalume), WebSocket, estado global e serviço de estáticos
 ├── frontend/       # aplicação cliente em Svelte 5 + TypeScript + Vite + Tailwind CSS + shadcn-svelte
 │   ├── src/
 │   │   ├── lib/
 │   │   │   ├── components/ui/  # componentes no padrão shadcn-svelte (Button, Badge, Card, MediaItemRow)
+│   │   │   ├── components/     # CommandPalette.svelte, SongEditorModal.svelte
 │   │   │   ├── views/          # visões principais: AdminView, PublicView, StageView
+│   │   │   ├── songParser.ts   # segmentador de letras estilo Holyrics (## Partes, quebras de slides)
 │   │   │   ├── types.ts        # tipagens e contratos de dados sincronizados com op-core
 │   │   │   ├── utils.ts        # utilitários de classe (cn, twMerge, clsx)
 │   │   │   └── ws.ts           # cliente WebSocket reativo e disparo de ações
@@ -38,7 +40,8 @@ frontend (HTTP/WS) → op-admin → op-db → op-core
 ```text
 crates/op-admin/src/
 ├── main.rs         # ponto de entrada do binário, setup do listener Axum e roteador principal
-├── routes.rs       # rotas REST para status, catálogo de mídias e comandos de projeção
+├── routes.rs       # rotas REST para status, setlist, catálogo FTS5 e busca online
+├── online_lyrics.rs# clientes para busca e download de letras em Holyrics e Vagalume
 ├── state.rs        # AppState global thread-safe e acervo inicial de demonstração
 ├── ws.rs           # handler WebSocket (/ws) com sincronização inicial e broadcast de eventos
 ├── session.rs      # inicialização de sessão, data directory e metadados no SQLite
@@ -69,7 +72,8 @@ crates/op-admin/src/
 - PRAGMAs: `journal_mode=WAL`, `synchronous=NORMAL`, `foreign_keys=ON`, `busy_timeout=5000`.
 - Schema v1: tabela singleton `app_meta` (`id = 1`) com `app_version`, `first_run_at`, `last_run_at`, `theme`, `locale` e `updated_at`.
 - Schema v2: tabela `output_config`, com uma linha por saída (`public` ou `stage`), `enabled`, `monitor_key`, `monitor_name`, `mode` e `updated_at`.
-- A migração `0002_output_config.sql` é aditiva e não altera `app_meta`.
+- Schema v3: tabelas `songs`, `song_sections`, `song_lyrics` e virtual table `songs_fts` usando SQLite FTS5 (`unicode61 remove_diacritics 2`) para busca full-text instantânea por título e letra com snippets.
+- As migrações são estritamente aditivas e numeradas.
 - Datas em RFC 3339 UTC com milissegundos.
 
 ## Protocolo WebSocket
