@@ -7,17 +7,17 @@ Esta página descreve a arquitetura vigente do OpenPresenter Minimal. Ela deve s
 ```text
 .
 ├── crates/
-│   ├── op-core/    # domínio puro: constantes, modelos de mídia, slides, Setlist, SetlistSummary, Song, SongSection, SongSummary, AppMeta, SessionInfo, Theme, saídas e mensagens WsMessage
-│   ├── op-db/      # SQLite, PRAGMAs, migrações numeradas (v1, v2, v3 com FTS5, v4 com Setlists) e persistência da sessão, saídas, catálogo de músicas e múltiplas setlists
-│   └── op-admin/   # binário open-presenter: servidor HTTP (Axum), armazenamento de mídias no sistema, busca online de letras (Holyrics, Vagalume), WebSocket, estado global e serviço de estáticos
+│   ├── op-core/    # domínio puro: constantes, modelos de mídia, slides, Setlist, SetlistSummary, Song, SongSection, SongSummary, MediaFolder, AppMeta, SessionInfo, Theme, saídas e mensagens WsMessage
+│   ├── op-db/      # SQLite, PRAGMAs, migrações numeradas (v1, v2, v3 FTS5, v4 Setlists, v5 Media Folders) e persistência da sessão, saídas, catálogo, setlists e pastas mapeadas
+│   └── op-admin/   # binário open-presenter: servidor HTTP (Axum), armazenamento e streaming de mídias, busca online de letras (Holyrics, Vagalume), WebSocket, estado global e serviço de estáticos
 ├── frontend/       # aplicação cliente em Svelte 5 + TypeScript + Vite + Tailwind CSS + shadcn-svelte
 │   ├── src/
 │   │   ├── lib/
 │   │   │   ├── components/ui/  # componentes no padrão shadcn-svelte (Button, Badge, Card, MediaItemRow)
-│   │   │   ├── components/     # CommandPalette.svelte, SongEditorModal.svelte, SettingsModal.svelte, SetlistModal.svelte, QuickItemModal.svelte, ContextMenu.svelte
+│   │   │   ├── components/     # CommandPalette, SongEditorModal (Música/Texto), SettingsModal, SetlistModal, QuickItemModal, ContextMenu, BottomPanel
 │   │   │   ├── views/          # visões principais: AdminView, PublicView, StageView
-│   │   │   ├── settings.ts     # gerenciamento de tema (dark/light/system), paleta neutra, seções customizadas e estilos
-│   │   │   ├── songParser.ts   # segmentador de letras estilo Holyrics (## Partes, quebras de slides)
+│   │   │   ├── settings.ts     # gerenciamento de tema (dark/light/system), Base Colors e Theme Accents (Shadcn), seções customizadas
+│   │   │   ├── songParser.ts   # segmentador de letras e textos estilo Holyrics (## Partes, quebras de slides)
 │   │   │   ├── types.ts        # tipagens e contratos de dados sincronizados com op-core
 │   │   │   ├── utils.ts        # utilitários de classe (cn, twMerge, clsx)
 │   │   │   └── ws.ts           # cliente WebSocket reativo e disparo de ações

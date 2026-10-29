@@ -11,6 +11,7 @@ Cada decisão arquitetural duradoura é registrada em um arquivo `NNNN-slug.md`,
 - [ADR 0005 — Command Palette, Catálogo com SQLite FTS5 e Busca Online](0005-command-palette-e-catalogo-musicas-fts5.md)
 - [ADR 0006 — Controle de Apresentação Desacoplado, Seções Customizadas e Configurações em Abas](0006-controle-de-apresentacao-secoes-customizadas-e-configuracoes.md)
 - [ADR 0007 — Múltiplas Setlists, Context Menu e Armazenamento de Mídias](0007-multiplas-setlists-context-menu-e-armazenamento-de-midias.md)
+- [ADR 0008 — Temas Shadcn, Pastas de Mídia Externas, Editor Markdown e Layout Flexível](0008-temas-shadcn-pastas-midia-externas-editor-markdown-e-layout-flexivel.md)
 
 ## Formato
 

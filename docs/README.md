@@ -37,6 +37,13 @@
 - [Spec — Múltiplas Setlists, Context Menu, Papel de Parede e Armazenamento de Mídias](specs/2026-10-29-setlists-context-menu-e-wallpapers.md)
 - [Plano — Múltiplas Setlists, Context Menu, Papel de Parede e Armazenamento de Mídias](plans/2026-10-29-setlists-context-menu-e-wallpapers.md)
 - [ADR 0007 — Múltiplas Setlists, Context Menu e Armazenamento de Mídias](decisions/0007-multiplas-setlists-context-menu-e-armazenamento-de-midias.md)
+- [ADR 0008 — Temas Shadcn, Pastas de Mídia Externas, Editor Markdown e Layout Flexível](decisions/0008-temas-shadcn-pastas-midia-externas-editor-markdown-e-layout-flexivel.md)
+
+## Temas Shadcn, Pastas de Mídia, Editor Markdown e Painéis Flexíveis (v0.7.0)
+
+- [Spec — Temas Shadcn, Pastas de Mídia Externas, Editor Markdown e Painéis Flexíveis](specs/2026-10-29-temas-pastas-midia-editor-markdown-e-paineis.md)
+- [Plano — Temas Shadcn, Pastas de Mídia, Editor Markdown e Painéis Flexíveis](plans/2026-10-29-temas-pastas-midia-editor-markdown-e-paineis.md)
+- [ADR 0008 — Temas Shadcn, Pastas de Mídia Externas, Editor Markdown e Layout Flexível](decisions/0008-temas-shadcn-pastas-midia-externas-editor-markdown-e-layout-flexivel.md)
 
 ## Arquitetura e decisões
 
@@ -49,6 +56,7 @@
 - [ADR 0005 — Command Palette, Catálogo com SQLite FTS5 e Busca Online](decisions/0005-command-palette-e-catalogo-musicas-fts5.md)
 - [ADR 0006 — Controle de Apresentação Desacoplado, Seções Customizadas e Configurações em Abas](decisions/0006-controle-de-apresentacao-secoes-customizadas-e-configuracoes.md)
 - [ADR 0007 — Múltiplas Setlists, Context Menu e Armazenamento de Mídias](decisions/0007-multiplas-setlists-context-menu-e-armazenamento-de-midias.md)
+- [ADR 0008 — Temas Shadcn, Pastas de Mídia Externas, Editor Markdown e Layout Flexível](decisions/0008-temas-shadcn-pastas-midia-externas-editor-markdown-e-layout-flexivel.md)
 
 ## Marca e design
 
