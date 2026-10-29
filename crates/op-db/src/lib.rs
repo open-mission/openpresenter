@@ -4,7 +4,7 @@ use std::time::Duration;
 use chrono::{DateTime, SecondsFormat, Utc};
 use op_core::{
     AppMeta, DEFAULT_LOCALE, MonitorSelection, OutputConfig, OutputKind, OutputMode, OutputsConfig,
-    SessionInfo, Theme,
+    SectionType, SessionInfo, Song, SongSection, SongSummary, Theme,
 };
 use rusqlite::Connection;
 use rusqlite_migration::{M, Migrations};
@@ -59,6 +59,7 @@ impl Database {
         let migrations = Migrations::new(vec![
             M::up(include_str!("../migrations/0001_initial.sql")),
             M::up(include_str!("../migrations/0002_output_config.sql")),
+            M::up(include_str!("../migrations/0003_songs_fts.sql")),
         ]);
         migrations
             .to_latest(&mut conn)
@@ -236,6 +237,287 @@ impl Database {
 
         Ok(())
     }
+
+    /// Salva uma música no banco, inserindo metadados, seções, linhas e atualizando o índice FTS5.
+    pub fn save_song(&self, song: &Song, now: DateTime<Utc>) -> Result<(), DbError> {
+        let tx = self.conn.unchecked_transaction().map_err(DbError::Write)?;
+
+        let now_str = format_timestamp(now);
+
+        tx.execute(
+            "INSERT INTO songs (id, title, artist, album, composer, song_key, bpm, lyrics_raw, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+             ON CONFLICT(id) DO UPDATE SET
+                 title = excluded.title,
+                 artist = excluded.artist,
+                 album = excluded.album,
+                 composer = excluded.composer,
+                 song_key = excluded.song_key,
+                 bpm = excluded.bpm,
+                 lyrics_raw = excluded.lyrics_raw,
+                 updated_at = excluded.updated_at",
+            rusqlite::params![
+                song.id,
+                song.title,
+                song.artist,
+                song.album.as_deref().unwrap_or(""),
+                song.composer.as_deref().unwrap_or(""),
+                song.song_key.as_deref().unwrap_or(""),
+                song.bpm,
+                song.lyrics_raw,
+                now_str,
+            ],
+        )
+        .map_err(DbError::Write)?;
+
+        // Remove seções e letras antigas
+        tx.execute(
+            "DELETE FROM song_sections WHERE song_id = ?1",
+            rusqlite::params![song.id],
+        )
+        .map_err(DbError::Write)?;
+        tx.execute(
+            "DELETE FROM song_lyrics WHERE song_id = ?1",
+            rusqlite::params![song.id],
+        )
+        .map_err(DbError::Write)?;
+
+        // Insere seções e linhas
+        let mut full_lyrics = String::new();
+        for (sec_pos, section) in song.sections.iter().enumerate() {
+            let sec_type_str = section.section_type.map(|t| t.as_str());
+            tx.execute(
+                "INSERT INTO song_sections (song_id, position, section_type, label) VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![song.id, sec_pos as i64, sec_type_str, section.label],
+            )
+            .map_err(DbError::Write)?;
+
+            for (line_pos, line) in section.lines.iter().enumerate() {
+                tx.execute(
+                    "INSERT INTO song_lyrics (song_id, section_position, line_position, line) VALUES (?1, ?2, ?3, ?4)",
+                    rusqlite::params![song.id, sec_pos as i64, line_pos as i64, line],
+                )
+                .map_err(DbError::Write)?;
+
+                if !full_lyrics.is_empty() {
+                    full_lyrics.push(' ');
+                }
+                full_lyrics.push_str(line);
+            }
+        }
+
+        if full_lyrics.is_empty() && !song.lyrics_raw.is_empty() {
+            full_lyrics = song.lyrics_raw.clone();
+        }
+
+        // Atualiza a tabela virtual FTS5
+        tx.execute(
+            "DELETE FROM songs_fts WHERE song_id = ?1",
+            rusqlite::params![song.id],
+        )
+        .map_err(DbError::Write)?;
+        tx.execute(
+            "INSERT INTO songs_fts (song_id, title, artist, lyrics) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![song.id, song.title, song.artist, full_lyrics],
+        )
+        .map_err(DbError::Write)?;
+
+        tx.commit().map_err(DbError::Write)?;
+        Ok(())
+    }
+
+    /// Busca uma música pelo ID, reconstruindo suas seções e linhas.
+    pub fn get_song(&self, id: &str) -> Result<Option<Song>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT title, artist, album, composer, song_key, bpm, lyrics_raw
+                 FROM songs WHERE id = ?1",
+            )
+            .map_err(DbError::Read)?;
+
+        let mut rows = stmt.query(rusqlite::params![id]).map_err(DbError::Read)?;
+        let Some(row) = rows.next().map_err(DbError::Read)? else {
+            return Ok(None);
+        };
+
+        let title: String = row.get(0).map_err(DbError::Read)?;
+        let artist: String = row.get(1).map_err(DbError::Read)?;
+        let album: Option<String> = row.get(2).map_err(DbError::Read)?;
+        let composer: Option<String> = row.get(3).map_err(DbError::Read)?;
+        let song_key: Option<String> = row.get(4).map_err(DbError::Read)?;
+        let bpm: Option<i32> = row.get(5).map_err(DbError::Read)?;
+        let lyrics_raw: String = row.get(6).map_err(DbError::Read)?;
+
+        // Carrega seções
+        let mut sec_stmt = self
+            .conn
+            .prepare(
+                "SELECT position, section_type, label FROM song_sections
+                 WHERE song_id = ?1 ORDER BY position",
+            )
+            .map_err(DbError::Read)?;
+        let sec_rows = sec_stmt
+            .query_map(rusqlite::params![id], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, Option<String>>(1)?,
+                    r.get::<_, String>(2)?,
+                ))
+            })
+            .map_err(DbError::Read)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(DbError::Read)?;
+
+        let mut sections = Vec::new();
+        for (sec_pos, sec_type_opt, label) in sec_rows {
+            let section_type = sec_type_opt.and_then(|st| SectionType::from_label(&st));
+            let mut line_stmt = self
+                .conn
+                .prepare(
+                    "SELECT line FROM song_lyrics
+                     WHERE song_id = ?1 AND section_position = ?2
+                     ORDER BY line_position",
+                )
+                .map_err(DbError::Read)?;
+            let lines = line_stmt
+                .query_map(rusqlite::params![id, sec_pos], |r| r.get::<_, String>(0))
+                .map_err(DbError::Read)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(DbError::Read)?;
+
+            sections.push(SongSection {
+                section_type,
+                label,
+                lines,
+            });
+        }
+
+        Ok(Some(Song {
+            id: id.to_string(),
+            title,
+            artist,
+            album: album.filter(|s| !s.is_empty()),
+            composer: composer.filter(|s| !s.is_empty()),
+            song_key: song_key.filter(|s| !s.is_empty()),
+            bpm,
+            sections,
+            lyrics_raw,
+        }))
+    }
+
+    /// Pesquisa músicas usando SQLite FTS5 por título, artista e trechos de letra.
+    pub fn search_songs(&self, query: &str) -> Result<Vec<SongSummary>, DbError> {
+        let clean = query.trim();
+        if clean.is_empty() {
+            let mut stmt = self
+                .conn
+                .prepare(
+                    "SELECT id, title, artist, song_key, bpm, composer, album
+                     FROM songs ORDER BY title COLLATE NOCASE ASC LIMIT 50",
+                )
+                .map_err(DbError::Read)?;
+            let summaries = stmt
+                .query_map([], |r| {
+                    Ok(SongSummary {
+                        id: r.get(0)?,
+                        title: r.get(1)?,
+                        artist: r.get(2)?,
+                        song_key: r.get(3)?,
+                        bpm: r.get(4)?,
+                        composer: r.get(5)?,
+                        album: r.get(6)?,
+                        preview_snippet: None,
+                    })
+                })
+                .map_err(DbError::Read)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(DbError::Read)?;
+            return Ok(summaries);
+        }
+
+        // Tenta buscar via FTS5 MATCH
+        let fts_query = format!("\"{}\"*", clean.replace('"', "\"\""));
+        let fts_sql = "SELECT s.id, s.title, s.artist, s.song_key, s.bpm, s.composer, s.album,
+                              snippet(songs_fts, 3, '<b>', '</b>', '...', 8)
+                       FROM songs_fts f
+                       JOIN songs s ON s.id = f.song_id
+                       WHERE songs_fts MATCH ?1
+                       ORDER BY rank
+                       LIMIT 50";
+
+        if let Ok(mut stmt) = self.conn.prepare(fts_sql)
+            && let Ok(summaries) = stmt.query_map(rusqlite::params![fts_query], |r| {
+                Ok(SongSummary {
+                    id: r.get(0)?,
+                    title: r.get(1)?,
+                    artist: r.get(2)?,
+                    song_key: r.get(3)?,
+                    bpm: r.get(4)?,
+                    composer: r.get(5)?,
+                    album: r.get(6)?,
+                    preview_snippet: r.get(7)?,
+                })
+            })
+        {
+            let list = summaries.filter_map(Result::ok).collect::<Vec<_>>();
+            if !list.is_empty() {
+                return Ok(list);
+            }
+        }
+
+        // Fallback para LIKE se FTS5 não trouxer resultados ou termo for parcial
+        let pattern = format!(
+            "%{}%",
+            clean
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_")
+        );
+        let mut fallback_stmt = self
+            .conn
+            .prepare(
+                "SELECT id, title, artist, song_key, bpm, composer, album
+                 FROM songs
+                 WHERE title LIKE ?1 ESCAPE '\\'
+                    OR artist LIKE ?1 ESCAPE '\\'
+                    OR lyrics_raw LIKE ?1 ESCAPE '\\'
+                 ORDER BY title COLLATE NOCASE ASC LIMIT 50",
+            )
+            .map_err(DbError::Read)?;
+
+        let list = fallback_stmt
+            .query_map(rusqlite::params![pattern], |r| {
+                Ok(SongSummary {
+                    id: r.get(0)?,
+                    title: r.get(1)?,
+                    artist: r.get(2)?,
+                    song_key: r.get(3)?,
+                    bpm: r.get(4)?,
+                    composer: r.get(5)?,
+                    album: r.get(6)?,
+                    preview_snippet: None,
+                })
+            })
+            .map_err(DbError::Read)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(DbError::Read)?;
+
+        Ok(list)
+    }
+
+    /// Remove uma música do banco e do índice FTS5.
+    pub fn delete_song(&self, id: &str) -> Result<bool, DbError> {
+        let count = self
+            .conn
+            .execute("DELETE FROM songs WHERE id = ?1", rusqlite::params![id])
+            .map_err(DbError::Write)?;
+        let _ = self.conn.execute(
+            "DELETE FROM songs_fts WHERE song_id = ?1",
+            rusqlite::params![id],
+        );
+        Ok(count > 0)
+    }
 }
 
 #[cfg(test)]
@@ -263,7 +545,7 @@ mod tests {
         let path = dir.path().join("open-presenter.db");
         let db = Database::open(&path).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 2);
+        assert_eq!(db.schema_version().unwrap(), 3);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -296,24 +578,24 @@ mod tests {
     }
 
     #[test]
-    fn open_creates_schema_v2_with_output_config() {
+    fn open_creates_schema_v3_with_output_config_and_songs_fts() {
         let dir = tempfile::tempdir().unwrap();
         let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 2);
+        assert_eq!(db.schema_version().unwrap(), 3);
         let table_count: i64 = db
             .conn
             .query_row(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'output_config'",
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts')",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(table_count, 1);
+        assert_eq!(table_count, 3);
     }
 
     #[test]
-    fn migrates_v1_database_to_v2_preserving_app_meta() {
+    fn migrates_v1_database_to_v3_preserving_app_meta() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("open-presenter.db");
         {
@@ -330,7 +612,7 @@ mod tests {
         }
 
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.schema_version().unwrap(), 2);
+        assert_eq!(db.schema_version().unwrap(), 3);
         let meta = db.load_meta().unwrap().unwrap();
         assert_eq!(meta.first_run_at, ts(2026, 10, 28, 10, 0));
         let count: i64 = db
@@ -493,5 +775,67 @@ mod tests {
             conn.pragma_update(None, "user_version", 99).unwrap();
         }
         assert!(matches!(Database::open(&path), Err(DbError::Migration(_))));
+    }
+
+    #[test]
+    fn save_song_and_fts_search_works() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
+
+        let song = Song {
+            id: "song-123".into(),
+            title: "Porque Ele Vive".into(),
+            artist: "Harpa Cristã".into(),
+            album: None,
+            composer: Some("Bill Gaither".into()),
+            song_key: Some("G".into()),
+            bpm: Some(72),
+            sections: vec![
+                SongSection {
+                    section_type: Some(SectionType::Verse),
+                    label: "Verso 1".into(),
+                    lines: vec![
+                        "Deus enviou Seu Filho amado".into(),
+                        "Para morrer em meu lugar".into(),
+                    ],
+                },
+                SongSection {
+                    section_type: Some(SectionType::Chorus),
+                    label: "Refrão".into(),
+                    lines: vec![
+                        "Porque Ele vive, posso crer no amanhã".into(),
+                        "Porque Ele vive, temor não há".into(),
+                    ],
+                },
+            ],
+            lyrics_raw: "## Verso 1\nDeus enviou Seu Filho amado\nPara morrer em meu lugar\n\n## Refrão\nPorque Ele vive, posso crer no amanhã\nPorque Ele vive, temor não há".into(),
+        };
+
+        db.save_song(&song, ts(2026, 10, 28, 20, 0)).unwrap();
+
+        // 1. Busca por ID
+        let loaded = db.get_song("song-123").unwrap().expect("encontra música");
+        assert_eq!(loaded.title, "Porque Ele Vive");
+        assert_eq!(loaded.sections.len(), 2);
+        assert_eq!(loaded.sections[0].lines.len(), 2);
+
+        // 2. Busca por termo no título
+        let by_title = db.search_songs("porque").unwrap();
+        assert_eq!(by_title.len(), 1);
+        assert_eq!(by_title[0].id, "song-123");
+
+        // 3. Busca FTS5 por termo que só existe no meio da letra ("sepulcro" não existe aqui, mas "morrer" existe)
+        let by_lyrics = db.search_songs("morrer").unwrap();
+        assert_eq!(by_lyrics.len(), 1);
+        assert_eq!(by_lyrics[0].title, "Porque Ele Vive");
+
+        // 4. Busca por artista
+        let by_artist = db.search_songs("Harpa").unwrap();
+        assert_eq!(by_artist.len(), 1);
+
+        // 5. Exclusão
+        assert!(db.delete_song("song-123").unwrap());
+        assert!(db.get_song("song-123").unwrap().is_none());
+        assert!(db.search_songs("porque").unwrap().is_empty());
     }
 }

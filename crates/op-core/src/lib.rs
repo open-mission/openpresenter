@@ -305,6 +305,226 @@ impl MediaKind {
     }
 }
 
+/// Tipo de seção de uma música.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SectionType {
+    Verse,
+    PreChorus,
+    Chorus,
+    Bridge,
+    Intro,
+    Outro,
+    Instrumental,
+    Tag,
+    Ending,
+}
+
+impl SectionType {
+    pub fn from_label(label: &str) -> Option<Self> {
+        let normalized = label.trim().to_lowercase();
+        let key = normalized
+            .trim_end_matches(|c: char| c.is_ascii_digit())
+            .trim_end();
+        match key {
+            "verso" | "estrofe" | "verse" => Some(Self::Verse),
+            "refrão" | "refrao" | "coro" | "chorus" => Some(Self::Chorus),
+            "pré-refrão" | "pre-refrao" | "pre-refrão" | "pre-chorus" | "pre chorus" => {
+                Some(Self::PreChorus)
+            }
+            "ponte" | "bridge" => Some(Self::Bridge),
+            "introdução" | "introducao" | "intro" => Some(Self::Intro),
+            "final" | "outro" => Some(Self::Outro),
+            "instrumental" => Some(Self::Instrumental),
+            "tag" => Some(Self::Tag),
+            "encerramento" | "ending" => Some(Self::Ending),
+            _ => None,
+        }
+    }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Verse => "verse",
+            Self::PreChorus => "pre-chorus",
+            Self::Chorus => "chorus",
+            Self::Bridge => "bridge",
+            Self::Intro => "intro",
+            Self::Outro => "outro",
+            Self::Instrumental => "instrumental",
+            Self::Tag => "tag",
+            Self::Ending => "ending",
+        }
+    }
+
+    pub const fn as_label(self) -> &'static str {
+        match self {
+            Self::Verse => "Verso",
+            Self::PreChorus => "Pré-refrão",
+            Self::Chorus => "Refrão",
+            Self::Bridge => "Ponte",
+            Self::Intro => "Introdução",
+            Self::Outro => "Final",
+            Self::Instrumental => "Instrumental",
+            Self::Tag => "Tag",
+            Self::Ending => "Encerramento",
+        }
+    }
+}
+
+/// Seção estruturada de uma música.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SongSection {
+    pub section_type: Option<SectionType>,
+    pub label: String,
+    pub lines: Vec<String>,
+}
+
+/// Modelo de música persistido no banco de dados.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Song {
+    pub id: String,
+    pub title: String,
+    pub artist: String,
+    #[serde(default)]
+    pub album: Option<String>,
+    #[serde(default)]
+    pub composer: Option<String>,
+    #[serde(default)]
+    pub song_key: Option<String>,
+    #[serde(default)]
+    pub bpm: Option<i32>,
+    pub sections: Vec<SongSection>,
+    pub lyrics_raw: String,
+}
+
+impl Song {
+    pub fn into_media_item(self) -> MediaItem {
+        let (_, slides) = parse_raw_lyrics(&self.lyrics_raw);
+        MediaItem {
+            id: self.id,
+            title: self.title,
+            artist_or_ref: if self.artist.is_empty() {
+                None
+            } else {
+                Some(self.artist)
+            },
+            kind: MediaKind::Song,
+            slides,
+        }
+    }
+}
+
+/// Resumo de uma música retornado nas buscas do catálogo.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SongSummary {
+    pub id: String,
+    pub title: String,
+    pub artist: String,
+    pub song_key: Option<String>,
+    pub bpm: Option<i32>,
+    pub composer: Option<String>,
+    pub album: Option<String>,
+    pub preview_snippet: Option<String>,
+}
+
+/// Resultado de busca de letra em provedores online (Holyrics, Vagalume).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnlineLyricHit {
+    pub track_name: String,
+    pub artist_name: String,
+    pub album_name: Option<String>,
+    pub provider: Option<String>,
+    pub provider_id: Option<String>,
+}
+
+/// Converte o texto bruto da letra (Holyrics / ProPresenter style) em seções e slides.
+///
+/// Regras:
+/// - Linhas iniciando com `##` definem o rótulo da seção (ex: `## Verso 1`, `## Refrão`).
+/// - Linhas em branco (`\n\n`) separam slides dentro da seção.
+pub fn parse_raw_lyrics(raw: &str) -> (Vec<SongSection>, Vec<Slide>) {
+    let normalized = raw.replace("\r\n", "\n").replace('\r', "\n");
+    let mut sections: Vec<SongSection> = Vec::new();
+    let mut slides: Vec<Slide> = Vec::new();
+
+    let mut current_label = "Verso 1".to_string();
+    let mut current_section_lines: Vec<String> = Vec::new();
+    let mut current_slide_lines: Vec<String> = Vec::new();
+    let mut slide_idx = 1;
+
+    for line in normalized.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.starts_with("##") {
+            // Nova seção detectada
+            if !current_slide_lines.is_empty() {
+                let content = current_slide_lines.join("\n");
+                slides.push(Slide {
+                    id: format!("slide-{}", slide_idx),
+                    label: current_label.clone(),
+                    content,
+                });
+                slide_idx += 1;
+                current_slide_lines.clear();
+            }
+
+            if !current_section_lines.is_empty() {
+                let st = SectionType::from_label(&current_label);
+                sections.push(SongSection {
+                    section_type: st,
+                    label: current_label.clone(),
+                    lines: std::mem::take(&mut current_section_lines),
+                });
+            }
+
+            let label_text = trimmed.trim_start_matches('#').trim();
+            if !label_text.is_empty() {
+                current_label = label_text.to_string();
+            }
+            continue;
+        }
+
+        if trimmed.is_empty() {
+            // Linha em branco: quebra de slide
+            if !current_slide_lines.is_empty() {
+                let content = current_slide_lines.join("\n");
+                slides.push(Slide {
+                    id: format!("slide-{}", slide_idx),
+                    label: current_label.clone(),
+                    content,
+                });
+                slide_idx += 1;
+                current_slide_lines.clear();
+            }
+            continue;
+        }
+
+        current_slide_lines.push(trimmed.to_string());
+        current_section_lines.push(trimmed.to_string());
+    }
+
+    // Flush final
+    if !current_slide_lines.is_empty() {
+        let content = current_slide_lines.join("\n");
+        slides.push(Slide {
+            id: format!("slide-{}", slide_idx),
+            label: current_label.clone(),
+            content,
+        });
+    }
+
+    if !current_section_lines.is_empty() {
+        let st = SectionType::from_label(&current_label);
+        sections.push(SongSection {
+            section_type: st,
+            label: current_label,
+            lines: current_section_lines,
+        });
+    }
+
+    (sections, slides)
+}
+
 /// Slide individual de um item de mídia.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Slide {
@@ -515,5 +735,49 @@ mod tests {
         };
         let ws_json = serde_json::to_string(&ws_msg).expect("serializes");
         assert!(ws_json.contains("select_slide"));
+    }
+
+    #[test]
+    fn raw_lyrics_parsing_splits_slides_and_identifies_sections() {
+        let raw = r#"
+## Verso 1
+Deus enviou Seu Filho amado
+Para morrer em meu lugar
+
+Na cruz pagou por meus pecados
+Mas o sepulcro vazio está
+
+## Refrão
+Porque Ele vive, posso crer no amanhã
+Porque Ele vive, temor não há
+"#;
+
+        let (sections, slides) = parse_raw_lyrics(raw);
+        assert_eq!(sections.len(), 2);
+        assert_eq!(sections[0].label, "Verso 1");
+        assert_eq!(sections[0].section_type, Some(SectionType::Verse));
+        assert_eq!(sections[0].lines.len(), 4);
+
+        assert_eq!(sections[1].label, "Refrão");
+        assert_eq!(sections[1].section_type, Some(SectionType::Chorus));
+        assert_eq!(sections[1].lines.len(), 2);
+
+        // Slides devem ter sido divididos pelas linhas em branco:
+        assert_eq!(slides.len(), 3);
+        assert_eq!(slides[0].label, "Verso 1");
+        assert_eq!(
+            slides[0].content,
+            "Deus enviou Seu Filho amado\nPara morrer em meu lugar"
+        );
+        assert_eq!(slides[1].label, "Verso 1");
+        assert_eq!(
+            slides[1].content,
+            "Na cruz pagou por meus pecados\nMas o sepulcro vazio está"
+        );
+        assert_eq!(slides[2].label, "Refrão");
+        assert_eq!(
+            slides[2].content,
+            "Porque Ele vive, posso crer no amanhã\nPorque Ele vive, temor não há"
+        );
     }
 }
