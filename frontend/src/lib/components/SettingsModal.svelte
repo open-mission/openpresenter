@@ -29,6 +29,7 @@
     Church,
     Maximize2,
     Save,
+    Image as ImageIcon,
   } from 'lucide-svelte';
   import {
     themeStore,
@@ -779,6 +780,54 @@
                   >
                     <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.show_metadata ? 'left-6' : 'left-1'}"></span>
                   </button>
+                </div>
+
+                <!-- Ignorar Margens para Imagens (Edge-to-Edge) -->
+                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                  <div>
+                    <div class="text-xs font-semibold text-white flex items-center gap-2">
+                      <ImageIcon size={14} class="text-primary" />
+                      Projetar Imagens em Tela Cheia (Sem Margens de Texto)
+                    </div>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">
+                      Quando ativado, imagens 16:9 ocupam 100% da tela sem aplicar as margens seguras de texto, eliminando bordas pretas extras.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Alternar margens para imagens"
+                    onclick={() => updatePublicField('ignore_margins_for_media', !localPublic.ignore_margins_for_media)}
+                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.ignore_margins_for_media !== false ? 'bg-primary' : 'bg-neutral-800'}"
+                    role="switch"
+                    aria-checked={localPublic.ignore_margins_for_media !== false}
+                  >
+                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.ignore_margins_for_media !== false ? 'left-6' : 'left-1'}"></span>
+                  </button>
+                </div>
+
+                <!-- Encaixe Padrão de Imagens -->
+                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-2.5">
+                  <div class="text-xs font-semibold text-white flex items-center gap-2">
+                    <Maximize2 size={14} class="text-primary" />
+                    Encaixe Padrão de Imagens na Projeção
+                  </div>
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                    {#each [
+                      { id: 'contain', label: 'Ajustar (Conter)', desc: 'Sem cortar' },
+                      { id: 'cover', label: 'Preencher', desc: 'Corta excedente' },
+                      { id: 'fill', label: 'Esticar', desc: 'Preenche 100%' },
+                      { id: 'center', label: 'Original', desc: 'Sem zoom' }
+                    ] as fitOption}
+                      <button
+                        type="button"
+                        onclick={() => updatePublicField('image_fit', fitOption.id as any)}
+                        class="p-2 rounded-lg border text-left transition-all cursor-pointer {(localPublic.image_fit || 'contain') === fitOption.id ? 'border-primary bg-primary/10 text-white' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
+                      >
+                        <div class="text-xs font-medium">{(localPublic.image_fit || 'contain') === fitOption.id ? '✓ ' : ''}{fitOption.label}</div>
+                        <div class="text-[10px] opacity-70 mt-0.5">{fitOption.desc}</div>
+                      </button>
+                    {/each}
+                  </div>
                 </div>
               </div>
 

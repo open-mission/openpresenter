@@ -86,6 +86,14 @@
     return undefined;
   });
 
+  const isCurrentImage = $derived(
+    activeMedia?.kind === 'image' || (activeSlide?.content && activeSlide.content.startsWith('/media/'))
+  );
+
+  const isNextImage = $derived(
+    nextSlide?.content && nextSlide.content.startsWith('/media/')
+  );
+
   const stageSettings = $derived($stageSettingsStore);
   const timer = $derived($presentationState.timer);
   const stageMessage = $derived($presentationState.stage_message || $presentationState.timer?.stage_message || '');
@@ -169,10 +177,19 @@
             {/if}
           </div>
 
-          <div class="my-auto py-4 overflow-y-auto">
-            {#if activeSlide}
+          <div class="my-auto py-3 overflow-y-auto min-h-0 flex items-center justify-center">
+            {#if isCurrentImage && activeSlide}
+              <div class="w-full h-full flex flex-col items-center justify-center p-2 min-h-0">
+                <img
+                  src={activeSlide.content}
+                  alt={activeMedia?.title || 'Imagem'}
+                  class="max-w-full max-h-[60vh] object-contain rounded-xl shadow-2xl border border-zinc-800"
+                />
+                <span class="text-xs text-zinc-400 font-mono mt-2 truncate max-w-sm">{activeMedia?.title || 'Imagem'}</span>
+              </div>
+            {:else if activeSlide}
               <div
-                class="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight"
+                class="text-4xl sm:text-5xl md:text-6xl font-black leading-tight text-center"
                 style="color: {stageSettings.current_text_color || '#ffffff'};"
               >
                 {@html renderFormattedText(activeSlide.content)}
@@ -212,10 +229,18 @@
             {/if}
           </div>
 
-          <div class="my-auto py-4 overflow-y-auto">
-            {#if nextSlide}
+          <div class="my-auto py-3 overflow-y-auto min-h-0 flex items-center justify-center">
+            {#if isNextImage && nextSlide}
+              <div class="w-full h-full flex flex-col items-center justify-center p-2 min-h-0">
+                <img
+                  src={nextSlide.content}
+                  alt="Próxima imagem"
+                  class="max-w-full max-h-[50vh] object-contain rounded-lg opacity-85 shadow border border-zinc-800"
+                />
+              </div>
+            {:else if nextSlide}
               <div
-                class="text-2xl sm:text-3xl md:text-4xl font-bold leading-snug opacity-90"
+                class="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight opacity-90 text-center"
                 style="color: {stageSettings.next_text_color || '#facc15'};"
               >
                 {@html renderFormattedText(nextSlide.content)}
@@ -299,10 +324,10 @@
       >
         <!-- Slide Atual Grande -->
         <div
-          class="flex flex-col rounded-2xl bg-zinc-900/70 p-6 overflow-hidden shadow-2xl border-2 transition-all min-h-0"
+          class="flex flex-col rounded-2xl bg-zinc-900/70 p-3.5 sm:p-5 overflow-hidden shadow-2xl border-2 transition-all min-h-0"
           style="flex: {currentRatio}; border-color: {stageSettings.current_border_color || '#3b82f6'};"
         >
-          <div class="flex items-center justify-between pb-3 border-b border-zinc-800 shrink-0">
+          <div class="flex items-center justify-between pb-2 border-b border-zinc-800 shrink-0">
             <span
               class="text-xs font-bold uppercase tracking-widest flex items-center gap-2"
               style="color: {stageSettings.current_text_color || '#ffffff'};"
@@ -317,10 +342,19 @@
             {/if}
           </div>
 
-          <div class="my-auto py-3 overflow-y-auto">
-            {#if activeSlide}
+          <div class="my-auto py-2 overflow-y-auto min-h-0 flex items-center justify-center">
+            {#if isCurrentImage && activeSlide}
+              <div class="w-full h-full flex flex-col items-center justify-center p-2 min-h-0">
+                <img
+                  src={activeSlide.content}
+                  alt={activeMedia?.title || 'Imagem'}
+                  class="max-w-full max-h-[50vh] object-contain rounded-xl shadow-2xl border border-zinc-800"
+                />
+                <span class="text-xs text-zinc-400 font-mono mt-1.5 truncate max-w-sm">{activeMedia?.title || 'Imagem'}</span>
+              </div>
+            {:else if activeSlide}
               <div
-                class="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight"
+                class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-tight text-center"
                 style="color: {stageSettings.current_text_color || '#ffffff'};"
               >
                 {@html renderFormattedText(activeSlide.content)}
@@ -335,10 +369,10 @@
 
         <!-- Próximo Slide Compacto Abaixo -->
         <div
-          class="rounded-2xl bg-zinc-900/40 p-4 overflow-hidden border flex flex-col shrink-0 transition-all min-h-0"
+          class="rounded-2xl bg-zinc-900/40 p-2 sm:p-3 overflow-hidden border flex flex-col shrink-0 transition-all min-h-0"
           style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
         >
-          <div class="flex items-center justify-between pb-1.5 border-b border-zinc-800/80 shrink-0">
+          <div class="flex items-center justify-between pb-1 border-b border-zinc-800/80 shrink-0">
             <span
               class="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5"
               style="color: {stageSettings.next_text_color || '#facc15'};"
@@ -353,10 +387,18 @@
             {/if}
           </div>
 
-          <div class="my-auto overflow-y-auto py-1">
-            {#if nextSlide}
+          <div class="my-auto overflow-y-auto py-1 min-h-0 flex items-center justify-center">
+            {#if isNextImage && nextSlide}
+              <div class="w-full h-full flex items-center justify-center p-1 min-h-0">
+                <img
+                  src={nextSlide.content}
+                  alt="Próxima imagem"
+                  class="max-w-full max-h-[22vh] object-contain rounded-lg opacity-85 shadow border border-zinc-800"
+                />
+              </div>
+            {:else if nextSlide}
               <div
-                class="text-lg sm:text-xl font-semibold leading-snug opacity-85"
+                class="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight opacity-90 text-center"
                 style="color: {stageSettings.next_text_color || '#facc15'};"
               >
                 {@html renderFormattedText(nextSlide.content)}
@@ -452,10 +494,19 @@
           {/if}
         </div>
 
-        <div class="max-w-4xl overflow-y-auto my-auto">
-          {#if activeSlide}
+        <div class="max-w-4xl overflow-y-auto my-auto w-full">
+          {#if isCurrentImage && activeSlide}
+            <div class="w-full h-full flex flex-col items-center justify-center p-2 min-h-0">
+              <img
+                src={activeSlide.content}
+                alt={activeMedia?.title || 'Imagem'}
+                class="max-w-full max-h-[55vh] object-contain rounded-xl shadow-2xl border border-zinc-800"
+              />
+              <span class="text-xs text-zinc-400 font-mono mt-2 truncate max-w-sm">{activeMedia?.title || 'Imagem'}</span>
+            </div>
+          {:else if activeSlide}
             <div
-              class="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight tracking-tight drop-shadow-md"
+              class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-tight tracking-tight drop-shadow-md text-center"
               style="color: {stageSettings.current_text_color || '#ffffff'};"
             >
               {@html renderFormattedText(activeSlide.content)}
@@ -487,10 +538,15 @@
             Próximo
           </div>
           <div
-            class="text-sm sm:text-base font-semibold truncate opacity-85"
+            class="text-xl sm:text-2xl font-bold truncate opacity-90"
             style="color: {stageSettings.next_text_color || '#facc15'};"
           >
-            {#if nextSlide}
+            {#if isNextImage && nextSlide}
+              <span class="flex items-center gap-2">
+                <img src={nextSlide.content} alt="Próxima" class="w-8 h-6 object-cover rounded shrink-0" />
+                <span class="truncate">{nextSlide.label}</span>
+              </span>
+            {:else if nextSlide}
               {nextSlide.content.replace(/\n/g, ' ')}
             {:else}
               <span class="text-zinc-600 italic">Fim da apresentação</span>
@@ -571,13 +627,22 @@
 
       <!-- Centro: Slide Atual em Tipografia Gigante -->
       <div
-        class="rounded-2xl bg-zinc-900/50 p-8 sm:p-14 overflow-hidden border-2 flex flex-col justify-center items-center text-center shadow-xl transition-all min-h-0"
+        class="rounded-2xl bg-zinc-900/50 p-6 sm:p-10 overflow-hidden border-2 flex flex-col justify-center items-center text-center shadow-xl transition-all min-h-0"
         style="flex: {currentRatio}; border-color: {stageSettings.current_border_color || '#3b82f6'};"
       >
-        <div class="my-auto overflow-y-auto max-w-5xl">
-          {#if activeSlide}
+        <div class="my-auto overflow-y-auto max-w-5xl w-full">
+          {#if isCurrentImage && activeSlide}
+            <div class="w-full h-full flex flex-col items-center justify-center p-2 min-h-0">
+              <img
+                src={activeSlide.content}
+                alt={activeMedia?.title || 'Imagem'}
+                class="max-w-full max-h-[55vh] object-contain rounded-xl shadow-2xl border border-zinc-800"
+              />
+              <span class="text-xs text-zinc-400 font-mono mt-2 truncate max-w-sm">{activeMedia?.title || 'Imagem'}</span>
+            </div>
+          {:else if activeSlide}
             <div
-              class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-tight tracking-tight"
+              class="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-tight tracking-tight"
               style="color: {stageSettings.current_text_color || '#ffffff'};"
             >
               {@html renderFormattedText(activeSlide.content)}
@@ -590,7 +655,7 @@
 
       <!-- Base: Próximo Slide em Faixa Horizontal -->
       <footer
-        class="rounded-xl bg-zinc-900/70 p-4 border flex items-center justify-between shrink-0 px-6 transition-all"
+        class="rounded-xl bg-zinc-900/70 p-3 sm:p-4 border flex items-center justify-between shrink-0 px-6 transition-all"
         style="min-height: clamp(60px, {nextRatio * 0.7}vh, 120px); border-color: {stageSettings.next_border_color || '#eab308'};"
       >
         <div class="flex items-center gap-4 min-w-0 flex-1">
@@ -602,10 +667,15 @@
             A Seguir:
           </span>
           <div
-            class="text-lg sm:text-xl font-bold truncate opacity-90"
+            class="text-2xl sm:text-3xl font-extrabold truncate opacity-90"
             style="color: {stageSettings.next_text_color || '#facc15'};"
           >
-            {#if nextSlide}
+            {#if isNextImage && nextSlide}
+              <span class="flex items-center gap-2">
+                <img src={nextSlide.content} alt="Próxima" class="w-10 h-7 object-cover rounded shrink-0 border border-zinc-700" />
+                <span class="truncate">{nextSlide.label}</span>
+              </span>
+            {:else if nextSlide}
               {nextSlide.content.replace(/\n/g, ' ')}
             {:else}
               <span class="text-zinc-600 italic">Fim da mídia</span>

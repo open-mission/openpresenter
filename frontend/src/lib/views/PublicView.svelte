@@ -60,6 +60,22 @@
   const publicSettings = $derived($publicSettingsStore);
   const churchBrand = $derived($churchBrandStore);
 
+  const isImageMedia = $derived(activeMedia?.kind === 'image');
+  const applyMargins = $derived(!isImageMedia || !publicSettings.ignore_margins_for_media);
+  const imageFitClass = $derived.by(() => {
+    switch (publicSettings.image_fit) {
+      case 'cover':
+        return 'w-full h-full object-cover';
+      case 'fill':
+        return 'w-full h-full object-fill';
+      case 'center':
+        return 'max-w-full max-h-full object-none';
+      case 'contain':
+      default:
+        return 'w-full h-full object-contain';
+    }
+  });
+
   const activeLogoUrl = $derived.by<string>(() => {
     if (!churchBrand.show_logo_on_public) return '';
     const variant = churchBrand.logo_variant || 'primary';
@@ -154,8 +170,10 @@
 
     <!-- Camada de Conteúdo do Slide ou Repouso com Margens Personalizadas -->
     <div
-      class="relative z-10 w-full h-full flex items-center justify-center"
-      style="padding-top: {publicSettings.margin_top}px; padding-bottom: {publicSettings.margin_bottom}px; padding-left: {publicSettings.margin_horizontal}px; padding-right: {publicSettings.margin_horizontal}px;"
+      class="relative z-10 w-full h-full flex items-center justify-center overflow-hidden"
+      style={applyMargins
+        ? `padding-top: ${publicSettings.margin_top}px; padding-bottom: ${publicSettings.margin_bottom}px; padding-left: ${publicSettings.margin_horizontal}px; padding-right: ${publicSettings.margin_horizontal}px;`
+        : ''}
     >
       {#if $presentationState.display_mode === 'cleartext'}
         <!-- Clear Text: texto oculto, mantém papel de parede visível -->
@@ -167,11 +185,11 @@
       {:else if activeSlide}
         <!-- Mídia do Tipo Imagem Direta -->
         {#if activeMedia?.kind === 'image'}
-          <div class="w-full h-full flex items-center justify-center p-2">
+          <div class="w-full h-full flex items-center justify-center overflow-hidden pointer-events-none">
             <img
               src={activeSlide.content}
               alt={activeMedia.title}
-              class="max-w-full max-h-full object-contain rounded shadow-2xl animate-in fade-in duration-200"
+              class="{imageFitClass} animate-in fade-in duration-200"
             />
           </div>
         {:else}

@@ -416,11 +416,12 @@ impl AppState {
         updated
     }
 
-    /// Configura a duração e rótulo do timer.
+    /// Configura a duração, rótulo e permissão de overtime do timer.
     pub async fn set_timer(
         &self,
         duration_seconds: i64,
         label: Option<String>,
+        allow_overtime: Option<bool>,
     ) -> PresentationState {
         let mut state = self.presentation.write().await;
         state.timer.duration_seconds = duration_seconds;
@@ -428,11 +429,55 @@ impl AppState {
         if let Some(l) = label {
             state.timer.label = Some(l);
         }
+        if let Some(ao) = allow_overtime {
+            state.timer.allow_overtime = ao;
+        }
         let updated = state.clone();
         drop(state);
 
         let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
             presentation: updated.clone(),
+        });
+
+        updated
+    }
+
+    /// Ativa ou desativa a contagem de overtime negativo após 00:00.
+    pub async fn set_timer_overtime(&self, allow: bool) -> PresentationState {
+        let mut state = self.presentation.write().await;
+        state.timer.allow_overtime = allow;
+        let updated = state.clone();
+        drop(state);
+
+        let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
+            presentation: updated.clone(),
+        });
+
+        updated
+    }
+
+    /// Apresenta uma mídia avulsa (ex: imagem ou anúncio rápido) ao vivo instantaneamente,
+    /// sem persistir na setlist permanente do banco de dados.
+    pub async fn quick_present_media(&self, item: MediaItem) -> PresentationState {
+        let mut items = self.media_items.write().await;
+        if let Some(existing) = items.iter_mut().find(|m| m.id == item.id) {
+            *existing = item.clone();
+        } else {
+            items.push(item.clone());
+        }
+        let all_items = items.clone();
+        drop(items);
+
+        let mut state = self.presentation.write().await;
+        state.active_media_id = Some(item.id);
+        state.active_slide_index = Some(0);
+        state.display_mode = DisplayMode::Live;
+        let updated = state.clone();
+        drop(state);
+
+        let _ = self.broadcast_tx.send(WsMessage::SyncState {
+            presentation: updated.clone(),
+            media_items: all_items,
         });
 
         updated
@@ -452,11 +497,17 @@ impl AppState {
         updated
     }
 
-    /// Decrementa 1 segundo caso o timer esteja em execução (suporta overtime negativo).
+    /// Decrementa 1 segundo caso o timer esteja em execução.
+    /// Para automaticamente em 00:00 a menos que allow_overtime seja verdadeiro.
     pub async fn tick_timer(&self) -> Option<PresentationState> {
         let mut state = self.presentation.write().await;
         if state.timer.running {
-            state.timer.remaining_seconds -= 1;
+            if state.timer.remaining_seconds <= 1 && !state.timer.allow_overtime {
+                state.timer.remaining_seconds = 0;
+                state.timer.running = false;
+            } else {
+                state.timer.remaining_seconds -= 1;
+            }
             let updated = state.clone();
             drop(state);
 

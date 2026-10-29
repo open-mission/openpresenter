@@ -144,15 +144,18 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/presentation/blackout", post(toggle_blackout))
         .route("/api/presentation/clear", post(toggle_clear_text))
         .route("/api/presentation/stop", post(stop_presentation))
+        .route("/api/presentation/quick-media", post(quick_present_media))
         .route(
             "/api/presentation/wallpaper",
             post(set_presentation_wallpaper),
         )
+        .route("/api/system/network-info", get(get_network_info))
         .route("/api/timer", get(get_timer))
         .route("/api/timer/start", post(start_timer))
         .route("/api/timer/pause", post(pause_timer))
         .route("/api/timer/reset", post(reset_timer))
         .route("/api/timer/set", post(set_timer))
+        .route("/api/timer/overtime", post(set_timer_overtime))
         .route("/api/timer/message", post(set_stage_message))
         .route(
             "/api/settings/{key}",
@@ -257,9 +260,68 @@ async fn set_presentation_wallpaper(
 }
 
 #[derive(Deserialize)]
+pub struct QuickMediaRequest {
+    pub item: MediaItem,
+}
+
+async fn quick_present_media(
+    State(state): State<AppState>,
+    Json(payload): Json<QuickMediaRequest>,
+) -> Json<PresentationState> {
+    let updated = state.quick_present_media(payload.item).await;
+    Json(updated)
+}
+
+#[derive(Debug, Serialize)]
+pub struct NetworkInfoResponse {
+    pub local_ip: String,
+    pub port: u16,
+    pub public_url: String,
+    pub stage_url: String,
+}
+
+pub fn get_local_ip() -> String {
+    let try_get_ip = || -> Option<String> {
+        let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+        socket.connect("8.8.8.8:80").ok()?;
+        let addr = socket.local_addr().ok()?;
+        let ip = addr.ip().to_string();
+        if ip.starts_with("127.") {
+            None
+        } else {
+            Some(ip)
+        }
+    };
+    try_get_ip().unwrap_or_else(|| "127.0.0.1".to_string())
+}
+
+async fn get_network_info() -> Json<NetworkInfoResponse> {
+    let port = std::env::var("PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(3000);
+    let local_ip = get_local_ip();
+    let public_url = format!("http://{}:{}/public", local_ip, port);
+    let stage_url = format!("http://{}:{}/stage", local_ip, port);
+
+    Json(NetworkInfoResponse {
+        local_ip,
+        port,
+        public_url,
+        stage_url,
+    })
+}
+
+#[derive(Deserialize)]
 pub struct SetTimerRequest {
     pub duration_seconds: i64,
     pub label: Option<String>,
+    pub allow_overtime: Option<bool>,
+}
+
+#[derive(Deserialize)]
+pub struct SetTimerOvertimeRequest {
+    pub allow_overtime: bool,
 }
 
 #[derive(Deserialize)]
@@ -303,8 +365,20 @@ async fn set_timer(
     Json(payload): Json<SetTimerRequest>,
 ) -> Json<PresentationState> {
     let updated = state
-        .set_timer(payload.duration_seconds, payload.label)
+        .set_timer(
+            payload.duration_seconds,
+            payload.label,
+            payload.allow_overtime,
+        )
         .await;
+    Json(updated)
+}
+
+async fn set_timer_overtime(
+    State(state): State<AppState>,
+    Json(payload): Json<SetTimerOvertimeRequest>,
+) -> Json<PresentationState> {
+    let updated = state.set_timer_overtime(payload.allow_overtime).await;
     Json(updated)
 }
 

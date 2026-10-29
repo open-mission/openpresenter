@@ -56,6 +56,11 @@
 - [Spec — Correção do Modal de Configurações, Proporções no Monitor de Palco e Widget de Timer no Header](specs/2026-10-29-fix-settings-stage-proportions-e-header-timer.md)
 - [Plano — Correção do Modal de Configurações, Proporções no Monitor de Palco e Widget de Timer no Header](plans/2026-10-29-fix-settings-stage-proportions-e-header-timer.md)
 
+## Ajustes de Imagens, QR Code, Timer e Otimização do Stage
+
+- [Spec — Ajustes de Imagens, QR Code de Saídas, Timer sem Overtime Indesejado e Otimização do Monitor de Palco](specs/2026-10-29-image-display-qrcode-timer-stage-media.md)
+- [Plano — Ajustes de Imagens, QR Code, Timer e Otimização do Stage](plans/2026-10-29-image-display-qrcode-timer-stage-media.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

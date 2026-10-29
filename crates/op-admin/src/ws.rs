@@ -97,8 +97,17 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     Ok(WsMessage::SetTimer {
                         duration_seconds,
                         label,
+                        allow_overtime,
                     }) => {
-                        state.set_timer(duration_seconds, label).await;
+                        state
+                            .set_timer(duration_seconds, label, allow_overtime)
+                            .await;
+                    }
+                    Ok(WsMessage::SetTimerOvertime { allow_overtime }) => {
+                        state.set_timer_overtime(allow_overtime).await;
+                    }
+                    Ok(WsMessage::QuickPresentMedia { item }) => {
+                        state.quick_present_media(item).await;
                     }
                     Ok(WsMessage::SetStageMessage { message }) => {
                         state.set_stage_message(message).await;

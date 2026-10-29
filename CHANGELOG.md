@@ -8,6 +8,27 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ### Adicionado
 
+- **Compartilhamento de Saídas com QR Code e URLs de Rede Local:**
+  - Novo modal `ShareOutputsModal` acessível diretamente pelo cabeçalho do operador via botão "QR Code".
+  - Geração dinâmica de QR Code escaneável com o IP da máquina na rede local para conexão imediata de smartphones e tablets de músicos, pregadores e equipe técnica.
+  - Abas dedicadas para o Monitor de Palco (`/stage`) e Projeção Pública (`/public`), com botão de cópia de link e abertura no navegador.
+  - Novo endpoint `GET /api/system/network-info` no backend Rust com descoberta automática de IP local via sockets de rota.
+- **Ajustes de Projeção de Imagem (Edge-to-Edge e Encaixe Customizável):**
+  - Opção para ignorar margens de texto para imagens e vídeos (`ignore_margins_for_media`), permitindo projeção 16:9 de ponta a ponta sem bordas pretas adicionais.
+  - Seletor de modo de encaixe de imagens (`contain`, `cover`, `fill`, `center`) configurável nas preferências globais e em barra de ferramentas rápida na aba de imagens.
+- **Apresentação Rápida de Mídias Avulsas e Modal de Prévia:**
+  - Botão "Apresentar" na galeria projeta a imagem instantaneamente ao vivo (`POST /api/presentation/quick-media`) sem poluir a setlist salva do culto.
+  - Novo modal `ImagePreviewModal` com botão de visualização (`Eye`), exibindo a imagem em alta resolução, cálculo automático de resolução e proporção (16:9, 4:3, etc.), dados de origem e ações rápidas.
+  - Botão dedicado `+ Setlist` para inclusão intencional de imagens no repertório.
+- **Reprodução Fiel de Mídia e Tipografia Gigante no Monitor de Palco (`/stage`):**
+  - O palco agora renderiza a imagem propriamente dita (`<img>`), eliminando a exibição incorreta do caminho de arquivo em texto puro.
+  - Exibição de miniatura gráfica para o próximo slide caso também seja uma imagem.
+  - Aumento expressivo das escalas tipográficas dos slides (atual e próximo) e redução de paddings no preset vertical (`modern-grid`) e demais layouts para visibilidade nítida a longa distância (10 a 20 metros).
+- **Preview Fidedigno do Stage no Painel Administrativo:**
+  - Novo componente `StagePreviewBox` que reproduz fielmente na barra lateral do operador o preset ativo, cores de texto e borda, proporções configuradas, relógio, contagem do timer e mensagens de palco.
+- **Controle Preciso de Parada do Timer em 00:00:**
+  - O cronômetro regressivo agora para automaticamente ao atingir zero (`running = false; remaining_seconds = 0`), evitando contagem negativa não solicitada.
+  - Opção `allow_overtime` para permitir overtime contínuo sob demanda do operador.
 - **Widget de Cronômetro Persistente no Header do Operador:**
   - Mostrador digital integrado ao cabeçalho principal do painel administrativo (`AdminView`), exibindo a contagem regressiva em tempo real com tipografia tabular mono.
   - Indicadores visuais de status (ativo em cor primária, alerta em amarelo nos 60s finais e contagem negativa em vermelho pulsante durante overtime).

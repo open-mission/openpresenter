@@ -586,6 +586,7 @@ mod tests {
 
         // GET /api/settings/public_display
         let get_setting_resp = app
+            .clone()
             .oneshot(
                 axum::http::Request::builder()
                     .uri("/api/settings/public_display")
@@ -595,5 +596,61 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(get_setting_resp.status(), StatusCode::OK);
+
+        // GET /api/system/network-info
+        let net_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/system/network-info")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(net_resp.status(), StatusCode::OK);
+
+        // POST /api/presentation/quick-media
+        let quick_payload = serde_json::to_string(&serde_json::json!({
+            "item": {
+                "id": "quick-img-1",
+                "title": "Imagem de Teste",
+                "kind": "image",
+                "slides": [{
+                    "id": "s-1",
+                    "label": "Slide 1",
+                    "content": "/media/images/teste.jpg"
+                }]
+            }
+        }))
+        .unwrap();
+
+        let quick_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/presentation/quick-media")
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(quick_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(quick_resp.status(), StatusCode::OK);
+        assert_eq!(
+            state.presentation.read().await.active_media_id.as_deref(),
+            Some("quick-img-1")
+        );
+
+        // Timer Stop at Zero
+        state
+            .set_timer(1, Some("Teste Zero".into()), Some(false))
+            .await;
+        state.start_timer().await;
+        assert!(state.presentation.read().await.timer.running);
+        state.tick_timer().await;
+        let pres = state.presentation.read().await;
+        assert_eq!(pres.timer.remaining_seconds, 0);
+        assert!(!pres.timer.running); // Parou no zero!
     }
 }

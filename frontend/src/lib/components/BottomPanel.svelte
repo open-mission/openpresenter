@@ -35,12 +35,14 @@
     type BackgroundPreset,
   } from '../backgrounds';
   import { presentationState, setPresentationWallpaper } from '../ws';
+  import { publicSettingsStore, savePublicDisplaySettings } from '../displaySettings';
   import type {
     SongSummary,
     Song,
     ImageMediaItem,
     MediaFolder,
     WallpaperItem,
+    ImageFitMode,
   } from '../types';
 
   interface Props {
@@ -48,6 +50,7 @@
     onpresentsong?: (songId: string) => void;
     onpresentimage?: (image: ImageMediaItem) => void;
     onaddimagetosetlist?: (image: ImageMediaItem) => void;
+    onpreviewimage?: (image: ImageMediaItem) => void;
     onopensongeditor?: () => void;
     onopenfolderconfig?: () => void;
   }
@@ -57,6 +60,7 @@
     onpresentsong,
     onpresentimage,
     onaddimagetosetlist,
+    onpreviewimage,
     onopensongeditor,
     onopenfolderconfig,
   }: Props = $props();
@@ -83,6 +87,17 @@
   let isFoldersTreeExpanded = $state(true);
   let isLoadingImages = $state(false);
   let fileInputEl: HTMLInputElement | null = $state(null);
+
+  function handleSetImageFit(fit: ImageFitMode) {
+    const updated = { ...$publicSettingsStore, image_fit: fit };
+    savePublicDisplaySettings(updated);
+  }
+
+  function handleToggleMediaMargins() {
+    const current = $publicSettingsStore.ignore_margins_for_media !== false;
+    const updated = { ...$publicSettingsStore, ignore_margins_for_media: !current };
+    savePublicDisplaySettings(updated);
+  }
 
   // --- ABA DE FUNDOS & GRADIENTES ---
   let selectedBgCategory = $state<'all' | 'gradients' | 'mesh' | 'animated' | 'local'>('all');
@@ -696,7 +711,34 @@
               </nav>
 
               <!-- Ações de Upload e Gerenciamento -->
-              <div class="flex items-center gap-2 shrink-0">
+              <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                <!-- Controle Rápido de Margens e Encaixe de Imagens na Projeção -->
+                <div class="flex items-center gap-1.5 px-2 py-0.5 bg-muted/40 border border-border rounded-lg text-xs">
+                  <button
+                    type="button"
+                    onclick={handleToggleMediaMargins}
+                    class="px-2 py-0.5 rounded text-[10px] font-semibold border transition-colors cursor-pointer {$publicSettingsStore.ignore_margins_for_media !== false ? 'bg-primary/20 text-primary border-primary/40' : 'bg-background text-muted-foreground border-border hover:text-foreground'}"
+                    title="Alternar entre projeção sem margens (16:9 tela cheia) e com margens"
+                  >
+                    {$publicSettingsStore.ignore_margins_for_media !== false ? 'Sem Margens (16:9 Full)' : 'Com Margens'}
+                  </button>
+                  <div class="flex items-center gap-0.5 border-l border-border/60 pl-1">
+                    {#each [
+                      { id: 'contain', label: 'Ajustar' },
+                      { id: 'cover', label: 'Preencher' },
+                      { id: 'fill', label: 'Esticar' }
+                    ] as f}
+                      <button
+                        type="button"
+                        onclick={() => handleSetImageFit(f.id as ImageFitMode)}
+                        class="px-1.5 py-0.5 rounded text-[10px] transition-colors cursor-pointer {($publicSettingsStore.image_fit || 'contain') === f.id ? 'bg-primary text-primary-foreground font-bold' : 'text-muted-foreground hover:text-foreground'}"
+                      >
+                        {f.label}
+                      </button>
+                    {/each}
+                  </div>
+                </div>
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -766,10 +808,19 @@
                           type="button"
                           onclick={() => onpresentimage?.(img)}
                           class="flex-1 h-6 rounded bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                          title="Apresentar Imagem Imediatamente"
+                          title="Apresentar Imagem Imediatamente (Sem adicionar à Setlist)"
                         >
                           <Play size={10} class="fill-current" />
                           <span>Apresentar</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onclick={() => onpreviewimage?.(img)}
+                          class="w-6 h-6 rounded bg-muted hover:bg-muted/80 text-foreground flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                          title="Visualizar Prévia e Metadados"
+                        >
+                          <Eye size={11} />
                         </button>
 
                         <button

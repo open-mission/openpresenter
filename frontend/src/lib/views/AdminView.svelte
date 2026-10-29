@@ -19,6 +19,7 @@
     startTimer,
     pauseTimer,
     resetTimer,
+    quickPresentMedia,
   } from '$lib/ws';
   import type { MediaItem, MediaKind, Setlist, SetlistSummary, Slide, Song, ImageMediaItem } from '$lib/types';
   import { renderFormattedText } from '$lib/markdown';
@@ -32,9 +33,12 @@
   import QuickItemModal from '$lib/components/QuickItemModal.svelte';
   import BottomPanel from '$lib/components/BottomPanel.svelte';
   import ImageSelectorModal from '$lib/components/ImageSelectorModal.svelte';
+  import ImagePreviewModal from '$lib/components/ImagePreviewModal.svelte';
+  import ShareOutputsModal from '$lib/components/ShareOutputsModal.svelte';
+  import StagePreviewBox from '$lib/components/StagePreviewBox.svelte';
   import TimerControlPanel from '$lib/components/TimerControlPanel.svelte';
   import ContextMenu, { type MenuItem } from '$lib/components/ContextMenu.svelte';
-  import { syncDisplaySettingsFromBackend } from '$lib/displaySettings';
+  import { syncDisplaySettingsFromBackend, stageSettingsStore } from '$lib/displaySettings';
   import {
     themeStore,
     sectionsStore,
@@ -80,6 +84,7 @@
     PanelRightOpen,
     ImageIcon,
     Folder,
+    QrCode,
   } from 'lucide-svelte';
 
   let selectedMediaId = $state<string>('song-1');
@@ -97,6 +102,9 @@
   let isAddMenuOpen = $state(false);
   let isImageSelectorOpen = $state(false);
   let imageSelectorMode = $state<'single' | 'folder'>('single');
+  let isShareOutputsOpen = $state(false);
+  let previewImage = $state<ImageMediaItem | null>(null);
+  let isPreviewImageOpen = $state(false);
 
   // Controle de Sidebars Colapsáveis
   let isSetlistSidebarOpen = $state(true);
@@ -701,7 +709,7 @@
     selectSlide(songId, 0);
   }
 
-  async function handlePresentImage(image: ImageMediaItem) {
+  function handlePresentImage(image: ImageMediaItem) {
     const item: MediaItem = {
       id: `img-${Date.now()}`,
       title: image.name,
@@ -715,17 +723,13 @@
         },
       ],
     };
-    try {
-      await fetch('/api/setlist/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item }),
-      });
-      selectedMediaId = item.id;
-      selectSlide(item.id, 0);
-    } catch (err) {
-      console.error('Erro ao apresentar imagem:', err);
-    }
+    selectedMediaId = item.id;
+    quickPresentMedia(item);
+  }
+
+  function handleOpenPreviewImage(image: ImageMediaItem) {
+    previewImage = image;
+    isPreviewImageOpen = true;
   }
 
   async function handleAddImageToSetlist(image: ImageMediaItem) {
@@ -983,6 +987,18 @@
         <Tv size={14} class="text-primary" />
         <span class="hidden md:inline">Iniciar</span> Stage
         <ExternalLink size={12} class="opacity-60" />
+      </Button>
+
+      <!-- Botão Compartilhar Saídas (QR Code) -->
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={() => (isShareOutputsOpen = true)}
+        class="gap-1.5 text-xs"
+        title="Compartilhar Saídas com Celulares e Tablets via QR Code"
+      >
+        <QrCode size={14} class="text-primary" />
+        <span class="hidden lg:inline">QR Code</span>
       </Button>
 
       <!-- Botão Alternar Painel de Saídas (Previews) -->
@@ -1666,42 +1682,15 @@
             </Badge>
           </div>
 
-          <!-- Caixa de Preview do Stage com Aspect Ratio 16:9 -->
-          <div class="w-full aspect-video rounded-lg bg-[#070709] border border-neutral-800 p-2.5 flex flex-col justify-between relative overflow-hidden shadow-inner font-mono text-[10px]">
-            <!-- Topo do Stage Preview -->
-            <div class="flex items-center justify-between text-neutral-400 border-b border-neutral-800/60 pb-1">
-              <span class="text-[9px] uppercase font-bold text-emerald-400">Retorno</span>
-              <div class="flex items-center gap-1 text-white font-bold">
-                <Clock size={10} class="text-emerald-400" />
-                <span>{stageClock || '00:00:00'}</span>
-              </div>
-            </div>
-
-            <!-- Meio do Stage Preview -->
-            <div class="my-auto py-1 space-y-1">
-              {#if liveSlide}
-                <div class="p-1 rounded bg-neutral-900/80 border border-emerald-500/30">
-                  <span class="text-[8px] text-emerald-400 font-bold block">ATUAL:</span>
-                  <p class="text-[9px] font-bold text-neutral-100 truncate">
-                    {liveSlide.content.split('\n')[0]}
-                  </p>
-                </div>
-              {:else}
-                <p class="text-neutral-600 text-center text-[9px]">Aguardando slide</p>
-              {/if}
-
-              {#if nextLiveSlide}
-                <div class="p-1 rounded bg-neutral-900/40 border border-neutral-800">
-                  <span class="text-[8px] text-neutral-500 font-bold block">A SEGUIR:</span>
-                  <p class="text-[9px] text-neutral-400 truncate">
-                    {nextLiveSlide.content.split('\n')[0]}
-                  </p>
-                </div>
-              {/if}
-            </div>
-
-            <span class="absolute bottom-1 right-2 text-[9px] text-neutral-700 font-mono">16:9</span>
-          </div>
+          <!-- Preview Fiel do Stage com Preset, Cores e Proporções em Tempo Real -->
+          <StagePreviewBox
+            stageSettings={$stageSettingsStore}
+            activeSlide={liveSlide}
+            nextSlide={nextLiveSlide}
+            activeMedia={liveMedia}
+            timer={$presentationState.timer}
+            stageClock={stageClock}
+          />
 
           <Button variant="secondary" size="sm" onclick={openStageWindow} class="w-full text-xs gap-1.5">
             <ExternalLink size={13} />
@@ -1741,6 +1730,7 @@
     onaddsongtosetlist={handleAddSongToSetlist}
     onpresentsong={handlePresentSong}
     onpresentimage={handlePresentImage}
+    onpreviewimage={handleOpenPreviewImage}
     onaddimagetosetlist={handleAddImageToSetlist}
     onopensongeditor={handleOpenCreate}
     onopenfolderconfig={() => {
@@ -1861,5 +1851,21 @@
     initialMode={imageSelectorMode}
     onclose={() => (isImageSelectorOpen = false)}
     onadditems={handleAddImageItems}
+  />
+
+  <ShareOutputsModal
+    open={isShareOutputsOpen}
+    onclose={() => (isShareOutputsOpen = false)}
+  />
+
+  <ImagePreviewModal
+    open={isPreviewImageOpen}
+    image={previewImage}
+    onclose={() => {
+      isPreviewImageOpen = false;
+      previewImage = null;
+    }}
+    onpresent={handlePresentImage}
+    onaddsetlist={handleAddImageToSetlist}
   />
 </div>

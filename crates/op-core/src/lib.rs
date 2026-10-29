@@ -666,6 +666,8 @@ pub struct TimerState {
     pub label: Option<String>,
     pub stage_message: Option<String>,
     pub warning_threshold_seconds: i64,
+    #[serde(default)]
+    pub allow_overtime: bool,
 }
 
 impl Default for TimerState {
@@ -677,6 +679,7 @@ impl Default for TimerState {
             label: Some("Cronômetro".into()),
             stage_message: None,
             warning_threshold_seconds: 60,
+            allow_overtime: false,
         }
     }
 }
@@ -749,6 +752,16 @@ pub enum WsMessage {
     SetTimer {
         duration_seconds: i64,
         label: Option<String>,
+        #[serde(default)]
+        allow_overtime: Option<bool>,
+    },
+    /// Comando para alternar permissão de overtime contínuo do timer.
+    SetTimerOvertime {
+        allow_overtime: bool,
+    },
+    /// Comando para apresentar mídia avulsa rapidamente sem salvar na setlist permanente.
+    QuickPresentMedia {
+        item: MediaItem,
     },
     /// Comando para enviar ou limpar mensagem para o palco (Stage Message).
     SetStageMessage {

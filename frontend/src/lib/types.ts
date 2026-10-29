@@ -85,6 +85,7 @@ export interface TimerState {
   stage_message?: string;
   warning_threshold_seconds: number;
   is_overtime?: boolean;
+  allow_overtime?: boolean;
 }
 
 export interface PresentationState {
@@ -144,7 +145,9 @@ export type WsMessage =
   | { type: 'start_timer' }
   | { type: 'pause_timer' }
   | { type: 'reset_timer' }
-  | { type: 'set_timer'; payload: { duration_seconds: number; label?: string } }
+  | { type: 'set_timer'; payload: { duration_seconds: number; label?: string; allow_overtime?: boolean } }
+  | { type: 'set_timer_overtime'; payload: { allow_overtime: boolean } }
+  | { type: 'quick_present_media'; payload: { item: MediaItem } }
   | { type: 'set_stage_message'; payload: { message?: string } }
   | { type: 'identify'; payload: { client_type: string } }
   | { type: 'state_updated'; payload: { presentation: PresentationState } }
@@ -153,6 +156,8 @@ export type WsMessage =
   | { type: 'ping' }
   | { type: 'pong' };
 
+export type ImageFitMode = 'contain' | 'cover' | 'fill' | 'center';
+
 export interface PublicDisplaySettings {
   fill_space: boolean;
   word_wrap: boolean;
@@ -160,6 +165,15 @@ export interface PublicDisplaySettings {
   margin_top: number;
   margin_bottom: number;
   margin_horizontal: number;
+  image_fit?: ImageFitMode;
+  ignore_margins_for_media?: boolean;
+}
+
+export interface NetworkInfoResponse {
+  local_ip: string;
+  port: number;
+  public_url: string;
+  stage_url: string;
 }
 
 export interface ChurchBrandSettings {

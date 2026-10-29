@@ -234,15 +234,39 @@ export function resetTimer() {
   fetch('/api/timer/reset', { method: 'POST' }).catch(() => {});
 }
 
-export function setTimer(durationSeconds: number, label?: string) {
+export function setTimer(durationSeconds: number, label?: string, allowOvertime?: boolean) {
   sendWsMessage({
     type: 'set_timer',
-    payload: { duration_seconds: durationSeconds, label },
+    payload: { duration_seconds: durationSeconds, label, allow_overtime: allowOvertime },
   });
   fetch('/api/timer/set', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ duration_seconds: durationSeconds, label }),
+    body: JSON.stringify({ duration_seconds: durationSeconds, label, allow_overtime: allowOvertime }),
+  }).catch(() => {});
+}
+
+export function setTimerOvertime(allowOvertime: boolean) {
+  sendWsMessage({
+    type: 'set_timer_overtime',
+    payload: { allow_overtime: allowOvertime },
+  });
+  fetch('/api/timer/overtime', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ allow_overtime: allowOvertime }),
+  }).catch(() => {});
+}
+
+export function quickPresentMedia(item: MediaItem) {
+  sendWsMessage({
+    type: 'quick_present_media',
+    payload: { item },
+  });
+  fetch('/api/presentation/quick-media', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ item }),
   }).catch(() => {});
 }
 
