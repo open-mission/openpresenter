@@ -6,6 +6,31 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-28
+
+### Adicionado
+
+- **Command Palette Global (`⌘K` / `Ctrl+K`):**
+  - Acessível via atalho global de teclado, clique na barra de busca superior ou no botão `+` da Setlist.
+  - Busca instantânea em tempo real no banco de dados local com **SQLite FTS5** (`unicode61 remove_diacritics 2`) pesquisando simultaneamente por título e letra completa, com geração de snippets contextualizados.
+  - Ação rápida para adicionar qualquer música encontrada diretamente à Setlist ativa com o atalho `Shift + Enter` ou botão dedicado, disparando sincronização WebSocket em tempo real.
+  - Ações rápidas de criação manual e busca na web integradas na mesma paleta.
+- **Busca de Músicas Online (Holyrics e Vagalume):**
+  - Módulo `online_lyrics` em Rust com suporte nativo aos provedores Holyrics e Vagalume.
+  - Implementação de handshake, token HMAC-SHA512 + MD5 e descompressão gzip (`.txt.gz`) para o CDN do Holyrics.
+  - Importação de letras da internet diretamente para o formulário de cadastro com metadados pré-preenchidos (Título, Artista, Tom, BPM e Compositor).
+- **Modal de Cadastro e Edição de Músicas:**
+  - Interface ampla ocupando 95% da tela (`95vw x 95vh`) com layout dividido em dois painéis.
+  - **Painel esquerdo:** formulário de metadados completos e editor de texto da letra com suporte à sintaxe padrão do Holyrics (`## Verso 1`, `## Refrão`, `## Ponte`, quebra de slides por linha em branco) e botões rápidos para inserção de partes.
+  - **Painel direito:** visualização em tempo real dos slides gerados como cartões 16:9 (`aspect-video`), com tags de seções coloridas inspiradas no ProPresenter e numeração sequencial.
+  - Opção para adicionar à Setlist automaticamente ao salvar.
+- **Renomeação da barra lateral para Setlist:**
+  - Painel lateral renomeado de "Biblioteca de Mídias" para "Setlist".
+  - Botão `+` no cabeçalho da Setlist para abertura rápida da paleta de comandos.
+- **Migração do Banco de Dados v3:**
+  - Migração `0003_songs_fts.sql` criando as tabelas relacionais `songs`, `song_sections`, `song_lyrics` e a tabela virtual `songs_fts` via SQLite FTS5.
+  - Funções de repositório `save_song`, `get_song`, `search_songs` e `delete_song` com suporte a busca fonética/sem acentos e fallback resiliente.
+
 ## [0.3.0] - 2026-10-28
 
 ### Adicionado

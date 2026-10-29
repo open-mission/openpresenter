@@ -11,11 +11,13 @@
     toggleBlackout,
     toggleClearText,
   } from '$lib/ws';
-  import type { MediaItem, MediaKind, Slide } from '$lib/types';
+  import type { MediaItem, MediaKind, Slide, Song } from '$lib/types';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import MediaItemRow from '$lib/components/ui/MediaItemRow.svelte';
+  import CommandPalette from '$lib/components/CommandPalette.svelte';
+  import SongEditorModal from '$lib/components/SongEditorModal.svelte';
   import {
     Search,
     MonitorPlay,
@@ -31,12 +33,16 @@
     Radio,
     Clock,
     Layers,
+    Plus,
   } from 'lucide-svelte';
 
   let selectedMediaId = $state<string>('song-1');
   let searchQuery = $state<string>('');
   let filterKind = $state<MediaKind | 'all'>('all');
   let stageClock = $state<string>('');
+  let isCommandPaletteOpen = $state(false);
+  let isSongEditorOpen = $state(false);
+  let editingSong = $state<Song | null>(null);
 
   onMount(() => {
     initWebSocket('admin');
@@ -132,7 +138,14 @@
 
   // Atalhos de teclado
   function handleKeydown(e: KeyboardEvent) {
-    if (e.target instanceof HTMLInputElement) return;
+    // Atalho global do Command Palette (⌘K / Ctrl+K)
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      isCommandPaletteOpen = !isCommandPaletteOpen;
+      return;
+    }
+
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (e.key === 'F1') {
       e.preventDefault();
       toggleBlackout();
@@ -146,6 +159,20 @@
       e.preventDefault();
       prevSlide();
     }
+  }
+
+  function handleOpenCreate() {
+    editingSong = null;
+    isSongEditorOpen = true;
+  }
+
+  function handleImportSong(song: Song) {
+    editingSong = song;
+    isSongEditorOpen = true;
+  }
+
+  function handleSongSaved(song: Song) {
+    selectedMediaId = song.id;
   }
 
   // Abertura de janelas de saída
@@ -173,6 +200,21 @@
       <span class="text-zinc-600">|</span>
       <span class="text-xs text-zinc-400 hidden sm:inline">Projeção para igrejas e eventos</span>
     </div>
+
+    <!-- Busca Global e Command Palette (⌘K) -->
+    <button
+      type="button"
+      onclick={() => (isCommandPaletteOpen = true)}
+      class="flex items-center gap-2 h-8 px-3 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/60 text-xs text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer w-44 sm:w-64 md:w-80 justify-between mx-2"
+    >
+      <span class="flex items-center gap-2 truncate">
+        <Search size={14} class="text-zinc-400 shrink-0" />
+        <span class="truncate">Buscar música ou comando...</span>
+      </span>
+      <kbd class="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-700/80 text-[10px] font-mono text-zinc-300 shrink-0">
+        ⌘K
+      </kbd>
+    </button>
 
     <!-- Status e Ações Rápidas -->
     <div class="flex items-center gap-2 sm:gap-3">
@@ -206,16 +248,26 @@
   <div class="flex-1 flex overflow-hidden">
     <!-- COLUNA 1: SIDEBAR DE MÍDIAS (Esquerda) -->
     <aside class="w-72 lg:w-80 border-r border-zinc-800/80 bg-zinc-900/30 flex flex-col shrink-0">
-      <!-- Cabeçalho da Biblioteca -->
+      <!-- Cabeçalho da Setlist -->
       <div class="p-3 border-b border-zinc-800/60 space-y-2.5">
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
             <Layers size={14} class="text-emerald-400" />
-            Biblioteca de Mídias
+            Setlist
           </span>
-          <Badge variant="secondary" class="text-[11px] py-0 px-1.5">
-            {$mediaItemsList.length} itens
-          </Badge>
+          <div class="flex items-center gap-1.5">
+            <Badge variant="secondary" class="text-[11px] py-0 px-1.5">
+              {$mediaItemsList.length} itens
+            </Badge>
+            <button
+              type="button"
+              title="Adicionar música à Setlist (⌘K)"
+              onclick={() => (isCommandPaletteOpen = true)}
+              class="w-6 h-6 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <Plus size={13} />
+            </button>
+          </div>
         </div>
 
         <!-- Barra de Busca -->
@@ -224,7 +276,7 @@
           <input
             type="text"
             bind:value={searchQuery}
-            placeholder="Buscar louvor, verso, aviso..."
+            placeholder="Filtrar setlist (ou ⌘K p/ buscar)..."
             class="w-full h-8 pl-8 pr-3 bg-zinc-800/60 border border-zinc-700/60 rounded-md text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
           />
         </div>
@@ -532,4 +584,22 @@
       </div>
     </aside>
   </div>
+
+  <!-- Modais Operacionais: Command Palette e Editor de Músicas -->
+  <CommandPalette
+    open={isCommandPaletteOpen}
+    onclose={() => (isCommandPaletteOpen = false)}
+    oncreatenew={handleOpenCreate}
+    onimportsong={handleImportSong}
+  />
+
+  <SongEditorModal
+    open={isSongEditorOpen}
+    initialSong={editingSong}
+    onclose={() => {
+      isSongEditorOpen = false;
+      editingSong = null;
+    }}
+    onsave={handleSongSaved}
+  />
 </div>

@@ -66,3 +66,42 @@ export type WsMessage =
   | { type: 'state_updated'; payload: { presentation: PresentationState } }
   | { type: 'ping' }
   | { type: 'pong' };
+
+export interface SongSection {
+  id: string;
+  name: string;
+  section_type: string;
+  color?: string;
+  content: string;
+}
+
+export interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  album?: string;
+  composer?: string;
+  song_key?: string;
+  bpm?: number;
+  sections: SongSection[];
+  lyrics_raw: string;
+}
+
+export interface SongSummary {
+  id: string;
+  title: string;
+  artist: string;
+  song_key?: string;
+  bpm?: number;
+  composer?: string;
+  album?: string;
+  preview_snippet?: string;
+}
+
+export interface OnlineLyricHit {
+  track_name: string;
+  artist_name: string;
+  album_name?: string;
+  provider?: string;
+  provider_id?: string;
+}
