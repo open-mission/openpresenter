@@ -83,6 +83,11 @@
   <!-- Barra superior com relógio e data -->
   <header class="flex items-center justify-between pb-4 border-b border-zinc-800/80 shrink-0">
     <div class="flex items-center gap-3">
+      <img
+        src="/branding/open-presenter-app-icon.svg"
+        alt="OpenPresenter"
+        class="w-7 h-7 rounded-md shadow-sm"
+      />
       <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold uppercase tracking-wider">
         Retorno de Palco
       </span>

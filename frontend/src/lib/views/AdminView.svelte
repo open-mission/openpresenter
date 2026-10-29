@@ -14,15 +14,20 @@
   import type { MediaItem, MediaKind, Slide, Song } from '$lib/types';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
-  import Card from '$lib/components/ui/Card.svelte';
   import MediaItemRow from '$lib/components/ui/MediaItemRow.svelte';
   import CommandPalette from '$lib/components/CommandPalette.svelte';
   import SongEditorModal from '$lib/components/SongEditorModal.svelte';
+  import SettingsModal from '$lib/components/SettingsModal.svelte';
+  import {
+    themeStore,
+    sectionsStore,
+    applyTheme,
+    getSectionStyle,
+  } from '$lib/settings';
   import {
     Search,
     MonitorPlay,
     Tv,
-    Eye,
     EyeOff,
     Slash,
     ExternalLink,
@@ -34,6 +39,9 @@
     Clock,
     Layers,
     Plus,
+    Play,
+    Square,
+    Settings,
   } from 'lucide-svelte';
 
   let selectedMediaId = $state<string>('song-1');
@@ -42,10 +50,16 @@
   let stageClock = $state<string>('');
   let isCommandPaletteOpen = $state(false);
   let isSongEditorOpen = $state(false);
+  let isSettingsOpen = $state(false);
   let editingSong = $state<Song | null>(null);
+  let focusedSlideIndex = $state<number>(0);
+  let numberBuffer = $state<string>('');
+  let numberBufferTimer: ReturnType<typeof setTimeout> | null = null;
+  let prevMediaId = $state<string>('');
 
   onMount(() => {
     initWebSocket('admin');
+    applyTheme($themeStore);
 
     // Inicializa seleção padrão com a primeira mídia
     if ($mediaItemsList.length > 0 && !selectedMediaId) {
@@ -107,36 +121,135 @@
     return undefined;
   });
 
-  // Navegação rápida de slides
-  function nextSlide() {
-    if (!selectedMedia) return;
-    const currentIdx =
-      $presentationState.active_media_id === selectedMedia.id &&
-      $presentationState.active_slide_index !== null
-        ? $presentationState.active_slide_index
-        : -1;
+  // Verifica se a mídia selecionada está ao vivo atualmente
+  const isSelectedMediaLive = $derived.by(() => {
+    return (
+      $presentationState.active_media_id === selectedMedia?.id &&
+      $presentationState.active_slide_index !== null &&
+      $presentationState.active_slide_index !== undefined &&
+      $presentationState.display_mode === 'live'
+    );
+  });
 
-    const targetIdx = currentIdx + 1;
-    if (targetIdx < selectedMedia.slides.length) {
-      selectSlide(selectedMedia.id, targetIdx);
+  // Sincroniza o slide focado quando a mídia selecionada muda
+  $effect(() => {
+    if (selectedMediaId !== prevMediaId) {
+      prevMediaId = selectedMediaId;
+      if (
+        $presentationState.active_media_id === selectedMediaId &&
+        $presentationState.active_slide_index !== null &&
+        $presentationState.active_slide_index !== undefined
+      ) {
+        focusedSlideIndex = $presentationState.active_slide_index;
+      } else {
+        focusedSlideIndex = 0;
+      }
+    }
+  });
+
+  // Disparo e controle de apresentação
+  function selectSlideForFocus(idx: number) {
+    focusedSlideIndex = idx;
+  }
+
+  function presentSlide(idx: number = focusedSlideIndex) {
+    if (!selectedMedia || selectedMedia.slides.length === 0) return;
+    const clamped = Math.max(0, Math.min(idx, selectedMedia.slides.length - 1));
+    focusedSlideIndex = clamped;
+    selectSlide(selectedMedia.id, clamped);
+  }
+
+  function stopPresentation() {
+    setDisplayMode('cleartext');
+  }
+
+  // Navegação de slides
+  function nextSlide() {
+    if (!selectedMedia || selectedMedia.slides.length === 0) return;
+    if (focusedSlideIndex < selectedMedia.slides.length - 1) {
+      focusedSlideIndex++;
+      if (isSelectedMediaLive) {
+        selectSlide(selectedMedia.id, focusedSlideIndex);
+      }
     }
   }
 
   function prevSlide() {
-    if (!selectedMedia) return;
-    const currentIdx =
-      $presentationState.active_media_id === selectedMedia.id &&
-      $presentationState.active_slide_index !== null
-        ? $presentationState.active_slide_index
-        : 1;
-
-    const targetIdx = currentIdx - 1;
-    if (targetIdx >= 0) {
-      selectSlide(selectedMedia.id, targetIdx);
+    if (!selectedMedia || selectedMedia.slides.length === 0) return;
+    if (focusedSlideIndex > 0) {
+      focusedSlideIndex--;
+      if (isSelectedMediaLive) {
+        selectSlide(selectedMedia.id, focusedSlideIndex);
+      }
     }
   }
 
-  // Atalhos de teclado
+  // Atalho rápido para seções da música (r = refrao, v = verso, p = ponte, i = intro, f = final, etc.)
+  function jumpToSection(key: string): boolean {
+    if (!selectedMedia || selectedMedia.slides.length === 0) return false;
+    const k = key.toLowerCase();
+
+    const matchingConfig = $sectionsStore.find(
+      (s) => s.shortcut && s.shortcut.toLowerCase() === k
+    );
+
+    const searchTerms: string[] = [];
+    if (matchingConfig) {
+      searchTerms.push(matchingConfig.name.toLowerCase(), matchingConfig.id.toLowerCase());
+    }
+    if (k === 'v') searchTerms.push('verso', 'verse', 'estrofe');
+    if (k === 'r') searchTerms.push('refrão', 'refrao', 'chorus', 'coro');
+    if (k === 'p') searchTerms.push('ponte', 'bridge');
+    if (k === 'i') searchTerms.push('intro', 'início');
+    if (k === 'f') searchTerms.push('final', 'outro', 'fim');
+
+    if (searchTerms.length === 0) return false;
+
+    const matchingIndices: number[] = [];
+    selectedMedia.slides.forEach((slide, idx) => {
+      const label = (slide.label || '').toLowerCase();
+      if (searchTerms.some((term) => label.includes(term))) {
+        matchingIndices.push(idx);
+      }
+    });
+
+    if (matchingIndices.length === 0) return false;
+
+    // Se já estiver em um deles, pula para o próximo, ou cicla de volta para o primeiro
+    const nextIdx = matchingIndices.find((idx) => idx > focusedSlideIndex) ?? matchingIndices[0];
+    focusedSlideIndex = nextIdx;
+    if (isSelectedMediaLive) {
+      selectSlide(selectedMedia.id, nextIdx);
+    }
+    return true;
+  }
+
+  // Buffer numérico para saltar para slide ordinal (ex: digitar 2 + Enter vai para slide 2)
+  function appendNumberKey(digit: string) {
+    if (numberBufferTimer) clearTimeout(numberBufferTimer);
+    numberBuffer += digit;
+    numberBufferTimer = setTimeout(() => {
+      numberBuffer = '';
+    }, 2500);
+  }
+
+  function submitNumberBuffer(): boolean {
+    if (!numberBuffer) return false;
+    const num = parseInt(numberBuffer, 10);
+    numberBuffer = '';
+    if (numberBufferTimer) {
+      clearTimeout(numberBufferTimer);
+      numberBufferTimer = null;
+    }
+    if (!isNaN(num) && selectedMedia && selectedMedia.slides.length > 0) {
+      const targetIdx = Math.max(0, Math.min(num - 1, selectedMedia.slides.length - 1));
+      presentSlide(targetIdx);
+      return true;
+    }
+    return false;
+  }
+
+  // Atalhos de teclado globais
   function handleKeydown(e: KeyboardEvent) {
     // Atalho global do Command Palette (⌘K / Ctrl+K)
     if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
@@ -145,7 +258,58 @@
       return;
     }
 
+    // Se estiver digitando em input ou textarea, ignorar
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+    // Se algum modal estiver aberto
+    if (isCommandPaletteOpen || isSongEditorOpen || isSettingsOpen) {
+      if (e.key === 'Escape') {
+        isCommandPaletteOpen = false;
+        isSongEditorOpen = false;
+        isSettingsOpen = false;
+      }
+      return;
+    }
+
+    // Tecla Escape: Para a apresentação
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (numberBuffer) {
+        numberBuffer = '';
+        if (numberBufferTimer) clearTimeout(numberBufferTimer);
+        return;
+      }
+      stopPresentation();
+      return;
+    }
+
+    // Tecla Enter: Submete buffer numérico ou apresenta o slide focado
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (numberBuffer) {
+        submitNumberBuffer();
+      } else {
+        presentSlide(focusedSlideIndex);
+      }
+      return;
+    }
+
+    // Teclas 0-9 para buffer de número
+    if (/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+      appendNumberKey(e.key);
+      return;
+    }
+
+    // Teclas de letras para salto de seção (sem modificadores)
+    if (!e.metaKey && !e.ctrlKey && !e.altKey && /^[a-zA-Z]$/.test(e.key)) {
+      if (jumpToSection(e.key)) {
+        e.preventDefault();
+        return;
+      }
+    }
+
+    // F1: Blackout, F2: Clear text
     if (e.key === 'F1') {
       e.preventDefault();
       toggleBlackout();
@@ -191,14 +355,21 @@
   <!-- Top Bar / Header Operacional -->
   <header class="h-14 border-b border-zinc-800/80 bg-zinc-900/60 px-4 flex items-center justify-between shrink-0">
     <div class="flex items-center gap-3">
-      <div class="flex items-center gap-2">
-        <div class="w-7 h-7 rounded-md bg-emerald-500 flex items-center justify-center font-bold text-black text-sm shadow-sm shadow-emerald-500/20">
-          OP
-        </div>
-        <span class="font-bold text-base tracking-tight text-white">OpenPresenter</span>
+      <div class="flex items-center gap-2.5">
+        <img
+          src="/branding/open-presenter-app-icon.svg"
+          alt="OpenPresenter"
+          class="w-7 h-7 rounded-md shadow-sm"
+        />
+        <img
+          src="/branding/open-presenter-wordmark-dark.svg"
+          alt="OpenPresenter"
+          class="h-5 opacity-90 hidden sm:block"
+        />
+        <span class="font-bold text-base tracking-tight text-white sm:hidden">OpenPresenter</span>
       </div>
       <span class="text-zinc-600">|</span>
-      <span class="text-xs text-zinc-400 hidden sm:inline">Projeção para igrejas e eventos</span>
+      <span class="text-xs text-zinc-400 hidden xl:inline">Projeção para igrejas e eventos</span>
     </div>
 
     <!-- Busca Global e Command Palette (⌘K) -->
@@ -217,7 +388,7 @@
     </button>
 
     <!-- Status e Ações Rápidas -->
-    <div class="flex items-center gap-2 sm:gap-3">
+    <div class="flex items-center gap-2 sm:gap-2.5">
       <!-- Status WebSocket -->
       <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-800/70 border border-zinc-700/50 text-xs">
         {#if $isWsConnected}
@@ -228,6 +399,18 @@
           <span class="text-red-400 font-medium">Reconectando</span>
         {/if}
       </div>
+
+      <!-- Botão Configurações -->
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={() => (isSettingsOpen = true)}
+        class="gap-1.5 text-xs"
+        title="Configurações (Aparência, Atalhos, Cores)"
+      >
+        <Settings size={14} class="text-zinc-400" />
+        <span class="hidden md:inline">Configurações</span>
+      </Button>
 
       <!-- Botões de Abertura das Saídas -->
       <Button variant="outline" size="sm" onclick={openPublicWindow} class="gap-1.5 text-xs">
@@ -305,7 +488,7 @@
         </div>
       </div>
 
-      <!-- Lista de Itens de Mídia (Item do Shadui) -->
+      <!-- Lista de Itens de Mídia -->
       <div class="flex-1 overflow-y-auto p-2.5 space-y-1.5">
         {#each filteredMedia as item (item.id)}
           <MediaItemRow
@@ -325,7 +508,7 @@
     <!-- COLUNA 2: PAINEL CENTRAL DE SLIDES / PREVIEW -->
     <main class="flex-1 flex flex-col min-w-0 bg-zinc-950/60 overflow-hidden">
       {#if selectedMedia}
-        <!-- Cabeçalho da Mídia Selecionada -->
+        <!-- Cabeçalho da Mídia Selecionada com Ações de Apresentação -->
         <div class="h-14 px-5 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between shrink-0">
           <div class="min-w-0">
             <div class="flex items-center gap-2">
@@ -335,6 +518,11 @@
               <Badge variant="default" class="text-[10px] py-0 px-1.5">
                 {selectedMedia.kind === 'song' ? 'Louvor' : selectedMedia.kind === 'scripture' ? 'Bíblia' : 'Aviso'}
               </Badge>
+              {#if isSelectedMediaLive}
+                <Badge variant="live" class="text-[10px] py-0 px-1.5 animate-pulse">
+                  NO AR
+                </Badge>
+              {/if}
             </div>
             {#if selectedMedia.artist_or_ref}
               <p class="text-xs text-zinc-400 truncate mt-0.5">
@@ -343,8 +531,34 @@
             {/if}
           </div>
 
-          <!-- Controles de Navegação Anterior / Próximo -->
+          <!-- Ações e Controles de Navegação -->
           <div class="flex items-center gap-2 shrink-0">
+            {#if isSelectedMediaLive}
+              <Button
+                variant="destructive"
+                size="sm"
+                onclick={stopPresentation}
+                title="Parar Projeção (Esc)"
+                class="gap-1.5 text-xs font-semibold"
+              >
+                <Square size={13} class="fill-current" />
+                Parar (Esc)
+              </Button>
+            {/if}
+
+            <Button
+              variant="live"
+              size="sm"
+              onclick={() => presentSlide(focusedSlideIndex)}
+              title="Apresentar Slide Focado (Enter)"
+              class="gap-1.5 text-xs font-semibold shadow-sm"
+            >
+              <Play size={13} class="fill-current" />
+              Apresentar (Enter)
+            </Button>
+
+            <div class="h-4 w-[1px] bg-zinc-700/60 mx-1"></div>
+
             <Button
               variant="secondary"
               size="sm"
@@ -358,7 +572,7 @@
               variant="secondary"
               size="sm"
               onclick={nextSlide}
-              title="Próximo Slide (→)"
+              title="Próximo Slide (→ ou Espaço)"
               class="gap-1 text-xs"
             >
               Próximo <ChevronRight size={14} />
@@ -372,44 +586,72 @@
             {#each selectedMedia.slides as slide, idx (slide.id)}
               {@const isLive =
                 $presentationState.active_media_id === selectedMedia.id &&
-                $presentationState.active_slide_index === idx}
+                $presentationState.active_slide_index === idx &&
+                $presentationState.display_mode === 'live'}
+              {@const isFocused = focusedSlideIndex === idx}
+              {@const sectionStyle = getSectionStyle(slide.label, $sectionsStore)}
 
               <div
                 class={cn(
                   'group flex flex-col rounded-lg border transition-all duration-150 overflow-hidden cursor-pointer select-none relative',
                   isLive
-                    ? 'border-emerald-500 bg-zinc-900 shadow-md ring-2 ring-emerald-500/40'
-                    : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700 hover:bg-zinc-850'
+                    ? 'border-emerald-500 bg-zinc-900 shadow-lg ring-2 ring-emerald-500/50'
+                    : isFocused
+                      ? 'border-sky-500 bg-zinc-900 shadow-md ring-2 ring-sky-500/40'
+                      : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700 hover:bg-zinc-850'
                 )}
-                onclick={() => selectSlide(selectedMedia.id, idx)}
+                onclick={() => selectSlideForFocus(idx)}
+                ondblclick={() => presentSlide(idx)}
                 role="button"
                 tabindex="0"
-                onkeydown={(e) => { if (e.key === 'Enter') selectSlide(selectedMedia.id, idx); }}
+                onkeydown={(e) => {
+                  if (e.key === 'Enter') presentSlide(idx);
+                }}
               >
-                <!-- Cabeçalho do Cartão do Slide -->
-                <div class="px-3 py-1.5 border-b border-zinc-800/80 flex items-center justify-between text-xs bg-zinc-900/80">
-                  <span class="font-medium text-zinc-300 flex items-center gap-1.5">
-                    <span class="w-4 h-4 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center text-[10px] font-mono">
+                <!-- Cabeçalho do Cartão do Slide com Cores Customizadas de Seção -->
+                <div
+                  class={cn(
+                    'px-3 py-1.5 border-b flex items-center justify-between text-xs',
+                    sectionStyle.bg,
+                    sectionStyle.border
+                  )}
+                >
+                  <span class={cn('font-semibold flex items-center gap-1.5', sectionStyle.text)}>
+                    <span
+                      class="w-4 h-4 rounded-full bg-black/40 text-white flex items-center justify-center text-[10px] font-mono"
+                    >
                       {idx + 1}
                     </span>
                     {slide.label}
                   </span>
 
-                  {#if isLive}
-                    <Badge variant="live" class="text-[10px] py-0 px-1.5 animate-pulse">
-                      AO VIVO
-                    </Badge>
-                  {/if}
+                  <div class="flex items-center gap-1">
+                    {#if isLive}
+                      <Badge variant="live" class="text-[10px] py-0 px-1.5 animate-pulse">
+                        AO VIVO
+                      </Badge>
+                    {:else if isFocused}
+                      <Badge variant="secondary" class="text-[10px] py-0 px-1.5 border-sky-500/40 text-sky-400 bg-sky-950/40">
+                        FOCADO
+                      </Badge>
+                    {/if}
+                  </div>
                 </div>
 
                 <!-- Conteúdo Visual do Slide (Proporção 16:9) -->
                 <div class="aspect-video w-full p-4 flex flex-col items-center justify-center text-center bg-black/60 relative">
                   <div class="space-y-1.5 max-w-full">
                     {#each slide.content.split('\n') as line}
-                      <p class={cn(
-                        'text-xs sm:text-sm font-semibold truncate leading-tight',
-                        isLive ? 'text-emerald-200' : 'text-zinc-200 group-hover:text-white'
-                      )}>
+                      <p
+                        class={cn(
+                          'text-xs sm:text-sm font-semibold truncate leading-tight',
+                          isLive
+                            ? 'text-emerald-200'
+                            : isFocused
+                              ? 'text-white'
+                              : 'text-zinc-200 group-hover:text-white'
+                        )}
+                      >
                         {line}
                       </p>
                     {/each}
@@ -425,7 +667,7 @@
         </div>
       {:else}
         <div class="flex-1 flex items-center justify-center text-zinc-500 text-sm">
-          Selecione uma mídia na sidebar para visualizar os slides.
+          Selecione uma mídia na setlist para visualizar os slides.
         </div>
       {/if}
     </main>
@@ -585,7 +827,18 @@
     </aside>
   </div>
 
-  <!-- Modais Operacionais: Command Palette e Editor de Músicas -->
+  <!-- Floating Number Buffer HUD -->
+  {#if numberBuffer}
+    <div
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-emerald-600 text-white font-mono font-bold text-base rounded-xl shadow-2xl flex items-center gap-2.5 border border-emerald-400/50"
+    >
+      <span class="text-xs uppercase tracking-wider text-emerald-200">Ir para slide:</span>
+      <span class="text-lg underline decoration-2">{numberBuffer}</span>
+      <span class="text-xs font-normal opacity-90">(Pressione Enter)</span>
+    </div>
+  {/if}
+
+  <!-- Modais Operacionais: Command Palette, Editor de Músicas e Configurações -->
   <CommandPalette
     open={isCommandPaletteOpen}
     onclose={() => (isCommandPaletteOpen = false)}
@@ -601,5 +854,10 @@
       editingSong = null;
     }}
     onsave={handleSongSaved}
+  />
+
+  <SettingsModal
+    open={isSettingsOpen}
+    onclose={() => (isSettingsOpen = false)}
   />
 </div>

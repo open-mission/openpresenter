@@ -78,11 +78,17 @@
   {:else}
     <!-- Estado de espera sem mídia ativa -->
     <div class="flex flex-col items-center justify-center text-center text-zinc-500 gap-3">
-      <div class="w-12 h-12 rounded-full border border-zinc-700/50 flex items-center justify-center text-emerald-500 font-bold text-xl">
-        OP
-      </div>
-      <p class="text-lg font-medium text-zinc-400">OpenPresenter</p>
-      <p class="text-xs text-zinc-600">Aguardando disparo de slide pelo operador</p>
+      <img
+        src="/branding/open-presenter-app-icon.svg"
+        alt="OpenPresenter"
+        class="w-16 h-16 rounded-2xl shadow-xl opacity-80"
+      />
+      <img
+        src="/branding/open-presenter-wordmark-dark.svg"
+        alt="OpenPresenter"
+        class="h-6 opacity-75 mt-1"
+      />
+      <p class="text-xs text-zinc-600 mt-1">Aguardando disparo de slide pelo operador</p>
     </div>
   {/if}
 
