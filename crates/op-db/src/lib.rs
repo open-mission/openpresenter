@@ -3,8 +3,9 @@ use std::time::Duration;
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use op_core::{
-    AppMeta, DEFAULT_LOCALE, MonitorSelection, OutputConfig, OutputKind, OutputMode, OutputsConfig,
-    SectionType, SessionInfo, Song, SongSection, SongSummary, Theme,
+    AppMeta, DEFAULT_LOCALE, MediaItem, MonitorSelection, OutputConfig, OutputKind, OutputMode,
+    OutputsConfig, SectionType, SessionInfo, Setlist, SetlistSummary, Song, SongSection,
+    SongSummary, Theme,
 };
 use rusqlite::Connection;
 use rusqlite_migration::{M, Migrations};
@@ -60,6 +61,7 @@ impl Database {
             M::up(include_str!("../migrations/0001_initial.sql")),
             M::up(include_str!("../migrations/0002_output_config.sql")),
             M::up(include_str!("../migrations/0003_songs_fts.sql")),
+            M::up(include_str!("../migrations/0004_setlists.sql")),
         ]);
         migrations
             .to_latest(&mut conn)
@@ -518,6 +520,223 @@ impl Database {
         );
         Ok(count > 0)
     }
+
+    /// Salva ou atualiza uma Setlist completa com seus itens.
+    pub fn save_setlist(&mut self, setlist: &Setlist) -> Result<(), DbError> {
+        let tx = self.conn.transaction().map_err(DbError::Write)?;
+
+        let items_json = serde_json::to_string(&setlist.items).unwrap_or_else(|_| "[]".to_string());
+        let now_str = format_timestamp(Utc::now());
+        let created_at = if setlist.created_at.is_empty() {
+            now_str.clone()
+        } else {
+            setlist.created_at.clone()
+        };
+        let updated_at = now_str;
+
+        // Se estiver marcando como ativa, desmarca as outras
+        if setlist.is_active {
+            tx.execute("UPDATE setlists SET is_active = 0", [])
+                .map_err(DbError::Write)?;
+        }
+
+        tx.execute(
+            r#"
+            INSERT INTO setlists (
+                id, title, description, wallpaper_path, wallpaper_mode,
+                items_json, is_active, created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+            ON CONFLICT(id) DO UPDATE SET
+                title = excluded.title,
+                description = excluded.description,
+                wallpaper_path = excluded.wallpaper_path,
+                wallpaper_mode = excluded.wallpaper_mode,
+                items_json = excluded.items_json,
+                is_active = excluded.is_active,
+                updated_at = excluded.updated_at
+            "#,
+            rusqlite::params![
+                setlist.id,
+                setlist.title,
+                setlist.description,
+                setlist.wallpaper_path,
+                setlist.wallpaper_mode,
+                items_json,
+                if setlist.is_active { 1 } else { 0 },
+                created_at,
+                updated_at,
+            ],
+        )
+        .map_err(DbError::Write)?;
+
+        tx.commit().map_err(DbError::Write)?;
+        Ok(())
+    }
+
+    /// Busca uma Setlist pelo seu ID.
+    pub fn get_setlist(&self, id: &str) -> Result<Option<Setlist>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                r#"
+                SELECT id, title, description, wallpaper_path, wallpaper_mode,
+                       items_json, is_active, created_at, updated_at
+                FROM setlists
+                WHERE id = ?1
+                "#,
+            )
+            .map_err(DbError::Read)?;
+
+        let mut rows = stmt
+            .query_map(rusqlite::params![id], |row| {
+                let id: String = row.get(0)?;
+                let title: String = row.get(1)?;
+                let description: Option<String> = row.get(2)?;
+                let wallpaper_path: Option<String> = row.get(3)?;
+                let wallpaper_mode: Option<String> = row.get(4)?;
+                let items_json: String = row.get(5)?;
+                let is_active_int: i32 = row.get(6)?;
+                let created_at: String = row.get(7)?;
+                let updated_at: String = row.get(8)?;
+
+                let items: Vec<MediaItem> = serde_json::from_str(&items_json).unwrap_or_default();
+
+                Ok(Setlist {
+                    id,
+                    title,
+                    description,
+                    wallpaper_path,
+                    wallpaper_mode,
+                    items,
+                    is_active: is_active_int == 1,
+                    created_at,
+                    updated_at,
+                })
+            })
+            .map_err(DbError::Read)?;
+
+        match rows.next() {
+            Some(res) => Ok(Some(res.map_err(DbError::Read)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Lista todas as Setlists cadastradas ordenadas por ativa e data de atualização.
+    pub fn list_setlists(&self) -> Result<Vec<SetlistSummary>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                r#"
+                SELECT id, title, description, wallpaper_path, wallpaper_mode,
+                       items_json, is_active, updated_at
+                FROM setlists
+                ORDER BY is_active DESC, updated_at DESC
+                "#,
+            )
+            .map_err(DbError::Read)?;
+
+        let summaries = stmt
+            .query_map([], |row| {
+                let id: String = row.get(0)?;
+                let title: String = row.get(1)?;
+                let description: Option<String> = row.get(2)?;
+                let wallpaper_path: Option<String> = row.get(3)?;
+                let wallpaper_mode: Option<String> = row.get(4)?;
+                let items_json: String = row.get(5)?;
+                let is_active_int: i32 = row.get(6)?;
+                let updated_at: String = row.get(7)?;
+
+                let items: Vec<MediaItem> = serde_json::from_str(&items_json).unwrap_or_default();
+
+                Ok(SetlistSummary {
+                    id,
+                    title,
+                    description,
+                    wallpaper_path,
+                    wallpaper_mode,
+                    item_count: items.len(),
+                    is_active: is_active_int == 1,
+                    updated_at,
+                })
+            })
+            .map_err(DbError::Read)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(DbError::Read)?;
+
+        Ok(summaries)
+    }
+
+    /// Remove uma Setlist pelo seu ID.
+    pub fn delete_setlist(&mut self, id: &str) -> Result<bool, DbError> {
+        let count = self
+            .conn
+            .execute("DELETE FROM setlists WHERE id = ?1", rusqlite::params![id])
+            .map_err(DbError::Write)?;
+        Ok(count > 0)
+    }
+
+    /// Define uma Setlist como a ativa no momento.
+    pub fn set_active_setlist(&mut self, id: &str) -> Result<(), DbError> {
+        let tx = self.conn.transaction().map_err(DbError::Write)?;
+        tx.execute("UPDATE setlists SET is_active = 0", [])
+            .map_err(DbError::Write)?;
+        tx.execute(
+            "UPDATE setlists SET is_active = 1, updated_at = ?2 WHERE id = ?1",
+            rusqlite::params![id, format_timestamp(Utc::now())],
+        )
+        .map_err(DbError::Write)?;
+        tx.commit().map_err(DbError::Write)?;
+        Ok(())
+    }
+
+    /// Busca a Setlist atualmente ativa.
+    pub fn get_active_setlist(&self) -> Result<Option<Setlist>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                r#"
+                SELECT id, title, description, wallpaper_path, wallpaper_mode,
+                       items_json, is_active, created_at, updated_at
+                FROM setlists
+                WHERE is_active = 1
+                LIMIT 1
+                "#,
+            )
+            .map_err(DbError::Read)?;
+
+        let mut rows = stmt
+            .query_map([], |row| {
+                let id: String = row.get(0)?;
+                let title: String = row.get(1)?;
+                let description: Option<String> = row.get(2)?;
+                let wallpaper_path: Option<String> = row.get(3)?;
+                let wallpaper_mode: Option<String> = row.get(4)?;
+                let items_json: String = row.get(5)?;
+                let is_active_int: i32 = row.get(6)?;
+                let created_at: String = row.get(7)?;
+                let updated_at: String = row.get(8)?;
+
+                let items: Vec<MediaItem> = serde_json::from_str(&items_json).unwrap_or_default();
+
+                Ok(Setlist {
+                    id,
+                    title,
+                    description,
+                    wallpaper_path,
+                    wallpaper_mode,
+                    items,
+                    is_active: is_active_int == 1,
+                    created_at,
+                    updated_at,
+                })
+            })
+            .map_err(DbError::Read)?;
+
+        match rows.next() {
+            Some(res) => Ok(Some(res.map_err(DbError::Read)?)),
+            None => Ok(None),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -545,7 +764,7 @@ mod tests {
         let path = dir.path().join("open-presenter.db");
         let db = Database::open(&path).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 3);
+        assert_eq!(db.schema_version().unwrap(), 4);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -578,24 +797,24 @@ mod tests {
     }
 
     #[test]
-    fn open_creates_schema_v3_with_output_config_and_songs_fts() {
+    fn open_creates_schema_v4_with_output_config_songs_and_setlists() {
         let dir = tempfile::tempdir().unwrap();
         let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 3);
+        assert_eq!(db.schema_version().unwrap(), 4);
         let table_count: i64 = db
             .conn
             .query_row(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts')",
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists')",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(table_count, 3);
+        assert_eq!(table_count, 4);
     }
 
     #[test]
-    fn migrates_v1_database_to_v3_preserving_app_meta() {
+    fn migrates_v1_database_to_v4_preserving_app_meta() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("open-presenter.db");
         {
@@ -612,7 +831,7 @@ mod tests {
         }
 
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.schema_version().unwrap(), 3);
+        assert_eq!(db.schema_version().unwrap(), 4);
         let meta = db.load_meta().unwrap().unwrap();
         assert_eq!(meta.first_run_at, ts(2026, 10, 28, 10, 0));
         let count: i64 = db
@@ -837,5 +1056,62 @@ mod tests {
         assert!(db.delete_song("song-123").unwrap());
         assert!(db.get_song("song-123").unwrap().is_none());
         assert!(db.search_songs("porque").unwrap().is_empty());
+    }
+
+    #[test]
+    fn save_and_manage_multiple_setlists_works() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
+
+        let s1 = Setlist {
+            id: "set-1".into(),
+            title: "Culto de Domingo - Manhã".into(),
+            description: Some("Culto com louvores de celebração".into()),
+            wallpaper_path: Some("/media/wallpapers/worship.jpg".into()),
+            wallpaper_mode: Some("cover".into()),
+            items: vec![MediaItem {
+                id: "song-1".into(),
+                title: "Porque Ele Vive".into(),
+                artist_or_ref: None,
+                kind: op_core::MediaKind::Song,
+                slides: vec![],
+            }],
+            is_active: true,
+            created_at: "".into(),
+            updated_at: "".into(),
+        };
+
+        let s2 = Setlist {
+            id: "set-2".into(),
+            title: "Culto de Domingo - Noite".into(),
+            description: Some("Culto evangelístico".into()),
+            wallpaper_path: None,
+            wallpaper_mode: Some("contain".into()),
+            items: vec![],
+            is_active: false,
+            created_at: "".into(),
+            updated_at: "".into(),
+        };
+
+        db.save_setlist(&s1).unwrap();
+        db.save_setlist(&s2).unwrap();
+
+        let active = db.get_active_setlist().unwrap().unwrap();
+        assert_eq!(active.id, "set-1");
+        assert_eq!(active.title, "Culto de Domingo - Manhã");
+        assert_eq!(active.items.len(), 1);
+
+        let list = db.list_setlists().unwrap();
+        assert_eq!(list.len(), 2);
+        assert_eq!(list[0].id, "set-1"); // active first
+
+        // Alterna ativa
+        db.set_active_setlist("set-2").unwrap();
+        let active2 = db.get_active_setlist().unwrap().unwrap();
+        assert_eq!(active2.id, "set-2");
+
+        // Deleta
+        assert!(db.delete_setlist("set-1").unwrap());
+        assert_eq!(db.list_setlists().unwrap().len(), 1);
     }
 }

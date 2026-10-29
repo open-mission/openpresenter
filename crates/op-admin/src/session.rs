@@ -13,6 +13,7 @@ pub struct SessionView {
     pub tagline: String,
     pub stack: String,
     pub db_path: String,
+    pub media_path: String,
     pub db_ready: bool,
     pub db_error: String,
     pub schema_version: i32,
@@ -37,7 +38,7 @@ pub fn load_session() -> LoadedSession {
     }
 }
 
-fn resolve_data_dir() -> anyhow::Result<PathBuf> {
+pub fn resolve_data_dir() -> anyhow::Result<PathBuf> {
     if let Some(path) = std::env::var_os("OPENPRESENTER_DATA_DIR")
         && !path.is_empty()
     {
@@ -50,8 +51,66 @@ fn resolve_data_dir() -> anyhow::Result<PathBuf> {
     Ok(base_dirs.data_local_dir().join("OpenPresenter"))
 }
 
+pub fn resolve_media_dir() -> anyhow::Result<PathBuf> {
+    let data_dir = resolve_data_dir()?;
+    let media_dir = data_dir.join("media");
+    let wallpapers_dir = media_dir.join("wallpapers");
+    std::fs::create_dir_all(&wallpapers_dir)?;
+    ensure_default_wallpapers(&wallpapers_dir);
+    Ok(media_dir)
+}
+
+fn ensure_default_wallpapers(wallpapers_dir: &Path) {
+    let dark_ambient = r###"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="100%" height="100%">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="70%">
+      <stop offset="0%" stop-color="#18181b"/>
+      <stop offset="60%" stop-color="#09090b"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+</svg>"###;
+
+    let worship_glow = r###"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="100%" height="100%">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="35%" r="75%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="50%" stop-color="#09090b"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#glow)"/>
+</svg>"###;
+
+    let cross_subtle = r###"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="100%" height="100%">
+  <rect width="1920" height="1080" fill="#09090b"/>
+  <g opacity="0.08" transform="translate(960, 500)">
+    <rect x="-8" y="-140" width="16" height="280" rx="8" fill="#ffffff"/>
+    <rect x="-70" y="-70" width="140" height="16" rx="8" fill="#ffffff"/>
+  </g>
+</svg>"###;
+
+    let f1 = wallpapers_dir.join("dark-ambient.svg");
+    if !f1.exists() {
+        let _ = std::fs::write(f1, dark_ambient);
+    }
+    let f2 = wallpapers_dir.join("worship-glow.svg");
+    if !f2.exists() {
+        let _ = std::fs::write(f2, worship_glow);
+    }
+    let f3 = wallpapers_dir.join("cross-subtle.svg");
+    if !f3.exists() {
+        let _ = std::fs::write(f3, cross_subtle);
+    }
+}
+
 fn load_session_from_dir(dir: &Path) -> LoadedSession {
     let db_path = dir.join("open-presenter.db");
+    let media_dir = dir.join("media");
+    let wallpapers_dir = media_dir.join("wallpapers");
+    let _ = std::fs::create_dir_all(&wallpapers_dir);
+    ensure_default_wallpapers(&wallpapers_dir);
 
     if let Err(error) = std::fs::create_dir_all(dir) {
         return degraded_session(
@@ -77,6 +136,7 @@ fn load_session_from_dir(dir: &Path) -> LoadedSession {
                 tagline: TAGLINE.to_string(),
                 stack: STACK.to_string(),
                 db_path: db.path().display().to_string(),
+                media_path: media_dir.display().to_string(),
                 db_ready: true,
                 db_error: String::new(),
                 schema_version,
@@ -109,6 +169,7 @@ fn degraded_view(db_path: &Path, error: &str) -> SessionView {
         tagline: TAGLINE.to_string(),
         stack: STACK.to_string(),
         db_path: db_path.display().to_string(),
+        media_path: String::new(),
         db_ready: false,
         db_error: error.to_string(),
         schema_version: 0,
@@ -148,7 +209,7 @@ mod tests {
         let view = loaded.view;
         assert!(view.db_ready);
         assert_eq!(view.app_version, op_core::VERSION);
-        assert_eq!(view.schema_version, 3);
+        assert_eq!(view.schema_version, 4);
         assert!(view.is_first_run);
         assert!(view.db_path.ends_with("open-presenter.db"));
         assert!(!view.first_run_at.is_empty());
@@ -171,7 +232,7 @@ mod tests {
         let loaded = load_session_from_dir(dir.path());
         assert!(loaded.view.db_ready);
         assert!(loaded.db.is_some());
-        assert_eq!(loaded.view.schema_version, 3);
+        assert_eq!(loaded.view.schema_version, 4);
     }
 
     #[test]

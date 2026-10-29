@@ -292,6 +292,7 @@ pub enum MediaKind {
     Scripture,
     Announcement,
     Media,
+    Header,
 }
 
 impl MediaKind {
@@ -301,6 +302,7 @@ impl MediaKind {
             Self::Scripture => "Bíblia",
             Self::Announcement => "Aviso",
             Self::Media => "Mídia",
+            Self::Header => "Seção",
         }
     }
 }
@@ -552,7 +554,7 @@ pub struct Slide {
     pub content: String,
 }
 
-/// Item de mídia na biblioteca do operador (ex.: louvor, texto bíblico, aviso).
+/// Item de mídia na biblioteca do operador (ex.: louvor, texto bíblico, aviso, divisor de seção).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MediaItem {
     pub id: String,
@@ -560,6 +562,33 @@ pub struct MediaItem {
     pub artist_or_ref: Option<String>,
     pub kind: MediaKind,
     pub slides: Vec<Slide>,
+}
+
+/// Modelo completo de uma Setlist (repertório ordenado de um culto ou evento).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Setlist {
+    pub id: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub wallpaper_path: Option<String>,
+    pub wallpaper_mode: Option<String>,
+    pub items: Vec<MediaItem>,
+    pub is_active: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Resumo compacto de uma Setlist para listagem e seleção rápida.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SetlistSummary {
+    pub id: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub wallpaper_path: Option<String>,
+    pub wallpaper_mode: Option<String>,
+    pub item_count: usize,
+    pub is_active: bool,
+    pub updated_at: String,
 }
 
 /// Modo de apresentação na tela pública.
@@ -590,6 +619,12 @@ pub struct PresentationState {
     pub display_mode: DisplayMode,
     pub public_connected: bool,
     pub stage_connected: bool,
+    #[serde(default)]
+    pub active_setlist_id: Option<String>,
+    #[serde(default)]
+    pub wallpaper_path: Option<String>,
+    #[serde(default)]
+    pub wallpaper_mode: Option<String>,
 }
 
 impl Default for PresentationState {
@@ -600,6 +635,9 @@ impl Default for PresentationState {
             display_mode: DisplayMode::Live,
             public_connected: false,
             stage_connected: false,
+            active_setlist_id: None,
+            wallpaper_path: None,
+            wallpaper_mode: Some("cover".into()),
         }
     }
 }
@@ -629,6 +667,14 @@ pub enum WsMessage {
     /// Notificação de atualização enviada aos clientes.
     StateUpdated {
         presentation: PresentationState,
+    },
+    /// Notificação de alteração ou reordenação dos itens da setlist.
+    MediaItemsUpdated {
+        media_items: Vec<MediaItem>,
+    },
+    /// Notificação de setlist selecionada ou atualizada.
+    SetlistUpdated {
+        setlist: Setlist,
     },
     /// Ping / Heartbeat para manter conexão viva.
     Ping,

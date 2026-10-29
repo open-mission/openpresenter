@@ -2,7 +2,7 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, broadcast};
 
 use op_core::{
-    DisplayMode, MediaItem, MediaKind, OutputsConfig, PresentationState, Slide, WsMessage,
+    DisplayMode, MediaItem, MediaKind, OutputsConfig, PresentationState, Setlist, Slide, WsMessage,
 };
 
 use crate::session::SessionView;
@@ -16,6 +16,7 @@ pub struct AppState {
     pub session: SessionView,
     pub presentation: Arc<RwLock<PresentationState>>,
     pub media_items: Arc<RwLock<Vec<MediaItem>>>,
+    pub active_setlist: Arc<RwLock<Option<Setlist>>>,
     pub outputs: Arc<RwLock<OutputsConfig>>,
     pub broadcast_tx: broadcast::Sender<WsMessage>,
     pub db: Option<Arc<tokio::sync::Mutex<op_db::Database>>>,
@@ -24,14 +25,53 @@ pub struct AppState {
 
 impl AppState {
     /// Inicializa o estado com itens de demonstração, canal de transmissão e conexão com banco.
-    pub fn new(session: SessionView, outputs: OutputsConfig, db: Option<op_db::Database>) -> Self {
+    pub fn new(
+        session: SessionView,
+        outputs: OutputsConfig,
+        mut db: Option<op_db::Database>,
+    ) -> Self {
         let (broadcast_tx, _) = broadcast::channel(BROADCAST_CAPACITY);
         let sample_media = create_sample_media();
 
+        let mut initial_setlist = Setlist {
+            id: "setlist-default".into(),
+            title: "Culto Principal".into(),
+            description: Some("Repertório e programação principal do culto".into()),
+            wallpaper_path: Some("/api/media/files/wallpapers/dark-ambient.svg".into()),
+            wallpaper_mode: Some("cover".into()),
+            items: sample_media.clone(),
+            is_active: true,
+            created_at: "".into(),
+            updated_at: "".into(),
+        };
+
+        let mut initial_presentation = PresentationState {
+            active_setlist_id: Some(initial_setlist.id.clone()),
+            wallpaper_path: initial_setlist.wallpaper_path.clone(),
+            wallpaper_mode: initial_setlist.wallpaper_mode.clone(),
+            ..Default::default()
+        };
+
+        let mut initial_items = sample_media;
+
+        // Se houver banco de dados, recupera a setlist ativa ou persiste a inicial
+        if let Some(ref mut db_conn) = db {
+            if let Ok(Some(active)) = db_conn.get_active_setlist() {
+                initial_presentation.active_setlist_id = Some(active.id.clone());
+                initial_presentation.wallpaper_path = active.wallpaper_path.clone();
+                initial_presentation.wallpaper_mode = active.wallpaper_mode.clone();
+                initial_items = active.items.clone();
+                initial_setlist = active;
+            } else {
+                let _ = db_conn.save_setlist(&initial_setlist);
+            }
+        }
+
         Self {
             session,
-            presentation: Arc::new(RwLock::new(PresentationState::default())),
-            media_items: Arc::new(RwLock::new(sample_media)),
+            presentation: Arc::new(RwLock::new(initial_presentation)),
+            media_items: Arc::new(RwLock::new(initial_items)),
+            active_setlist: Arc::new(RwLock::new(Some(initial_setlist))),
             outputs: Arc::new(RwLock::new(outputs)),
             broadcast_tx,
             db: db.map(|d| Arc::new(tokio::sync::Mutex::new(d))),
@@ -51,13 +91,140 @@ impl AppState {
             items.push(item);
         }
         let all_items = items.clone();
-        let pres = self.presentation.read().await.clone();
         drop(items);
 
+        // Atualiza a setlist em memória e banco
+        self.sync_active_setlist_items(&all_items).await;
+
+        let pres = self.presentation.read().await.clone();
         let _ = self.broadcast_tx.send(WsMessage::SyncState {
             presentation: pres,
             media_items: all_items,
         });
+    }
+
+    /// Remove um item da setlist ativa.
+    pub async fn remove_media_item(&self, item_id: &str) -> bool {
+        let mut items = self.media_items.write().await;
+        let original_len = items.len();
+        items.retain(|m| m.id != item_id);
+        let removed = items.len() < original_len;
+        let all_items = items.clone();
+        drop(items);
+
+        if removed {
+            // Se o item removido estava sendo apresentado, encerra a apresentação
+            let mut pres = self.presentation.write().await;
+            if pres.active_media_id.as_deref() == Some(item_id) {
+                pres.active_media_id = None;
+                pres.active_slide_index = None;
+                pres.display_mode = DisplayMode::ClearText;
+            }
+            let updated_pres = pres.clone();
+            drop(pres);
+
+            self.sync_active_setlist_items(&all_items).await;
+
+            let _ = self.broadcast_tx.send(WsMessage::SyncState {
+                presentation: updated_pres,
+                media_items: all_items,
+            });
+        }
+
+        removed
+    }
+
+    /// Reordena os itens da setlist ativa (ou move um item para o topo).
+    pub async fn reorder_media_items(&self, items: Vec<MediaItem>) {
+        let mut current_items = self.media_items.write().await;
+        *current_items = items.clone();
+        drop(current_items);
+
+        self.sync_active_setlist_items(&items).await;
+
+        let pres = self.presentation.read().await.clone();
+        let _ = self.broadcast_tx.send(WsMessage::SyncState {
+            presentation: pres,
+            media_items: items,
+        });
+    }
+
+    /// Renomeia um item da setlist ativa.
+    pub async fn rename_media_item(&self, item_id: &str, new_title: &str) -> bool {
+        let mut items = self.media_items.write().await;
+        let mut found = false;
+        for item in items.iter_mut() {
+            if item.id == item_id {
+                item.title = new_title.to_string();
+                found = true;
+                break;
+            }
+        }
+        let all_items = items.clone();
+        drop(items);
+
+        if found {
+            self.sync_active_setlist_items(&all_items).await;
+
+            let pres = self.presentation.read().await.clone();
+            let _ = self.broadcast_tx.send(WsMessage::SyncState {
+                presentation: pres,
+                media_items: all_items,
+            });
+        }
+
+        found
+    }
+
+    /// Troca a Setlist ativa.
+    pub async fn switch_active_setlist(&self, setlist_id: &str) -> Option<Setlist> {
+        let db_opt = self.db.as_ref()?;
+        let mut db = db_opt.lock().await;
+
+        if db.set_active_setlist(setlist_id).is_err() {
+            return None;
+        }
+
+        let setlist = db.get_active_setlist().ok()??;
+        drop(db);
+
+        // Atualiza memória
+        let mut active_ref = self.active_setlist.write().await;
+        *active_ref = Some(setlist.clone());
+        drop(active_ref);
+
+        let mut items_ref = self.media_items.write().await;
+        *items_ref = setlist.items.clone();
+        drop(items_ref);
+
+        let mut pres = self.presentation.write().await;
+        pres.active_setlist_id = Some(setlist.id.clone());
+        pres.wallpaper_path = setlist.wallpaper_path.clone();
+        pres.wallpaper_mode = setlist.wallpaper_mode.clone();
+        let updated_pres = pres.clone();
+        drop(pres);
+
+        let _ = self.broadcast_tx.send(WsMessage::SyncState {
+            presentation: updated_pres,
+            media_items: setlist.items.clone(),
+        });
+        let _ = self.broadcast_tx.send(WsMessage::SetlistUpdated {
+            setlist: setlist.clone(),
+        });
+
+        Some(setlist)
+    }
+
+    /// Sincroniza a lista de itens com a setlist ativa no banco.
+    async fn sync_active_setlist_items(&self, items: &[MediaItem]) {
+        let mut active = self.active_setlist.write().await;
+        if let Some(ref mut s) = *active {
+            s.items = items.to_vec();
+            if let Some(ref db_opt) = self.db {
+                let mut db = db_opt.lock().await;
+                let _ = db.save_setlist(s);
+            }
+        }
     }
 
     /// Dispara um slide específico de uma mídia para o modo ao vivo.

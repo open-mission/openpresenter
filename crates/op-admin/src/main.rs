@@ -103,13 +103,14 @@ mod tests {
 
     fn mock_state() -> AppState {
         let dummy_view = session::SessionView {
-            app_version: "0.4.0".into(),
+            app_version: op_core::VERSION.into(),
             tagline: "Projeção".into(),
             stack: "Rust + Axum".into(),
             db_path: ":memory:".into(),
+            media_path: "/dummy/media".into(),
             db_ready: true,
             db_error: String::new(),
-            schema_version: 2,
+            schema_version: 4,
             theme_label: "Sistema".into(),
             locale: "pt-BR".into(),
             first_run_at: "agora".into(),
@@ -222,13 +223,14 @@ mod tests {
             .unwrap();
 
         let dummy_view = session::SessionView {
-            app_version: "0.4.0".into(),
+            app_version: op_core::VERSION.into(),
             tagline: "Projeção".into(),
             stack: "Rust + Axum".into(),
             db_path: db_path.display().to_string(),
+            media_path: dir.path().join("media").display().to_string(),
             db_ready: true,
             db_error: String::new(),
-            schema_version: 3,
+            schema_version: 4,
             theme_label: "Sistema".into(),
             locale: "pt-BR".into(),
             first_run_at: "agora".into(),
