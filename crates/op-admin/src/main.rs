@@ -493,4 +493,107 @@ mod tests {
         assert_eq!(pres.active_media_id, None);
         assert_eq!(pres.active_slide_index, None);
     }
+
+    #[tokio::test]
+    async fn timer_and_app_settings_endpoints_work() {
+        let (state, _dir) = mock_state_with_db();
+        let app = create_routes(state.clone());
+
+        // GET /api/timer
+        let timer_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/timer")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(timer_resp.status(), StatusCode::OK);
+
+        // POST /api/timer/set
+        let set_timer_payload = serde_json::to_string(&serde_json::json!({
+            "duration_seconds": 300,
+            "label": "Pregação"
+        }))
+        .unwrap();
+
+        let set_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/timer/set")
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(set_timer_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(set_resp.status(), StatusCode::OK);
+        assert_eq!(state.presentation.read().await.timer.duration_seconds, 300);
+
+        // POST /api/timer/start
+        let start_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/timer/start")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(start_resp.status(), StatusCode::OK);
+        assert!(state.presentation.read().await.timer.running);
+
+        // POST /api/timer/pause
+        let pause_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/timer/pause")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(pause_resp.status(), StatusCode::OK);
+        assert!(!state.presentation.read().await.timer.running);
+
+        // POST /api/settings/public_display
+        let setting_payload = serde_json::to_string(&serde_json::json!({
+            "value": "{\"fill_space\": true, \"word_wrap\": false}"
+        }))
+        .unwrap();
+
+        let save_setting_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/settings/public_display")
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(setting_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(save_setting_resp.status(), StatusCode::OK);
+
+        // GET /api/settings/public_display
+        let get_setting_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/settings/public_display")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(get_setting_resp.status(), StatusCode::OK);
+    }
 }

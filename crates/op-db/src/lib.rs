@@ -63,6 +63,7 @@ impl Database {
             M::up(include_str!("../migrations/0003_songs_fts.sql")),
             M::up(include_str!("../migrations/0004_setlists.sql")),
             M::up(include_str!("../migrations/0005_media_folders.sql")),
+            M::up(include_str!("../migrations/0006_app_settings.sql")),
         ]);
         migrations
             .to_latest(&mut conn)
@@ -806,6 +807,60 @@ impl Database {
             .map_err(DbError::Write)?;
         Ok(affected > 0)
     }
+
+    /// Obtém uma configuração persistida pela chave.
+    pub fn get_setting(&self, key: &str) -> Result<Option<String>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT value FROM app_settings WHERE key = ?1")
+            .map_err(DbError::Read)?;
+        let mut rows = stmt.query(rusqlite::params![key]).map_err(DbError::Read)?;
+        if let Some(row) = rows.next().map_err(DbError::Read)? {
+            let val: String = row.get(0).map_err(DbError::Read)?;
+            Ok(Some(val))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Salva ou atualiza uma configuração pela chave.
+    pub fn set_setting(&self, key: &str, value: &str) -> Result<(), DbError> {
+        let now = format_timestamp(Utc::now());
+        self.conn
+            .execute(
+                r#"
+                INSERT INTO app_settings (key, value, updated_at)
+                VALUES (?1, ?2, ?3)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    updated_at = excluded.updated_at
+                "#,
+                rusqlite::params![key, value, now],
+            )
+            .map_err(DbError::Write)?;
+        Ok(())
+    }
+
+    /// Lista todas as configurações salvas.
+    pub fn list_settings(&self) -> Result<Vec<(String, String)>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT key, value FROM app_settings ORDER BY key ASC")
+            .map_err(DbError::Read)?;
+        let rows = stmt
+            .query_map([], |row| {
+                let k: String = row.get(0)?;
+                let v: String = row.get(1)?;
+                Ok((k, v))
+            })
+            .map_err(DbError::Read)?;
+
+        let mut res = Vec::new();
+        for r in rows {
+            res.push(r.map_err(DbError::Read)?);
+        }
+        Ok(res)
+    }
 }
 
 #[cfg(test)]
@@ -833,7 +888,7 @@ mod tests {
         let path = dir.path().join("open-presenter.db");
         let db = Database::open(&path).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 5);
+        assert_eq!(db.schema_version().unwrap(), 6);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -866,24 +921,59 @@ mod tests {
     }
 
     #[test]
-    fn open_creates_schema_v5_with_media_folders() {
+    fn open_creates_schema_v6_with_app_settings() {
         let dir = tempfile::tempdir().unwrap();
         let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 5);
+        assert_eq!(db.schema_version().unwrap(), 6);
         let table_count: i64 = db
             .conn
             .query_row(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists', 'media_folders')",
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists', 'media_folders', 'app_settings')",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(table_count, 5);
+        assert_eq!(table_count, 6);
     }
 
     #[test]
-    fn migrates_v1_database_to_v5_preserving_app_meta() {
+    fn save_and_manage_app_settings_works() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
+
+        // Inicialmente vazio
+        assert_eq!(db.get_setting("public_margins").unwrap(), None);
+
+        // Salva configuração
+        db.set_setting(
+            "public_margins",
+            r#"{"top": 40, "bottom": 40, "horizontal": 60}"#,
+        )
+        .unwrap();
+
+        let val = db.get_setting("public_margins").unwrap();
+        assert!(val.is_some());
+        assert!(val.unwrap().contains("top"));
+
+        // Atualiza configuração
+        db.set_setting(
+            "public_margins",
+            r#"{"top": 80, "bottom": 80, "horizontal": 100}"#,
+        )
+        .unwrap();
+        let updated = db.get_setting("public_margins").unwrap().unwrap();
+        assert!(updated.contains("80"));
+
+        // Lista configurações
+        db.set_setting("church_brand", r#"{"name": "Igreja Central"}"#)
+            .unwrap();
+        let all = db.list_settings().unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[test]
+    fn migrates_v1_database_to_v6_preserving_app_meta() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("open-presenter.db");
         {
@@ -900,7 +990,7 @@ mod tests {
         }
 
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.schema_version().unwrap(), 5);
+        assert_eq!(db.schema_version().unwrap(), 6);
         let meta = db.load_meta().unwrap().unwrap();
         assert_eq!(meta.first_run_at, ts(2026, 10, 28, 10, 0));
         let count: i64 = db

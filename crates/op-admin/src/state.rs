@@ -67,7 +67,7 @@ impl AppState {
             }
         }
 
-        Self {
+        let app_state = Self {
             session,
             presentation: Arc::new(RwLock::new(initial_presentation)),
             media_items: Arc::new(RwLock::new(initial_items)),
@@ -79,7 +79,19 @@ impl AppState {
                 .timeout(std::time::Duration::from_secs(10))
                 .build()
                 .unwrap_or_default(),
-        }
+        };
+
+        // Task leve de cronômetro global em segundo plano
+        let timer_runner = app_state.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+            loop {
+                interval.tick().await;
+                timer_runner.tick_timer().await;
+            }
+        });
+
+        app_state
     }
 
     /// Adiciona ou atualiza um item na lista de mídias (Setlist) e transmite o novo estado via WebSocket.
@@ -359,6 +371,103 @@ impl AppState {
         let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
             presentation: updated,
         });
+    }
+
+    /// Inicia a contagem do timer global.
+    pub async fn start_timer(&self) -> PresentationState {
+        let mut state = self.presentation.write().await;
+        state.timer.running = true;
+        let updated = state.clone();
+        drop(state);
+
+        let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
+            presentation: updated.clone(),
+        });
+
+        updated
+    }
+
+    /// Pausa o timer global.
+    pub async fn pause_timer(&self) -> PresentationState {
+        let mut state = self.presentation.write().await;
+        state.timer.running = false;
+        let updated = state.clone();
+        drop(state);
+
+        let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
+            presentation: updated.clone(),
+        });
+
+        updated
+    }
+
+    /// Reinicia o timer ao tempo original.
+    pub async fn reset_timer(&self) -> PresentationState {
+        let mut state = self.presentation.write().await;
+        state.timer.remaining_seconds = state.timer.duration_seconds;
+        state.timer.running = false;
+        let updated = state.clone();
+        drop(state);
+
+        let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
+            presentation: updated.clone(),
+        });
+
+        updated
+    }
+
+    /// Configura a duração e rótulo do timer.
+    pub async fn set_timer(
+        &self,
+        duration_seconds: i64,
+        label: Option<String>,
+    ) -> PresentationState {
+        let mut state = self.presentation.write().await;
+        state.timer.duration_seconds = duration_seconds;
+        state.timer.remaining_seconds = duration_seconds;
+        if let Some(l) = label {
+            state.timer.label = Some(l);
+        }
+        let updated = state.clone();
+        drop(state);
+
+        let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
+            presentation: updated.clone(),
+        });
+
+        updated
+    }
+
+    /// Define a mensagem para o palco (Stage Message).
+    pub async fn set_stage_message(&self, message: Option<String>) -> PresentationState {
+        let mut state = self.presentation.write().await;
+        state.timer.stage_message = message;
+        let updated = state.clone();
+        drop(state);
+
+        let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
+            presentation: updated.clone(),
+        });
+
+        updated
+    }
+
+    /// Decrementa 1 segundo caso o timer esteja em execução (suporta overtime negativo).
+    pub async fn tick_timer(&self) -> Option<PresentationState> {
+        let mut state = self.presentation.write().await;
+        if state.timer.running {
+            state.timer.remaining_seconds -= 1;
+            let updated = state.clone();
+            drop(state);
+
+            let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
+                presentation: updated.clone(),
+            });
+
+            Some(updated)
+        } else {
+            None
+        }
     }
 }
 

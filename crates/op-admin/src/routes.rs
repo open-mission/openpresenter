@@ -148,6 +148,17 @@ pub fn create_routes(state: AppState) -> Router {
             "/api/presentation/wallpaper",
             post(set_presentation_wallpaper),
         )
+        .route("/api/timer", get(get_timer))
+        .route("/api/timer/start", post(start_timer))
+        .route("/api/timer/pause", post(pause_timer))
+        .route("/api/timer/reset", post(reset_timer))
+        .route("/api/timer/set", post(set_timer))
+        .route("/api/timer/message", post(set_stage_message))
+        .route(
+            "/api/settings/{key}",
+            get(get_app_setting).post(save_app_setting),
+        )
+        .route("/api/church/upload-logo", post(upload_church_logo))
         .route("/api/outputs/{kind}/toggle", post(toggle_output))
         .route("/api/songs", get(get_songs).post(save_song))
         .route("/api/songs/{id}", get(get_song))
@@ -243,6 +254,134 @@ async fn set_presentation_wallpaper(
 ) -> Json<PresentationState> {
     let updated = state.set_wallpaper(payload.path, payload.mode).await;
     Json(updated)
+}
+
+#[derive(Deserialize)]
+pub struct SetTimerRequest {
+    pub duration_seconds: i64,
+    pub label: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct StageMessageRequest {
+    pub message: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct SaveSettingRequest {
+    pub value: String,
+}
+
+#[derive(Serialize)]
+pub struct SettingResponse {
+    pub key: String,
+    pub value: Option<String>,
+}
+
+async fn get_timer(State(state): State<AppState>) -> Json<op_core::TimerState> {
+    let pres = state.presentation.read().await;
+    Json(pres.timer.clone())
+}
+
+async fn start_timer(State(state): State<AppState>) -> Json<PresentationState> {
+    let updated = state.start_timer().await;
+    Json(updated)
+}
+
+async fn pause_timer(State(state): State<AppState>) -> Json<PresentationState> {
+    let updated = state.pause_timer().await;
+    Json(updated)
+}
+
+async fn reset_timer(State(state): State<AppState>) -> Json<PresentationState> {
+    let updated = state.reset_timer().await;
+    Json(updated)
+}
+
+async fn set_timer(
+    State(state): State<AppState>,
+    Json(payload): Json<SetTimerRequest>,
+) -> Json<PresentationState> {
+    let updated = state
+        .set_timer(payload.duration_seconds, payload.label)
+        .await;
+    Json(updated)
+}
+
+async fn set_stage_message(
+    State(state): State<AppState>,
+    Json(payload): Json<StageMessageRequest>,
+) -> Json<PresentationState> {
+    let updated = state.set_stage_message(payload.message).await;
+    Json(updated)
+}
+
+async fn get_app_setting(
+    State(state): State<AppState>,
+    Path(key): Path<String>,
+) -> Result<Json<SettingResponse>, (StatusCode, String)> {
+    let val = if let Some(ref db) = state.db {
+        let db_guard = db.lock().await;
+        db_guard
+            .get_setting(&key)
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    } else {
+        None
+    };
+    Ok(Json(SettingResponse { key, value: val }))
+}
+
+async fn save_app_setting(
+    State(state): State<AppState>,
+    Path(key): Path<String>,
+    Json(payload): Json<SaveSettingRequest>,
+) -> Result<Json<SettingResponse>, (StatusCode, String)> {
+    if let Some(ref db) = state.db {
+        let db_guard = db.lock().await;
+        db_guard
+            .set_setting(&key, &payload.value)
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    }
+    Ok(Json(SettingResponse {
+        key,
+        value: Some(payload.value),
+    }))
+}
+
+async fn upload_church_logo(
+    State(state): State<AppState>,
+    Json(payload): Json<UploadMediaPayload>,
+) -> Result<Json<UploadMediaResponse>, (StatusCode, String)> {
+    let media_dir = std::path::PathBuf::from(&state.session.media_path);
+    let brand_dir = media_dir.join("church_brand");
+    tokio::fs::create_dir_all(&brand_dir)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let bytes = decode_base64(&payload.content_base64)
+        .ok_or((StatusCode::BAD_REQUEST, "Base64 inválido".into()))?;
+
+    let sanitized_name: String = payload
+        .filename
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+
+    let target_path = brand_dir.join(&sanitized_name);
+    tokio::fs::write(&target_path, bytes)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(UploadMediaResponse {
+        url: format!("/api/media/files/church_brand/{sanitized_name}"),
+        filename: sanitized_name,
+    }))
 }
 
 async fn toggle_output(

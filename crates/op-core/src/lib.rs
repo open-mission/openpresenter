@@ -657,6 +657,30 @@ impl DisplayMode {
 }
 
 /// Estado completo de projeção em tempo real.
+/// Estado do cronômetro / timer global compartilhado entre operador e palco.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TimerState {
+    pub running: bool,
+    pub duration_seconds: i64,
+    pub remaining_seconds: i64,
+    pub label: Option<String>,
+    pub stage_message: Option<String>,
+    pub warning_threshold_seconds: i64,
+}
+
+impl Default for TimerState {
+    fn default() -> Self {
+        Self {
+            running: false,
+            duration_seconds: 600,
+            remaining_seconds: 600,
+            label: Some("Cronômetro".into()),
+            stage_message: None,
+            warning_threshold_seconds: 60,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PresentationState {
     pub active_media_id: Option<String>,
@@ -670,6 +694,8 @@ pub struct PresentationState {
     pub wallpaper_path: Option<String>,
     #[serde(default)]
     pub wallpaper_mode: Option<String>,
+    #[serde(default)]
+    pub timer: TimerState,
 }
 
 impl Default for PresentationState {
@@ -683,6 +709,7 @@ impl Default for PresentationState {
             active_setlist_id: None,
             wallpaper_path: None,
             wallpaper_mode: Some("cover".into()),
+            timer: TimerState::default(),
         }
     }
 }
@@ -711,6 +738,21 @@ pub enum WsMessage {
     SetWallpaper {
         path: Option<String>,
         mode: Option<String>,
+    },
+    /// Comando para iniciar a contagem regressiva do timer.
+    StartTimer,
+    /// Comando para pausar o timer.
+    PauseTimer,
+    /// Comando para reiniciar o timer ao seu valor original.
+    ResetTimer,
+    /// Comando para configurar a duração e rótulo do timer.
+    SetTimer {
+        duration_seconds: i64,
+        label: Option<String>,
+    },
+    /// Comando para enviar ou limpar mensagem para o palco (Stage Message).
+    SetStageMessage {
+        message: Option<String>,
     },
     /// Identificação do cliente ao se conectar (admin, public, stage).
     Identify {

@@ -85,6 +85,24 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     Ok(WsMessage::SetWallpaper { path, mode }) => {
                         state.set_wallpaper(path, mode).await;
                     }
+                    Ok(WsMessage::StartTimer) => {
+                        state.start_timer().await;
+                    }
+                    Ok(WsMessage::PauseTimer) => {
+                        state.pause_timer().await;
+                    }
+                    Ok(WsMessage::ResetTimer) => {
+                        state.reset_timer().await;
+                    }
+                    Ok(WsMessage::SetTimer {
+                        duration_seconds,
+                        label,
+                    }) => {
+                        state.set_timer(duration_seconds, label).await;
+                    }
+                    Ok(WsMessage::SetStageMessage { message }) => {
+                        state.set_stage_message(message).await;
+                    }
                     Ok(WsMessage::Ping) => {
                         let _ = state.broadcast_tx.send(WsMessage::Pong);
                     }
