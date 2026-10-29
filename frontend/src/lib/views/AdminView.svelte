@@ -29,7 +29,9 @@
   import QuickItemModal from '$lib/components/QuickItemModal.svelte';
   import BottomPanel from '$lib/components/BottomPanel.svelte';
   import ImageSelectorModal from '$lib/components/ImageSelectorModal.svelte';
+  import TimerControlPanel from '$lib/components/TimerControlPanel.svelte';
   import ContextMenu, { type MenuItem } from '$lib/components/ContextMenu.svelte';
+  import { syncDisplaySettingsFromBackend } from '$lib/displaySettings';
   import {
     themeStore,
     sectionsStore,
@@ -120,6 +122,7 @@
   onMount(() => {
     initWebSocket('admin');
     initAppTheme();
+    syncDisplaySettingsFromBackend();
     loadSetlists();
 
     // Inicializa seleção padrão com a primeira mídia
@@ -1616,6 +1619,9 @@
             Abrir Janela do Stage
           </Button>
         </div>
+
+        <!-- Painel de Controle de Timer & Mensagens de Palco -->
+        <TimerControlPanel />
       </aside>
     {:else}
       <!-- Rail Colapsado de Previews -->

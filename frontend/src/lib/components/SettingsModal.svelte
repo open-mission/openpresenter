@@ -21,6 +21,12 @@
     ChevronDown,
     Copy,
     FolderOpen,
+    Sliders,
+    Type,
+    Layers,
+    Upload,
+    Church,
+    Maximize2,
   } from 'lucide-svelte';
   import {
     themeStore,
@@ -43,20 +49,55 @@
     type WallpaperFitMode,
     type CustomSectionConfig,
   } from '../settings';
+  import {
+    publicSettingsStore,
+    churchBrandStore,
+    stageSettingsStore,
+    savePublicDisplaySettings,
+    saveChurchBrandSettings,
+    saveStageDisplaySettings,
+    DEFAULT_PUBLIC_SETTINGS,
+    DEFAULT_CHURCH_BRAND,
+    DEFAULT_STAGE_SETTINGS,
+  } from '../displaySettings';
   import Badge from './ui/Badge.svelte';
   import Button from './ui/Button.svelte';
-  import type { MediaFolder, SystemPaths } from '../types';
+  import type {
+    MediaFolder,
+    SystemPaths,
+    PublicDisplaySettings,
+    ChurchBrandSettings,
+    StageDisplaySettings,
+    StagePreset,
+  } from '../types';
+
+  export type SettingsTab =
+    | 'appearance'
+    | 'public'
+    | 'stage'
+    | 'church'
+    | 'files'
+    | 'sections'
+    | 'outputs'
+    | 'shortcuts'
+    | 'about';
 
   interface Props {
     open: boolean;
-    initialTab?: 'appearance' | 'sections' | 'outputs' | 'files' | 'shortcuts' | 'about';
+    initialTab?: SettingsTab;
     onclose: () => void;
   }
 
   let { open = false, initialTab = 'appearance', onclose }: Props = $props();
 
-  let activeTab = $state<'appearance' | 'sections' | 'outputs' | 'files' | 'shortcuts' | 'about'>('appearance');
+  let activeTab = $state<SettingsTab>('appearance');
   let editableSections = $state<CustomSectionConfig[]>([]);
+
+  // Configurações de Telas e Marca da Igreja
+  let localPublic = $state<PublicDisplaySettings>({ ...DEFAULT_PUBLIC_SETTINGS });
+  let localBrand = $state<ChurchBrandSettings>({ ...DEFAULT_CHURCH_BRAND });
+  let localStage = $state<StageDisplaySettings>({ ...DEFAULT_STAGE_SETTINGS });
+  let uploadStatus = $state<{ [key: string]: string }>({});
 
   // Estado da Aba Arquivos e Pastas
   let systemPaths = $state<SystemPaths | null>(null);
@@ -75,10 +116,85 @@
     if (open) {
       activeTab = initialTab;
       editableSections = JSON.parse(JSON.stringify($sectionsStore));
+      localPublic = JSON.parse(JSON.stringify($publicSettingsStore));
+      localBrand = JSON.parse(JSON.stringify($churchBrandStore));
+      localStage = JSON.parse(JSON.stringify($stageSettingsStore));
       loadSystemPaths();
       loadMediaFolders();
     }
   });
+
+  async function handleLogoUpload(
+    variant: 'primary' | 'dark' | 'light' | 'full',
+    e: Event
+  ) {
+    const input = e.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    uploadStatus[variant] = 'Enviando...';
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const result = reader.result as string;
+        const commaIdx = result.indexOf(',');
+        const base64 = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
+
+        const res = await fetch('/api/church/upload-logo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            content_base64: base64,
+          }),
+        });
+
+        if (!res.ok) {
+          throw new Error(await res.text());
+        }
+
+        const data = await res.json();
+        const key = `logo_${variant}` as keyof ChurchBrandSettings;
+        (localBrand as any)[key] = data.url;
+        await saveChurchBrandSettings(localBrand);
+        uploadStatus[variant] = 'Salvo!';
+        setTimeout(() => {
+          uploadStatus[variant] = '';
+        }, 3000);
+      } catch (err: any) {
+        uploadStatus[variant] = `Erro: ${err.message || 'Falha no upload'}`;
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function updatePublicField<K extends keyof PublicDisplaySettings>(key: K, val: PublicDisplaySettings[K]) {
+    localPublic[key] = val;
+    savePublicDisplaySettings(localPublic);
+  }
+
+  function updateBrandField<K extends keyof ChurchBrandSettings>(key: K, val: ChurchBrandSettings[K]) {
+    localBrand[key] = val;
+    saveChurchBrandSettings(localBrand);
+  }
+
+  function updateStageField<K extends keyof StageDisplaySettings>(key: K, val: StageDisplaySettings[K]) {
+    localStage[key] = val;
+    saveStageDisplaySettings(localStage);
+  }
+
+  function handleResetStageColors() {
+    localStage = {
+      ...localStage,
+      current_text_color: DEFAULT_STAGE_SETTINGS.current_text_color,
+      next_text_color: DEFAULT_STAGE_SETTINGS.next_text_color,
+      current_border_color: DEFAULT_STAGE_SETTINGS.current_border_color,
+      next_border_color: DEFAULT_STAGE_SETTINGS.next_border_color,
+      timer_color: DEFAULT_STAGE_SETTINGS.timer_color,
+      clock_color: DEFAULT_STAGE_SETTINGS.clock_color,
+    };
+    saveStageDisplaySettings(localStage);
+  }
 
   async function loadSystemPaths() {
     try {
@@ -305,6 +421,33 @@
 
           <button
             type="button"
+            onclick={() => (activeTab = 'public')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'public' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+          >
+            <Monitor size={15} class={activeTab === 'public' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Tela Pública (Public)</span>
+          </button>
+
+          <button
+            type="button"
+            onclick={() => (activeTab = 'stage')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'stage' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+          >
+            <Tv size={15} class={activeTab === 'stage' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Monitor de Palco (Stage)</span>
+          </button>
+
+          <button
+            type="button"
+            onclick={() => (activeTab = 'church')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'church' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+          >
+            <Church size={15} class={activeTab === 'church' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Marca da Igreja</span>
+          </button>
+
+          <button
+            type="button"
             onclick={() => (activeTab = 'files')}
             class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'files' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
           >
@@ -326,7 +469,7 @@
             onclick={() => (activeTab = 'outputs')}
             class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'outputs' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
           >
-            <Monitor size={15} class={activeTab === 'outputs' ? 'text-primary' : 'text-neutral-500'} />
+            <Sliders size={15} class={activeTab === 'outputs' ? 'text-primary' : 'text-neutral-500'} />
             <span>Telas e Saídas</span>
           </button>
 
@@ -525,6 +668,587 @@
                     </div>
                   {/if}
                 </div>
+              </div>
+            </div>
+
+          <!-- ABA: TELA PÚBLICA (PUBLIC) -->
+          {:else if activeTab === 'public'}
+            <div class="space-y-6 max-w-2xl">
+              <div>
+                <h3 class="text-sm font-semibold text-white">Configuração da Projeção Pública</h3>
+                <p class="text-xs text-neutral-400 mt-0.5">
+                  Ajuste o comportamento do texto, aproveitamento de espaço e margens da projeção para a congregação.
+                </p>
+              </div>
+
+              <!-- Switches de Opções -->
+              <div class="space-y-3">
+                <!-- Preenchimento Máximo -->
+                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                  <div>
+                    <div class="text-xs font-semibold text-white flex items-center gap-2">
+                      <Maximize2 size={14} class="text-primary" />
+                      Preencher o Máximo de Espaço
+                    </div>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">
+                      Amplia os textos para preencher a tela, garantindo alta legibilidade até mesmo para fundos de auditórios.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Alternar preenchimento máximo de espaço"
+                    onclick={() => updatePublicField('fill_space', !localPublic.fill_space)}
+                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.fill_space ? 'bg-primary' : 'bg-neutral-800'}"
+                    role="switch"
+                    aria-checked={localPublic.fill_space}
+                  >
+                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.fill_space ? 'left-6' : 'left-1'}"></span>
+                  </button>
+                </div>
+
+                <!-- Quebra de Linha -->
+                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                  <div>
+                    <div class="text-xs font-semibold text-white flex items-center gap-2">
+                      <Type size={14} class="text-primary" />
+                      Permitir Quebra de Linhas Longas (Word Wrap)
+                    </div>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">
+                      Se desativado, o texto não quebra automaticamente e preserva cada verso da estrofe em sua linha original.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Alternar quebra de linhas longas"
+                    onclick={() => updatePublicField('word_wrap', !localPublic.word_wrap)}
+                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.word_wrap ? 'bg-primary' : 'bg-neutral-800'}"
+                    role="switch"
+                    aria-checked={localPublic.word_wrap}
+                  >
+                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.word_wrap ? 'left-6' : 'left-1'}"></span>
+                  </button>
+                </div>
+
+                <!-- Exibir Metadados -->
+                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                  <div>
+                    <div class="text-xs font-semibold text-white flex items-center gap-2">
+                      <Info size={14} class="text-primary" />
+                      Exibir Metadados do Louvor
+                    </div>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">
+                      Exibe o título da música e artista/compositor em uma legenda discreta no rodapé da projeção pública.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Alternar exibição de metadados"
+                    onclick={() => updatePublicField('show_metadata', !localPublic.show_metadata)}
+                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.show_metadata ? 'bg-primary' : 'bg-neutral-800'}"
+                    role="switch"
+                    aria-checked={localPublic.show_metadata}
+                  >
+                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.show_metadata ? 'left-6' : 'left-1'}"></span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Margens da Projeção -->
+              <div class="pt-4 border-t border-neutral-800 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="text-xs font-semibold text-white">Margens da Projeção Pública (Safe Area)</h4>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">
+                      Evite que as letras encostem nas bordas do telão ou sofram corte por overscan do projetor.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="text-[11px] h-7"
+                    onclick={() => {
+                      localPublic.margin_top = DEFAULT_PUBLIC_SETTINGS.margin_top;
+                      localPublic.margin_bottom = DEFAULT_PUBLIC_SETTINGS.margin_bottom;
+                      localPublic.margin_horizontal = DEFAULT_PUBLIC_SETTINGS.margin_horizontal;
+                      savePublicDisplaySettings(localPublic);
+                    }}
+                  >
+                    Restaurar Margens
+                  </Button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                    <div class="flex justify-between text-xs">
+                      <span class="text-neutral-400">Margem Topo</span>
+                      <span class="font-mono text-white font-semibold">{localPublic.margin_top}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="160"
+                      step="4"
+                      value={localPublic.margin_top}
+                      oninput={(e) => updatePublicField('margin_top', Number((e.target as HTMLInputElement).value))}
+                      class="w-full accent-primary"
+                    />
+                  </div>
+
+                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                    <div class="flex justify-between text-xs">
+                      <span class="text-neutral-400">Margem Base</span>
+                      <span class="font-mono text-white font-semibold">{localPublic.margin_bottom}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="160"
+                      step="4"
+                      value={localPublic.margin_bottom}
+                      oninput={(e) => updatePublicField('margin_bottom', Number((e.target as HTMLInputElement).value))}
+                      class="w-full accent-primary"
+                    />
+                  </div>
+
+                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                    <div class="flex justify-between text-xs">
+                      <span class="text-neutral-400">Laterais</span>
+                      <span class="font-mono text-white font-semibold">{localPublic.margin_horizontal}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="240"
+                      step="4"
+                      value={localPublic.margin_horizontal}
+                      oninput={(e) => updatePublicField('margin_horizontal', Number((e.target as HTMLInputElement).value))}
+                      class="w-full accent-primary"
+                    />
+                  </div>
+                </div>
+
+                <!-- Prévia gráfica das margens -->
+                <div class="p-4 rounded-xl border border-neutral-800 bg-black flex flex-col items-center justify-center">
+                  <div class="text-[10px] text-neutral-500 mb-2 font-mono uppercase">Simulação de Área Útil (16:9)</div>
+                  <div class="w-64 h-36 rounded border border-neutral-700 bg-neutral-950 flex items-center justify-center p-2 relative overflow-hidden">
+                    <div
+                      class="w-full h-full border border-dashed border-primary/60 bg-primary/5 rounded flex items-center justify-center text-center p-1"
+                      style="margin-top: {localPublic.margin_top / 6}px; margin-bottom: {localPublic.margin_bottom / 6}px; margin-left: {localPublic.margin_horizontal / 6}px; margin-right: {localPublic.margin_horizontal / 6}px;"
+                    >
+                      <span class="text-[9px] text-primary/80 font-medium">Área de Letra e Mídia</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          <!-- ABA: MONITOR DE PALCO (STAGE) -->
+          {:else if activeTab === 'stage'}
+            <div class="space-y-6 max-w-2xl">
+              <div>
+                <h3 class="text-sm font-semibold text-white">Layout e Cores do Monitor de Retorno</h3>
+                <p class="text-xs text-neutral-400 mt-0.5">
+                  Configure o preset visual do palco para os músicos e pregador e personalize as cores de alto contraste.
+                </p>
+              </div>
+
+              <!-- Presets do Palco (Cards com diagramas) -->
+              <div class="space-y-3">
+                <span class="block text-xs font-semibold text-white">Preset de Exibição</span>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <!-- Preset 1: Split 50-50 -->
+                  <button
+                    type="button"
+                    onclick={() => updateStageField('preset', 'split-50-50')}
+                    class="p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {localStage.preset === 'split-50-50' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
+                  >
+                    <div class="flex items-center justify-between mb-2">
+                      <div class="text-xs font-bold text-white">Divisão Equilibrada (50/50)</div>
+                      {#if localStage.preset === 'split-50-50'}
+                        <Check size={15} class="text-primary" />
+                      {/if}
+                    </div>
+                    <div class="h-14 w-full bg-neutral-950 rounded border border-neutral-800 p-1 flex gap-1 mb-2">
+                      <div class="flex-1 rounded border border-blue-500/40 bg-blue-500/10 flex items-center justify-center text-[8px] text-blue-300 font-bold">Atual</div>
+                      <div class="flex-1 rounded border border-yellow-500/40 bg-yellow-500/10 flex items-center justify-center text-[8px] text-yellow-300 font-bold">A Seguir</div>
+                    </div>
+                    <div class="text-[10px] text-neutral-400">Dois cartões lado a lado com etiquetas e rodapé de tempo.</div>
+                  </button>
+
+                  <!-- Preset 2: Modern Grid -->
+                  <button
+                    type="button"
+                    onclick={() => updateStageField('preset', 'modern-grid')}
+                    class="p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {localStage.preset === 'modern-grid' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
+                  >
+                    <div class="flex items-center justify-between mb-2">
+                      <div class="text-xs font-bold text-white">Grid Moderno Pro</div>
+                      {#if localStage.preset === 'modern-grid'}
+                        <Check size={15} class="text-primary" />
+                      {/if}
+                    </div>
+                    <div class="h-14 w-full bg-neutral-950 rounded border border-neutral-800 p-1 flex gap-1 mb-2">
+                      <div class="flex-[2] flex flex-col gap-0.5">
+                        <div class="flex-1 rounded border border-blue-500/40 bg-blue-500/10 text-[7px] text-blue-300 font-bold flex items-center justify-center">Slide Atual</div>
+                        <div class="h-4 rounded border border-yellow-500/40 bg-yellow-500/10 text-[6px] text-yellow-300 font-bold flex items-center justify-center">A Seguir</div>
+                      </div>
+                      <div class="flex-1 rounded border border-neutral-700 bg-neutral-900 text-[6px] text-neutral-300 font-bold flex flex-col items-center justify-center gap-0.5">
+                        <span>Aviso</span>
+                        <span class="text-red-400 font-mono">10:00</span>
+                      </div>
+                    </div>
+                    <div class="text-[10px] text-neutral-400">Slide atual em destaque, próximo abaixo e coluna lateral para timer e aviso.</div>
+                  </button>
+
+                  <!-- Preset 3: Video Focus -->
+                  <button
+                    type="button"
+                    onclick={() => updateStageField('preset', 'video-focus')}
+                    class="p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {localStage.preset === 'video-focus' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
+                  >
+                    <div class="flex items-center justify-between mb-2">
+                      <div class="text-xs font-bold text-white">Foco em Vídeo / Letra</div>
+                      {#if localStage.preset === 'video-focus'}
+                        <Check size={15} class="text-primary" />
+                      {/if}
+                    </div>
+                    <div class="h-14 w-full bg-neutral-950 rounded border border-neutral-800 p-1 flex flex-col gap-1 mb-2">
+                      <div class="flex-1 rounded border border-blue-500/40 bg-blue-500/10 flex items-center justify-center text-[8px] text-blue-300 font-bold">Projeção Central Expandida</div>
+                      <div class="h-3.5 rounded bg-neutral-900 border border-neutral-700 flex items-center justify-between px-1 text-[6px] text-neutral-400">
+                        <span class="text-yellow-400 truncate">Próximo...</span>
+                        <span class="text-red-400 font-mono">08:30</span>
+                      </div>
+                    </div>
+                    <div class="text-[10px] text-neutral-400">Área ampla central para leitura e barra inferior minimalista com contadores.</div>
+                  </button>
+
+                  <!-- Preset 4: Horizontal Stack -->
+                  <button
+                    type="button"
+                    onclick={() => updateStageField('preset', 'horizontal-stack')}
+                    class="p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {localStage.preset === 'horizontal-stack' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
+                  >
+                    <div class="flex items-center justify-between mb-2">
+                      <div class="text-xs font-bold text-white">Faixas Horizontais</div>
+                      {#if localStage.preset === 'horizontal-stack'}
+                        <Check size={15} class="text-primary" />
+                      {/if}
+                    </div>
+                    <div class="h-14 w-full bg-neutral-950 rounded border border-neutral-800 p-1 flex flex-col gap-0.5 mb-2">
+                      <div class="h-3 rounded bg-neutral-900 border border-neutral-700 flex items-center justify-between px-1 text-[6px] text-neutral-400">
+                        <span>Horário</span>
+                        <span class="text-red-400 font-mono">05:00</span>
+                      </div>
+                      <div class="flex-1 rounded border border-blue-500/40 bg-blue-500/10 flex items-center justify-center text-[8px] text-blue-300 font-bold">Slide Atual Gigante</div>
+                      <div class="h-3 rounded border border-yellow-500/40 bg-yellow-500/10 flex items-center px-1 text-[6px] text-yellow-300 font-bold">A Seguir...</div>
+                    </div>
+                    <div class="text-[10px] text-neutral-400">Header de status, texto central em tipografia máxima e próximo slide na base.</div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Cores Customizáveis do Palco -->
+              <div class="pt-4 border-t border-neutral-800 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="text-xs font-semibold text-white">Cores de Texto e Molduras</h4>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">
+                      Personalize o contraste visual para melhor visualização em monitores de palco de diferentes distâncias.
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" class="text-[11px] h-7" onclick={handleResetStageColors}>
+                    Restaurar Cores Padrão
+                  </Button>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <!-- Texto Slide Atual -->
+                  <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/30 flex items-center justify-between">
+                    <div>
+                      <div class="text-[11px] font-semibold text-white">Texto Atual</div>
+                      <div class="text-[9px] text-neutral-400">{localStage.current_text_color}</div>
+                    </div>
+                    <input
+                      type="color"
+                      value={localStage.current_text_color}
+                      oninput={(e) => updateStageField('current_text_color', (e.target as HTMLInputElement).value)}
+                      class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
+                    />
+                  </div>
+
+                  <!-- Borda Slide Atual -->
+                  <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/30 flex items-center justify-between">
+                    <div>
+                      <div class="text-[11px] font-semibold text-white">Borda Atual</div>
+                      <div class="text-[9px] text-neutral-400">{localStage.current_border_color}</div>
+                    </div>
+                    <input
+                      type="color"
+                      value={localStage.current_border_color}
+                      oninput={(e) => updateStageField('current_border_color', (e.target as HTMLInputElement).value)}
+                      class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
+                    />
+                  </div>
+
+                  <!-- Texto Próximo Slide -->
+                  <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/30 flex items-center justify-between">
+                    <div>
+                      <div class="text-[11px] font-semibold text-white">Texto Próximo</div>
+                      <div class="text-[9px] text-neutral-400">{localStage.next_text_color}</div>
+                    </div>
+                    <input
+                      type="color"
+                      value={localStage.next_text_color}
+                      oninput={(e) => updateStageField('next_text_color', (e.target as HTMLInputElement).value)}
+                      class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
+                    />
+                  </div>
+
+                  <!-- Borda Próximo Slide -->
+                  <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/30 flex items-center justify-between">
+                    <div>
+                      <div class="text-[11px] font-semibold text-white">Borda Próximo</div>
+                      <div class="text-[9px] text-neutral-400">{localStage.next_border_color}</div>
+                    </div>
+                    <input
+                      type="color"
+                      value={localStage.next_border_color}
+                      oninput={(e) => updateStageField('next_border_color', (e.target as HTMLInputElement).value)}
+                      class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
+                    />
+                  </div>
+
+                  <!-- Cor do Timer -->
+                  <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/30 flex items-center justify-between">
+                    <div>
+                      <div class="text-[11px] font-semibold text-white">Cor do Timer</div>
+                      <div class="text-[9px] text-neutral-400">{localStage.timer_color}</div>
+                    </div>
+                    <input
+                      type="color"
+                      value={localStage.timer_color}
+                      oninput={(e) => updateStageField('timer_color', (e.target as HTMLInputElement).value)}
+                      class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
+                    />
+                  </div>
+
+                  <!-- Cor do Relógio -->
+                  <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/30 flex items-center justify-between">
+                    <div>
+                      <div class="text-[11px] font-semibold text-white">Cor do Relógio</div>
+                      <div class="text-[9px] text-neutral-400">{localStage.clock_color}</div>
+                    </div>
+                    <input
+                      type="color"
+                      value={localStage.clock_color}
+                      oninput={(e) => updateStageField('clock_color', (e.target as HTMLInputElement).value)}
+                      class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          <!-- ABA: MARCA DA IGREJA (CHURCH BRAND) -->
+          {:else if activeTab === 'church'}
+            <div class="space-y-6 max-w-2xl">
+              <div>
+                <h3 class="text-sm font-semibold text-white">Identidade Visual da Igreja</h3>
+                <p class="text-xs text-neutral-400 mt-0.5">
+                  Faça o upload dos logotipos oficiais da sua igreja para sobreposição nas projeções públicas e transmissões.
+                </p>
+              </div>
+
+              <!-- Nome da Igreja -->
+              <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-2">
+                <label for="church_name" class="block text-xs font-semibold text-white">Nome da Congregação / Ministério</label>
+                <input
+                  id="church_name"
+                  type="text"
+                  value={localBrand.name}
+                  oninput={(e) => updateBrandField('name', (e.target as HTMLInputElement).value)}
+                  placeholder="Ex: Igreja Batista Central"
+                  class="w-full h-8 px-2.5 rounded bg-neutral-900 border border-neutral-700 text-xs text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <!-- Cards de Upload dos 4 formatos de Logotipo -->
+              <div class="space-y-2">
+                <span class="block text-xs font-semibold text-white">Arquivos de Logotipo</span>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {#each [
+                    { key: 'primary', label: 'Logo Principal', desc: 'Símbolo ou ícone padrão' },
+                    { key: 'dark', label: 'Versão Escura', desc: 'Para fundos muito claros' },
+                    { key: 'light', label: 'Versão Clara / Branca', desc: 'Para fundos escuros e projeção' },
+                    { key: 'full', label: 'Logo Completo (Horizontal)', desc: 'Símbolo com nome por extenso' },
+                  ] as variant}
+                    <div class="p-3 rounded-xl border border-neutral-800 bg-neutral-900/40 flex flex-col justify-between gap-3">
+                      <div class="flex items-center justify-between">
+                        <div>
+                          <div class="text-xs font-semibold text-white">{variant.label}</div>
+                          <div class="text-[10px] text-neutral-400">{variant.desc}</div>
+                        </div>
+                        {#if localBrand[`logo_${variant.key}` as keyof ChurchBrandSettings]}
+                          <Badge variant="outline" class="text-[9px] text-emerald-400 border-emerald-500/30">Ativo</Badge>
+                        {/if}
+                      </div>
+
+                      <!-- Preview do Logo -->
+                      <div class="h-20 w-full rounded-lg bg-neutral-950 border border-neutral-800 flex items-center justify-center p-2 relative overflow-hidden">
+                        {#if localBrand[`logo_${variant.key}` as keyof ChurchBrandSettings]}
+                          <img
+                            src={String(localBrand[`logo_${variant.key}` as keyof ChurchBrandSettings])}
+                            alt={variant.label}
+                            class="max-h-full max-w-full object-contain"
+                          />
+                        {:else}
+                          <div class="text-[10px] text-neutral-600 flex flex-col items-center gap-1">
+                            <Church size={18} class="opacity-40" />
+                            <span>Sem arquivo</span>
+                          </div>
+                        {/if}
+                      </div>
+
+                      <div class="flex items-center justify-between pt-1">
+                        <label class="cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            class="hidden"
+                            onchange={(e) => handleLogoUpload(variant.key as any, e)}
+                          />
+                          <span class="px-2.5 py-1 text-xs rounded bg-neutral-800 hover:bg-neutral-700 text-white font-medium flex items-center gap-1.5 transition-colors">
+                            <Upload size={12} />
+                            <span>{localBrand[`logo_${variant.key}` as keyof ChurchBrandSettings] ? 'Substituir...' : 'Enviar...'}</span>
+                          </span>
+                        </label>
+
+                        {#if localBrand[`logo_${variant.key}` as keyof ChurchBrandSettings]}
+                          <button
+                            type="button"
+                            onclick={() => updateBrandField(`logo_${variant.key}` as any, '')}
+                            class="text-xs text-neutral-500 hover:text-red-400 transition-colors cursor-pointer"
+                          >
+                            Remover
+                          </button>
+                        {/if}
+                      </div>
+
+                      {#if uploadStatus[variant.key]}
+                        <div class="text-[10px] text-primary">{uploadStatus[variant.key]}</div>
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+              </div>
+
+              <!-- Configuração de Exibição no Público -->
+              <div class="pt-4 border-t border-neutral-800 space-y-4">
+                <div>
+                  <h4 class="text-xs font-semibold text-white">Sobreposição no Telão Público (Public Screen)</h4>
+                  <p class="text-[11px] text-neutral-400 mt-0.5">
+                    Defina se e onde o logotipo oficial da igreja ficará fixado durante a projeção.
+                  </p>
+                </div>
+
+                <!-- Toggle de Exibir no Telão -->
+                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                  <div>
+                    <div class="text-xs font-semibold text-white">Exibir Logotipo na Tela Pública</div>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">
+                      Mantém o logo visível sobre os slides e vídeos da projeção.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Alternar exibição de logotipo na tela pública"
+                    onclick={() => updateBrandField('show_logo_on_public', !localBrand.show_logo_on_public)}
+                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localBrand.show_logo_on_public ? 'bg-primary' : 'bg-neutral-800'}"
+                    role="switch"
+                    aria-checked={localBrand.show_logo_on_public}
+                  >
+                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localBrand.show_logo_on_public ? 'left-6' : 'left-1'}"></span>
+                  </button>
+                </div>
+
+                {#if localBrand.show_logo_on_public}
+                  <!-- Variante Selecionada -->
+                  <div class="space-y-1.5">
+                    <span class="text-xs font-medium text-neutral-300">Variante a Exibir</span>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {#each [
+                        { key: 'primary', label: 'Principal' },
+                        { key: 'light', label: 'Clara / Branca' },
+                        { key: 'dark', label: 'Escura' },
+                        { key: 'full', label: 'Completa' },
+                      ] as opt}
+                        <button
+                          type="button"
+                          onclick={() => updateBrandField('logo_variant', opt.key as any)}
+                          class="p-2 rounded-lg border text-xs font-medium text-center transition-all cursor-pointer {localBrand.logo_variant === opt.key ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-neutral-800 bg-neutral-900/30 text-neutral-400 hover:text-white'}"
+                        >
+                          {opt.label}
+                        </button>
+                      {/each}
+                    </div>
+                  </div>
+
+                  <!-- Posição no Telão (4 Cantos) -->
+                  <div class="space-y-1.5">
+                    <span class="text-xs font-medium text-neutral-300">Posição no Slide</span>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {#each [
+                        { key: 'top-left', label: 'Superior Esquerdo' },
+                        { key: 'top-right', label: 'Superior Direito' },
+                        { key: 'bottom-left', label: 'Inferior Esquerdo' },
+                        { key: 'bottom-right', label: 'Inferior Direito' },
+                      ] as pos}
+                        <button
+                          type="button"
+                          onclick={() => updateBrandField('logo_position', pos.key as any)}
+                          class="p-2.5 rounded-lg border text-xs font-medium text-center transition-all cursor-pointer {localBrand.logo_position === pos.key ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-neutral-800 bg-neutral-900/30 text-neutral-400 hover:text-white'}"
+                        >
+                          {pos.label}
+                        </button>
+                      {/each}
+                    </div>
+                  </div>
+
+                  <!-- Tamanho e Opacidade -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                      <div class="flex justify-between text-xs">
+                        <span class="text-neutral-400">Tamanho Máximo</span>
+                        <span class="font-mono text-white font-semibold">{localBrand.logo_size}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="32"
+                        max="240"
+                        step="4"
+                        value={localBrand.logo_size}
+                        oninput={(e) => updateBrandField('logo_size', Number((e.target as HTMLInputElement).value))}
+                        class="w-full accent-primary"
+                      />
+                    </div>
+
+                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                      <div class="flex justify-between text-xs">
+                        <span class="text-neutral-400">Opacidade</span>
+                        <span class="font-mono text-white font-semibold">{localBrand.logo_opacity}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        step="5"
+                        value={localBrand.logo_opacity}
+                        oninput={(e) => updateBrandField('logo_opacity', Number((e.target as HTMLInputElement).value))}
+                        class="w-full accent-primary"
+                      />
+                    </div>
+                  </div>
+                {/if}
               </div>
             </div>
 

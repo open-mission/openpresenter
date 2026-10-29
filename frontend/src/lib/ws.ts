@@ -10,6 +10,14 @@ export const presentationState = writable<PresentationState>({
   active_setlist_id: undefined,
   wallpaper_path: undefined,
   wallpaper_mode: 'cover',
+  timer: {
+    running: false,
+    duration_seconds: 600,
+    remaining_seconds: 600,
+    label: 'Cronômetro',
+    stage_message: undefined,
+    warning_threshold_seconds: 60,
+  },
 });
 
 export const mediaItemsList = writable<MediaItem[]>([]);
@@ -209,4 +217,43 @@ export async function switchActiveSetlist(setlistId: string) {
   } catch (err) {
     console.error('Erro ao ativar setlist:', err);
   }
+}
+
+export function startTimer() {
+  sendWsMessage({ type: 'start_timer' });
+  fetch('/api/timer/start', { method: 'POST' }).catch(() => {});
+}
+
+export function pauseTimer() {
+  sendWsMessage({ type: 'pause_timer' });
+  fetch('/api/timer/pause', { method: 'POST' }).catch(() => {});
+}
+
+export function resetTimer() {
+  sendWsMessage({ type: 'reset_timer' });
+  fetch('/api/timer/reset', { method: 'POST' }).catch(() => {});
+}
+
+export function setTimer(durationSeconds: number, label?: string) {
+  sendWsMessage({
+    type: 'set_timer',
+    payload: { duration_seconds: durationSeconds, label },
+  });
+  fetch('/api/timer/set', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ duration_seconds: durationSeconds, label }),
+  }).catch(() => {});
+}
+
+export function setStageMessage(message?: string) {
+  sendWsMessage({
+    type: 'set_stage_message',
+    payload: { message },
+  });
+  fetch('/api/timer/message', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+  }).catch(() => {});
 }

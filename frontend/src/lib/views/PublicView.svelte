@@ -4,12 +4,18 @@
   import type { MediaItem, Slide } from '$lib/types';
   import { renderFormattedText } from '$lib/markdown';
   import { resolveBackground } from '$lib/backgrounds';
+  import {
+    publicSettingsStore,
+    churchBrandStore,
+    syncDisplaySettingsFromBackend,
+  } from '$lib/displaySettings';
   import { Maximize, Minimize } from 'lucide-svelte';
 
   let isFullscreen = $state(false);
 
   onMount(() => {
     initWebSocket('public');
+    syncDisplaySettingsFromBackend();
 
     const handleFullscreenChange = () => {
       isFullscreen = !!document.fullscreenElement;
@@ -50,6 +56,33 @@
   const wallpaper = $derived($presentationState.wallpaper_path);
   const wallpaperFit = $derived($presentationState.wallpaper_mode || 'cover');
   const resolvedBg = $derived(resolveBackground(wallpaper));
+
+  const publicSettings = $derived($publicSettingsStore);
+  const churchBrand = $derived($churchBrandStore);
+
+  const activeLogoUrl = $derived.by<string>(() => {
+    if (!churchBrand.show_logo_on_public) return '';
+    const variant = churchBrand.logo_variant || 'primary';
+    if (variant === 'primary' && churchBrand.logo_primary) return churchBrand.logo_primary;
+    if (variant === 'dark' && churchBrand.logo_dark) return churchBrand.logo_dark;
+    if (variant === 'light' && churchBrand.logo_light) return churchBrand.logo_light;
+    if (variant === 'full' && churchBrand.logo_full) return churchBrand.logo_full;
+    return churchBrand.logo_primary || churchBrand.logo_light || churchBrand.logo_dark || churchBrand.logo_full || '';
+  });
+
+  const logoPositionClasses = $derived.by<string>(() => {
+    switch (churchBrand.logo_position) {
+      case 'top-left':
+        return 'top-6 left-6';
+      case 'bottom-left':
+        return 'bottom-6 left-6';
+      case 'bottom-right':
+        return 'bottom-6 right-6';
+      case 'top-right':
+      default:
+        return 'top-6 right-6';
+    }
+  });
 </script>
 
 <svelte:window onkeydown={(e) => { if (e.key.toLowerCase() === 'f') toggleFullscreen(); }} />
@@ -104,8 +137,26 @@
       </div>
     {/if}
 
-    <!-- Camada de Conteúdo do Slide ou Repouso -->
-    <div class="relative z-10 w-full h-full flex items-center justify-center">
+    <!-- Logotipo da Igreja sobreposto na tela pública -->
+    {#if activeLogoUrl}
+      <div
+        class="absolute pointer-events-none z-20 {logoPositionClasses} transition-all duration-200"
+        style="opacity: {churchBrand.logo_opacity / 100};"
+      >
+        <img
+          src={activeLogoUrl}
+          alt={churchBrand.name || 'Logotipo da Igreja'}
+          class="object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]"
+          style="max-width: {churchBrand.logo_size}px; max-height: {churchBrand.logo_size}px;"
+        />
+      </div>
+    {/if}
+
+    <!-- Camada de Conteúdo do Slide ou Repouso com Margens Personalizadas -->
+    <div
+      class="relative z-10 w-full h-full flex items-center justify-center"
+      style="padding-top: {publicSettings.margin_top}px; padding-bottom: {publicSettings.margin_bottom}px; padding-left: {publicSettings.margin_horizontal}px; padding-right: {publicSettings.margin_horizontal}px;"
+    >
       {#if $presentationState.display_mode === 'cleartext'}
         <!-- Clear Text: texto oculto, mantém papel de parede visível -->
         {#if !wallpaper}
@@ -116,7 +167,7 @@
       {:else if activeSlide}
         <!-- Mídia do Tipo Imagem Direta -->
         {#if activeMedia?.kind === 'image'}
-          <div class="w-full h-full flex items-center justify-center p-4">
+          <div class="w-full h-full flex items-center justify-center p-2">
             <img
               src={activeSlide.content}
               alt={activeMedia.title}
@@ -124,21 +175,21 @@
             />
           </div>
         {:else}
-          <!-- Slide de Texto / Música Ao Vivo com Formatação e Alinhamento -->
+          <!-- Slide de Texto / Música Ao Vivo com Formatação, Margens e Preenchimento -->
           <div
-            class="w-full h-full max-w-[95vw] max-h-[92vh] aspect-video flex flex-col p-8 sm:p-14 animate-in fade-in duration-150 {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'} {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
+            class="w-full h-full flex flex-col animate-in fade-in duration-150 {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'} {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
           >
-            <div class="space-y-4 my-auto max-w-5xl">
+            <div class="space-y-4 my-auto {publicSettings.fill_space ? 'w-full max-w-[96vw]' : 'max-w-5xl'}">
               <div
-                class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight"
+                class="font-bold tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight {publicSettings.fill_space ? 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl' : 'text-3xl sm:text-4xl md:text-5xl lg:text-6xl'} {publicSettings.word_wrap ? 'break-words' : 'whitespace-nowrap overflow-hidden text-ellipsis'}"
               >
                 {@html renderFormattedText(activeSlide.content)}
               </div>
             </div>
 
-            {#if activeMedia?.artist_or_ref}
+            {#if publicSettings.show_metadata && (activeMedia?.title || activeMedia?.artist_or_ref)}
               <div class="text-neutral-300 text-sm md:text-base font-medium mt-auto opacity-80 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                {activeMedia.title} — {activeMedia.artist_or_ref}
+                {activeMedia.title}{activeMedia.artist_or_ref ? ` — ${activeMedia.artist_or_ref}` : ''}
               </div>
             {/if}
           </div>

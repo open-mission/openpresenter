@@ -77,6 +77,16 @@ export interface WallpaperItem {
 
 export type DisplayMode = 'live' | 'blackout' | 'cleartext';
 
+export interface TimerState {
+  running: boolean;
+  duration_seconds: number;
+  remaining_seconds: number;
+  label?: string;
+  stage_message?: string;
+  warning_threshold_seconds: number;
+  is_overtime?: boolean;
+}
+
 export interface PresentationState {
   active_media_id: string | null;
   active_slide_index: number | null;
@@ -86,6 +96,8 @@ export interface PresentationState {
   active_setlist_id?: string;
   wallpaper_path?: string;
   wallpaper_mode?: string;
+  timer: TimerState;
+  stage_message?: string;
 }
 
 export interface OutputConfig {
@@ -129,12 +141,52 @@ export type WsMessage =
   | { type: 'set_display_mode'; payload: { mode: DisplayMode } }
   | { type: 'stop_presentation' }
   | { type: 'set_wallpaper'; payload: { path?: string; mode?: string } }
+  | { type: 'start_timer' }
+  | { type: 'pause_timer' }
+  | { type: 'reset_timer' }
+  | { type: 'set_timer'; payload: { duration_seconds: number; label?: string } }
+  | { type: 'set_stage_message'; payload: { message?: string } }
   | { type: 'identify'; payload: { client_type: string } }
   | { type: 'state_updated'; payload: { presentation: PresentationState } }
   | { type: 'media_items_updated'; payload: { media_items: MediaItem[] } }
   | { type: 'setlist_updated'; payload: { setlist: Setlist } }
   | { type: 'ping' }
   | { type: 'pong' };
+
+export interface PublicDisplaySettings {
+  fill_space: boolean;
+  word_wrap: boolean;
+  show_metadata: boolean;
+  margin_top: number;
+  margin_bottom: number;
+  margin_horizontal: number;
+}
+
+export interface ChurchBrandSettings {
+  name: string;
+  logo_primary?: string;
+  logo_dark?: string;
+  logo_light?: string;
+  logo_full?: string;
+  show_logo_on_public: boolean;
+  logo_variant: 'primary' | 'dark' | 'light' | 'full';
+  logo_position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  logo_opacity: number;
+  logo_size: number;
+}
+
+export type StagePreset = 'split-50-50' | 'modern-grid' | 'video-focus' | 'horizontal-stack';
+
+export interface StageDisplaySettings {
+  preset: StagePreset;
+  current_text_color: string;
+  next_text_color: string;
+  current_border_color: string;
+  next_border_color: string;
+  timer_color: string;
+  clock_color: string;
+  font_size_scale?: number;
+}
 
 export type SectionType =
   | 'verse'
