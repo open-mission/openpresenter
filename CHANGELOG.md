@@ -6,6 +6,32 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-29
+
+### Adicionado
+
+- **Menus de Contexto na Setlist:**
+  - Clique direito em itens da setlist com ações de Fixar no topo, Editar (música, seção ou texto), Renomear e Remover da Setlist (com interrupção automática da projeção se o item estiver ao vivo).
+  - Clique direito em área vazia da sidebar Setlist para adicionar rapidamente Música, Seção ou Texto Livre / Aviso.
+  - Menu suspenso integrado no botão `+` do cabeçalho da Setlist para criação rápida de Música, Seção e Texto Livre.
+- **Múltiplas Setlists:**
+  - Nova migração `0004_setlists.sql` no SQLite com tabela `setlists` para persistência de múltiplas programações com Título, Descrição, Papel de Parede, Modo de Ajuste e itens ordenados.
+  - Seletor de Setlist com menu dropdown no topo da barra lateral para alternar cultos/eventos, criar novas programações ou gerenciar a atual.
+  - Modal de gerenciamento de Setlist (`SetlistModal`) com seleção de wallpapers e upload local.
+- **Papel de Parede da Projeção e Modos de Ajuste:**
+  - Projeção do papel de parede da setlist ativa na tela pública (`/public`) quando em repouso ou em modo `cleartext`.
+  - Suporte a 4 modos de ajuste: Preencher (`cover`), Ajustar (`contain`), Centralizar (`center`) e Repetir (`repeat`).
+  - Configuração do modo padrão de ajuste na aba de Telas e Saídas do painel de Configurações.
+- **Armazenamento de Mídias em Pasta do Sistema:**
+  - Subpasta `<data_dir>/media/wallpapers/` criada e gerenciada diretamente no sistema de arquivos, incluindo papéis de parede padrão na inicialização.
+  - Endpoints REST para listagem de papéis de parede (`/api/media/wallpapers`), upload (`/api/media/upload`) e entrega estática (`/api/media/files/*`).
+- **Correção Visual do Header:**
+  - Eliminação da duplicação do logotipo no cabeçalho e exibição do ícone oficial em proporção nítida acompanhado de tipografia elegante.
+- **Cores Neutras do Shadcn-UI:**
+  - Adoção da paleta Neutra (`neutral`) como padrão do sistema.
+  - Suporte à customização de famílias neutras (Neutral, Zinc, Slate, Stone, Gray) na aba de Aparência das Configurações.
+
+
 ## [0.5.0] - 2026-10-29
 
 ### Adicionado
