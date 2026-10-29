@@ -293,6 +293,8 @@ pub enum MediaKind {
     Announcement,
     Media,
     Header,
+    Image,
+    Text,
 }
 
 impl MediaKind {
@@ -303,6 +305,8 @@ impl MediaKind {
             Self::Announcement => "Aviso",
             Self::Media => "Mídia",
             Self::Header => "Seção",
+            Self::Image => "Imagem",
+            Self::Text => "Texto",
         }
     }
 }
@@ -431,6 +435,8 @@ impl Song {
             },
             kind: MediaKind::Song,
             slides,
+            align_h: None,
+            align_v: None,
         }
     }
 }
@@ -480,11 +486,11 @@ pub fn parse_raw_lyrics(raw: &str) -> (Vec<SongSection>, Vec<Slide>) {
             // Nova seção detectada
             if !current_slide_lines.is_empty() {
                 let content = current_slide_lines.join("\n");
-                slides.push(Slide {
-                    id: format!("slide-{}", slide_idx),
-                    label: current_label.clone(),
+                slides.push(Slide::new(
+                    format!("slide-{}", slide_idx),
+                    current_label.clone(),
                     content,
-                });
+                ));
                 slide_idx += 1;
                 current_slide_lines.clear();
             }
@@ -509,11 +515,11 @@ pub fn parse_raw_lyrics(raw: &str) -> (Vec<SongSection>, Vec<Slide>) {
             // Linha em branco: quebra de slide
             if !current_slide_lines.is_empty() {
                 let content = current_slide_lines.join("\n");
-                slides.push(Slide {
-                    id: format!("slide-{}", slide_idx),
-                    label: current_label.clone(),
+                slides.push(Slide::new(
+                    format!("slide-{}", slide_idx),
+                    current_label.clone(),
                     content,
-                });
+                ));
                 slide_idx += 1;
                 current_slide_lines.clear();
             }
@@ -527,11 +533,11 @@ pub fn parse_raw_lyrics(raw: &str) -> (Vec<SongSection>, Vec<Slide>) {
     // Flush final
     if !current_slide_lines.is_empty() {
         let content = current_slide_lines.join("\n");
-        slides.push(Slide {
-            id: format!("slide-{}", slide_idx),
-            label: current_label.clone(),
+        slides.push(Slide::new(
+            format!("slide-{}", slide_idx),
+            current_label.clone(),
             content,
-        });
+        ));
     }
 
     if !current_section_lines.is_empty() {
@@ -552,9 +558,29 @@ pub struct Slide {
     pub id: String,
     pub label: String,
     pub content: String,
+    #[serde(default)]
+    pub align_h: Option<String>,
+    #[serde(default)]
+    pub align_v: Option<String>,
 }
 
-/// Item de mídia na biblioteca do operador (ex.: louvor, texto bíblico, aviso, divisor de seção).
+impl Slide {
+    pub fn new(
+        id: impl Into<String>,
+        label: impl Into<String>,
+        content: impl Into<String>,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            label: label.into(),
+            content: content.into(),
+            align_h: None,
+            align_v: None,
+        }
+    }
+}
+
+/// Item de mídia na biblioteca do operador (ex.: louvor, texto bíblico, aviso, divisor de seção, imagem).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MediaItem {
     pub id: String,
@@ -562,6 +588,25 @@ pub struct MediaItem {
     pub artist_or_ref: Option<String>,
     pub kind: MediaKind,
     pub slides: Vec<Slide>,
+    #[serde(default)]
+    pub align_h: Option<String>,
+    #[serde(default)]
+    pub align_v: Option<String>,
+}
+
+/// Pasta de mídias mapeada no sistema de arquivos local do usuário.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MediaFolder {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    #[serde(default = "default_media_folder_kind")]
+    pub kind: String,
+    pub created_at: String,
+}
+
+fn default_media_folder_kind() -> String {
+    "images".to_string()
 }
 
 /// Modelo completo de uma Setlist (repertório ordenado de um culto ou evento).
@@ -783,11 +828,13 @@ mod tests {
             title: "Porque Ele Vive".into(),
             artist_or_ref: Some("Harpa Cristã".into()),
             kind: MediaKind::Song,
-            slides: vec![Slide {
-                id: "s1".into(),
-                label: "Verso 1".into(),
-                content: "Deus enviou Seu Filho amado\nPara morrer em meu lugar".into(),
-            }],
+            slides: vec![Slide::new(
+                "s1",
+                "Verso 1",
+                "Deus enviou Seu Filho amado\nPara morrer em meu lugar",
+            )],
+            align_h: None,
+            align_v: None,
         };
 
         let json = serde_json::to_string(&media).expect("serializes");

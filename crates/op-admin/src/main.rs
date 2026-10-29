@@ -110,7 +110,7 @@ mod tests {
             media_path: "/dummy/media".into(),
             db_ready: true,
             db_error: String::new(),
-            schema_version: 4,
+            schema_version: 5,
             theme_label: "Sistema".into(),
             locale: "pt-BR".into(),
             first_run_at: "agora".into(),
@@ -230,7 +230,7 @@ mod tests {
             media_path: dir.path().join("media").display().to_string(),
             db_ready: true,
             db_error: String::new(),
-            schema_version: 4,
+            schema_version: 5,
             theme_label: "Sistema".into(),
             locale: "pt-BR".into(),
             first_run_at: "agora".into(),
@@ -307,5 +307,77 @@ mod tests {
         let results: Vec<op_core::SongSummary> = serde_json::from_slice(&body).unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].title, "Manso e Suave");
+    }
+
+    #[tokio::test]
+    async fn system_paths_and_media_folders_work() {
+        let (state, dir) = mock_state_with_db();
+        let app = create_routes(state);
+
+        // Testa GET /api/system/paths
+        let paths_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/system/paths")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(paths_resp.status(), StatusCode::OK);
+
+        // Testa GET /api/media/folders
+        let folders_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/media/folders")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(folders_resp.status(), StatusCode::OK);
+
+        // Testa POST /api/media/folders com diretório do tempdir
+        let sample_dir = dir.path().join("imagens-culto");
+        std::fs::create_dir_all(&sample_dir).unwrap();
+
+        let post_folder_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/media/folders")
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(
+                        serde_json::to_string(&serde_json::json!({
+                            "name": "Culto Teste",
+                            "path": sample_dir.display().to_string(),
+                            "kind": "images"
+                        }))
+                        .unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(post_folder_resp.status(), StatusCode::OK);
+
+        // Testa GET /api/media/images
+        let images_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/media/images")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(images_resp.status(), StatusCode::OK);
     }
 }

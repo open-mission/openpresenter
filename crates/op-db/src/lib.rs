@@ -3,9 +3,9 @@ use std::time::Duration;
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use op_core::{
-    AppMeta, DEFAULT_LOCALE, MediaItem, MonitorSelection, OutputConfig, OutputKind, OutputMode,
-    OutputsConfig, SectionType, SessionInfo, Setlist, SetlistSummary, Song, SongSection,
-    SongSummary, Theme,
+    AppMeta, DEFAULT_LOCALE, MediaFolder, MediaItem, MonitorSelection, OutputConfig, OutputKind,
+    OutputMode, OutputsConfig, SectionType, SessionInfo, Setlist, SetlistSummary, Song,
+    SongSection, SongSummary, Theme,
 };
 use rusqlite::Connection;
 use rusqlite_migration::{M, Migrations};
@@ -62,6 +62,7 @@ impl Database {
             M::up(include_str!("../migrations/0002_output_config.sql")),
             M::up(include_str!("../migrations/0003_songs_fts.sql")),
             M::up(include_str!("../migrations/0004_setlists.sql")),
+            M::up(include_str!("../migrations/0005_media_folders.sql")),
         ]);
         migrations
             .to_latest(&mut conn)
@@ -737,6 +738,74 @@ impl Database {
             None => Ok(None),
         }
     }
+
+    /// Lista todas as pastas de mídias cadastradas.
+    pub fn list_media_folders(&self) -> Result<Vec<MediaFolder>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                r#"
+                SELECT id, name, path, kind, created_at
+                FROM media_folders
+                ORDER BY name ASC
+                "#,
+            )
+            .map_err(DbError::Read)?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(MediaFolder {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    path: row.get(2)?,
+                    kind: row.get(3)?,
+                    created_at: row.get(4)?,
+                })
+            })
+            .map_err(DbError::Read)?;
+
+        let mut folders = Vec::new();
+        for r in rows {
+            folders.push(r.map_err(DbError::Read)?);
+        }
+        Ok(folders)
+    }
+
+    /// Salva ou atualiza uma pasta de mídias.
+    pub fn save_media_folder(&self, folder: &MediaFolder) -> Result<(), DbError> {
+        self.conn
+            .execute(
+                r#"
+                INSERT INTO media_folders (id, name, path, kind, created_at)
+                VALUES (?1, ?2, ?3, ?4, ?5)
+                ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    path = excluded.path,
+                    kind = excluded.kind
+                "#,
+                rusqlite::params![
+                    folder.id,
+                    folder.name,
+                    folder.path,
+                    folder.kind,
+                    folder.created_at,
+                ],
+            )
+            .map_err(DbError::Write)?;
+        Ok(())
+    }
+
+    /// Remove uma pasta de mídias pelo ID.
+    pub fn delete_media_folder(&self, id: &str) -> Result<bool, DbError> {
+        let affected = self
+            .conn
+            .execute(
+                "DELETE FROM media_folders WHERE id = ?1",
+                rusqlite::params![id],
+            )
+            .map_err(DbError::Write)?;
+        Ok(affected > 0)
+    }
 }
 
 #[cfg(test)]
@@ -764,7 +833,7 @@ mod tests {
         let path = dir.path().join("open-presenter.db");
         let db = Database::open(&path).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 4);
+        assert_eq!(db.schema_version().unwrap(), 5);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -797,24 +866,24 @@ mod tests {
     }
 
     #[test]
-    fn open_creates_schema_v4_with_output_config_songs_and_setlists() {
+    fn open_creates_schema_v5_with_media_folders() {
         let dir = tempfile::tempdir().unwrap();
         let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 4);
+        assert_eq!(db.schema_version().unwrap(), 5);
         let table_count: i64 = db
             .conn
             .query_row(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists')",
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists', 'media_folders')",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(table_count, 4);
+        assert_eq!(table_count, 5);
     }
 
     #[test]
-    fn migrates_v1_database_to_v4_preserving_app_meta() {
+    fn migrates_v1_database_to_v5_preserving_app_meta() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("open-presenter.db");
         {
@@ -831,7 +900,7 @@ mod tests {
         }
 
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.schema_version().unwrap(), 4);
+        assert_eq!(db.schema_version().unwrap(), 5);
         let meta = db.load_meta().unwrap().unwrap();
         assert_eq!(meta.first_run_at, ts(2026, 10, 28, 10, 0));
         let count: i64 = db
@@ -1075,6 +1144,8 @@ mod tests {
                 artist_or_ref: None,
                 kind: op_core::MediaKind::Song,
                 slides: vec![],
+                align_h: None,
+                align_v: None,
             }],
             is_active: true,
             created_at: "".into(),
@@ -1113,5 +1184,28 @@ mod tests {
         // Deleta
         assert!(db.delete_setlist("set-1").unwrap());
         assert_eq!(db.list_setlists().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn save_and_manage_media_folders_works() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
+
+        let f1 = MediaFolder {
+            id: "folder-1".into(),
+            name: "Imagens do Culto".into(),
+            path: "/dummy/path/culto".into(),
+            kind: "images".into(),
+            created_at: "2026-10-29T10:00:00.000Z".into(),
+        };
+
+        db.save_media_folder(&f1).unwrap();
+        let list = db.list_media_folders().unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].id, "folder-1");
+        assert_eq!(list[0].name, "Imagens do Culto");
+
+        assert!(db.delete_media_folder("folder-1").unwrap());
+        assert_eq!(db.list_media_folders().unwrap().len(), 0);
     }
 }

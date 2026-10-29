@@ -97,9 +97,45 @@ pub struct WallpaperItem {
     pub is_default: bool,
 }
 
+#[derive(Serialize)]
+pub struct SystemPathsResponse {
+    pub data_dir: String,
+    pub db_path: String,
+    pub images_path: String,
+    pub wallpapers_path: String,
+    pub videos_path: String,
+    pub fonts_path: String,
+}
+
+#[derive(Deserialize)]
+pub struct CreateMediaFolderPayload {
+    pub name: String,
+    pub path: String,
+    pub kind: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct ImageMediaItem {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub folder_id: String,
+    pub folder_name: String,
+    pub url: String,
+    pub is_external: bool,
+    pub size_bytes: u64,
+}
+
+#[derive(Deserialize)]
+pub struct ExternalFileQuery {
+    pub folder_id: String,
+    pub file: String,
+}
+
 pub fn create_routes(state: AppState) -> Router {
     Router::new()
         .route("/api/status", get(get_status))
+        .route("/api/system/paths", get(get_system_paths))
         .route("/api/media", get(get_media))
         .route("/api/presentation/live", post(select_live_slide))
         .route("/api/presentation/mode", post(set_display_mode))
@@ -120,8 +156,19 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/setlists/items/remove", post(remove_setlist_item))
         .route("/api/setlists/items/reorder", post(reorder_setlist_items))
         .route("/api/setlists/items/rename", post(rename_setlist_item))
+        .route(
+            "/api/media/folders",
+            get(list_media_folders).post(create_media_folder),
+        )
+        .route(
+            "/api/media/folders/{id}",
+            axum::routing::delete(delete_media_folder),
+        )
         .route("/api/media/wallpapers", get(list_wallpapers))
+        .route("/api/media/images", get(list_images))
+        .route("/api/media/images/upload", post(upload_image))
         .route("/api/media/upload", post(upload_media))
+        .route("/api/media/external-file", get(serve_external_file))
         .route("/api/media/files/{*subpath}", get(serve_media_file))
         .with_state(state)
 }
@@ -549,4 +596,281 @@ fn decode_base64(input: &str) -> Option<Vec<u8>> {
         }
     }
     Some(out)
+}
+
+async fn get_system_paths(State(state): State<AppState>) -> Json<SystemPathsResponse> {
+    let db_path = std::path::PathBuf::from(&state.session.db_path);
+    let data_dir = db_path.parent().unwrap_or(std::path::Path::new("."));
+    let media_dir = data_dir.join("media");
+    Json(SystemPathsResponse {
+        data_dir: data_dir.display().to_string(),
+        db_path: db_path.display().to_string(),
+        images_path: media_dir.join("images").display().to_string(),
+        wallpapers_path: media_dir.join("wallpapers").display().to_string(),
+        videos_path: media_dir.join("videos").display().to_string(),
+        fonts_path: data_dir.join("fonts").display().to_string(),
+    })
+}
+
+async fn list_media_folders(State(state): State<AppState>) -> Json<Vec<op_core::MediaFolder>> {
+    let db = match state.db.as_ref() {
+        Some(db) => db,
+        None => return Json(Vec::new()),
+    };
+    let db_guard = db.lock().await;
+    let list = db_guard.list_media_folders().unwrap_or_default();
+    Json(list)
+}
+
+async fn create_media_folder(
+    State(state): State<AppState>,
+    Json(payload): Json<CreateMediaFolderPayload>,
+) -> Result<Json<op_core::MediaFolder>, (StatusCode, String)> {
+    let raw_path = payload.path.trim();
+    if raw_path.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Caminho da pasta é obrigatório".into(),
+        ));
+    }
+    let p = std::path::Path::new(raw_path);
+    if !p.exists() || !p.is_dir() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Diretório não existe no computador".into(),
+        ));
+    }
+
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+    let folder = op_core::MediaFolder {
+        id: format!("folder-{}", chrono::Utc::now().timestamp_millis()),
+        name: if payload.name.trim().is_empty() {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("Pasta")
+                .to_string()
+        } else {
+            payload.name.trim().to_string()
+        },
+        path: raw_path.to_string(),
+        kind: payload.kind.unwrap_or_else(|| "images".to_string()),
+        created_at: chrono::Utc::now().to_rfc3339(),
+    };
+
+    let db_guard = db.lock().await;
+    db_guard
+        .save_media_folder(&folder)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(folder))
+}
+
+async fn delete_media_folder(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+    let db_guard = db.lock().await;
+    match db_guard.delete_media_folder(&id) {
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Err((StatusCode::NOT_FOUND, "Pasta não encontrada".into())),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    }
+}
+
+fn is_image_file(path: &std::path::Path) -> bool {
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        let lower = ext.to_lowercase();
+        lower == "jpg"
+            || lower == "jpeg"
+            || lower == "png"
+            || lower == "webp"
+            || lower == "svg"
+            || lower == "gif"
+    } else {
+        false
+    }
+}
+
+fn url_encode(s: &str) -> String {
+    let mut encoded = String::new();
+    for b in s.bytes() {
+        match b {
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                encoded.push(b as char);
+            }
+            _ => {
+                encoded.push_str(&format!("%{:02X}", b));
+            }
+        }
+    }
+    encoded
+}
+
+async fn list_images(State(state): State<AppState>) -> Json<Vec<ImageMediaItem>> {
+    let mut items = Vec::new();
+
+    // 1. Imagens internas do app (<data_dir>/media/images)
+    if let Ok(media_dir) = crate::session::resolve_media_dir() {
+        let app_img_dir = media_dir.join("images");
+        let _ = std::fs::create_dir_all(&app_img_dir);
+        if let Ok(entries) = std::fs::read_dir(&app_img_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file()
+                    && is_image_file(&path)
+                    && let Some(name) = path.file_name().and_then(|n| n.to_str())
+                {
+                    let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                    items.push(ImageMediaItem {
+                        id: format!("app-img-{}", name),
+                        name: name.to_string(),
+                        path: path.display().to_string(),
+                        folder_id: "app".to_string(),
+                        folder_name: "Pasta do App".to_string(),
+                        url: format!("/api/media/files/images/{name}"),
+                        is_external: false,
+                        size_bytes: size,
+                    });
+                }
+            }
+        }
+    }
+
+    // 2. Pastas externas mapeadas
+    if let Some(ref db) = state.db {
+        let db_guard = db.lock().await;
+        if let Ok(folders) = db_guard.list_media_folders() {
+            for f in folders {
+                let p = std::path::Path::new(&f.path);
+                if p.is_dir()
+                    && let Ok(entries) = std::fs::read_dir(p)
+                {
+                    for entry in entries.flatten() {
+                        let fpath = entry.path();
+                        if fpath.is_file()
+                            && is_image_file(&fpath)
+                            && let Some(fname) = fpath.file_name().and_then(|n| n.to_str())
+                        {
+                            let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                            let enc_name = url_encode(fname);
+                            items.push(ImageMediaItem {
+                                id: format!("ext-{}-{}", f.id, fname),
+                                name: fname.to_string(),
+                                path: fpath.display().to_string(),
+                                folder_id: f.id.clone(),
+                                folder_name: f.name.clone(),
+                                url: format!(
+                                    "/api/media/external-file?folder_id={}&file={}",
+                                    f.id, enc_name
+                                ),
+                                is_external: true,
+                                size_bytes: size,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    items.sort_by_key(|a| a.name.to_lowercase());
+    Json(items)
+}
+
+async fn upload_image(
+    Json(payload): Json<UploadMediaPayload>,
+) -> Result<Json<UploadMediaResponse>, (StatusCode, String)> {
+    let media_dir = crate::session::resolve_media_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let images_dir = media_dir.join("images");
+    let _ = std::fs::create_dir_all(&images_dir);
+
+    let bytes = decode_base64(&payload.content_base64)
+        .ok_or((StatusCode::BAD_REQUEST, "Base64 inválido".into()))?;
+
+    let raw_name = std::path::Path::new(&payload.filename)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("image.png");
+    let sanitized_name: String = raw_name
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+
+    let target_path = images_dir.join(&sanitized_name);
+    tokio::fs::write(&target_path, bytes)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(UploadMediaResponse {
+        url: format!("/api/media/files/images/{sanitized_name}"),
+        filename: sanitized_name,
+    }))
+}
+
+async fn serve_external_file(
+    State(state): State<AppState>,
+    Query(query): Query<ExternalFileQuery>,
+) -> impl IntoResponse {
+    if query.file.contains("..") || query.file.starts_with('/') {
+        return (StatusCode::BAD_REQUEST, "Arquivo inválido").into_response();
+    }
+
+    let db = match state.db.as_ref() {
+        Some(db) => db,
+        None => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Banco de dados indisponível",
+            )
+                .into_response();
+        }
+    };
+
+    let folder_path = {
+        let db_guard = db.lock().await;
+        let folders = db_guard.list_media_folders().unwrap_or_default();
+        match folders.into_iter().find(|f| f.id == query.folder_id) {
+            Some(f) => std::path::PathBuf::from(f.path),
+            None => return (StatusCode::NOT_FOUND, "Pasta não cadastrada").into_response(),
+        }
+    };
+
+    let file_path = folder_path.join(&query.file);
+    if !file_path.exists() || !file_path.is_file() {
+        return (StatusCode::NOT_FOUND, "Arquivo não encontrado").into_response();
+    }
+
+    let content_type = mime_guess::from_path(&file_path)
+        .first_or_octet_stream()
+        .to_string();
+
+    match tokio::fs::read(&file_path).await {
+        Ok(bytes) => (
+            StatusCode::OK,
+            [
+                (axum::http::header::CONTENT_TYPE, content_type),
+                (
+                    axum::http::header::CACHE_CONTROL,
+                    "public, max-age=3600".into(),
+                ),
+            ],
+            bytes,
+        )
+            .into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Erro ao ler arquivo").into_response(),
+    }
 }

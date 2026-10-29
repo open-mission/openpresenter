@@ -319,27 +319,29 @@ fn create_sample_media() -> Vec<MediaItem> {
             artist_or_ref: Some("Harpa Cristã / Tradicional".into()),
             kind: MediaKind::Song,
             slides: vec![
-                Slide {
-                    id: "s1-1".into(),
-                    label: "Verso 1".into(),
-                    content: "Deus enviou Seu Filho amado\nPara morrer em meu lugar\nNa cruz pagou por meus pecados\nMas o sepulcro vazio está".into(),
-                },
-                Slide {
-                    id: "s1-2".into(),
-                    label: "Refrão".into(),
-                    content: "Porque Ele vive, posso crer no amanhã\nPorque Ele vive, temor não há\nMas eu bem sei, eu sei, que a minha vida\nEstá nas mãos de meu Jesus, que vivo está".into(),
-                },
-                Slide {
-                    id: "s1-3".into(),
-                    label: "Verso 2".into(),
-                    content: "E quando, enfim, chegar a hora\nEm que a morte enfrentarei\nSem medo, então, terei vitória\nIrei à glória, ao meu Jesus que vivo está".into(),
-                },
-                Slide {
-                    id: "s1-4".into(),
-                    label: "Refrão Final".into(),
-                    content: "Porque Ele vive, posso crer no amanhã\nPorque Ele vive, temor não há\nMas eu bem sei, eu sei, que a minha vida\nEstá nas mãos de meu Jesus, que vivo está".into(),
-                },
+                Slide::new(
+                    "s1-1",
+                    "Verso 1",
+                    "Deus enviou Seu Filho amado\nPara morrer em meu lugar\nNa cruz pagou por meus pecados\nMas o sepulcro vazio está",
+                ),
+                Slide::new(
+                    "s1-2",
+                    "Refrão",
+                    "Porque Ele vive, posso crer no amanhã\nPorque Ele vive, temor não há\nMas eu bem sei, eu sei, que a minha vida\nEstá nas mãos de meu Jesus, que vivo está",
+                ),
+                Slide::new(
+                    "s1-3",
+                    "Verso 2",
+                    "E quando, enfim, chegar a hora\nEm que a morte enfrentarei\nSem medo, então, terei vitória\nIrei à glória, ao meu Jesus que vivo está",
+                ),
+                Slide::new(
+                    "s1-4",
+                    "Refrão Final",
+                    "Porque Ele vive, posso crer no amanhã\nPorque Ele vive, temor não há\nMas eu bem sei, eu sei, que a minha vida\nEstá nas mãos de meu Jesus, que vivo está",
+                ),
             ],
+            align_h: None,
+            align_v: None,
         },
         MediaItem {
             id: "song-2".into(),
@@ -347,22 +349,24 @@ fn create_sample_media() -> Vec<MediaItem> {
             artist_or_ref: Some("John Newton / Harpa".into()),
             kind: MediaKind::Song,
             slides: vec![
-                Slide {
-                    id: "s2-1".into(),
-                    label: "Verso 1".into(),
-                    content: "Graça maravilhosa, tão doce o som\nQue salvou um pecador como eu\nEstava cego, agora eu vejo\nPerdido estava, mas me achou".into(),
-                },
-                Slide {
-                    id: "s2-2".into(),
-                    label: "Refrão".into(),
-                    content: "Minhas cadeias foram quebradas\nLivre estou, livre estou\nE como um rio Sua graça flui\nAmor sem fim, graça sem par".into(),
-                },
-                Slide {
-                    id: "s2-3".into(),
-                    label: "Verso 2".into(),
-                    content: "O Senhor prometeu o bem para mim\nSua palavra garante a minha esperança\nEle será meu escudo e porção\nEnquanto a vida durar".into(),
-                },
+                Slide::new(
+                    "s2-1",
+                    "Verso 1",
+                    "Graça maravilhosa, tão doce o som\nQue salvou um pecador como eu\nEstava cego, agora eu vejo\nPerdido estava, mas me achou",
+                ),
+                Slide::new(
+                    "s2-2",
+                    "Refrão",
+                    "Minhas cadeias foram quebradas\nLivre estou, livre estou\nE como um rio Sua graça flui\nAmor sem fim, graça sem par",
+                ),
+                Slide::new(
+                    "s2-3",
+                    "Verso 2",
+                    "O Senhor prometeu o bem para mim\nSua palavra garante a minha esperança\nEle será meu escudo e porção\nEnquanto a vida durar",
+                ),
             ],
+            align_h: None,
+            align_v: None,
         },
         MediaItem {
             id: "bible-1".into(),
@@ -370,27 +374,29 @@ fn create_sample_media() -> Vec<MediaItem> {
             artist_or_ref: Some("Antigo Testamento".into()),
             kind: MediaKind::Scripture,
             slides: vec![
-                Slide {
-                    id: "b1-1".into(),
-                    label: "Salmos 23:1".into(),
-                    content: "O Senhor é o meu pastor;\nnada me faltará.".into(),
-                },
-                Slide {
-                    id: "b1-2".into(),
-                    label: "Salmos 23:2".into(),
-                    content: "Deitar-me faz em verdes pastos,\nguia-me mansamente a águas tranquilas.".into(),
-                },
-                Slide {
-                    id: "b1-3".into(),
-                    label: "Salmos 23:3".into(),
-                    content: "Refrigera a minha alma;\nguia-me pelas veredas da justiça,\npor amor do seu nome.".into(),
-                },
-                Slide {
-                    id: "b1-4".into(),
-                    label: "Salmos 23:4".into(),
-                    content: "Ainda que eu andasse pelo vale da sombra da morte,\nnão temeria mal algum, porque tu estás comigo;\na tua vara e o teu cajado me consolam.".into(),
-                },
+                Slide::new(
+                    "b1-1",
+                    "Salmos 23:1",
+                    "O Senhor é o meu pastor;\nnada me faltará.",
+                ),
+                Slide::new(
+                    "b1-2",
+                    "Salmos 23:2",
+                    "Deitar-me faz em verdes pastos,\nguia-me mansamente a águas tranquilas.",
+                ),
+                Slide::new(
+                    "b1-3",
+                    "Salmos 23:3",
+                    "Refrigera a minha alma;\nguia-me pelas veredas da justiça,\npor amor do seu nome.",
+                ),
+                Slide::new(
+                    "b1-4",
+                    "Salmos 23:4",
+                    "Ainda que eu andasse pelo vale da sombra da morte,\nnão temeria mal algum, porque tu estás comigo;\na tua vara e o teu cajado me consolam.",
+                ),
             ],
+            align_h: None,
+            align_v: None,
         },
         MediaItem {
             id: "notice-1".into(),
@@ -398,22 +404,24 @@ fn create_sample_media() -> Vec<MediaItem> {
             artist_or_ref: Some("Avisos da Semana".into()),
             kind: MediaKind::Announcement,
             slides: vec![
-                Slide {
-                    id: "n1-1".into(),
-                    label: "Boas-vindas".into(),
-                    content: "Sejam bem-vindos à Casa do Senhor!\nUma noite de louvor, comunhão e palavra.".into(),
-                },
-                Slide {
-                    id: "n1-2".into(),
-                    label: "Culto de Oração".into(),
-                    content: "Quarta-feira às 19h30:\nReunião de Oração e Estudo Bíblico.\nParticipe conosco!".into(),
-                },
-                Slide {
-                    id: "n1-3".into(),
-                    label: "Escola Bíblica".into(),
-                    content: "Domingo às 09h00:\nEscola Bíblica Dominical para todas as idades.\nTraga sua família!".into(),
-                },
+                Slide::new(
+                    "n1-1",
+                    "Boas-vindas",
+                    "Sejam bem-vindos à Casa do Senhor!\nUma noite de louvor, comunhão e palavra.",
+                ),
+                Slide::new(
+                    "n1-2",
+                    "Culto de Oração",
+                    "Quarta-feira às 19h30:\nReunião de Oração e Estudo Bíblico.\nParticipe conosco!",
+                ),
+                Slide::new(
+                    "n1-3",
+                    "Escola Bíblica",
+                    "Domingo às 09h00:\nEscola Bíblica Dominical para todas as idades.\nTraga sua família!",
+                ),
             ],
+            align_h: None,
+            align_v: None,
         },
     ]
 }
