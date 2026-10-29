@@ -136,6 +136,8 @@ pub fn create_routes(state: AppState) -> Router {
     Router::new()
         .route("/api/status", get(get_status))
         .route("/api/system/paths", get(get_system_paths))
+        .route("/api/system/pick-folder", post(pick_folder))
+        .route("/api/system/open-path", post(open_system_path))
         .route("/api/media", get(get_media))
         .route("/api/presentation/live", post(select_live_slide))
         .route("/api/presentation/mode", post(set_display_mode))
@@ -610,6 +612,75 @@ async fn get_system_paths(State(state): State<AppState>) -> Json<SystemPathsResp
         videos_path: media_dir.join("videos").display().to_string(),
         fonts_path: data_dir.join("fonts").display().to_string(),
     })
+}
+
+#[derive(Serialize)]
+pub struct PickFolderResponse {
+    pub path: Option<String>,
+    pub name: Option<String>,
+}
+
+async fn pick_folder() -> Json<PickFolderResponse> {
+    #[cfg(target_os = "macos")]
+    {
+        let output = std::process::Command::new("osascript")
+            .arg("-e")
+            .arg("POSIX path of (choose folder with prompt \"Selecione a pasta de imagens para o OpenPresenter\")")
+            .output();
+
+        if let Ok(out) = output {
+            let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if out.status.success() && !stdout.is_empty() {
+                let name = std::path::Path::new(&stdout)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("Pasta")
+                    .to_string();
+                return Json(PickFolderResponse {
+                    path: Some(stdout),
+                    name: Some(name),
+                });
+            }
+        }
+    }
+
+    Json(PickFolderResponse {
+        path: None,
+        name: None,
+    })
+}
+
+#[derive(Deserialize)]
+pub struct OpenPathPayload {
+    pub path: String,
+}
+
+async fn open_system_path(
+    Json(payload): Json<OpenPathPayload>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let raw = payload.path.trim();
+    if raw.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "Caminho não fornecido".into()));
+    }
+    let p = std::path::Path::new(raw);
+    if !p.exists() {
+        return Err((StatusCode::NOT_FOUND, "Caminho não existe".into()));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open").arg(raw).spawn();
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("explorer").arg(raw).spawn();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let _ = std::process::Command::new("xdg-open").arg(raw).spawn();
+    }
+
+    Ok(StatusCode::OK)
 }
 
 async fn list_media_folders(State(state): State<AppState>) -> Json<Vec<op_core::MediaFolder>> {

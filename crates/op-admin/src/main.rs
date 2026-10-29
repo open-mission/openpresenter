@@ -369,6 +369,7 @@ mod tests {
 
         // Testa GET /api/media/images
         let images_resp = app
+            .clone()
             .oneshot(
                 axum::http::Request::builder()
                     .method("GET")
@@ -379,5 +380,44 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(images_resp.status(), StatusCode::OK);
+
+        // Testa POST /api/system/open-path com caminho inexistente (retorna 404)
+        let open_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/system/open-path")
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(
+                        serde_json::to_string(&serde_json::json!({
+                            "path": "/caminho/completamente/invalido/para/teste"
+                        }))
+                        .unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(open_resp.status(), StatusCode::NOT_FOUND);
+
+        // Testa POST /api/system/open-path com caminho existente
+        let open_valid_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/system/open-path")
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(
+                        serde_json::to_string(&serde_json::json!({
+                            "path": sample_dir.display().to_string()
+                        }))
+                        .unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(open_valid_resp.status(), StatusCode::OK);
     }
 }
