@@ -27,11 +27,13 @@
   import SetlistModal from '$lib/components/SetlistModal.svelte';
   import QuickItemModal from '$lib/components/QuickItemModal.svelte';
   import BottomPanel from '$lib/components/BottomPanel.svelte';
+  import ImageSelectorModal from '$lib/components/ImageSelectorModal.svelte';
   import ContextMenu, { type MenuItem } from '$lib/components/ContextMenu.svelte';
   import {
     themeStore,
     sectionsStore,
     applyTheme,
+    initAppTheme,
     getSectionStyle,
   } from '$lib/settings';
   import {
@@ -66,6 +68,8 @@
     PanelLeftOpen,
     PanelRightClose,
     PanelRightOpen,
+    ImageIcon,
+    Folder,
   } from 'lucide-svelte';
 
   let selectedMediaId = $state<string>('song-1');
@@ -81,6 +85,8 @@
   let isRenameModalOpen = $state(false);
   let isSetlistSelectorOpen = $state(false);
   let isAddMenuOpen = $state(false);
+  let isImageSelectorOpen = $state(false);
+  let imageSelectorMode = $state<'single' | 'folder'>('single');
 
   // Controle de Sidebars Colapsáveis
   let isSetlistSidebarOpen = $state(true);
@@ -111,7 +117,7 @@
 
   onMount(() => {
     initWebSocket('admin');
-    applyTheme($themeStore);
+    initAppTheme();
     loadSetlists();
 
     // Inicializa seleção padrão com a primeira mídia
@@ -388,6 +394,28 @@
       return;
     }
 
+    // Atalhos Dedicados de Saída (sem conflito com seções ou números)
+    // Blackout: Ponto (.) OU Alt+B OU F1
+    if (e.key === '.' || e.key === 'F1' || (e.altKey && (e.key === 'b' || e.key === 'B'))) {
+      e.preventDefault();
+      toggleBlackout();
+      return;
+    }
+
+    // Limpar Texto: Vírgula (,) OU Alt+C OU F2
+    if (e.key === ',' || e.key === 'F2' || (e.altKey && (e.key === 'c' || e.key === 'C'))) {
+      e.preventDefault();
+      toggleClearText();
+      return;
+    }
+
+    // Papel de Parede (Tela de Repouso): Barra (/) OU Alt+W OU F3
+    if (e.key === '/' || e.key === 'F3' || (e.altKey && (e.key === 'w' || e.key === 'W'))) {
+      e.preventDefault();
+      setDisplayMode('cleartext');
+      return;
+    }
+
     // Letras para salto de seção
     if (!e.metaKey && !e.ctrlKey && !e.altKey && /^[a-zA-Z]$/.test(e.key)) {
       if (jumpToSection(e.key)) {
@@ -396,14 +424,7 @@
       }
     }
 
-    // F1 / F2
-    if (e.key === 'F1') {
-      e.preventDefault();
-      toggleBlackout();
-    } else if (e.key === 'F2') {
-      e.preventDefault();
-      toggleClearText();
-    } else if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
       e.preventDefault();
       nextSlide();
     } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
@@ -536,6 +557,24 @@
           editingItem = null;
           editingSong = null;
           isSongEditorOpen = true;
+        },
+      },
+      {
+        id: 'add_image',
+        label: 'Adicionar Imagens...',
+        icon: ImageIcon,
+        onclick: () => {
+          imageSelectorMode = 'single';
+          isImageSelectorOpen = true;
+        },
+      },
+      {
+        id: 'add_folder',
+        label: 'Adicionar Pasta de Imagens...',
+        icon: Folder,
+        onclick: () => {
+          imageSelectorMode = 'folder';
+          isImageSelectorOpen = true;
         },
       },
       {
@@ -677,6 +716,21 @@
     }
   }
 
+  async function handleAddImageItems(items: MediaItem[]) {
+    for (const item of items) {
+      try {
+        await fetch('/api/setlist/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item }),
+        });
+        selectedMediaId = item.id;
+      } catch (err) {
+        console.error('Erro ao adicionar imagem à setlist:', err);
+      }
+    }
+  }
+
   function handleItemSaved(item: MediaItem) {
     selectedMediaId = item.id;
   }
@@ -744,9 +798,9 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="h-screen w-screen flex flex-col bg-neutral-950 text-neutral-100 overflow-hidden font-sans">
+<div class="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden font-sans">
   <!-- Top Bar / Header Operacional -->
-  <header class="h-14 border-b border-neutral-800/80 bg-neutral-900/60 px-4 flex items-center justify-between shrink-0">
+  <header class="h-14 border-b border-border bg-card/60 px-4 flex items-center justify-between shrink-0">
     <div class="flex items-center gap-2.5">
       <!-- Botão Alternar Barra Lateral da Setlist -->
       <button
@@ -755,8 +809,8 @@
         class={cn(
           'p-1.5 rounded-lg border transition-colors cursor-pointer',
           isSetlistSidebarOpen
-            ? 'bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-750'
-            : 'bg-neutral-900/80 text-neutral-400 hover:text-white border-neutral-800 hover:bg-neutral-800'
+            ? 'bg-muted text-foreground border-border hover:bg-muted/80'
+            : 'bg-card/80 text-muted-foreground hover:text-foreground border-border hover:bg-muted'
         )}
         title={isSetlistSidebarOpen ? 'Recolher Setlist' : 'Expandir Setlist'}
       >
@@ -775,24 +829,24 @@
           class="w-7 h-7 rounded-lg shadow-sm group-hover:scale-105 transition-transform shrink-0"
         />
         <div class="flex items-center text-lg leading-none font-sans select-none tracking-tight">
-          <span class="font-bold text-white">Open</span><span class="font-normal text-neutral-300 ml-0.5">Presenter</span>
+          <span class="font-bold text-foreground">Open</span><span class="font-normal text-muted-foreground ml-0.5">Presenter</span>
         </div>
       </a>
-      <span class="text-neutral-700 hidden sm:inline">|</span>
-      <span class="text-xs text-neutral-400 hidden xl:inline">Projeção para igrejas e eventos</span>
+      <span class="text-border hidden sm:inline">|</span>
+      <span class="text-xs text-muted-foreground hidden xl:inline">Projeção para igrejas e eventos</span>
     </div>
 
     <!-- Busca Global e Command Palette (⌘K) -->
     <button
       type="button"
       onclick={() => (isCommandPaletteOpen = true)}
-      class="flex items-center gap-2 h-8 px-3 rounded-lg bg-neutral-900/80 hover:bg-neutral-800 border border-neutral-800 text-xs text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer w-44 sm:w-64 md:w-80 justify-between mx-2"
+      class="flex items-center gap-2 h-8 px-3 rounded-lg bg-muted/40 hover:bg-muted/70 border border-border text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-44 sm:w-64 md:w-80 justify-between mx-2"
     >
       <span class="flex items-center gap-2 truncate">
-        <Search size={14} class="text-neutral-400 shrink-0" />
+        <Search size={14} class="text-muted-foreground shrink-0" />
         <span class="truncate">Buscar música ou comando...</span>
       </span>
-      <kbd class="px-1.5 py-0.5 rounded bg-neutral-950 border border-neutral-800 text-[10px] font-mono text-neutral-400 shrink-0">
+      <kbd class="px-1.5 py-0.5 rounded bg-background border border-border text-[10px] font-mono text-muted-foreground shrink-0">
         ⌘K
       </kbd>
     </button>
@@ -800,13 +854,13 @@
     <!-- Status e Ações Rápidas -->
     <div class="flex items-center gap-2 sm:gap-2.5">
       <!-- Status WebSocket -->
-      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-900/70 border border-neutral-800 text-xs">
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border text-xs">
         {#if $isWsConnected}
           <Wifi size={13} class="text-emerald-400" />
           <span class="text-emerald-400 font-medium">Online</span>
         {:else}
-          <WifiOff size={13} class="text-red-400" />
-          <span class="text-red-400 font-medium">Reconectando</span>
+          <WifiOff size={13} class="text-destructive" />
+          <span class="text-destructive font-medium">Reconectando</span>
         {/if}
       </div>
 
@@ -818,19 +872,19 @@
         class="gap-1.5 text-xs"
         title="Configurações (Aparência, Pastas, Atalhos)"
       >
-        <Settings size={14} class="text-neutral-400" />
+        <Settings size={14} class="text-muted-foreground" />
         <span class="hidden md:inline">Configurações</span>
       </Button>
 
       <!-- Botões de Abertura das Saídas -->
       <Button variant="outline" size="sm" onclick={openPublicWindow} class="gap-1.5 text-xs">
-        <MonitorPlay size={14} class="text-emerald-400" />
+        <MonitorPlay size={14} class="text-primary" />
         <span class="hidden md:inline">Iniciar</span> Public
         <ExternalLink size={12} class="opacity-60" />
       </Button>
 
       <Button variant="outline" size="sm" onclick={openStageWindow} class="gap-1.5 text-xs">
-        <Tv size={14} class="text-emerald-400" />
+        <Tv size={14} class="text-primary" />
         <span class="hidden md:inline">Iniciar</span> Stage
         <ExternalLink size={12} class="opacity-60" />
       </Button>
@@ -842,8 +896,8 @@
         class={cn(
           'p-1.5 rounded-lg border transition-colors cursor-pointer ml-1',
           isPreviewSidebarOpen
-            ? 'bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-750'
-            : 'bg-neutral-900/80 text-neutral-400 hover:text-white border-neutral-800 hover:bg-neutral-800'
+            ? 'bg-muted text-foreground border-border hover:bg-muted/80'
+            : 'bg-card/80 text-muted-foreground hover:text-foreground border-border hover:bg-muted'
         )}
         title={isPreviewSidebarOpen ? 'Recolher Previews de Saída' : 'Expandir Previews de Saída'}
       >
@@ -1018,6 +1072,32 @@
                   >
                     <FileText size={14} class="text-amber-400" />
                     <span>Texto Livre / Apresentação</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => {
+                      isAddMenuOpen = false;
+                      imageSelectorMode = 'single';
+                      isImageSelectorOpen = true;
+                    }}
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <ImageIcon size={14} class="text-primary" />
+                    <span>Imagem...</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => {
+                      isAddMenuOpen = false;
+                      imageSelectorMode = 'folder';
+                      isImageSelectorOpen = true;
+                    }}
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <Folder size={14} class="text-primary" />
+                    <span>Pasta de Imagens...</span>
                   </button>
 
                   <div class="h-[1px] bg-neutral-800 my-1"></div>
@@ -1327,16 +1407,17 @@
             </button>
           </div>
 
-          <div class="grid grid-cols-3 gap-1.5">
+          <div class="grid grid-cols-4 gap-1.5">
             <!-- Botão Ao Vivo -->
             <Button
               variant={$presentationState.display_mode === 'live' ? 'live' : 'secondary'}
               size="sm"
               onclick={() => setDisplayMode('live')}
-              class="text-xs"
+              class="text-xs px-1.5"
+              title="Colocar projeção ao vivo"
             >
               <Radio size={13} />
-              Ao Vivo
+              <span class="truncate">Ao Vivo</span>
             </Button>
 
             <!-- Botão Blackout -->
@@ -1344,11 +1425,11 @@
               variant={$presentationState.display_mode === 'blackout' ? 'destructive' : 'secondary'}
               size="sm"
               onclick={toggleBlackout}
-              class="text-xs"
-              title="Blackout total (F1)"
+              class="text-xs px-1.5"
+              title="Blackout total (. ou Alt+B ou F1)"
             >
               <EyeOff size={13} />
-              Blackout
+              <span class="truncate">Blackout</span>
             </Button>
 
             <!-- Botão Limpar Texto -->
@@ -1356,11 +1437,23 @@
               variant={$presentationState.display_mode === 'cleartext' ? 'default' : 'secondary'}
               size="sm"
               onclick={toggleClearText}
-              class="text-xs"
-              title="Ocultar texto (F2)"
+              class="text-xs px-1.5"
+              title="Ocultar texto (, ou Alt+C ou F2)"
             >
               <Slash size={13} />
-              Limpar
+              <span class="truncate">Limpar</span>
+            </Button>
+
+            <!-- Botão Papel de Parede / Fundo -->
+            <Button
+              variant={$presentationState.display_mode === 'cleartext' && $presentationState.wallpaper_path ? 'default' : 'secondary'}
+              size="sm"
+              onclick={() => setDisplayMode('cleartext')}
+              class="text-xs px-1.5"
+              title="Tela de repouso / Papel de parede (/ ou Alt+W ou F3)"
+            >
+              <ImageIcon size={13} />
+              <span class="truncate">Fundo</span>
             </Button>
           </div>
         </div>
@@ -1645,5 +1738,12 @@
     open={isSettingsOpen}
     initialTab={settingsInitialTab}
     onclose={() => (isSettingsOpen = false)}
+  />
+
+  <ImageSelectorModal
+    open={isImageSelectorOpen}
+    initialMode={imageSelectorMode}
+    onclose={() => (isImageSelectorOpen = false)}
+    onadditems={handleAddImageItems}
   />
 </div>

@@ -19,6 +19,8 @@
     Trash2,
     AlertCircle,
     ChevronDown,
+    Copy,
+    FolderOpen,
   } from 'lucide-svelte';
   import {
     themeStore,
@@ -147,6 +149,63 @@
     }
   }
 
+  let isCopiedDataDir = $state(false);
+  let folderPickerInput: HTMLInputElement | null = $state(null);
+
+  async function handleCopyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      isCopiedDataDir = true;
+      setTimeout(() => (isCopiedDataDir = false), 2000);
+    } catch (err) {
+      console.error('Erro ao copiar texto:', err);
+    }
+  }
+
+  async function handleOpenInFinder(path: string) {
+    try {
+      await fetch('/api/system/open-path', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+      });
+    } catch (err) {
+      console.error('Erro ao abrir pasta:', err);
+    }
+  }
+
+  async function handleNativePickFolder() {
+    folderError = '';
+    try {
+      const res = await fetch('/api/system/pick-folder', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.path) {
+          newFolderPath = data.path;
+          if (!newFolderName && data.name) {
+            newFolderName = data.name;
+          }
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao abrir seletor nativo:', err);
+    }
+    // Fallback para input HTML se o nativo não responder
+    folderPickerInput?.click();
+  }
+
+  function handleHtmlFolderSelected(e: Event) {
+    const input = e.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const file = input.files[0];
+      const relative = file.webkitRelativePath || '';
+      const folderName = relative.split('/')[0] || file.name;
+      if (!newFolderName) newFolderName = folderName;
+      if (!newFolderPath) newFolderPath = folderName;
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (!open) return;
     if (e.key === 'Escape') {
@@ -209,7 +268,7 @@
   >
     <!-- Modal Container -->
     <div
-      class="w-full max-w-4xl h-[85vh] max-h-[720px] bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl flex flex-col overflow-hidden text-neutral-100"
+      class="w-full max-w-4xl xl:max-w-5xl h-[88vh] max-h-[760px] bg-card border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden text-foreground"
     >
       <!-- Header do Modal -->
       <div class="h-14 px-6 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-between shrink-0">
@@ -471,85 +530,195 @@
 
           <!-- ABA 2: ARQUIVOS E PASTAS (Mapeamento Zero-Copy e Pastas do Sistema) -->
           {:else if activeTab === 'files'}
-            <div class="space-y-6 max-w-2xl">
+            <div class="space-y-6 w-full max-w-3xl">
               <div>
-                <h3 class="text-sm font-semibold text-white">Arquivos e Pastas do Sistema</h3>
-                <p class="text-xs text-neutral-400 mt-0.5">
+                <h3 class="text-sm font-semibold text-foreground">Arquivos e Pastas do Sistema</h3>
+                <p class="text-xs text-muted-foreground mt-0.5">
                   Estrutura de dados local do OpenPresenter e integração com diretórios externos de fotos e vídeos.
                 </p>
               </div>
 
-              <!-- Pastas Padrão do Sistema -->
+              <!-- Input invisível de fallback para picker de pasta no navegador -->
+              <input
+                type="file"
+                bind:this={folderPickerInput}
+                onchange={handleHtmlFolderSelected}
+                webkitdirectory
+                class="hidden"
+              />
+
+              <!-- Pasta Raiz de Dados do Sistema em Destaque -->
               {#if systemPaths}
+                <div class="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-8 h-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center">
+                        <HardDrive size={18} />
+                      </div>
+                      <div>
+                        <h4 class="text-xs font-bold text-foreground">Pasta de Dados do Sistema (Data Dir)</h4>
+                        <p class="text-[11px] text-muted-foreground">Onde ficam salvos o banco de dados SQLite, arquivos e mídias do usuário</p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" class="text-[10px] text-primary border-primary/40 font-mono">
+                      data_dir
+                    </Badge>
+                  </div>
+
+                  <div class="p-2.5 rounded-lg bg-background border border-border flex items-center justify-between gap-3">
+                    <code class="text-xs font-mono text-foreground break-all select-all flex-1">
+                      {systemPaths.data_dir}
+                    </code>
+
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onclick={() => handleCopyText(systemPaths?.data_dir || '')}
+                        class="h-7 text-xs gap-1"
+                        title="Copiar caminho da pasta de dados"
+                      >
+                        {#if isCopiedDataDir}
+                          <Check size={12} class="text-emerald-400" />
+                          <span class="text-emerald-400">Copiado</span>
+                        {:else}
+                          <Copy size={12} />
+                          <span>Copiar</span>
+                        {/if}
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onclick={() => handleOpenInFinder(systemPaths?.data_dir || '')}
+                        class="h-7 text-xs gap-1"
+                        title="Abrir pasta no Finder / Explorador de Arquivos"
+                      >
+                        <FolderOpen size={12} />
+                        <span>Abrir</span>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Subdiretórios Padrão do Sistema -->
                 <div class="space-y-2.5">
-                  <span class="text-xs font-semibold text-neutral-300 uppercase tracking-wider block">
-                    Diretórios Padrão da Aplicação
+                  <span class="text-xs font-semibold text-foreground uppercase tracking-wider block">
+                    Subdiretórios da Aplicação
                   </span>
                   <div class="grid grid-cols-1 gap-2 text-xs">
-                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/40 flex items-center justify-between">
-                      <div>
-                        <div class="font-semibold text-white">Banco de Dados SQLite</div>
-                        <div class="text-[11px] text-neutral-400 font-mono mt-0.5 truncate">{systemPaths.db_path}</div>
+                    <div class="p-2.5 rounded-lg border border-border bg-card/60 flex items-center justify-between gap-3">
+                      <div class="min-w-0 flex-1">
+                        <div class="font-semibold text-foreground">Banco de Dados SQLite</div>
+                        <div class="text-[11px] text-muted-foreground font-mono mt-0.5 truncate" title={systemPaths.db_path}>
+                          {systemPaths.db_path}
+                        </div>
                       </div>
-                      <Badge variant="outline" class="text-[10px]">openpresenter.db</Badge>
+                      <div class="flex items-center gap-2 shrink-0">
+                        <Badge variant="outline" class="text-[10px]">openpresenter.db</Badge>
+                        <button
+                          type="button"
+                          onclick={() => handleOpenInFinder(systemPaths?.data_dir || '')}
+                          class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          title="Abrir no Finder"
+                        >
+                          <FolderOpen size={13} />
+                        </button>
+                      </div>
                     </div>
 
-                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/40 flex items-center justify-between">
-                      <div>
-                        <div class="font-semibold text-white">Imagens do Aplicativo</div>
-                        <div class="text-[11px] text-neutral-400 font-mono mt-0.5 truncate">{systemPaths.images_path}</div>
+                    <div class="p-2.5 rounded-lg border border-border bg-card/60 flex items-center justify-between gap-3">
+                      <div class="min-w-0 flex-1">
+                        <div class="font-semibold text-foreground">Imagens do Aplicativo</div>
+                        <div class="text-[11px] text-muted-foreground font-mono mt-0.5 truncate" title={systemPaths.images_path}>
+                          {systemPaths.images_path}
+                        </div>
                       </div>
-                      <Badge variant="outline" class="text-[10px]">media/images</Badge>
+                      <div class="flex items-center gap-2 shrink-0">
+                        <Badge variant="outline" class="text-[10px]">media/images</Badge>
+                        <button
+                          type="button"
+                          onclick={() => handleOpenInFinder(systemPaths?.images_path || '')}
+                          class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          title="Abrir no Finder"
+                        >
+                          <FolderOpen size={13} />
+                        </button>
+                      </div>
                     </div>
 
-                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/40 flex items-center justify-between">
-                      <div>
-                        <div class="font-semibold text-white">Papéis de Parede</div>
-                        <div class="text-[11px] text-neutral-400 font-mono mt-0.5 truncate">{systemPaths.wallpapers_path}</div>
+                    <div class="p-2.5 rounded-lg border border-border bg-card/60 flex items-center justify-between gap-3">
+                      <div class="min-w-0 flex-1">
+                        <div class="font-semibold text-foreground">Papéis de Parede</div>
+                        <div class="text-[11px] text-muted-foreground font-mono mt-0.5 truncate" title={systemPaths.wallpapers_path}>
+                          {systemPaths.wallpapers_path}
+                        </div>
                       </div>
-                      <Badge variant="outline" class="text-[10px]">media/wallpapers</Badge>
+                      <div class="flex items-center gap-2 shrink-0">
+                        <Badge variant="outline" class="text-[10px]">media/wallpapers</Badge>
+                        <button
+                          type="button"
+                          onclick={() => handleOpenInFinder(systemPaths?.wallpapers_path || '')}
+                          class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          title="Abrir no Finder"
+                        >
+                          <FolderOpen size={13} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               {/if}
 
               <!-- Pastas Externas Mapeadas (Zero-Copy) -->
-              <div class="pt-4 border-t border-neutral-800 space-y-3">
+              <div class="pt-4 border-t border-border space-y-3">
                 <div>
-                  <h3 class="text-sm font-semibold text-white">Pastas de Mídia Importadas</h3>
-                  <p class="text-xs text-neutral-400 mt-0.5">
+                  <h3 class="text-sm font-semibold text-foreground">Pastas de Mídia Importadas</h3>
+                  <p class="text-xs text-muted-foreground mt-0.5">
                     Adicione pastas do seu computador (ex.: fotos do culto, avisos). O OpenPresenter lê diretamente sem duplicar espaço em disco.
                   </p>
                 </div>
 
                 <!-- Formulário para Mapear Nova Pasta -->
-                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/50 space-y-3">
+                <div class="p-3.5 rounded-xl border border-border bg-card/60 space-y-3">
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
-                      <label for="folder-name-input" class="block text-[11px] text-neutral-400 mb-1">Rótulo da Pasta</label>
+                      <label for="folder-name-input" class="block text-[11px] text-muted-foreground mb-1">Rótulo da Pasta</label>
                       <input
                         id="folder-name-input"
                         type="text"
                         bind:value={newFolderName}
                         placeholder="Ex: Fotos do Culto de Domingo"
-                        class="w-full h-8 px-2.5 rounded bg-neutral-900 border border-neutral-700 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-primary"
+                        class="w-full h-8 px-2.5 rounded bg-background border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                       />
                     </div>
                     <div>
-                      <label for="folder-path-input" class="block text-[11px] text-neutral-400 mb-1">Caminho no Computador *</label>
-                      <input
-                        id="folder-path-input"
-                        type="text"
-                        bind:value={newFolderPath}
-                        placeholder="Ex: /Users/usuario/Imagens/Culto"
-                        class="w-full h-8 px-2.5 rounded bg-neutral-900 border border-neutral-700 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-primary font-mono text-[11px]"
-                      />
+                      <label for="folder-path-input" class="block text-[11px] text-muted-foreground mb-1">Caminho no Computador *</label>
+                      <div class="flex items-center gap-1.5">
+                        <input
+                          id="folder-path-input"
+                          type="text"
+                          bind:value={newFolderPath}
+                          placeholder="Ex: /Users/usuario/Imagens/Culto"
+                          class="flex-1 h-8 px-2.5 rounded bg-background border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary font-mono text-[11px]"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onclick={handleNativePickFolder}
+                          class="h-8 text-xs gap-1.5 shrink-0"
+                          title="Selecionar Pasta graficamente no computador"
+                        >
+                          <Folder size={13} class="text-primary" />
+                          <span>Selecionar...</span>
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
                   {#if folderError}
-                    <div class="p-2 rounded bg-red-950/40 border border-red-800/40 text-red-300 text-xs flex items-center gap-1.5">
-                      <AlertCircle size={13} class="text-red-400 shrink-0" />
+                    <div class="p-2 rounded bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-center gap-1.5">
+                      <AlertCircle size={13} class="shrink-0" />
                       <span>{folderError}</span>
                     </div>
                   {/if}
@@ -560,7 +729,7 @@
                       size="sm"
                       onclick={handleAddFolder}
                       disabled={isAddingFolder}
-                      class="gap-1.5 text-xs"
+                      class="gap-1.5 text-xs font-semibold"
                     >
                       <FolderPlus size={13} />
                       <span>{isAddingFolder ? 'Validando...' : 'Mapear Pasta'}</span>
@@ -571,28 +740,41 @@
                 <!-- Lista de Pastas Mapeadas -->
                 <div class="space-y-2">
                   {#if mediaFolders.length === 0}
-                    <div class="p-4 rounded-lg border border-dashed border-neutral-800 text-center text-xs text-neutral-500">
-                      Nenhuma pasta externa mapeada ainda.
+                    <div class="p-4 rounded-lg border border-dashed border-border text-center text-xs text-muted-foreground">
+                      Nenhuma pasta externa mapeada ainda. Clique em "Selecionar..." para importar sua primeira pasta.
                     </div>
                   {:else}
                     {#each mediaFolders as folder (folder.id)}
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-3">
-                        <div class="flex items-center gap-2.5 min-w-0">
+                      <div class="p-3 rounded-lg border border-border bg-card/60 flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
                           <Folder size={16} class="text-primary shrink-0" />
-                          <div class="min-w-0">
-                            <div class="text-xs font-semibold text-white truncate">{folder.name}</div>
-                            <div class="text-[10px] text-neutral-400 font-mono truncate">{folder.path}</div>
+                          <div class="min-w-0 flex-1">
+                            <div class="text-xs font-semibold text-foreground truncate">{folder.name}</div>
+                            <div class="text-[10px] text-muted-foreground font-mono truncate" title={folder.path}>{folder.path}</div>
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onclick={() => handleDeleteFolder(folder.id)}
-                          title="Remover pasta mapeada"
-                          class="w-7 h-7 rounded text-neutral-400 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onclick={() => handleOpenInFinder(folder.path)}
+                            class="h-7 text-[11px] gap-1 px-2"
+                            title="Abrir no Finder"
+                          >
+                            <FolderOpen size={12} />
+                            <span>Abrir</span>
+                          </Button>
+
+                          <button
+                            type="button"
+                            onclick={() => handleDeleteFolder(folder.id)}
+                            title="Remover pasta mapeada"
+                            class="w-7 h-7 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center transition-colors cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </div>
                     {/each}
                   {/if}
@@ -844,12 +1026,35 @@
 
                 <div class="p-2.5 flex items-center justify-between">
                   <span class="text-neutral-300">Blackout (tela preta total)</span>
-                  <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px]">F1</kbd>
+                  <div class="flex gap-1.5 items-center">
+                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-primary font-bold">.</kbd>
+                    <span class="text-[10px] text-neutral-500">ou</span>
+                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Alt+B</kbd>
+                    <span class="text-[10px] text-neutral-500">ou</span>
+                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">F1</kbd>
+                  </div>
                 </div>
 
                 <div class="p-2.5 flex items-center justify-between">
                   <span class="text-neutral-300">Limpar Texto (mantém o fundo)</span>
-                  <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px]">F2</kbd>
+                  <div class="flex gap-1.5 items-center">
+                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-primary font-bold">,</kbd>
+                    <span class="text-[10px] text-neutral-500">ou</span>
+                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Alt+C</kbd>
+                    <span class="text-[10px] text-neutral-500">ou</span>
+                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">F2</kbd>
+                  </div>
+                </div>
+
+                <div class="p-2.5 flex items-center justify-between">
+                  <span class="text-neutral-300">Papel de Parede (Tela de Repouso)</span>
+                  <div class="flex gap-1.5 items-center">
+                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-primary font-bold">/</kbd>
+                    <span class="text-[10px] text-neutral-500">ou</span>
+                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Alt+W</kbd>
+                    <span class="text-[10px] text-neutral-500">ou</span>
+                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">F3</kbd>
+                  </div>
                 </div>
               </div>
             </div>

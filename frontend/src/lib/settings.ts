@@ -377,15 +377,21 @@ export function applyBaseColor(color: BaseColor, isDark = true) {
   }
 }
 
-export function applyAccentTheme(theme: AccentTheme) {
+export function applyAccentTheme(theme: AccentTheme, isDark = true) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   root.setAttribute('data-accent-theme', theme);
 
   const preset = ACCENT_THEME_PRESETS.find((p) => p.id === theme) || ACCENT_THEME_PRESETS[0];
-  root.style.setProperty('--primary', preset.primaryColor);
-  root.style.setProperty('--primary-foreground', preset.primaryForeground);
-  root.style.setProperty('--ring', preset.ringColor);
+  if (theme === 'neutral') {
+    root.style.setProperty('--primary', isDark ? '#fafafa' : '#171717');
+    root.style.setProperty('--primary-foreground', isDark ? '#0a0a0a' : '#fafafa');
+    root.style.setProperty('--ring', isDark ? '#a3a3a3' : '#737373');
+  } else {
+    root.style.setProperty('--primary', preset.primaryColor);
+    root.style.setProperty('--primary-foreground', preset.primaryForeground);
+    root.style.setProperty('--ring', preset.ringColor);
+  }
 }
 
 export function setBaseColor(color: BaseColor) {
@@ -411,7 +417,9 @@ export function setAccentTheme(theme: AccentTheme) {
     localStorage.setItem(STORAGE_ACCENT_THEME_KEY, theme);
   }
   accentThemeStore.set(theme);
-  applyAccentTheme(theme);
+  const isDark =
+    document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
+  applyAccentTheme(theme, isDark);
 }
 
 export function setWallpaperFit(fit: WallpaperFitMode) {
@@ -441,7 +449,13 @@ export function applyTheme(mode: ThemeMode) {
   }
 
   applyBaseColor(loadInitialBaseColor(), isDark);
-  applyAccentTheme(loadInitialAccentTheme());
+  applyAccentTheme(loadInitialAccentTheme(), isDark);
+}
+
+export function initAppTheme() {
+  if (typeof window === 'undefined') return;
+  const theme = loadInitialTheme();
+  applyTheme(theme);
 }
 
 export function setTheme(mode: ThemeMode) {

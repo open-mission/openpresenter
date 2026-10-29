@@ -25,13 +25,13 @@
   }: Props = $props();
 
   const variantClasses = {
-    default: 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm font-medium',
-    secondary: 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border border-zinc-700/60 font-medium',
-    outline: 'border border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white',
-    destructive: 'bg-red-600 text-white hover:bg-red-500 shadow-sm font-medium',
-    ghost: 'text-zinc-300 hover:bg-zinc-800/80 hover:text-white',
-    live: 'bg-emerald-500 text-black font-semibold ring-2 ring-emerald-400 shadow-md animate-pulse',
-    subtle: 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white border border-zinc-800',
+    default: 'bg-primary text-primary-foreground hover:opacity-90 shadow-sm font-medium',
+    secondary: 'bg-secondary text-secondary-foreground hover:bg-muted border border-border font-medium',
+    outline: 'border border-border text-foreground hover:bg-muted hover:text-foreground',
+    destructive: 'bg-destructive text-destructive-foreground hover:opacity-90 shadow-sm font-medium',
+    ghost: 'text-muted-foreground hover:bg-muted hover:text-foreground',
+    live: 'bg-primary text-primary-foreground font-semibold ring-2 ring-ring/60 shadow-md animate-pulse',
+    subtle: 'bg-card text-foreground hover:bg-muted border border-border',
   };
 
   const sizeClasses = {
@@ -48,7 +48,7 @@
   {disabled}
   {onclick}
   class={cn(
-    'inline-flex items-center justify-center gap-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none',
+    'inline-flex items-center justify-center gap-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none',
     variantClasses[variant],
     sizeClasses[size],
     className
