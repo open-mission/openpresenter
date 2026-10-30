@@ -111,6 +111,7 @@
 - [Spec — Opção de Exibir Textos nos Botões de Controle de Saída](specs/2026-10-29-preview-action-labels-toggle.md)
 - [Spec — Ícone Oficial da Aplicação no System Tray e Executável](specs/2026-10-29-tray-and-executable-icon.md)
 - [Spec — Ajuste de Margem para Logotipo da Igreja na Tela Pública](specs/2026-10-29-church-logo-margins.md)
+- [Spec — Sincronização em Tempo Real de Configurações e Recarga Remota das Telas Public e Stage](specs/2026-10-29-realtime-settings-sync-and-remote-reload.md)
 
 ## Arquitetura e decisões
 

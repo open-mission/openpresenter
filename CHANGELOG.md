@@ -7,6 +7,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Sincronização em Tempo Real de Configurações e Recarga Remota das Telas:**
+  - Alterações salvas nas configurações agora disparam transmissão imediata via WebSocket (`WsMessage::SettingUpdated`), atualizando as telas `/public` e `/stage` instantaneamente sem necessidade de recarregar a página (F5).
+  - Adicionados botões de ação rápida nos cabeçalhos de preview do painel do operador para recarga remota imediata das saídas de projeção e retorno de palco.
 - **Ajuste de Margem para Logotipo da Igreja na Tela Pública:**
   - Adicionadas configurações deslizantes de margem horizontal e margem vertical na aba "Marca da Igreja" das Configurações.
   - O logotipo sobreposto na tela pública (`/public`) e no preview do operador agora respeita o distanciamento exato em pixels configurado para os quatro cantos da tela.

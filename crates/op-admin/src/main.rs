@@ -768,6 +768,35 @@ mod tests {
             .unwrap();
         assert_eq!(net_resp.status(), StatusCode::OK);
 
+        // POST /api/outputs/reload
+        let mut rx = state.broadcast_tx.subscribe();
+        let reload_payload = serde_json::to_string(&serde_json::json!({
+            "target": "public"
+        }))
+        .unwrap();
+
+        let reload_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/outputs/reload")
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(reload_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(reload_resp.status(), StatusCode::OK);
+
+        let ws_msg = rx.recv().await.unwrap();
+        assert_eq!(
+            ws_msg,
+            op_core::WsMessage::ReloadClients {
+                target: Some("public".into())
+            }
+        );
+
         // POST /api/presentation/quick-media
         let quick_payload = serde_json::to_string(&serde_json::json!({
             "item": {

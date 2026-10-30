@@ -8,7 +8,7 @@ use axum::{
 use op_core::{
     BibleBook, BibleSearchResult, BibleVerse, BibleVersionSummary, DisplayMode, MediaItem,
     OnlineLyricHit, OutputKind, OutputsConfig, ParsedReference, PresentationState, Setlist,
-    SetlistSummary, Song, SongSummary, VERSION,
+    SetlistSummary, Song, SongSummary, VERSION, WsMessage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -162,6 +162,7 @@ pub fn create_routes(state: AppState) -> Router {
             "/api/settings/{key}",
             get(get_app_setting).post(save_app_setting),
         )
+        .route("/api/outputs/reload", post(reload_outputs))
         .route("/api/church/upload-logo", post(upload_church_logo))
         .route("/api/outputs/{kind}/toggle", post(toggle_output))
         .route("/api/songs", get(get_songs).post(save_song))
@@ -453,10 +454,33 @@ async fn save_app_setting(
             .set_setting(&key, &payload.value)
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     }
+
+    // Transmite a alteração para todas as telas conectadas via WebSocket em tempo real
+    let _ = state.broadcast_tx.send(WsMessage::SettingUpdated {
+        key: key.clone(),
+        value: Some(payload.value.clone()),
+    });
+
     Ok(Json(SettingResponse {
         key,
         value: Some(payload.value),
     }))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReloadOutputsRequest {
+    #[serde(default)]
+    pub target: Option<String>,
+}
+
+async fn reload_outputs(
+    State(state): State<AppState>,
+    Json(payload): Json<ReloadOutputsRequest>,
+) -> StatusCode {
+    let _ = state.broadcast_tx.send(WsMessage::ReloadClients {
+        target: payload.target,
+    });
+    StatusCode::OK
 }
 
 async fn upload_church_logo(

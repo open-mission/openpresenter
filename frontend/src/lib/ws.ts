@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import type { DisplayMode, MediaItem, PresentationState, Setlist, WsMessage } from './types';
+import { handleSettingBroadcast } from './displaySettings';
 
 export const presentationState = writable<PresentationState>({
   active_media_id: null,
@@ -101,7 +102,30 @@ function handleIncomingMessage(msg: WsMessage) {
   } else if (msg.type === 'setlist_updated') {
     activeSetlist.set(msg.payload.setlist);
     mediaItemsList.set(msg.payload.setlist.items);
+  } else if (msg.type === 'setting_updated') {
+    handleSettingBroadcast(msg.payload.key, msg.payload.value);
+  } else if (msg.type === 'reload_clients') {
+    const target = msg.payload?.target || 'all';
+    if (typeof window !== 'undefined') {
+      const currentPath = window.location.pathname;
+      const isPublic = currentPath.includes('/public');
+      const isStage = currentPath.includes('/stage');
+      if (
+        target === 'all' ||
+        (target === 'public' && isPublic) ||
+        (target === 'stage' && isStage)
+      ) {
+        window.location.reload();
+      }
+    }
   }
+}
+
+export function reloadOutputs(target: 'all' | 'public' | 'stage' = 'all') {
+  sendWsMessage({
+    type: 'reload_clients',
+    payload: { target },
+  });
 }
 
 export function sendWsMessage(msg: WsMessage) {

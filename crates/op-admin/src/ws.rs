@@ -114,6 +114,9 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     Ok(WsMessage::SetStageMessage { message }) => {
                         state.set_stage_message(message).await;
                     }
+                    Ok(WsMessage::ReloadClients { target }) => {
+                        let _ = state.broadcast_tx.send(WsMessage::ReloadClients { target });
+                    }
                     Ok(WsMessage::Ping) => {
                         let _ = state.broadcast_tx.send(WsMessage::Pong);
                     }

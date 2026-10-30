@@ -21,6 +21,7 @@
     pauseTimer,
     resetTimer,
     quickPresentMedia,
+    reloadOutputs,
   } from '$lib/ws';
   import type {
     MediaItem,
@@ -87,6 +88,7 @@
     Play,
     Pause,
     RotateCcw,
+    RefreshCw,
     Timer,
     Square,
     Settings,
@@ -1795,9 +1797,19 @@
               <span class="text-xs font-bold text-neutral-200">Public (Projetor)</span>
             </div>
 
-            <Badge variant={$presentationState.public_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
-              {$presentationState.public_connected ? 'Conectado' : 'Aguardando'}
-            </Badge>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                onclick={() => reloadOutputs('public')}
+                class="w-5 h-5 rounded flex items-center justify-center text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+                title="Recarregar tela pública (projetor) remotamente"
+              >
+                <RefreshCw size={11} />
+              </button>
+              <Badge variant={$presentationState.public_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
+                {$presentationState.public_connected ? 'Conectado' : 'Aguardando'}
+              </Badge>
+            </div>
           </div>
 
           <!-- Preview Fiel do Public (16:9) Espelhando a Projeção Real -->
@@ -1821,9 +1833,19 @@
               <span class="text-xs font-bold text-neutral-200">Stage (Retorno Palco)</span>
             </div>
 
-            <Badge variant={$presentationState.stage_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
-              {$presentationState.stage_connected ? 'Conectado' : 'Aguardando'}
-            </Badge>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                onclick={() => reloadOutputs('stage')}
+                class="w-5 h-5 rounded flex items-center justify-center text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+                title="Recarregar tela de retorno de palco remotamente"
+              >
+                <RefreshCw size={11} />
+              </button>
+              <Badge variant={$presentationState.stage_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
+                {$presentationState.stage_connected ? 'Conectado' : 'Aguardando'}
+              </Badge>
+            </div>
           </div>
 
           <!-- Preview Fiel do Stage com Preset, Cores e Proporções em Tempo Real -->

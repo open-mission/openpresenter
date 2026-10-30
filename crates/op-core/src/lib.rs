@@ -802,6 +802,16 @@ pub enum WsMessage {
     SetlistUpdated {
         setlist: Setlist,
     },
+    /// Notificação de configuração salva/atualizada em tempo real.
+    SettingUpdated {
+        key: String,
+        value: Option<String>,
+    },
+    /// Comando para forçar recarga das telas conectadas (ex: /public ou /stage).
+    ReloadClients {
+        #[serde(default)]
+        target: Option<String>,
+    },
     /// Ping / Heartbeat para manter conexão viva.
     Ping,
     Pong,

@@ -205,6 +205,8 @@ export type WsMessage =
   | { type: 'state_updated'; payload: { presentation: PresentationState } }
   | { type: 'media_items_updated'; payload: { media_items: MediaItem[] } }
   | { type: 'setlist_updated'; payload: { setlist: Setlist } }
+  | { type: 'setting_updated'; payload: { key: string; value: string | null } }
+  | { type: 'reload_clients'; payload: { target?: string } }
   | { type: 'ping' }
   | { type: 'pong' };
 

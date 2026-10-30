@@ -157,3 +157,23 @@ export async function saveStageDisplaySettings(settings: StageDisplaySettings) {
     body: JSON.stringify({ value: JSON.stringify(settings) }),
   }).catch(() => {});
 }
+
+// Aplica atualizações de configuração recebidas via WebSocket em tempo real
+export function handleSettingBroadcast(key: string, value: string | null) {
+  if (!value) return;
+  try {
+    const parsed = JSON.parse(value);
+    if (key === 'public_display') {
+      publicSettingsStore.set({ ...DEFAULT_PUBLIC_SETTINGS, ...parsed });
+      saveLocal('public_settings', parsed);
+    } else if (key === 'church_brand') {
+      churchBrandStore.set({ ...DEFAULT_CHURCH_BRAND, ...parsed });
+      saveLocal('church_brand', parsed);
+    } else if (key === 'stage_display') {
+      stageSettingsStore.set({ ...DEFAULT_STAGE_SETTINGS, ...parsed });
+      saveLocal('stage_settings', parsed);
+    }
+  } catch (e) {
+    console.error('Falha ao aplicar configuração recebida via WebSocket:', e);
+  }
+}
