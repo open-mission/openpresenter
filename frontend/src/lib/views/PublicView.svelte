@@ -126,7 +126,7 @@
 
 <!-- Container fullscreen de projeção pública -->
 <main
-  class="relative w-screen h-screen bg-black text-white flex items-center justify-center overflow-hidden select-none"
+  class="relative w-full h-full min-w-full min-h-full bg-black text-white flex items-center justify-center overflow-hidden select-none"
   ondblclick={toggleFullscreen}
 >
   {#if $presentationState.display_mode === 'blackout'}
@@ -225,12 +225,12 @@
         {:else}
           <!-- Slide de Texto / Música / Bíblia Ao Vivo com Formatação, Margens e Auto-scale -->
           <div
-            class="w-full flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden animate-in fade-in duration-150 {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'} {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
+            class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col overflow-hidden animate-in fade-in duration-150 {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
           >
             <div
-              class="flex flex-col justify-between min-h-0 overflow-hidden {alignV === 'top' ? 'mt-0 mb-auto' : alignV === 'bottom' ? 'mt-auto mb-0' : 'my-auto'} {publicSettings.fill_space ? 'w-full flex-1' : 'max-w-5xl w-full flex-1'} {publicSettings.text_box_background ? 'bg-black/65 backdrop-blur-md rounded-3xl p-6 sm:p-10 md:p-14 border border-white/10 shadow-2xl transition-all' : ''}"
+              class="flex flex-col justify-between w-full h-full flex-1 min-h-0 overflow-hidden {publicSettings.fill_space ? 'w-full' : 'max-w-5xl'} {publicSettings.text_box_background ? 'bg-black/65 backdrop-blur-md rounded-3xl p-6 sm:p-10 md:p-14 border border-white/10 shadow-2xl transition-all' : ''}"
             >
-              <div class="my-auto w-full flex flex-col justify-center overflow-hidden">
+              <div class="w-full flex-1 min-h-0 flex flex-col overflow-hidden {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'}">
                 <div
                   use:autoScale={{
                     minSize: publicSettings.min_font_size ?? 24,
@@ -291,7 +291,7 @@
     type="button"
     onclick={toggleFullscreen}
     title="Alternar Tela Cheia (Tecla F)"
-    class="absolute bottom-3 right-3 p-2 bg-neutral-900/60 hover:bg-neutral-800 text-neutral-400 hover:text-white rounded-md opacity-20 hover:opacity-100 transition-opacity z-40 cursor-pointer"
+    class="absolute bottom-3 right-3 p-2 bg-neutral-900/60 hover:bg-neutral-800 text-neutral-400 hover:text-white rounded-md opacity-0 hover:opacity-100 transition-opacity z-40 cursor-pointer hidden md:block"
   >
     {#if isFullscreen}
       <Minimize size={18} />
