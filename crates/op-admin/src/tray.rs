@@ -10,6 +10,7 @@ pub struct TrayMenuIds {
     pub open_public: muda::MenuId,
     pub open_stage: muda::MenuId,
     pub open_remote: muda::MenuId,
+    pub open_lower_third: muda::MenuId,
     pub change_port: muda::MenuId,
     pub quit: muda::MenuId,
 }
@@ -41,6 +42,7 @@ pub fn build_tray_menu(port: u16) -> Result<(Menu, TrayMenuIds), Box<dyn std::er
     let open_public = MenuItem::new("Abrir Tela Pública (Projetor)", true, None);
     let open_stage = MenuItem::new("Abrir Retorno de Palco (Stage)", true, None);
     let open_remote = MenuItem::new("Abrir Controle Remoto (Mobile)", true, None);
+    let open_lower_third = MenuItem::new("Abrir Lower Third (OBS / Transmissão)", true, None);
 
     let status_label = format!("● Servidor Ativo (Porta {})", port);
     let status_item = MenuItem::new(status_label, false, None);
@@ -55,6 +57,7 @@ pub fn build_tray_menu(port: u16) -> Result<(Menu, TrayMenuIds), Box<dyn std::er
     menu.append(&open_public)?;
     menu.append(&open_stage)?;
     menu.append(&open_remote)?;
+    menu.append(&open_lower_third)?;
     menu.append(&sep1)?;
     menu.append(&status_item)?;
     menu.append(&change_port)?;
@@ -66,6 +69,7 @@ pub fn build_tray_menu(port: u16) -> Result<(Menu, TrayMenuIds), Box<dyn std::er
         open_public: open_public.id().clone(),
         open_stage: open_stage.id().clone(),
         open_remote: open_remote.id().clone(),
+        open_lower_third: open_lower_third.id().clone(),
         change_port: change_port.id().clone(),
         quit: quit.id().clone(),
     };

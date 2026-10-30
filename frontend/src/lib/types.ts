@@ -266,12 +266,30 @@ export interface PublicDisplaySettings {
   scripture_reference_font_size?: number;
 }
 
+export interface LowerThirdSettings {
+  enabled: boolean;
+  theme: 'gradient' | 'bar' | 'floating' | 'minimal';
+  use_public_bg: boolean;
+  bg_color: string;
+  bg_opacity: number;
+  text_color: string;
+  font_size: number;
+  font_weight: 'normal' | 'semibold' | 'bold' | 'extrabold';
+  text_align: 'left' | 'center' | 'right';
+  shadow_strength: 'none' | 'subtle' | 'medium' | 'strong';
+  margin_bottom: number;
+  max_width_percent: number;
+  animation: 'fade' | 'slide' | 'zoom' | 'none';
+  show_reference: boolean;
+}
+
 export interface NetworkInfoResponse {
   local_ip: string;
   port: number;
   public_url: string;
   stage_url: string;
   remote_url: string;
+  lower_third_url: string;
 }
 
 export interface ChurchBrandSettings {

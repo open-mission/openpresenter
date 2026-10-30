@@ -135,7 +135,7 @@
   let isImageSelectorOpen = $state(false);
   let imageSelectorMode = $state<'single' | 'folder'>('single');
   let isShareOutputsOpen = $state(false);
-  let shareOutputsTab = $state<'stage' | 'public' | 'remote' | 'cast'>('stage');
+  let shareOutputsTab = $state<'stage' | 'public' | 'remote' | 'lower' | 'cast'>('stage');
   let isConnectionsDropdownOpen = $state(false);
   let previewImage = $state<ImageMediaItem | null>(null);
   let isPreviewImageOpen = $state(false);

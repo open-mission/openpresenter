@@ -159,6 +159,11 @@
 - [Spec — Controle Remoto Mobile (/remote)](specs/2026-10-30-controle-remoto-mobile.md)
 - [Plano — Controle Remoto Mobile (/remote)](plans/2026-10-30-controle-remoto-mobile.md)
 
+## Saída Lower Third para OBS e Transmissão (/lower-third)
+
+- [Spec — Saída Lower Third Transparente para OBS e Transmissão (/lower-third)](specs/2026-10-30-saida-lower-third-obs.md)
+- [Plano — Saída Lower Third Transparente para OBS e Transmissão (/lower-third)](plans/2026-10-30-saida-lower-third-obs.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

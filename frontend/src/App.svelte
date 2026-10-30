@@ -4,6 +4,7 @@
   import PublicView from '$lib/views/PublicView.svelte';
   import StageView from '$lib/views/StageView.svelte';
   import RemoteView from '$lib/views/RemoteView.svelte';
+  import LowerThirdView from '$lib/views/LowerThirdView.svelte';
 
   let currentPath = $state(window.location.pathname);
 
@@ -18,7 +19,7 @@
     };
   });
 
-  const viewMode = $derived.by<'admin' | 'public' | 'stage' | 'remote'>(() => {
+  const viewMode = $derived.by<'admin' | 'public' | 'stage' | 'remote' | 'lower-third'>(() => {
     if (currentPath.startsWith('/public')) {
       return 'public';
     }
@@ -27,6 +28,13 @@
     }
     if (currentPath.startsWith('/remote')) {
       return 'remote';
+    }
+    if (
+      currentPath.startsWith('/lower-third') ||
+      currentPath.startsWith('/lower') ||
+      currentPath.startsWith('/obs')
+    ) {
+      return 'lower-third';
     }
     return 'admin';
   });
@@ -38,6 +46,8 @@
   <StageView />
 {:else if viewMode === 'remote'}
   <RemoteView />
+{:else if viewMode === 'lower-third'}
+  <LowerThirdView />
 {:else}
   <AdminView />
 {/if}

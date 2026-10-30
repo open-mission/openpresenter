@@ -104,6 +104,7 @@ async fn handle_socket(socket: WebSocket, state: AppState, client_ip: String) {
                             "public" => "/public".to_string(),
                             "stage" => "/stage".to_string(),
                             "remote" => "/remote".to_string(),
+                            "lower-third" | "lower" | "obs" => "/lower-third".to_string(),
                             _ => "/".to_string(),
                         });
                         info!(

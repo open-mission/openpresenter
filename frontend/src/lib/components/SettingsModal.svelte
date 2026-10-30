@@ -40,6 +40,7 @@
     AlertTriangle,
     Music,
     Clock,
+    Video,
   } from 'lucide-svelte';
   import {
     fetchUpdateCheck,
@@ -76,14 +77,17 @@
     churchBrandStore,
     stageSettingsStore,
     backgroundStylesStore,
+    lowerThirdSettingsStore,
     savePublicDisplaySettings,
     saveChurchBrandSettings,
     saveStageDisplaySettings,
     saveBackgroundStyles,
+    saveLowerThirdSettings,
     DEFAULT_PUBLIC_SETTINGS,
     DEFAULT_CHURCH_BRAND,
     DEFAULT_STAGE_SETTINGS,
     DEFAULT_BACKGROUND_STYLES,
+    DEFAULT_LOWER_THIRD_SETTINGS,
   } from '../displaySettings';
   import {
     getAllBackgrounds,
@@ -101,6 +105,7 @@
     PublicDisplaySettings,
     ChurchBrandSettings,
     StageDisplaySettings,
+    LowerThirdSettings,
     StagePreset,
     BibleVersionSummary,
   } from '../types';
@@ -110,6 +115,7 @@
     | 'public'
     | 'lyrics_bg'
     | 'stage'
+    | 'lower_third'
     | 'church'
     | 'bibles'
     | 'files'
@@ -134,12 +140,14 @@
   let localPublic = $state<PublicDisplaySettings>({ ...DEFAULT_PUBLIC_SETTINGS });
   let localBrand = $state<ChurchBrandSettings>({ ...DEFAULT_CHURCH_BRAND });
   let localStage = $state<StageDisplaySettings>({ ...DEFAULT_STAGE_SETTINGS });
+  let localLowerThird = $state<LowerThirdSettings>({ ...DEFAULT_LOWER_THIRD_SETTINGS });
   let uploadStatus = $state<{ [key: string]: string }>({});
 
   // Sub-seções internas
   let publicSection = $state<'lyrics' | 'scripture' | 'general'>('lyrics');
   let stageSection = $state<'lyrics' | 'scripture' | 'general'>('lyrics');
   let bgPreviewMode = $state<'lyrics' | 'scripture'>('lyrics');
+  let ltPreviewMode = $state<'lyrics' | 'scripture'>('lyrics');
 
   // Configurações de Fundos de Letras e CSS
   let localBgStyles = $state<BackgroundStylesMap>({
@@ -384,6 +392,7 @@
       localBrand = JSON.parse(JSON.stringify(get(churchBrandStore)));
       localStage = JSON.parse(JSON.stringify(get(stageSettingsStore)));
       localBgStyles = JSON.parse(JSON.stringify(get(backgroundStylesStore)));
+      localLowerThird = JSON.parse(JSON.stringify(get(lowerThirdSettingsStore)));
       loadSystemPaths();
       loadMediaFolders();
       loadBibles();
@@ -409,6 +418,7 @@
       await saveChurchBrandSettings(localBrand);
       await saveStageDisplaySettings(localStage);
       await saveBackgroundStyles(localBgStyles);
+      await saveLowerThirdSettings(localLowerThird);
       saveSections(editableSections);
       saveStatusMessage = 'Configurações salvas com sucesso!';
       setTimeout(() => {
@@ -894,6 +904,15 @@
           >
             <Tv size={15} class={activeTab === 'stage' ? 'text-primary' : 'text-neutral-500'} />
             <span>Monitor de Palco (Stage)</span>
+          </button>
+
+          <button
+            type="button"
+            onclick={() => (activeTab = 'lower_third')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'lower_third' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+          >
+            <Video size={15} class={activeTab === 'lower_third' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Lower Third (OBS)</span>
           </button>
 
           <button
@@ -2659,6 +2678,456 @@
                   </div>
                 </div>
               {/if}
+            </div>
+
+          <!-- ABA: LOWER THIRD (OBS / TRANSMISSÃO) -->
+          {:else if activeTab === 'lower_third'}
+            <div class="space-y-6">
+              <div class="flex items-center justify-between pb-3 border-b border-neutral-800">
+                <div>
+                  <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                    <Video size={16} class="text-primary" />
+                    <span>Saída Lower Third Transparente para OBS Studio / vMix</span>
+                  </h3>
+                  <p class="text-xs text-neutral-400 mt-0.5">
+                    Projeta letras e passagens bíblicas no terço inferior da tela com fundo transparente (canal alfa nativo).
+                  </p>
+                </div>
+
+                <!-- Botão Testar / Abrir -->
+                <a
+                  href="/lower-third"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold text-neutral-200 transition-colors"
+                >
+                  <ExternalLink size={13} />
+                  <span>Abrir /lower-third</span>
+                </a>
+              </div>
+
+              <!-- URL e Instruções Rápidas para OBS -->
+              <div class="p-3.5 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2">
+                <span class="text-xs font-bold text-neutral-200 block">URL da Fonte de Navegador (Browser Source):</span>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readonly
+                    value="{typeof window !== 'undefined' ? window.location.origin : 'http://localhost:18080'}/lower-third"
+                    class="flex-1 px-3 py-1.5 rounded-lg bg-black border border-neutral-800 text-xs font-mono text-emerald-400 select-all"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onclick={() => {
+                      if (typeof window !== 'undefined') {
+                        navigator.clipboard.writeText(`${window.location.origin}/lower-third`);
+                      }
+                    }}
+                    class="shrink-0 gap-1 text-xs"
+                  >
+                    <Copy size={13} />
+                    <span>Copiar</span>
+                  </Button>
+                </div>
+                <p class="text-[11px] text-neutral-400">
+                  No OBS Studio, adicione uma fonte <strong>"Navegador" (Browser Source)</strong> com resolução <strong>1920x1080</strong> e marque <em>"Desligar fonte quando invisível"</em>.
+                </p>
+              </div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Coluna de Controles (Esquerda) -->
+                <div class="lg:col-span-7 space-y-5">
+                  <!-- Ativação Geral -->
+                  <div class="p-4 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between">
+                    <div>
+                      <span class="text-xs font-bold text-white block">Ativar Saída Lower Third</span>
+                      <p class="text-[11px] text-neutral-400">
+                        Quando desativado, o texto é ocultado automaticamente da transmissão.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-label="Ativar Saída Lower Third"
+                      aria-checked={localLowerThird.enabled}
+                      onclick={() => (localLowerThird.enabled = !localLowerThird.enabled)}
+                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localLowerThird.enabled ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                    >
+                      <span
+                        class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localLowerThird.enabled ? 'translate-x-5' : 'translate-x-0'}"
+                      ></span>
+                    </button>
+                  </div>
+
+                  <!-- Seletor de Tema / Estilo Visual -->
+                  <div class="space-y-2">
+                    <span class="text-xs font-bold text-neutral-200 block">Estilo Visual do Lower Third:</span>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <button
+                        type="button"
+                        onclick={() => (localLowerThird.theme = 'gradient')}
+                        class="p-2.5 rounded-xl border text-left transition-all cursor-pointer {localLowerThird.theme === 'gradient' ? 'border-primary bg-primary/10 text-white font-bold' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
+                      >
+                        <span class="text-xs block">Gradiente Central</span>
+                        <span class="text-[10px] opacity-70 font-normal">Suave & Dinâmico</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onclick={() => (localLowerThird.theme = 'bar')}
+                        class="p-2.5 rounded-xl border text-left transition-all cursor-pointer {localLowerThird.theme === 'bar' ? 'border-primary bg-primary/10 text-white font-bold' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
+                      >
+                        <span class="text-xs block">Barra Inferior</span>
+                        <span class="text-[10px] opacity-70 font-normal">Estilo TV / Notícias</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onclick={() => (localLowerThird.theme = 'floating')}
+                        class="p-2.5 rounded-xl border text-left transition-all cursor-pointer {localLowerThird.theme === 'floating' ? 'border-primary bg-primary/10 text-white font-bold' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
+                      >
+                        <span class="text-xs block">Caixa Flutuante</span>
+                        <span class="text-[10px] opacity-70 font-normal">Glassmorphism</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onclick={() => (localLowerThird.theme = 'minimal')}
+                        class="p-2.5 rounded-xl border text-left transition-all cursor-pointer {localLowerThird.theme === 'minimal' ? 'border-primary bg-primary/10 text-white font-bold' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
+                      >
+                        <span class="text-xs block">Minimalista</span>
+                        <span class="text-[10px] opacity-70 font-normal">Apenas Tipografia</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Cores e Gradiente -->
+                  <div class="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-4">
+                    <h4 class="text-xs font-bold text-neutral-200">Cores & Composição de Fundo</h4>
+
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="text-xs font-semibold text-neutral-300 block">Vincular Cor ao Fundo Público Ativo</span>
+                        <span class="text-[11px] text-neutral-500">Adapta automaticamente o gradiente à cor do tema de projeção.</span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-label="Vincular Cor ao Fundo Público Ativo"
+                        aria-checked={localLowerThird.use_public_bg}
+                        onclick={() => (localLowerThird.use_public_bg = !localLowerThird.use_public_bg)}
+                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localLowerThird.use_public_bg ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                      >
+                        <span
+                          class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localLowerThird.use_public_bg ? 'translate-x-5' : 'translate-x-0'}"
+                        ></span>
+                      </button>
+                    </div>
+
+                    {#if !localLowerThird.use_public_bg}
+                      <div class="flex items-center justify-between pt-2 border-t border-neutral-800">
+                        <span class="text-xs text-neutral-300">Cor Base do Gradiente / Barra:</span>
+                        <div class="flex items-center gap-2">
+                          <input
+                            type="color"
+                            bind:value={localLowerThird.bg_color}
+                            class="w-8 h-8 rounded border border-neutral-700 bg-transparent cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            bind:value={localLowerThird.bg_color}
+                            class="w-20 px-2 py-1 rounded bg-black border border-neutral-800 text-xs font-mono uppercase text-center"
+                          />
+                        </div>
+                      </div>
+                    {/if}
+
+                    <!-- Opacidade do Fundo -->
+                    <div class="space-y-1 pt-1">
+                      <div class="flex justify-between text-xs text-neutral-300">
+                        <span>Opacidade do Fundo / Gradiente:</span>
+                        <span class="font-mono text-primary font-bold">{localLowerThird.bg_opacity}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        step="5"
+                        bind:value={localLowerThird.bg_opacity}
+                        class="w-full accent-primary cursor-pointer"
+                      />
+                    </div>
+
+                    <!-- Margem Inferior -->
+                    <div class="space-y-1 pt-1">
+                      <div class="flex justify-between text-xs text-neutral-300">
+                        <span>Distância da Margem Inferior:</span>
+                        <span class="font-mono text-primary font-bold">{localLowerThird.margin_bottom}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="16"
+                        max="80"
+                        step="4"
+                        bind:value={localLowerThird.margin_bottom}
+                        class="w-full accent-primary cursor-pointer"
+                      />
+                    </div>
+
+                    <!-- Largura Máxima -->
+                    <div class="space-y-1 pt-1">
+                      <div class="flex justify-between text-xs text-neutral-300">
+                        <span>Aproveitamento Máximo de Largura:</span>
+                        <span class="font-mono text-primary font-bold">{localLowerThird.max_width_percent}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="50"
+                        max="95"
+                        step="5"
+                        bind:value={localLowerThird.max_width_percent}
+                        class="w-full accent-primary cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Tipografia e Sombra -->
+                  <div class="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-4">
+                    <h4 class="text-xs font-bold text-neutral-200">Tipografia & Contraste para Transmissão</h4>
+
+                    <!-- Tamanho da Fonte -->
+                    <div class="space-y-1">
+                      <div class="flex justify-between text-xs text-neutral-300">
+                        <span>Tamanho da Fonte:</span>
+                        <span class="font-mono text-primary font-bold">{localLowerThird.font_size}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="20"
+                        max="56"
+                        step="2"
+                        bind:value={localLowerThird.font_size}
+                        class="w-full accent-primary cursor-pointer"
+                      />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                      <!-- Alinhamento -->
+                      <div>
+                        <span class="text-xs text-neutral-300 block mb-1">Alinhamento:</span>
+                        <select
+                          bind:value={localLowerThird.text_align}
+                          class="w-full px-2.5 py-1.5 rounded-lg bg-black border border-neutral-800 text-xs text-neutral-200 font-semibold"
+                        >
+                          <option value="left">Esquerda</option>
+                          <option value="center">Centralizado</option>
+                          <option value="right">Direita</option>
+                        </select>
+                      </div>
+
+                      <!-- Peso da Fonte -->
+                      <div>
+                        <span class="text-xs text-neutral-300 block mb-1">Peso da Fonte:</span>
+                        <select
+                          bind:value={localLowerThird.font_weight}
+                          class="w-full px-2.5 py-1.5 rounded-lg bg-black border border-neutral-800 text-xs text-neutral-200 font-semibold"
+                        >
+                          <option value="normal">Normal (400)</option>
+                          <option value="semibold">Semibold (600)</option>
+                          <option value="bold">Negrito (700)</option>
+                          <option value="extrabold">Extra Negrito (800)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                      <!-- Força da Sombra -->
+                      <div>
+                        <span class="text-xs text-neutral-300 block mb-1">Força da Sombra do Texto:</span>
+                        <select
+                          bind:value={localLowerThird.shadow_strength}
+                          class="w-full px-2.5 py-1.5 rounded-lg bg-black border border-neutral-800 text-xs text-neutral-200 font-semibold"
+                        >
+                          <option value="none">Nenhuma</option>
+                          <option value="subtle">Suave</option>
+                          <option value="medium">Média</option>
+                          <option value="strong">Forte (Alto Contraste)</option>
+                        </select>
+                      </div>
+
+                      <!-- Animação -->
+                      <div>
+                        <span class="text-xs text-neutral-300 block mb-1">Animação de Transição:</span>
+                        <select
+                          bind:value={localLowerThird.animation}
+                          class="w-full px-2.5 py-1.5 rounded-lg bg-black border border-neutral-800 text-xs text-neutral-200 font-semibold"
+                        >
+                          <option value="fade">Fade Suave</option>
+                          <option value="slide">Deslize Vertical (Slide)</option>
+                          <option value="zoom">Zoom Leve</option>
+                          <option value="none">Instantânea</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- Exibir Referência -->
+                    <div class="flex items-center justify-between pt-2 border-t border-neutral-800">
+                      <div>
+                        <span class="text-xs font-semibold text-neutral-300 block">Exibir Referência Bíblica / Título</span>
+                        <span class="text-[11px] text-neutral-500">Mostra etiqueta identificadora no topo do Lower Third.</span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-label="Exibir Referência Bíblica ou Título"
+                        aria-checked={localLowerThird.show_reference}
+                        onclick={() => (localLowerThird.show_reference = !localLowerThird.show_reference)}
+                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localLowerThird.show_reference ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                      >
+                        <span
+                          class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localLowerThird.show_reference ? 'translate-x-5' : 'translate-x-0'}"
+                        ></span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Coluna de Prévia Interativa 16:9 (Direita) -->
+                <div class="lg:col-span-5 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-neutral-200">Prévia 16:9 (Simulação de Vídeo OBS):</span>
+                    <!-- Alternador de Conteúdo da Prévia -->
+                    <div class="inline-flex rounded-lg bg-neutral-900 border border-neutral-800 p-0.5">
+                      <button
+                        type="button"
+                        onclick={() => (ltPreviewMode = 'lyrics')}
+                        class="px-2 py-0.5 text-[10px] font-bold rounded {ltPreviewMode === 'lyrics' ? 'bg-primary text-primary-foreground' : 'text-neutral-400'}"
+                      >
+                        🎵 Louvor
+                      </button>
+                      <button
+                        type="button"
+                        onclick={() => (ltPreviewMode = 'scripture')}
+                        class="px-2 py-0.5 text-[10px] font-bold rounded {ltPreviewMode === 'scripture' ? 'bg-primary text-primary-foreground' : 'text-neutral-400'}"
+                      >
+                        📖 Bíblia
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Container 16:9 com Fundo de Simulação de Câmera/Vídeo -->
+                  <div class="relative w-full aspect-video rounded-xl overflow-hidden border border-neutral-800 shadow-2xl flex flex-col justify-end bg-gradient-to-tr from-slate-900 via-indigo-950 to-neutral-900">
+                    <!-- Overlay de iluminação simulando câmera de palco -->
+                    <div class="absolute inset-0 bg-radial from-transparent via-black/20 to-black/60 pointer-events-none"></div>
+
+                    <!-- Indicador simulador de Live OBS -->
+                    <div class="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-red-600/80 text-white font-mono text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 z-10">
+                      <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                      <span>LIVE OBS</span>
+                    </div>
+
+                    <!-- Lower Third na Prévia -->
+                    <div
+                      class="w-full flex flex-col items-center justify-end z-10 p-3 transition-all"
+                      style="padding-bottom: {Math.max(8, Math.round((localLowerThird.margin_bottom ?? 36) * 0.35))}px;"
+                    >
+                      <div
+                        class="w-full transition-all"
+                        style="max-width: {localLowerThird.max_width_percent ?? 85}%;"
+                      >
+                        {#if localLowerThird.enabled}
+                          <!-- Prévia Gradiente -->
+                          {#if localLowerThird.theme === 'gradient'}
+                            <div
+                              class="px-4 py-2 rounded-xl text-center flex flex-col items-center justify-center overflow-hidden"
+                              style="background: radial-gradient(ellipse at center, rgba(0,0,0,{(localLowerThird.bg_opacity ?? 75) / 100}) 0%, rgba(0,0,0,{(localLowerThird.bg_opacity ?? 75) / 100}) 60%, transparent 100%);"
+                            >
+                              {#if localLowerThird.show_reference}
+                                <span class="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider mb-1 bg-black/60 border border-white/20 text-white shadow">
+                                  {ltPreviewMode === 'scripture' ? '📖 João 3:16 (ARA)' : '🎵 Porque Ele Vive'}
+                                </span>
+                              {/if}
+                              <p
+                                class="leading-tight {localLowerThird.text_align === 'left' ? 'text-left' : localLowerThird.text_align === 'right' ? 'text-right' : 'text-center'}"
+                                style="font-size: {Math.max(9, Math.round((localLowerThird.font_size ?? 32) * 0.35))}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : localLowerThird.font_weight === 'semibold' ? '600' : '400'}; color: {localLowerThird.text_color || '#ffffff'}; text-shadow: 0 1px 3px rgba(0,0,0,0.9);"
+                              >
+                                {ltPreviewMode === 'scripture'
+                                  ? 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito'
+                                  : 'Porque Ele vive, eu posso crer no amanhã'}
+                              </p>
+                            </div>
+
+                          <!-- Prévia Barra -->
+                          {:else if localLowerThird.theme === 'bar'}
+                            <div
+                              class="w-full px-4 py-1.5 rounded-lg border-l-4 border-primary text-left bg-black/75 shadow-lg"
+                            >
+                              {#if localLowerThird.show_reference}
+                                <span class="text-[8px] font-bold uppercase text-emerald-400 block">
+                                  {ltPreviewMode === 'scripture' ? '📖 João 3:16 (ARA)' : '🎵 Porque Ele Vive'}
+                                </span>
+                              {/if}
+                              <p
+                                class="leading-tight {localLowerThird.text_align === 'left' ? 'text-left' : localLowerThird.text_align === 'right' ? 'text-right' : 'text-center'}"
+                                style="font-size: {Math.max(9, Math.round((localLowerThird.font_size ?? 32) * 0.35))}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : '600'}; color: {localLowerThird.text_color || '#ffffff'};"
+                              >
+                                {ltPreviewMode === 'scripture'
+                                  ? 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito'
+                                  : 'Porque Ele vive, eu posso crer no amanhã'}
+                              </p>
+                            </div>
+
+                          <!-- Prévia Floating -->
+                          {:else if localLowerThird.theme === 'floating'}
+                            <div class="px-4 py-1.5 rounded-2xl bg-black/70 border border-white/20 text-center mx-auto shadow-lg backdrop-blur-sm">
+                              {#if localLowerThird.show_reference}
+                                <span class="text-[8px] font-bold uppercase text-white/80 block mb-0.5">
+                                  {ltPreviewMode === 'scripture' ? '📖 João 3:16' : '🎵 Porque Ele Vive'}
+                                </span>
+                              {/if}
+                              <p
+                                class="leading-tight"
+                                style="font-size: {Math.max(9, Math.round((localLowerThird.font_size ?? 32) * 0.35))}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : '600'}; color: {localLowerThird.text_color || '#ffffff'};"
+                              >
+                                {ltPreviewMode === 'scripture'
+                                  ? 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito'
+                                  : 'Porque Ele vive, eu posso crer no amanhã'}
+                              </p>
+                            </div>
+
+                          <!-- Prévia Minimal -->
+                          {:else}
+                            <div class="text-center w-full">
+                              {#if localLowerThird.show_reference}
+                                <span class="text-[8px] font-bold uppercase text-amber-300 block mb-0.5 drop-shadow">
+                                  {ltPreviewMode === 'scripture' ? '📖 João 3:16' : '🎵 Porque Ele Vive'}
+                                </span>
+                              {/if}
+                              <p
+                                class="leading-tight drop-shadow-lg"
+                                style="font-size: {Math.max(9, Math.round((localLowerThird.font_size ?? 32) * 0.35))}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : '600'}; color: {localLowerThird.text_color || '#ffffff'}; text-shadow: 0 2px 6px rgba(0,0,0,1);"
+                              >
+                                {ltPreviewMode === 'scripture'
+                                  ? 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito'
+                                  : 'Porque Ele vive, eu posso crer no amanhã'}
+                              </p>
+                            </div>
+                          {/if}
+                        {:else}
+                          <div class="p-3 text-center text-[10px] text-neutral-400 italic">
+                            Lower Third desativado.
+                          </div>
+                        {/if}
+                      </div>
+                    </div>
+                  </div>
+
+                  <p class="text-[11px] text-neutral-400">
+                    A visualização acima simula como o texto aparecerá no OBS Studio sobreposto ao feed da câmera de transmissão.
+                  </p>
+                </div>
+              </div>
             </div>
 
           <!-- ABA: MARCA DA IGREJA (CHURCH BRAND) -->

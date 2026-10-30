@@ -7,6 +7,24 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Saída Lower Third Transparente para Transmissão / OBS Studio (`/lower-third`):**
+  - Nova tela dedicada e otimizada para software de transmissão ao vivo (OBS Studio, vMix, Wirecast) com canal alfa nativo e transparência total de fundo.
+  - Projeção de letras de louvor e passagens bíblicas ancoradas no terço inferior da tela, sem obstruir o pastor, pregador ou ministro no enquadramento da câmera.
+  - 4 temas visuais selecionáveis:
+    - **Gradiente Central:** Máscara radial elíptica que escurece suavemente sob o texto e se dissipa nas extremidades para uma estética refinada de transmissão broadcast.
+    - **Barra Inferior:** Faixa horizontal contínua de ponta a ponta com borda acentuada no estilo jornalístico/TV.
+    - **Caixa Flutuante:** Pílula arredondada com efeito *glassmorphism* e desfoque de fundo (*backdrop blur*).
+    - **Minimalista:** Apenas tipografia com contorno e sombras fortes para contraste máximo sem caixas visíveis.
+  - Opções completas de personalização na nova aba **Transmissão (OBS / vMix)** nas Configurações:
+    - Ativação/desativação independente da transmissão com um clique.
+    - Personalização da cor de fundo (RGBA), opacidade (10% a 100%), distância da margem inferior e largura máxima.
+    - Tipografia flexível: tamanho da fonte (20px a 56px), peso (Normal a Extra Negrito) e alinhamento (Esquerda, Centro, Direita).
+    - Níveis de sombra de texto para contraste sobre cenas claras ou escuras (Nenhuma, Suave, Média, Forte).
+    - Animações de transição configuráveis: Fade suave, Deslize vertical (Slide), Zoom leve ou Instantânea.
+    - Badge opcional para identificação de referência bíblica ou título/autor da música.
+    - Prévia interativa em proporção 16:9 com simulação de imagem de câmera de palco e alternador entre louvor e bíblia.
+  - Integração no modal de compartilhamento (`ShareOutputsModal.svelte`) com instruções detalhadas para Browser Source do OBS Studio.
+  - Atalho no menu do System Tray ("Abrir Lower Third (OBS / Live)") e exibição da rota no banner do console.
 - **Controle Remoto Mobile para Smartphones (`/remote`):**
   - Nova interface web dedicada e otimizada para smartphones (mobile-first e touch ergonomics), permitindo aos operadores, pregadores e líderes de louvor controlarem o culto diretamente do celular via rede local Wi-Fi.
   - Navegação inferior fixa com 3 abas principais:

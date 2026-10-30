@@ -70,6 +70,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Suporte a transparência alfa no OBS Studio e vMix para a rota Lower Third */
+body:has(.lower-third-root),
+html:has(.lower-third-root),
+#app:has(.lower-third-root) {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
 /* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;

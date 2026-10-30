@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { X, QrCode, Tv, MonitorPlay, Copy, Check, ExternalLink, Wifi, RefreshCw, Cast, Smartphone } from 'lucide-svelte';
+  import { X, QrCode, Tv, MonitorPlay, Copy, Check, ExternalLink, Wifi, RefreshCw, Cast, Smartphone, Video } from 'lucide-svelte';
   import QRCode from 'qrcode';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
@@ -13,11 +13,11 @@
     onclose,
   }: {
     open: boolean;
-    initialTab?: 'stage' | 'public' | 'remote' | 'cast';
+    initialTab?: 'stage' | 'public' | 'remote' | 'lower' | 'cast';
     onclose: () => void;
   } = $props();
 
-  let activeTab = $state<'stage' | 'public' | 'remote' | 'cast'>('stage');
+  let activeTab = $state<'stage' | 'public' | 'remote' | 'lower' | 'cast'>('stage');
   let networkInfo = $state<NetworkInfoResponse | null>(null);
   let isLoading = $state(false);
   let qrCodeDataUrl = $state<string>('');
@@ -27,6 +27,7 @@
     if (!networkInfo) return '';
     if (activeTab === 'public') return networkInfo.public_url;
     if (activeTab === 'remote') return networkInfo.remote_url;
+    if (activeTab === 'lower') return networkInfo.lower_third_url;
     return networkInfo.stage_url;
   });
 
@@ -59,6 +60,7 @@
           public_url: `${origin}/public`,
           stage_url: `${origin}/stage`,
           remote_url: `${origin}/remote`,
+          lower_third_url: `${origin}/lower-third`,
         };
       }
     } catch {
@@ -69,6 +71,7 @@
         public_url: `${origin}/public`,
         stage_url: `${origin}/stage`,
         remote_url: `${origin}/remote`,
+        lower_third_url: `${origin}/lower-third`,
       };
     } finally {
       isLoading = false;
@@ -154,40 +157,49 @@
 
       <!-- Seletor de Abas -->
       <div class="p-3.5 pb-2 border-b border-neutral-800/80 bg-neutral-900/40 shrink-0">
-        <div class="grid grid-cols-4 gap-1 p-1 bg-neutral-950 rounded-xl border border-neutral-800">
+        <div class="grid grid-cols-5 gap-1 p-1 bg-neutral-950 rounded-xl border border-neutral-800">
           <button
             type="button"
             onclick={() => (activeTab = 'stage')}
-            class="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer {activeTab === 'stage' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-neutral-400 hover:text-white'}"
+            class="flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer {activeTab === 'stage' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-neutral-400 hover:text-white'}"
           >
-            <Tv size={13} />
+            <Tv size={12} />
             <span>Palco</span>
           </button>
 
           <button
             type="button"
             onclick={() => (activeTab = 'public')}
-            class="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer {activeTab === 'public' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-neutral-400 hover:text-white'}"
+            class="flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer {activeTab === 'public' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-neutral-400 hover:text-white'}"
           >
-            <MonitorPlay size={13} />
+            <MonitorPlay size={12} />
             <span>Pública</span>
           </button>
 
           <button
             type="button"
             onclick={() => (activeTab = 'remote')}
-            class="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer {activeTab === 'remote' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-neutral-400 hover:text-white'}"
+            class="flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer {activeTab === 'remote' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-neutral-400 hover:text-white'}"
           >
-            <Smartphone size={13} />
+            <Smartphone size={12} />
             <span>Remoto</span>
           </button>
 
           <button
             type="button"
-            onclick={() => (activeTab = 'cast')}
-            class="flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer {activeTab === 'cast' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-neutral-400 hover:text-white'}"
+            onclick={() => (activeTab = 'lower')}
+            class="flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer {activeTab === 'lower' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-neutral-400 hover:text-white'}"
           >
-            <Cast size={13} />
+            <Video size={12} />
+            <span>OBS</span>
+          </button>
+
+          <button
+            type="button"
+            onclick={() => (activeTab = 'cast')}
+            class="flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer {activeTab === 'cast' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-neutral-400 hover:text-white'}"
+          >
+            <Cast size={12} />
             <span>Cast</span>
           </button>
         </div>
@@ -230,6 +242,8 @@
                   Ideal para músicos, pregadores e equipe no palco visualizarem letras e timer em tempo real.
                 {:else if activeTab === 'remote'}
                   Ideal para operadores, pregadores e líderes de louvor controlarem as apresentações pelo celular.
+                {:else if activeTab === 'lower'}
+                  Transparência alfa nativa para OBS Studio / vMix. Adicione uma fonte de Navegador (Browser Source) com resolução 1920x1080.
                 {:else}
                   Ideal para monitores auxiliares, salas de transmissão ou telões secundários.
                 {/if}

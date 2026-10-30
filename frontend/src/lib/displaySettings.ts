@@ -3,6 +3,7 @@ import type {
   PublicDisplaySettings,
   ChurchBrandSettings,
   StageDisplaySettings,
+  LowerThirdSettings,
 } from './types';
 import type { BackgroundStylesMap } from './backgrounds';
 
@@ -78,6 +79,23 @@ export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
   scripture_border_color: '#3B82F6',
 };
 
+export const DEFAULT_LOWER_THIRD_SETTINGS: LowerThirdSettings = {
+  enabled: true,
+  theme: 'gradient',
+  use_public_bg: true,
+  bg_color: '#000000',
+  bg_opacity: 75,
+  text_color: '#ffffff',
+  font_size: 32,
+  font_weight: 'bold',
+  text_align: 'center',
+  shadow_strength: 'strong',
+  margin_bottom: 36,
+  max_width_percent: 85,
+  animation: 'fade',
+  show_reference: true,
+};
+
 export const DEFAULT_BACKGROUND_STYLES: BackgroundStylesMap = {
   defaultBackgroundId: undefined,
   customPresets: [],
@@ -120,6 +138,10 @@ export const stageSettingsStore = writable<StageDisplaySettings>(
 
 export const backgroundStylesStore = writable<BackgroundStylesMap>(
   loadLocal('background_styles', DEFAULT_BACKGROUND_STYLES)
+);
+
+export const lowerThirdSettingsStore = writable<LowerThirdSettings>(
+  loadLocal('lower_third_settings', DEFAULT_LOWER_THIRD_SETTINGS)
 );
 
 // Sincronização com o Backend
@@ -168,6 +190,17 @@ export async function syncDisplaySettingsFromBackend() {
         const parsed = JSON.parse(data.value);
         backgroundStylesStore.set({ ...DEFAULT_BACKGROUND_STYLES, ...parsed });
         saveLocal('background_styles', parsed);
+      }
+    }
+
+    // 5. Lower Third Settings
+    const ltRes = await fetch('/api/settings/lower_third_display');
+    if (ltRes.ok) {
+      const data = await ltRes.json();
+      if (data.value) {
+        const parsed = JSON.parse(data.value);
+        lowerThirdSettingsStore.set({ ...DEFAULT_LOWER_THIRD_SETTINGS, ...parsed });
+        saveLocal('lower_third_settings', parsed);
       }
     }
   } catch (err) {
@@ -220,6 +253,17 @@ export async function saveBackgroundStyles(styles: BackgroundStylesMap) {
   }).catch(() => {});
 }
 
+export async function saveLowerThirdSettings(settings: LowerThirdSettings) {
+  lowerThirdSettingsStore.set(settings);
+  saveLocal('lower_third_settings', settings);
+
+  fetch('/api/settings/lower_third_display', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: JSON.stringify(settings) }),
+  }).catch(() => {});
+}
+
 // Aplica atualizações de configuração recebidas via WebSocket em tempo real
 export function handleSettingBroadcast(key: string, value: string | null) {
   if (!value) return;
@@ -237,6 +281,9 @@ export function handleSettingBroadcast(key: string, value: string | null) {
     } else if (key === 'background_styles_config') {
       backgroundStylesStore.set({ ...DEFAULT_BACKGROUND_STYLES, ...parsed });
       saveLocal('background_styles', parsed);
+    } else if (key === 'lower_third_display') {
+      lowerThirdSettingsStore.set({ ...DEFAULT_LOWER_THIRD_SETTINGS, ...parsed });
+      saveLocal('lower_third_settings', parsed);
     }
   } catch (e) {
     console.error('Falha ao aplicar configuração recebida via WebSocket:', e);
