@@ -40,6 +40,28 @@
   });
 
   const timer = $derived($presentationState.timer);
+  let timerTitleInput = $state('');
+
+  // Sincroniza com timer.label quando existir
+  $effect(() => {
+    if (timer?.label && timerTitleInput === '') {
+      timerTitleInput = timer.label;
+    }
+  });
+
+  function handleUpdateTitle(customText?: string) {
+    const textToApply = customText !== undefined ? customText : timerTitleInput;
+    const title = textToApply.trim() || undefined;
+    setTimer(timer.duration_seconds, title);
+  }
+
+  let titleDebounceTimeout: any = null;
+  function handleTitleInput() {
+    clearTimeout(titleDebounceTimeout);
+    titleDebounceTimeout = setTimeout(() => {
+      handleUpdateTitle();
+    }, 350);
+  }
 
   // Formata os segundos em MM:SS ou -MM:SS
   function formatSeconds(sec: number): { text: string; isNegative: boolean } {
@@ -66,13 +88,15 @@
   );
 
   function handleSetPreset(mins: number) {
-    setTimer(mins * 60, `${mins} min`);
+    const currentTitle = timerTitleInput.trim() || `${mins} min`;
+    setTimer(mins * 60, currentTitle);
   }
 
   function handleAddMinutes(mins: number) {
     const newRemaining = timer.remaining_seconds + mins * 60;
     const newDuration = Math.max(timer.duration_seconds, newRemaining);
-    setTimer(newDuration, timer.label);
+    const currentTitle = timerTitleInput.trim() || timer.label;
+    setTimer(newDuration, currentTitle);
     // Se o timer estiver rodando, reinicia com o novo tempo
     if (timer.running) {
       startTimer();
@@ -200,6 +224,47 @@
       >
         <Square size={12} />
       </button>
+    </div>
+  </div>
+
+  <!-- Título Configurável do Cronômetro (Exibido no Monitor de Palco / Stage) -->
+  <div class="space-y-1">
+    <div class="flex items-center justify-between text-[10px] text-neutral-400 font-medium">
+      <span>Título no Palco (Stage)</span>
+      {#if timerTitleInput}
+        <button
+          type="button"
+          onclick={() => {
+            timerTitleInput = '';
+            handleUpdateTitle('');
+          }}
+          class="text-neutral-500 hover:text-neutral-300 text-[10px] cursor-pointer"
+        >
+          Limpar
+        </button>
+      {/if}
+    </div>
+    <input
+      type="text"
+      bind:value={timerTitleInput}
+      oninput={handleTitleInput}
+      placeholder="Ex.: Pregação, Oração, Louvor, Avisos..."
+      class="w-full h-7 px-2.5 bg-neutral-950 border border-neutral-800 rounded-md text-[11px] text-white placeholder-neutral-500 focus:outline-none focus:border-primary/60 transition-colors"
+    />
+    <!-- Chips de Sugestão Rápida de Título -->
+    <div class="flex items-center gap-1 flex-wrap pt-0.5">
+      {#each ['Pregação', 'Louvor', 'Oração', 'Avisos', 'Palavra', 'Ceia'] as quickTitle}
+        <button
+          type="button"
+          onclick={() => {
+            timerTitleInput = quickTitle;
+            handleUpdateTitle(quickTitle);
+          }}
+          class="px-1.5 py-0.5 rounded text-[9px] font-medium border border-neutral-800/80 bg-neutral-950/60 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors cursor-pointer {timerTitleInput === quickTitle ? 'border-primary/60 text-primary bg-primary/10 font-bold' : ''}"
+        >
+          {quickTitle}
+        </button>
+      {/each}
     </div>
   </div>
 

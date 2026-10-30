@@ -7,6 +7,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Título Configurável para o Cronômetro no Stage Display:**
+  - Adicionado campo de título editável e chips rápidos de sugestão ("Pregação", "Louvor", "Oração", "Avisos", "Palavra", "Ceia") no painel do cronômetro do operador.
+  - O título definido é exibido em destaque no cabeçalho do bloco do cronômetro no monitor de palco (`/stage`), no modo standby e no preview do operador.
+  - Presets de minutos e botões de incremento preservam o título customizado definido pelo operador.
 - **Importação de Fundos de Imagens e Vídeos na Aba de Mídias > Fundos:**
   - Adicionado botão "Importar Fundo" na barra de ferramentas da aba de Fundos com suporte a imagens e clipes de vídeo (.mp4, .webm, .mov).
   - O backend passa a reconhecer e listar arquivos de vídeo na pasta de papéis de parede locais com streaming e detecção de MIME apropriada.

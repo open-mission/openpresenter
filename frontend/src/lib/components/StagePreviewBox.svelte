@@ -144,7 +144,7 @@
           class="rounded-none bg-zinc-900/80 p-0.5 flex flex-col justify-center overflow-hidden"
           style="flex: 30; min-height: 0;"
         >
-          <span class="text-[6px] text-zinc-500 uppercase block font-sans">Timer</span>
+          <span class="text-[6px] text-zinc-500 uppercase block font-sans truncate">{timer?.label || 'Timer'}</span>
           <span
             class="text-[9px] font-black block tracking-tight my-auto"
             style="color: {timer.remaining_seconds <= 0 && timer.running ? '#ef4444' : stageSettings.timer_color || '#ef4444'};"
