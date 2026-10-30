@@ -1046,7 +1046,7 @@
                       Permitir Quebra de Linhas Longas (Word Wrap)
                     </div>
                     <p class="text-[11px] text-neutral-400 mt-0.5">
-                      Se desativado, o texto não quebra automaticamente e preserva cada verso da estrofe em sua linha original.
+                      Se desativado, o texto preserva os versos originais em linha única e o auto-scale reduz a fonte para caber sem reticências (...).
                     </p>
                   </div>
                   <button
@@ -1059,6 +1059,62 @@
                   >
                     <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.word_wrap ? 'left-6' : 'left-1'}"></span>
                   </button>
+                </div>
+
+                <!-- Auto-Scale e Tamanhos de Fonte da Projeção Pública -->
+                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                  <div>
+                    <div class="text-xs font-semibold text-white flex items-center gap-2">
+                      <Type size={14} class="text-primary" />
+                      Auto-scale de Fonte na Projeção Pública
+                    </div>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">
+                      O tamanho da fonte se adapta automaticamente ao volume do texto. Configure o tamanho máximo (alvo de impacto para frases curtas, padrão 8rem) e o tamanho mínimo permitido.
+                    </p>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-neutral-400">Tamanho Máximo (Alvo)</span>
+                        <span class="font-mono text-primary font-bold">{localPublic.max_font_size ?? 128}px ({Math.round((localPublic.max_font_size ?? 128) / 16)}rem)</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="64"
+                        max="192"
+                        step="8"
+                        value={localPublic.max_font_size ?? 128}
+                        oninput={(e) => updatePublicField('max_font_size', Number((e.target as HTMLInputElement).value))}
+                        class="w-full accent-primary"
+                      />
+                      <div class="flex justify-between text-[9px] text-neutral-500 font-mono">
+                        <span>4rem (64px)</span>
+                        <span>8rem (128px)</span>
+                        <span>12rem (192px)</span>
+                      </div>
+                    </div>
+
+                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-neutral-400">Tamanho Mínimo</span>
+                        <span class="font-mono text-white font-bold">{localPublic.min_font_size ?? 24}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="16"
+                        max="64"
+                        step="4"
+                        value={localPublic.min_font_size ?? 24}
+                        oninput={(e) => updatePublicField('min_font_size', Number((e.target as HTMLInputElement).value))}
+                        class="w-full accent-primary"
+                      />
+                      <div class="flex justify-between text-[9px] text-neutral-500 font-mono">
+                        <span>16px (Textos longos)</span>
+                        <span>24px (Padrão)</span>
+                        <span>64px (Grande)</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Exibir Metadados -->

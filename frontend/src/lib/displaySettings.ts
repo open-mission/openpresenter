@@ -17,6 +17,8 @@ export const DEFAULT_PUBLIC_SETTINGS: PublicDisplaySettings = {
   ignore_margins_for_media: true,
   darken_background: false,
   text_box_background: false,
+  min_font_size: 24,
+  max_font_size: 128,
 };
 
 export const DEFAULT_CHURCH_BRAND: ChurchBrandSettings = {

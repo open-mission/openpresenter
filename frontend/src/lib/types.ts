@@ -223,6 +223,8 @@ export interface PublicDisplaySettings {
   ignore_margins_for_media?: boolean;
   darken_background?: boolean;
   text_box_background?: boolean;
+  min_font_size?: number;
+  max_font_size?: number;
 }
 
 export interface NetworkInfoResponse {

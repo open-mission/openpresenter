@@ -7,6 +7,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Auto-scale Dinâmico e Controle de Tamanho de Fonte na Tela Pública (/public):**
+  - Implementado auto-scale responsivo para textos de músicas e versículos na projeção pública, ajustando dinamicamente o tamanho da fonte para preencher a tela de forma harmoniosa.
+  - Quando a quebra de linha estiver desativada (`word_wrap: false`), eliminadas as reticências (`...`); o auto-scale reduz suavemente o tamanho da fonte para que todas as linhas caibam inteiramente na largura da tela.
+  - Adicionadas configurações de **Tamanho Máximo da Fonte** (alvo de impacto para frases curtas, padrão 128px / 8rem) e **Tamanho Mínimo da Fonte** (padrão 24px) na aba de Projeção Pública.
 - **Preset Grid Moderno Pro Padronizado, Auto-scale e Maximização de Espaço no Monitor de Palco (/stage):**
   - O monitor de palco e seu preview foram simplificados e unificados no preset **Grid Moderno Pro**, garantindo a melhor experiência visual para palco.
   - Implementado sistema de auto-scale dinâmico com medição e ajuste em tempo real (ResizeObserver e busca binária de font-size), fazendo com que o texto dos slides preencha todo o espaço do quadro sem transbordar.

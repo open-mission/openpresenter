@@ -119,6 +119,7 @@
 - [Spec — Ícone Escuro no System Tray e Controle de Reabertura do Navegador](specs/2026-10-29-tray-icon-dark-and-prevent-auto-reopen.md)
 - [Spec — Interface Minimalista e Limpa no Modo Standby do Stage](specs/2026-10-29-stage-standby-minimal-clean-ui.md)
 - [Spec — Modernização do Stage Display: Preset Grid Moderno Pro, Auto-scale e Otimização de Espaço](specs/2026-10-30-stage-modern-grid-pro-auto-scale-e-layout.md)
+- [Spec — Auto-scale de Fontes e Controle de Tamanho na Tela Pública (/public)](specs/2026-10-30-public-view-auto-scale-font-size.md)
 
 ## Arquitetura e decisões
 

@@ -4,6 +4,7 @@
   import type { MediaItem, Slide } from '$lib/types';
   import { renderFormattedText } from '$lib/markdown';
   import { resolveBackground } from '$lib/backgrounds';
+  import { autoScale } from '$lib/autoScale';
   import {
     publicSettingsStore,
     churchBrandStore,
@@ -199,15 +200,19 @@
             />
           </div>
         {:else}
-          <!-- Slide de Texto / Música / Bíblia Ao Vivo com Formatação, Margens e Preenchimento -->
+          <!-- Slide de Texto / Música / Bíblia Ao Vivo com Formatação, Margens e Auto-scale -->
           <div
-            class="w-full flex-1 min-h-0 min-w-0 flex flex-col animate-in fade-in duration-150 {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'} {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
+            class="w-full flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden animate-in fade-in duration-150 {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'} {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
           >
             <div
-              class="{alignV === 'top' ? 'mt-0 mb-auto' : alignV === 'bottom' ? 'mt-auto mb-0' : 'my-auto'} {publicSettings.fill_space ? 'w-full' : 'max-w-5xl w-full'} {publicSettings.text_box_background ? 'bg-black/65 backdrop-blur-md rounded-3xl p-6 sm:p-10 md:p-14 border border-white/10 shadow-2xl transition-all' : ''}"
+              class="flex flex-col justify-center min-h-0 overflow-hidden {alignV === 'top' ? 'mt-0 mb-auto' : alignV === 'bottom' ? 'mt-auto mb-0' : 'my-auto'} {publicSettings.fill_space ? 'w-full flex-1' : 'max-w-5xl w-full flex-1'} {publicSettings.text_box_background ? 'bg-black/65 backdrop-blur-md rounded-3xl p-6 sm:p-10 md:p-14 border border-white/10 shadow-2xl transition-all' : ''}"
             >
               <div
-                class="font-bold tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight {publicSettings.fill_space ? 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl' : 'text-3xl sm:text-4xl md:text-5xl lg:text-6xl'} {publicSettings.word_wrap ? 'break-words' : 'whitespace-nowrap overflow-hidden text-ellipsis'}"
+                use:autoScale={{
+                  minSize: publicSettings.min_font_size ?? 24,
+                  maxSize: publicSettings.max_font_size ?? 128,
+                }}
+                class="w-full font-bold tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight select-none {alignH === 'left' ? 'text-left' : alignH === 'right' ? 'text-right' : alignH === 'justify' ? 'text-justify' : 'text-center'} {publicSettings.word_wrap ? 'break-words' : 'whitespace-nowrap'}"
               >
                 {@html renderFormattedText(activeSlide.content)}
               </div>
