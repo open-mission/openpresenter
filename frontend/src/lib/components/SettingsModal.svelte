@@ -73,13 +73,22 @@
     publicSettingsStore,
     churchBrandStore,
     stageSettingsStore,
+    backgroundStylesStore,
     savePublicDisplaySettings,
     saveChurchBrandSettings,
     saveStageDisplaySettings,
+    saveBackgroundStyles,
     DEFAULT_PUBLIC_SETTINGS,
     DEFAULT_CHURCH_BRAND,
     DEFAULT_STAGE_SETTINGS,
+    DEFAULT_BACKGROUND_STYLES,
   } from '../displaySettings';
+  import {
+    getAllBackgrounds,
+    BACKGROUND_PRESETS,
+    type BackgroundPreset,
+    type BackgroundStylesMap,
+  } from '../backgrounds';
   import { biblesStore, refreshBibles } from '../bibles';
   import Badge from './ui/Badge.svelte';
   import Button from './ui/Button.svelte';
@@ -97,6 +106,7 @@
   export type SettingsTab =
     | 'appearance'
     | 'public'
+    | 'lyrics_bg'
     | 'stage'
     | 'church'
     | 'bibles'
@@ -123,6 +133,147 @@
   let localBrand = $state<ChurchBrandSettings>({ ...DEFAULT_CHURCH_BRAND });
   let localStage = $state<StageDisplaySettings>({ ...DEFAULT_STAGE_SETTINGS });
   let uploadStatus = $state<{ [key: string]: string }>({});
+
+  // Configurações de Fundos de Letras e CSS
+  let localBgStyles = $state<BackgroundStylesMap>({
+    defaultBackgroundId: undefined,
+    customPresets: [],
+    overrides: {},
+  });
+  let selectedPresetId = $state<string>('grad-obsidian');
+  let bgCategoryFilter = $state<'all' | 'gradients' | 'mesh' | 'animated' | 'custom'>('all');
+  let bgSearchTerm = $state('');
+
+  const QUICK_TEXT_COLORS = [
+    { label: 'Branco Puro', hex: '#FFFFFF' },
+    { label: 'Off-White', hex: '#F8FAFC' },
+    { label: 'Ouro / Dourado', hex: '#FACC15' },
+    { label: 'Âmbar Quente', hex: '#F59E0B' },
+    { label: 'Amarelo Suave', hex: '#FEF08A' },
+    { label: 'Ciano Gelo', hex: '#67E8F9' },
+    { label: 'Menta Verde', hex: '#86EFAC' },
+    { label: 'Rosa Claro', hex: '#F472B6' },
+  ];
+
+  const QUICK_GRADIENTS = [
+    { name: 'Índigo Noturno', css: 'linear-gradient(135deg, #090d16 0%, #1e1b4b 60%, #020617 100%)' },
+    { name: 'Púrpura Profundo', css: 'linear-gradient(135deg, #18052e 0%, #3b0764 50%, #090114 100%)' },
+    { name: 'Vinho Nobre', css: 'linear-gradient(135deg, #1a050d 0%, #4c0519 50%, #0a0105 100%)' },
+    { name: 'Floresta Escura', css: 'linear-gradient(135deg, #022c22 0%, #064e3b 50%, #021a14 100%)' },
+    { name: 'Azul Meia-Noite', css: 'linear-gradient(135deg, #030712 0%, #0c4a6e 50%, #020617 100%)' },
+    { name: 'Radial Sombrio', css: 'radial-gradient(ellipse at center, #2e1a05 0%, #0d0a06 60%, #000000 100%)' },
+    { name: 'Mesh Aurora', css: 'radial-gradient(at 0% 0%, #312e81 0px, transparent 50%), radial-gradient(at 100% 0%, #701a75 0px, transparent 50%), radial-gradient(at 100% 100%, #1e1b4b 0px, transparent 50%), #020617' },
+  ];
+
+  const allAvailableBackgrounds = $derived(getAllBackgrounds(localBgStyles));
+
+  const filteredBgList = $derived.by(() => {
+    return allAvailableBackgrounds.filter((p) => {
+      const matchesCat = bgCategoryFilter === 'all' || p.category === bgCategoryFilter;
+      const matchesSearch =
+        bgSearchTerm === '' ||
+        p.name.toLowerCase().includes(bgSearchTerm.toLowerCase()) ||
+        p.id.toLowerCase().includes(bgSearchTerm.toLowerCase());
+      return matchesCat && matchesSearch;
+    });
+  });
+
+  const currentSelectedPreset = $derived.by<BackgroundPreset>(() => {
+    return (
+      allAvailableBackgrounds.find((p) => p.id === selectedPresetId) ||
+      allAvailableBackgrounds[0] || {
+        id: 'grad-obsidian',
+        name: 'Obsidiana Escuro',
+        category: 'gradients',
+        style: 'linear-gradient(135deg, #09090b 0%, #18181b 50%, #09090b 100%)',
+        textColor: '#ffffff',
+      }
+    );
+  });
+
+  function updateCurrentTextColor(color: string) {
+    if (!currentSelectedPreset) return;
+    if (currentSelectedPreset.isCustom) {
+      const idx = localBgStyles.customPresets.findIndex((p) => p.id === currentSelectedPreset.id);
+      if (idx !== -1) {
+        localBgStyles.customPresets[idx] = { ...localBgStyles.customPresets[idx], textColor: color };
+      }
+    } else {
+      const current = localBgStyles.overrides[currentSelectedPreset.id] || {};
+      localBgStyles.overrides[currentSelectedPreset.id] = { ...current, textColor: color };
+    }
+  }
+
+  function updateCurrentStyle(styleCss: string) {
+    if (!currentSelectedPreset) return;
+    if (currentSelectedPreset.isCustom) {
+      const idx = localBgStyles.customPresets.findIndex((p) => p.id === currentSelectedPreset.id);
+      if (idx !== -1) {
+        localBgStyles.customPresets[idx] = { ...localBgStyles.customPresets[idx], style: styleCss };
+      }
+    } else {
+      const current = localBgStyles.overrides[currentSelectedPreset.id] || {};
+      localBgStyles.overrides[currentSelectedPreset.id] = { ...current, style: styleCss };
+    }
+  }
+
+  function updateCurrentAnimation(animClass: string) {
+    if (!currentSelectedPreset) return;
+    const finalAnim = animClass === 'none' ? undefined : animClass;
+    if (currentSelectedPreset.isCustom) {
+      const idx = localBgStyles.customPresets.findIndex((p) => p.id === currentSelectedPreset.id);
+      if (idx !== -1) {
+        localBgStyles.customPresets[idx] = { ...localBgStyles.customPresets[idx], animationClass: finalAnim };
+      }
+    } else {
+      const current = localBgStyles.overrides[currentSelectedPreset.id] || {};
+      localBgStyles.overrides[currentSelectedPreset.id] = { ...current, animationClass: finalAnim };
+    }
+  }
+
+  function updateCurrentName(name: string) {
+    if (!currentSelectedPreset || !currentSelectedPreset.isCustom) return;
+    const idx = localBgStyles.customPresets.findIndex((p) => p.id === currentSelectedPreset.id);
+    if (idx !== -1) {
+      localBgStyles.customPresets[idx] = { ...localBgStyles.customPresets[idx], name };
+    }
+  }
+
+  function createNewCustomPreset() {
+    const newId = `custom-${Date.now()}`;
+    const newPreset: BackgroundPreset = {
+      id: newId,
+      name: 'Novo Fundo Customizado',
+      category: 'custom',
+      style: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)',
+      textColor: '#ffffff',
+      animationClass: undefined,
+      isCustom: true,
+    };
+    localBgStyles.customPresets = [...localBgStyles.customPresets, newPreset];
+    selectedPresetId = newId;
+    bgCategoryFilter = 'custom';
+  }
+
+  function deleteCustomPreset(id: string) {
+    localBgStyles.customPresets = localBgStyles.customPresets.filter((p) => p.id !== id);
+    if (localBgStyles.defaultBackgroundId === id) {
+      localBgStyles.defaultBackgroundId = undefined;
+    }
+    selectedPresetId = 'grad-obsidian';
+  }
+
+  function restorePresetDefault(id: string) {
+    if (localBgStyles.overrides[id]) {
+      const copy = { ...localBgStyles.overrides };
+      delete copy[id];
+      localBgStyles.overrides = copy;
+    }
+  }
+
+  function setDefaultBackground(id: string) {
+    localBgStyles.defaultBackgroundId = localBgStyles.defaultBackgroundId === id ? undefined : id;
+  }
 
   // Feedback de salvamento
   let wasModalOpen = false;
@@ -225,6 +376,7 @@
       localPublic = JSON.parse(JSON.stringify(get(publicSettingsStore)));
       localBrand = JSON.parse(JSON.stringify(get(churchBrandStore)));
       localStage = JSON.parse(JSON.stringify(get(stageSettingsStore)));
+      localBgStyles = JSON.parse(JSON.stringify(get(backgroundStylesStore)));
       loadSystemPaths();
       loadMediaFolders();
       loadBibles();
@@ -249,6 +401,7 @@
       await savePublicDisplaySettings(localPublic);
       await saveChurchBrandSettings(localBrand);
       await saveStageDisplaySettings(localStage);
+      await saveBackgroundStyles(localBgStyles);
       saveSections(editableSections);
       saveStatusMessage = 'Configurações salvas com sucesso!';
       setTimeout(() => {
@@ -714,6 +867,15 @@
           >
             <Monitor size={15} class={activeTab === 'public' ? 'text-primary' : 'text-neutral-500'} />
             <span>Tela Pública (Public)</span>
+          </button>
+
+          <button
+            type="button"
+            onclick={() => (activeTab = 'lyrics_bg')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'lyrics_bg' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+          >
+            <Sparkles size={15} class={activeTab === 'lyrics_bg' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Fundos de Letras & CSS</span>
           </button>
 
           <button
@@ -1323,6 +1485,307 @@
                       <span class="text-[9px] text-primary/80 font-medium">Área de Letra e Mídia</span>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+          <!-- ABA: FUNDOS DE LETRAS & CSS -->
+          {:else if activeTab === 'lyrics_bg'}
+            <div class="space-y-6">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-semibold text-white">Estilos, Cores de Texto e Fundos de Letras</h3>
+                  <p class="text-xs text-neutral-400 mt-0.5">
+                    Personalize o CSS dos planos de fundo, defina cores de texto para máxima legibilidade e crie novos fundos exclusivos.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={createNewCustomPreset}
+                  class="gap-1.5 shrink-0 text-xs border-primary/40 text-primary hover:bg-primary/10"
+                >
+                  <Plus size={14} />
+                  <span>Novo Fundo Customizado</span>
+                </Button>
+              </div>
+
+              <!-- Simulação 16:9 em Tempo Real -->
+              <div class="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4 sm:p-5 flex flex-col items-center">
+                <div class="w-full flex items-center justify-between mb-2 px-1">
+                  <span class="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
+                    <Sparkles size={13} class="text-primary" />
+                    <span>Prévia em Tempo Real (16:9)</span>
+                  </span>
+                  <div class="flex items-center gap-2">
+                    {#if localBgStyles.defaultBackgroundId === currentSelectedPreset.id}
+                      <span class="text-[10px] bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded-full font-semibold">
+                        Fundo Padrão
+                      </span>
+                    {/if}
+                    <span class="text-[11px] font-mono text-neutral-500">{currentSelectedPreset.name}</span>
+                  </div>
+                </div>
+
+                <div class="w-full max-w-xl aspect-video rounded-xl border border-neutral-800 relative overflow-hidden shadow-2xl flex flex-col justify-between p-6 sm:p-8 select-none">
+                  <!-- Background animado ou estático -->
+                  <div
+                    class="absolute inset-0 w-full h-full {currentSelectedPreset.animationClass === 'none' ? '' : (currentSelectedPreset.animationClass || '')}"
+                    style="background: {currentSelectedPreset.style};"
+                  ></div>
+
+                  <!-- Letra centralizada -->
+                  <div class="relative z-10 my-auto text-center flex flex-col items-center justify-center">
+                    <p
+                      class="text-base sm:text-xl font-bold leading-relaxed tracking-tight drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]"
+                      style="color: {currentSelectedPreset.textColor || '#ffffff'};"
+                    >
+                      Porque Deus amou o mundo de tal maneira<br />
+                      que deu o seu Filho unigênito.
+                    </p>
+                  </div>
+
+                  <!-- Rodapé com referência bíblica -->
+                  <div class="relative z-10 flex items-center justify-between border-t border-white/10 pt-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                    <span
+                      class="text-xs sm:text-sm font-bold tracking-tight"
+                      style="color: {currentSelectedPreset.textColor || '#ffffff'};"
+                    >
+                      João 3:16
+                    </span>
+                    <span class="text-[9px] px-2 py-0.5 rounded bg-white/15 border border-white/20 uppercase font-mono font-bold text-neutral-100 shadow">
+                      ARA
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Editor do Fundo Selecionado -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Coluna 1: Cor do Texto & Ações de Preset -->
+                <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
+                  <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-semibold text-neutral-200 uppercase tracking-wider flex items-center gap-1.5">
+                      <Type size={14} class="text-primary" />
+                      <span>Cor do Texto de Projeção</span>
+                    </h4>
+                    {#if localBgStyles.overrides[currentSelectedPreset.id] && !currentSelectedPreset.isCustom}
+                      <button
+                        type="button"
+                        onclick={() => restorePresetDefault(currentSelectedPreset.id)}
+                        class="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer"
+                        title="Restaurar valores padrão deste preset"
+                      >
+                        <RotateCcw size={12} />
+                        <span>Restaurar Padrão</span>
+                      </button>
+                    {/if}
+                  </div>
+
+                  <div>
+                    <span class="text-[11px] text-neutral-400 mb-1.5 block">Seletor de Cor Hexadecimal</span>
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={currentSelectedPreset.textColor || '#ffffff'}
+                        oninput={(e) => updateCurrentTextColor((e.target as HTMLInputElement).value)}
+                        class="w-9 h-9 rounded-lg border border-neutral-700 bg-neutral-900 p-0.5 cursor-pointer shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={currentSelectedPreset.textColor || '#ffffff'}
+                        oninput={(e) => updateCurrentTextColor((e.target as HTMLInputElement).value)}
+                        placeholder="#ffffff"
+                        class="flex-1 h-9 px-3 rounded-lg border border-neutral-800 bg-neutral-900 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary uppercase"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <span class="text-[11px] text-neutral-400 mb-1.5 block">Atalhos de Contraste Recomendados</span>
+                    <div class="grid grid-cols-4 gap-1.5">
+                      {#each QUICK_TEXT_COLORS as color}
+                        <button
+                          type="button"
+                          onclick={() => updateCurrentTextColor(color.hex)}
+                          class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[11px] font-medium transition-all cursor-pointer {(currentSelectedPreset.textColor || '#ffffff').toLowerCase() === color.hex.toLowerCase() ? 'border-primary bg-primary/10 text-white' : 'border-neutral-800 bg-neutral-900/60 text-neutral-300 hover:border-neutral-700'}"
+                        >
+                          <span class="w-3 h-3 rounded-full border border-black/40 shrink-0" style="background-color: {color.hex};"></span>
+                          <span class="truncate">{color.label}</span>
+                        </button>
+                      {/each}
+                    </div>
+                  </div>
+
+                  <!-- Botões de Ação do Preset -->
+                  <div class="pt-2 border-t border-neutral-800/80 flex flex-wrap items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onclick={() => setDefaultBackground(currentSelectedPreset.id)}
+                      class="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-colors cursor-pointer {localBgStyles.defaultBackgroundId === currentSelectedPreset.id ? 'bg-primary text-primary-foreground border-primary' : 'border-neutral-700 bg-neutral-800 text-neutral-300 hover:text-white'}"
+                    >
+                      <Check size={13} />
+                      <span>{localBgStyles.defaultBackgroundId === currentSelectedPreset.id ? 'Fundo Padrão Ativo' : 'Definir como Padrão de Letras'}</span>
+                    </button>
+
+                    {#if currentSelectedPreset.isCustom}
+                      <button
+                        type="button"
+                        onclick={() => deleteCustomPreset(currentSelectedPreset.id)}
+                        class="px-2.5 py-1.5 rounded-lg text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <Trash2 size={13} />
+                        <span>Excluir</span>
+                      </button>
+                    {/if}
+                  </div>
+                </div>
+
+                <!-- Coluna 2: Nome, CSS do Fundo & Animação -->
+                <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
+                  <h4 class="text-xs font-semibold text-neutral-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sliders size={14} class="text-primary" />
+                    <span>Propriedades do Fundo CSS</span>
+                  </h4>
+
+                  {#if currentSelectedPreset.isCustom}
+                    <div>
+                      <label for="bg-custom-name" class="text-[11px] text-neutral-400 mb-1.5 block">Nome do Fundo</label>
+                      <input
+                        id="bg-custom-name"
+                        type="text"
+                        value={currentSelectedPreset.name}
+                        oninput={(e) => updateCurrentName((e.target as HTMLInputElement).value)}
+                        placeholder="Nome do preset..."
+                        class="w-full h-8 px-3 rounded-lg border border-neutral-800 bg-neutral-900 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                  {/if}
+
+                  <div>
+                    <label for="bg-anim-select" class="text-[11px] text-neutral-400 mb-1.5 block">Efeito de Animação CSS</label>
+                    <select
+                      id="bg-anim-select"
+                      value={currentSelectedPreset.animationClass || 'none'}
+                      onchange={(e) => updateCurrentAnimation((e.target as HTMLSelectElement).value)}
+                      class="w-full h-8 px-2.5 rounded-lg border border-neutral-800 bg-neutral-900 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="none">Nenhuma animação (Estático)</option>
+                      <option value="animate-bg-pulse">Pulsar Brilho Sutil (animate-bg-pulse)</option>
+                      <option value="animate-bg-flow">Fluxo Gradiente Dinâmico (animate-bg-flow)</option>
+                      <option value="animate-bg-aurora">Aurora Boreal Cósmica (animate-bg-aurora)</option>
+                      <option value="animate-bg-nebula">Nebulosa Cósmica (animate-bg-nebula)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                      <label for="bg-css-style" class="text-[11px] text-neutral-400">CSS da Propriedade `background`</label>
+                      <span class="text-[10px] text-neutral-500 font-mono">linear-gradient / radial-gradient / solid</span>
+                    </div>
+                    <textarea
+                      id="bg-css-style"
+                      value={currentSelectedPreset.style}
+                      oninput={(e) => updateCurrentStyle((e.target as HTMLTextAreaElement).value)}
+                      rows="3"
+                      class="w-full p-2.5 rounded-lg border border-neutral-800 bg-neutral-900 font-mono text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                    ></textarea>
+                  </div>
+
+                  <!-- Templates rápidos de gradiente -->
+                  <div>
+                    <span class="text-[10px] text-neutral-400 mb-1 block">Modelos de Gradiente Rápidos</span>
+                    <div class="flex flex-wrap gap-1">
+                      {#each QUICK_GRADIENTS as tpl}
+                        <button
+                          type="button"
+                          onclick={() => updateCurrentStyle(tpl.css)}
+                          class="text-[10px] px-2 py-0.5 rounded border border-neutral-800 bg-neutral-900/80 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors cursor-pointer"
+                        >
+                          {tpl.name}
+                        </button>
+                      {/each}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Seletor de Fundos Disponíveis (Grade de Navegação) -->
+              <div class="rounded-xl border border-neutral-800 bg-neutral-900/20 p-4 space-y-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <h4 class="text-xs font-semibold text-neutral-300">Escolha um Fundo para Personalizar</h4>
+                  
+                  <div class="flex items-center gap-2">
+                    <input
+                      type="text"
+                      bind:value={bgSearchTerm}
+                      placeholder="Pesquisar fundo..."
+                      class="h-7 px-2.5 rounded-md border border-neutral-800 bg-neutral-900 text-xs text-foreground placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary w-36 sm:w-48"
+                    />
+                    <div class="flex items-center rounded-lg border border-neutral-800 bg-neutral-900 p-0.5 text-xs">
+                      {#each [
+                        { id: 'all', label: 'Todos' },
+                        { id: 'gradients', label: 'Gradientes' },
+                        { id: 'mesh', label: 'Mesh' },
+                        { id: 'animated', label: 'Animados' },
+                        { id: 'custom', label: 'Custom' }
+                      ] as cat}
+                        <button
+                          type="button"
+                          onclick={() => (bgCategoryFilter = cat.id as any)}
+                          class="px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer {bgCategoryFilter === cat.id ? 'bg-primary text-primary-foreground font-semibold' : 'text-neutral-400 hover:text-neutral-200'}"
+                        >
+                          {cat.label}
+                        </button>
+                      {/each}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Grade de Cartões com Prévia -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 max-h-56 overflow-y-auto pr-1">
+                  {#each filteredBgList as preset (preset.id)}
+                    {@const isSelected = preset.id === currentSelectedPreset.id}
+                    {@const isOverridden = !!localBgStyles.overrides[preset.id]}
+                    {@const isDefault = localBgStyles.defaultBackgroundId === preset.id}
+                    <button
+                      type="button"
+                      onclick={() => (selectedPresetId = preset.id)}
+                      class="group relative rounded-lg border overflow-hidden flex flex-col text-left transition-all cursor-pointer bg-neutral-900/80 {isSelected ? 'border-primary ring-2 ring-primary/80 shadow-lg' : 'border-neutral-800 hover:border-neutral-700'}"
+                    >
+                      <div class="aspect-video w-full relative overflow-hidden flex items-center justify-center">
+                        <div
+                          class="absolute inset-0 w-full h-full {preset.animationClass === 'none' ? '' : (preset.animationClass || '')}"
+                          style="background: {preset.style};"
+                        ></div>
+                        <span
+                          class="relative z-10 text-[10px] font-bold drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"
+                          style="color: {preset.textColor || '#ffffff'};"
+                        >
+                          Aa
+                        </span>
+
+                        {#if isDefault}
+                          <span class="absolute top-1 left-1 bg-primary text-primary-foreground text-[8px] font-bold px-1 rounded shadow">
+                            Padrão
+                          </span>
+                        {/if}
+                        {#if isOverridden}
+                          <span class="absolute top-1 right-1 bg-amber-500/90 text-black text-[8px] font-bold px-1 rounded shadow">
+                            Modificado
+                          </span>
+                        {:else if preset.isCustom}
+                          <span class="absolute top-1 right-1 bg-emerald-500/90 text-black text-[8px] font-bold px-1 rounded shadow">
+                            Custom
+                          </span>
+                        {/if}
+                      </div>
+
+                      <div class="p-1.5 flex items-center justify-between">
+                        <span class="text-[11px] font-medium text-neutral-200 truncate">{preset.name}</span>
+                      </div>
+                    </button>
+                  {/each}
                 </div>
               </div>
             </div>

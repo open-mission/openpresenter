@@ -32,12 +32,17 @@
   import { renderFormattedText } from '../markdown';
   import {
     BACKGROUND_PRESETS,
+    getAllBackgrounds,
     encodeBackground,
     resolveBackground,
     type BackgroundPreset,
   } from '../backgrounds';
   import { presentationState, setPresentationWallpaper } from '../ws';
-  import { publicSettingsStore, savePublicDisplaySettings } from '../displaySettings';
+  import {
+    publicSettingsStore,
+    savePublicDisplaySettings,
+    backgroundStylesStore,
+  } from '../displaySettings';
   import { refreshBibles } from '../bibles';
   import type {
     SongSummary,
@@ -128,7 +133,9 @@
   }
 
   // --- ABA DE FUNDOS & GRADIENTES ---
-  let selectedBgCategory = $state<'all' | 'gradients' | 'mesh' | 'animated' | 'local'>('all');
+  let selectedBgCategory = $state<
+    'all' | 'gradients' | 'mesh' | 'animated' | 'local' | 'custom'
+  >('all');
   let bgSearchQuery = $state('');
   let localWallpapers = $state<WallpaperItem[]>([]);
   let isLoadingWallpapers = $state(false);
@@ -262,9 +269,11 @@
     return f ? f.name : 'Pasta Selecionada';
   });
 
+  const availableBackgrounds = $derived(getAllBackgrounds($backgroundStylesStore));
+
   // Filtragem de fundos
   const filteredBackgrounds = $derived.by(() => {
-    return BACKGROUND_PRESETS.filter((p) => {
+    return availableBackgrounds.filter((p) => {
       const matchesCat = selectedBgCategory === 'all' || p.category === selectedBgCategory;
       const matchesSearch =
         bgSearchQuery === '' ||
@@ -1052,7 +1061,7 @@
                 <span>Todos</span>
               </div>
               <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
-                {BACKGROUND_PRESETS.length + localWallpapers.length}
+                {availableBackgrounds.length + localWallpapers.length}
               </Badge>
             </button>
 
@@ -1066,7 +1075,7 @@
                 <span>Animados (CSS)</span>
               </div>
               <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
-                {BACKGROUND_PRESETS.filter((p) => p.category === 'animated').length}
+                {availableBackgrounds.filter((p) => p.category === 'animated').length}
               </Badge>
             </button>
 
@@ -1080,7 +1089,7 @@
                 <span>Mesh Gradients</span>
               </div>
               <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
-                {BACKGROUND_PRESETS.filter((p) => p.category === 'mesh').length}
+                {availableBackgrounds.filter((p) => p.category === 'mesh').length}
               </Badge>
             </button>
 
@@ -1094,9 +1103,25 @@
                 <span>Gradientes Lineares</span>
               </div>
               <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
-                {BACKGROUND_PRESETS.filter((p) => p.category === 'gradients').length}
+                {availableBackgrounds.filter((p) => p.category === 'gradients').length}
               </Badge>
             </button>
+
+            {#if availableBackgrounds.some((p) => p.category === 'custom')}
+              <button
+                type="button"
+                onclick={() => (selectedBgCategory = 'custom' as any)}
+                class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedBgCategory === 'custom' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+              >
+                <div class="flex items-center gap-2">
+                  <Sparkles size={13} class="text-emerald-400" />
+                  <span>Customizados</span>
+                </div>
+                <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+                  {availableBackgrounds.filter((p) => p.category === 'custom').length}
+                </Badge>
+              </button>
+            {/if}
 
             <button
               type="button"
@@ -1132,7 +1157,9 @@
                         ? 'Mesh Gradients'
                         : selectedBgCategory === 'animated'
                           ? 'Gradientes Animados'
-                          : 'Papéis Locais'}
+                          : selectedBgCategory === 'custom'
+                            ? 'Fundos Customizados'
+                            : 'Papéis Locais'}
                 </span>
               </nav>
 

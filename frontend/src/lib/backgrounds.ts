@@ -1,10 +1,12 @@
 export interface BackgroundPreset {
   id: string;
   name: string;
-  category: 'gradients' | 'mesh' | 'animated' | 'local';
+  category: 'gradients' | 'mesh' | 'animated' | 'local' | 'custom';
   style: string;
   animationClass?: string;
+  textColor?: string;
   description?: string;
+  isCustom?: boolean;
 }
 
 export interface ResolvedBackground {
@@ -13,6 +15,13 @@ export interface ResolvedBackground {
   className: string;
   isImage: boolean;
   url: string;
+  textColor: string;
+}
+
+export interface BackgroundStylesMap {
+  defaultBackgroundId?: string;
+  customPresets: BackgroundPreset[];
+  overrides: Record<string, { textColor?: string; style?: string; animationClass?: string }>;
 }
 
 export const BACKGROUND_PRESETS: BackgroundPreset[] = [
@@ -182,17 +191,42 @@ export const BACKGROUND_PRESETS: BackgroundPreset[] = [
 ];
 
 /**
+ * Retorna todos os presets combinando os nativos com os customizados e sobrescritas de configuração.
+ */
+export function getAllBackgrounds(stylesMap?: BackgroundStylesMap | null): BackgroundPreset[] {
+  const overrides = stylesMap?.overrides || {};
+  const custom = stylesMap?.customPresets || [];
+
+  const base = BACKGROUND_PRESETS.map((p) => {
+    const ov = overrides[p.id];
+    if (ov) {
+      return {
+        ...p,
+        ...ov,
+      };
+    }
+    return p;
+  });
+
+  return [...base, ...custom];
+}
+
+/**
  * Converte um preset em string serializável para persistência em wallpaper_path.
  */
 export function encodeBackground(preset: BackgroundPreset): string {
   const anim = preset.animationClass || 'none';
-  return `css:${anim}|${preset.style}`;
+  const textCol = preset.textColor || '#ffffff';
+  return `css:${anim}|${preset.style}|${textCol}`;
 }
 
 /**
  * Resolve qualquer valor armazenado em wallpaper_path (seja url de imagem ou css).
  */
-export function resolveBackground(wallpaperPath?: string): ResolvedBackground {
+export function resolveBackground(
+  wallpaperPath?: string,
+  stylesMap?: BackgroundStylesMap | null
+): ResolvedBackground {
   if (!wallpaperPath || wallpaperPath.trim() === '') {
     return {
       isCss: false,
@@ -200,6 +234,7 @@ export function resolveBackground(wallpaperPath?: string): ResolvedBackground {
       className: '',
       isImage: false,
       url: '',
+      textColor: '#ffffff',
     };
   }
 
@@ -208,26 +243,39 @@ export function resolveBackground(wallpaperPath?: string): ResolvedBackground {
   // Formato com prefixo css:
   if (trimmed.startsWith('css:')) {
     const raw = trimmed.slice(4);
-    const pipeIdx = raw.indexOf('|');
-    if (pipeIdx !== -1) {
-      const anim = raw.slice(0, pipeIdx).trim();
-      const style = raw.slice(pipeIdx + 1).trim();
-      return {
-        isCss: true,
-        style: `background: ${style};`,
-        className: anim === 'none' ? '' : anim,
-        isImage: false,
-        url: '',
-      };
+    const parts = raw.split('|');
+    let anim = '';
+    let style = '';
+    let textColor = '#ffffff';
+
+    if (parts.length >= 3) {
+      anim = parts[0].trim();
+      textColor = parts[parts.length - 1].trim();
+      style = parts.slice(1, parts.length - 1).join('|').trim();
+    } else if (parts.length === 2) {
+      anim = parts[0].trim();
+      style = parts[1].trim();
     } else {
-      return {
-        isCss: true,
-        style: `background: ${raw};`,
-        className: '',
-        isImage: false,
-        url: '',
-      };
+      style = raw.trim();
     }
+
+    // Se o textColor não foi explicitado na string e temos stylesMap, tenta buscar em preset conhecido
+    if ((!textColor || textColor === '#ffffff') && stylesMap) {
+      const all = getAllBackgrounds(stylesMap);
+      const match = all.find((p) => p.style.trim() === style);
+      if (match?.textColor) {
+        textColor = match.textColor;
+      }
+    }
+
+    return {
+      isCss: true,
+      style: `background: ${style};`,
+      className: anim === 'none' ? '' : anim,
+      isImage: false,
+      url: '',
+      textColor: textColor || '#ffffff',
+    };
   }
 
   // Gradientes brutos inline
@@ -236,12 +284,22 @@ export function resolveBackground(wallpaperPath?: string): ResolvedBackground {
     trimmed.startsWith('radial-gradient') ||
     trimmed.startsWith('conic-gradient')
   ) {
+    let textColor = '#ffffff';
+    if (stylesMap) {
+      const all = getAllBackgrounds(stylesMap);
+      const match = all.find((p) => p.style.trim() === trimmed);
+      if (match?.textColor) {
+        textColor = match.textColor;
+      }
+    }
+
     return {
       isCss: true,
       style: `background: ${trimmed};`,
       className: '',
       isImage: false,
       url: '',
+      textColor,
     };
   }
 
@@ -252,5 +310,6 @@ export function resolveBackground(wallpaperPath?: string): ResolvedBackground {
     className: '',
     isImage: true,
     url: trimmed,
+    textColor: '#ffffff',
   };
 }

@@ -15,10 +15,12 @@
   import Badge from './ui/Badge.svelte';
   import {
     BACKGROUND_PRESETS,
+    getAllBackgrounds,
     encodeBackground,
     resolveBackground,
     type BackgroundPreset,
   } from '../backgrounds';
+  import { backgroundStylesStore } from '../displaySettings';
   import type { WallpaperItem } from '../types';
 
   interface Props {
@@ -30,7 +32,7 @@
 
   let { open = false, currentValue = '', onselect, onclose }: Props = $props();
 
-  let selectedCategory = $state<'all' | 'gradients' | 'mesh' | 'animated' | 'local'>('all');
+  let selectedCategory = $state<'all' | 'gradients' | 'mesh' | 'animated' | 'custom' | 'local'>('all');
   let searchQuery = $state('');
   let localWallpapers = $state<WallpaperItem[]>([]);
   let isLoadingLocal = $state(false);
@@ -59,8 +61,10 @@
     }
   }
 
+  const availablePresets = $derived(getAllBackgrounds($backgroundStylesStore));
+
   const filteredPresets = $derived.by(() => {
-    return BACKGROUND_PRESETS.filter((p) => {
+    return availablePresets.filter((p) => {
       const matchesCat = selectedCategory === 'all' || p.category === selectedCategory;
       const matchesSearch =
         searchQuery === '' ||
@@ -136,7 +140,9 @@
                   ? 'Mesh Gradients'
                   : selectedCategory === 'animated'
                     ? 'Gradientes Animados'
-                    : 'Papéis de Parede Locais'}
+                    : selectedCategory === 'custom'
+                      ? 'Fundos Customizados'
+                      : 'Papéis de Parede Locais'}
           </span>
         </div>
       </div>
@@ -159,7 +165,7 @@
               <span>Todos</span>
             </div>
             <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
-              {BACKGROUND_PRESETS.length + localWallpapers.length}
+              {availablePresets.length + localWallpapers.length}
             </Badge>
           </button>
 
@@ -173,7 +179,7 @@
               <span>Animados (CSS)</span>
             </div>
             <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
-              {BACKGROUND_PRESETS.filter((p) => p.category === 'animated').length}
+              {availablePresets.filter((p) => p.category === 'animated').length}
             </Badge>
           </button>
 
@@ -187,7 +193,7 @@
               <span>Mesh Gradients</span>
             </div>
             <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
-              {BACKGROUND_PRESETS.filter((p) => p.category === 'mesh').length}
+              {availablePresets.filter((p) => p.category === 'mesh').length}
             </Badge>
           </button>
 
@@ -201,9 +207,25 @@
               <span>Gradientes Lineares</span>
             </div>
             <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
-              {BACKGROUND_PRESETS.filter((p) => p.category === 'gradients').length}
+              {availablePresets.filter((p) => p.category === 'gradients').length}
             </Badge>
           </button>
+
+          {#if availablePresets.some((p) => p.category === 'custom')}
+            <button
+              type="button"
+              onclick={() => (selectedCategory = 'custom')}
+              class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedCategory === 'custom' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+            >
+              <div class="flex items-center gap-2">
+                <Sparkles size={13} class="text-emerald-400" />
+                <span>Customizados</span>
+              </div>
+              <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+                {availablePresets.filter((p) => p.category === 'custom').length}
+              </Badge>
+            </button>
+          {/if}
 
           <button
             type="button"

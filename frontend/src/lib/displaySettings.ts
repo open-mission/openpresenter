@@ -4,6 +4,7 @@ import type {
   ChurchBrandSettings,
   StageDisplaySettings,
 } from './types';
+import type { BackgroundStylesMap } from './backgrounds';
 
 // Valores padrão
 export const DEFAULT_PUBLIC_SETTINGS: PublicDisplaySettings = {
@@ -51,6 +52,12 @@ export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
   footer_time_percent: 10,
 };
 
+export const DEFAULT_BACKGROUND_STYLES: BackgroundStylesMap = {
+  defaultBackgroundId: undefined,
+  customPresets: [],
+  overrides: {},
+};
+
 // Funções utilitárias de carregamento inicial do localStorage
 function loadLocal<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
@@ -83,6 +90,10 @@ export const churchBrandStore = writable<ChurchBrandSettings>(
 
 export const stageSettingsStore = writable<StageDisplaySettings>(
   loadLocal('stage_settings', DEFAULT_STAGE_SETTINGS)
+);
+
+export const backgroundStylesStore = writable<BackgroundStylesMap>(
+  loadLocal('background_styles', DEFAULT_BACKGROUND_STYLES)
 );
 
 // Sincronização com o Backend
@@ -120,6 +131,17 @@ export async function syncDisplaySettingsFromBackend() {
         const parsed = JSON.parse(data.value);
         stageSettingsStore.set({ ...DEFAULT_STAGE_SETTINGS, ...parsed });
         saveLocal('stage_settings', parsed);
+      }
+    }
+
+    // 4. Background Styles & Custom CSS
+    const bgRes = await fetch('/api/settings/background_styles_config');
+    if (bgRes.ok) {
+      const data = await bgRes.json();
+      if (data.value) {
+        const parsed = JSON.parse(data.value);
+        backgroundStylesStore.set({ ...DEFAULT_BACKGROUND_STYLES, ...parsed });
+        saveLocal('background_styles', parsed);
       }
     }
   } catch (err) {
@@ -161,6 +183,17 @@ export async function saveStageDisplaySettings(settings: StageDisplaySettings) {
   }).catch(() => {});
 }
 
+export async function saveBackgroundStyles(styles: BackgroundStylesMap) {
+  backgroundStylesStore.set(styles);
+  saveLocal('background_styles', styles);
+
+  fetch('/api/settings/background_styles_config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: JSON.stringify(styles) }),
+  }).catch(() => {});
+}
+
 // Aplica atualizações de configuração recebidas via WebSocket em tempo real
 export function handleSettingBroadcast(key: string, value: string | null) {
   if (!value) return;
@@ -175,6 +208,9 @@ export function handleSettingBroadcast(key: string, value: string | null) {
     } else if (key === 'stage_display') {
       stageSettingsStore.set({ ...DEFAULT_STAGE_SETTINGS, ...parsed });
       saveLocal('stage_settings', parsed);
+    } else if (key === 'background_styles_config') {
+      backgroundStylesStore.set({ ...DEFAULT_BACKGROUND_STYLES, ...parsed });
+      saveLocal('background_styles', parsed);
     }
   } catch (e) {
     console.error('Falha ao aplicar configuração recebida via WebSocket:', e);

@@ -7,6 +7,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Customização de Fundos de Letras, Estilos CSS e Cores de Texto nas Configurações:**
+  - Adicionada a aba dedicada "Fundos de Letras & CSS" nas Configurações do OpenPresenter.
+  - Permite configurar o CSS da propriedade `background` (gradientes lineares, radiais, mesh ou cores sólidas), classe de animação CSS e a cor específica do texto (`textColor`) para cada plano de fundo.
+  - Simulador de Projeção 16:9 em tempo real dentro das Configurações, exibindo tipografia de letra e rodapé bíblico harmonizados na cor configurada para o fundo.
+  - Criação de novos fundos customizados ilimitados com nome, estilos e cores próprias.
+  - Seletor de cores hexadecimal com paleta rápida de cores de alto contraste recomendadas (Branco Puro, Off-White, Dourado/Ouro, Âmbar, Ciano Gelo, Menta Verde, Rosa Claro).
+  - Ações para definir um fundo como padrão para letras de louvor, restaurar presets nativos ou excluir presets customizados.
+  - A tela pública (`/public`) e o preview do operador renderizam instantaneamente o texto e rodapés utilizando a cor configurada para o fundo ativo com sincronização em tempo real via WebSocket.
 - **Suporte a Sub-pastas na Aba de Imagens e Varredura Hierárquica de Mídias:**
   - O sistema de varredura de pastas de mídia locais agora percorre diretórios recursivamente, descobrindo automaticamente todas as sub-pastas e seus arquivos de imagem.
   - Na aba de Imagens do painel inferior, adicionada navegação expansível na árvore lateral de pastas, cards navegáveis de sub-pastas no topo da galeria e navegação por breadcrumbs para entrar e sair de sub-diretórios.

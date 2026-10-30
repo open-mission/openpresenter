@@ -8,6 +8,7 @@
   } from '$lib/types';
   import { renderFormattedText } from '$lib/markdown';
   import { resolveBackground, type ResolvedBackground } from '$lib/backgrounds';
+  import { backgroundStylesStore } from '$lib/displaySettings';
 
   let {
     publicSettings,
@@ -32,7 +33,10 @@
   const alignH = $derived(activeSlide?.align_h || activeMedia?.align_h || 'center');
   const alignV = $derived(activeSlide?.align_v || activeMedia?.align_v || 'center');
 
-  const resolvedBg = $derived(resolvedWallpaper ?? resolveBackground(wallpaperPath));
+  const resolvedBg = $derived(
+    resolvedWallpaper ?? resolveBackground(wallpaperPath, $backgroundStylesStore)
+  );
+  const activeTextColor = $derived(resolvedBg.textColor || '#ffffff');
   const isImageMedia = $derived(activeMedia?.kind === 'image');
   const isScripture = $derived(activeMedia?.kind === 'scripture');
 
@@ -167,7 +171,8 @@
               class="my-auto {publicSettings.fill_space ? 'w-full' : 'max-w-[90%]'} {publicSettings.text_box_background ? 'bg-black/70 backdrop-blur-sm rounded-md p-1.5 border border-white/15 shadow-lg' : ''}"
             >
               <div
-                class="font-extrabold text-white leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] {publicSettings.fill_space ? 'text-[11px] sm:text-[13px]' : 'text-[10px] sm:text-[11px]'} {publicSettings.word_wrap ? 'break-words' : 'whitespace-nowrap overflow-hidden text-ellipsis'}"
+                style="color: {activeTextColor};"
+                class="font-extrabold leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] {publicSettings.fill_space ? 'text-[11px] sm:text-[13px]' : 'text-[10px] sm:text-[11px]'} {publicSettings.word_wrap ? 'break-words' : 'whitespace-nowrap overflow-hidden text-ellipsis'}"
               >
                 {@html renderFormattedText(activeSlide.content)}
               </div>
@@ -177,7 +182,7 @@
                 {@const version = activeMedia?.artist_or_ref || ''}
                 {@const cleanRef = version && refLabel.endsWith(version) ? refLabel.slice(0, -version.length).trim() : refLabel}
                 <div class="mt-2 pt-1 border-t border-white/10 flex items-center justify-between gap-1 drop-shadow-[0_1px_4px_rgba(0,0,0,0.95)]">
-                  <span class="text-[9px] sm:text-[10px] font-bold text-white tracking-tight">
+                  <span style="color: {activeTextColor};" class="text-[9px] sm:text-[10px] font-bold tracking-tight">
                     {cleanRef}
                   </span>
                   {#if version}

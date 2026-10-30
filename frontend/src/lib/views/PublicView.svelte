@@ -8,6 +8,7 @@
   import {
     publicSettingsStore,
     churchBrandStore,
+    backgroundStylesStore,
     syncDisplaySettingsFromBackend,
   } from '$lib/displaySettings';
   import { Maximize, Minimize } from 'lucide-svelte';
@@ -59,7 +60,8 @@
 
   const wallpaper = $derived($presentationState.wallpaper_path);
   const wallpaperFit = $derived($presentationState.wallpaper_mode || 'cover');
-  const resolvedBg = $derived(resolveBackground(wallpaper));
+  const resolvedBg = $derived(resolveBackground(wallpaper, $backgroundStylesStore));
+  const activeTextColor = $derived(resolvedBg.textColor || '#ffffff');
 
   const publicSettings = $derived($publicSettingsStore);
   const churchBrand = $derived($churchBrandStore);
@@ -225,7 +227,8 @@
                     minSize: publicSettings.min_font_size ?? 24,
                     maxSize: publicSettings.max_font_size ?? 128,
                   }}
-                  class="w-full font-bold tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight select-none {alignH === 'left' ? 'text-left' : alignH === 'right' ? 'text-right' : alignH === 'justify' ? 'text-justify' : 'text-center'} {publicSettings.word_wrap ? 'break-words' : 'whitespace-nowrap'}"
+                  style="color: {activeTextColor};"
+                  class="w-full font-bold tracking-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight select-none {alignH === 'left' ? 'text-left' : alignH === 'right' ? 'text-right' : alignH === 'justify' ? 'text-justify' : 'text-center'} {publicSettings.word_wrap ? 'break-words' : 'whitespace-nowrap'}"
                 >
                   {@html renderFormattedText(activeSlide.content)}
                 </div>
@@ -236,7 +239,7 @@
                 <div
                   class="w-full mt-auto pt-4 sm:pt-6 flex items-center justify-between gap-4 border-t border-white/10 shrink-0 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]"
                 >
-                  <span class="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight">
+                  <span style="color: {activeTextColor};" class="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
                     {ref}
                   </span>
                   {#if version}
