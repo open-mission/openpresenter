@@ -55,16 +55,46 @@
     return activeMedia.slides[p.active_slide_index];
   });
 
-  const alignH = $derived(activeSlide?.align_h || activeMedia?.align_h || 'center');
-  const alignV = $derived(activeSlide?.align_v || activeMedia?.align_v || 'center');
+  const isScripture = $derived(activeMedia?.kind === 'scripture');
+  const publicSettings = $derived($publicSettingsStore);
+  const churchBrand = $derived($churchBrandStore);
+
+  const alignH = $derived.by<'left' | 'center' | 'right' | 'justify'>(() => {
+    if (isScripture) {
+      return publicSettings?.scripture_align_h || 'center';
+    }
+    return (activeSlide?.align_h || activeMedia?.align_h || publicSettings?.lyrics_align_h || 'center') as any;
+  });
+
+  const alignV = $derived.by<'top' | 'center' | 'bottom'>(() => {
+    if (isScripture) {
+      return publicSettings?.scripture_align_v || 'center';
+    }
+    return (activeSlide?.align_v || activeMedia?.align_v || publicSettings?.lyrics_align_v || 'center') as any;
+  });
+
+  const minFontSize = $derived(
+    isScripture
+      ? (publicSettings?.scripture_min_font_size ?? 28)
+      : (publicSettings?.lyrics_min_font_size ?? publicSettings?.min_font_size ?? 24)
+  );
+
+  const maxFontSize = $derived(
+    isScripture
+      ? (publicSettings?.scripture_max_font_size ?? 140)
+      : (publicSettings?.lyrics_max_font_size ?? publicSettings?.max_font_size ?? 128)
+  );
+
+  const fillSpace = $derived(
+    isScripture
+      ? (publicSettings?.scripture_fill_space !== false)
+      : (publicSettings?.fill_space !== false)
+  );
 
   const wallpaper = $derived($presentationState.wallpaper_path);
   const wallpaperFit = $derived($presentationState.wallpaper_mode || 'cover');
   const resolvedBg = $derived(resolveBackground(wallpaper, $backgroundStylesStore));
   const activeTextColor = $derived(resolvedBg.textColor || '#ffffff');
-
-  const publicSettings = $derived($publicSettingsStore);
-  const churchBrand = $derived($churchBrandStore);
 
   const marginTop = $derived(Number(publicSettings?.margin_top ?? 32));
   const marginBottom = $derived(Number(publicSettings?.margin_bottom ?? 32));
@@ -228,23 +258,23 @@
             class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col overflow-hidden animate-in fade-in duration-150 {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
           >
             <div
-              class="flex flex-col justify-between w-full h-full flex-1 min-h-0 overflow-hidden {publicSettings.fill_space ? 'w-full' : 'max-w-5xl'} {publicSettings.text_box_background ? 'bg-black/65 backdrop-blur-md rounded-3xl p-6 sm:p-10 md:p-14 border border-white/10 shadow-2xl transition-all' : ''}"
+              class="flex flex-col justify-between w-full h-full flex-1 min-h-0 overflow-hidden {fillSpace ? 'w-full' : 'max-w-5xl'} {publicSettings.text_box_background ? 'bg-black/65 backdrop-blur-md rounded-3xl p-6 sm:p-10 md:p-14 border border-white/10 shadow-2xl transition-all' : ''}"
             >
               <div class="w-full flex-1 min-h-0 flex flex-col overflow-hidden {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'}">
                 <div
                   use:autoScale={{
-                    minSize: publicSettings.min_font_size ?? 24,
-                    maxSize: publicSettings.max_font_size ?? 128,
+                    minSize: minFontSize,
+                    maxSize: maxFontSize,
                   }}
                   style="color: {activeTextColor};"
-                  class="w-full font-bold tracking-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight select-none {alignH === 'left' ? 'text-left' : alignH === 'right' ? 'text-right' : alignH === 'justify' ? 'text-justify' : 'text-center'} {publicSettings.word_wrap ? 'break-words' : 'whitespace-nowrap'}"
+                  class="w-full font-bold tracking-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] {isScripture ? 'leading-snug' : 'leading-tight'} select-none {alignH === 'left' ? 'text-left' : alignH === 'right' ? 'text-right' : alignH === 'justify' ? 'text-justify' : 'text-center'} {publicSettings.word_wrap ? 'whitespace-normal break-words' : 'whitespace-nowrap'}"
                 >
                   {@html renderFormattedText(activeSlide.content)}
                 </div>
               </div>
 
-              {#if activeMedia?.kind === 'scripture'}
-                {@const { ref, version } = getScriptureInfo(activeSlide.label, activeMedia.artist_or_ref)}
+              {#if isScripture && (publicSettings.scripture_show_reference !== false)}
+                {@const { ref, version } = getScriptureInfo(activeSlide.label, activeMedia?.artist_or_ref)}
                 <div
                   class="w-full mt-auto pt-4 sm:pt-6 flex items-center justify-between gap-4 border-t border-white/10 shrink-0 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]"
                 >
@@ -259,7 +289,7 @@
                     </span>
                   {/if}
                 </div>
-              {:else if publicSettings.show_metadata && (activeMedia?.title || activeMedia?.artist_or_ref)}
+              {:else if !isScripture && publicSettings.show_metadata && (activeMedia?.title || activeMedia?.artist_or_ref)}
                 <div class="text-neutral-300 text-sm md:text-base font-medium mt-4 sm:mt-6 opacity-80 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                   {activeMedia.title}{activeMedia.artist_or_ref ? ` — ${activeMedia.artist_or_ref}` : ''}
                 </div>

@@ -64,9 +64,9 @@
         <!-- Atual -->
         <div
           class="rounded-none border-b p-1 overflow-hidden bg-zinc-900/70 flex flex-col justify-between"
-          style="flex: {currentRatio}; border-color: {stageSettings.current_border_color || '#3b82f6'};"
+          style="flex: {currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
         >
-          <span class="text-[8px] font-bold uppercase truncate" style="color: {stageSettings.current_text_color || '#ffffff'};">
+          <span class="text-[8px] font-bold uppercase truncate" style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};">
             ● {isScripture ? `${activeSlide?.label || 'Bíblia'}` : `Atual: ${activeSlide?.label || 'Slide'}`}
           </span>
           {#if isCurrentMediaImage && activeSlide}
@@ -74,7 +74,7 @@
               <img src={activeSlide.content} alt="Atual" class="max-w-full max-h-full object-contain rounded" />
             </div>
           {:else if activeSlide}
-            <p class="text-[10px] font-extrabold leading-tight line-clamp-2 my-auto" style="color: {stageSettings.current_text_color || '#ffffff'};">
+            <p class="text-[10px] font-extrabold leading-tight line-clamp-2 my-auto" style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};">
               {activeSlide.content.split('\n')[0]}
             </p>
           {:else}

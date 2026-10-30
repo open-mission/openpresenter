@@ -20,6 +20,20 @@ export const DEFAULT_PUBLIC_SETTINGS: PublicDisplaySettings = {
   text_box_background: false,
   min_font_size: 24,
   max_font_size: 128,
+
+  // Letras de Músicas
+  lyrics_align_h: 'center',
+  lyrics_align_v: 'center',
+  lyrics_min_font_size: 24,
+  lyrics_max_font_size: 128,
+
+  // Textos Bíblicos
+  scripture_align_h: 'center',
+  scripture_align_v: 'center',
+  scripture_min_font_size: 28,
+  scripture_max_font_size: 140,
+  scripture_fill_space: true,
+  scripture_show_reference: true,
 };
 
 export const DEFAULT_CHURCH_BRAND: ChurchBrandSettings = {
@@ -50,6 +64,14 @@ export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
   current_slide_percent: 60,
   next_slide_percent: 30,
   footer_time_percent: 10,
+
+  // Letras de Músicas no Palco
+  lyrics_min_font_size: 24,
+
+  // Textos Bíblicos no Palco
+  scripture_min_font_size: 24,
+  scripture_text_color: '#FFFFFF',
+  scripture_border_color: '#3B82F6',
 };
 
 export const DEFAULT_BACKGROUND_STYLES: BackgroundStylesMap = {

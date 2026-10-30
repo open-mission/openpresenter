@@ -38,6 +38,8 @@
     RefreshCw,
     Sparkles,
     AlertTriangle,
+    Music,
+    Clock,
   } from 'lucide-svelte';
   import {
     fetchUpdateCheck,
@@ -133,6 +135,11 @@
   let localBrand = $state<ChurchBrandSettings>({ ...DEFAULT_CHURCH_BRAND });
   let localStage = $state<StageDisplaySettings>({ ...DEFAULT_STAGE_SETTINGS });
   let uploadStatus = $state<{ [key: string]: string }>({});
+
+  // Sub-seções internas
+  let publicSection = $state<'lyrics' | 'scripture' | 'general'>('lyrics');
+  let stageSection = $state<'lyrics' | 'scripture' | 'general'>('lyrics');
+  let bgPreviewMode = $state<'lyrics' | 'scripture'>('lyrics');
 
   // Configurações de Fundos de Letras e CSS
   let localBgStyles = $state<BackgroundStylesMap>({
@@ -480,6 +487,8 @@
       next_text_color: DEFAULT_STAGE_SETTINGS.next_text_color,
       current_border_color: DEFAULT_STAGE_SETTINGS.current_border_color,
       next_border_color: DEFAULT_STAGE_SETTINGS.next_border_color,
+      scripture_text_color: DEFAULT_STAGE_SETTINGS.scripture_text_color,
+      scripture_border_color: DEFAULT_STAGE_SETTINGS.scripture_border_color,
       timer_color: DEFAULT_STAGE_SETTINGS.timer_color,
       clock_color: DEFAULT_STAGE_SETTINGS.clock_color,
     };
@@ -1171,322 +1180,565 @@
               <div>
                 <h3 class="text-sm font-semibold text-white">Configuração da Projeção Pública</h3>
                 <p class="text-xs text-neutral-400 mt-0.5">
-                  Ajuste o comportamento do texto, aproveitamento de espaço e margens da projeção para a congregação.
+                  Personalize de forma independente o comportamento de letras de louvor, textos bíblicos e margens seguras.
                 </p>
               </div>
 
-              <!-- Switches de Opções -->
-              <div class="space-y-3">
-                <!-- Preenchimento Máximo -->
-                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                  <div>
+              <!-- Seletor de Seções da Projeção Pública -->
+              <div class="p-1 bg-neutral-950 rounded-xl border border-neutral-800 grid grid-cols-3 gap-1">
+                <button
+                  type="button"
+                  onclick={() => (publicSection = 'lyrics')}
+                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'lyrics' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                >
+                  <Music size={13} />
+                  <span>Letras de Louvor</span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => (publicSection = 'scripture')}
+                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'scripture' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                >
+                  <BookOpen size={13} />
+                  <span>Textos Bíblicos</span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => (publicSection = 'general')}
+                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'general' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                >
+                  <Sliders size={13} />
+                  <span>Margens & Geral</span>
+                </button>
+              </div>
+
+              {#if publicSection === 'lyrics'}
+                <!-- SEÇÃO 1: LETRAS DE LOUVOR -->
+                <div class="space-y-4">
+                  <!-- Alinhamento das Letras -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <div class="text-xs font-semibold text-white flex items-center gap-2">
+                      <Sliders size={14} class="text-primary" />
+                      Alinhamento Padrão das Letras
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <!-- Alinhamento Horizontal -->
+                      <div class="space-y-1.5">
+                        <span class="text-[11px] text-neutral-400">Horizontal</span>
+                        <div class="grid grid-cols-4 gap-1">
+                          {#each [
+                            { id: 'left', label: 'Esq' },
+                            { id: 'center', label: 'Centro' },
+                            { id: 'right', label: 'Dir' },
+                            { id: 'justify', label: 'Just' }
+                          ] as opt}
+                            <button
+                              type="button"
+                              onclick={() => updatePublicField('lyrics_align_h', opt.id as any)}
+                              class="py-1 px-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors {(localPublic.lyrics_align_h || 'center') === opt.id ? 'bg-primary text-primary-foreground font-bold border-primary' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'}"
+                            >
+                              {opt.label}
+                            </button>
+                          {/each}
+                        </div>
+                      </div>
+
+                      <!-- Alinhamento Vertical -->
+                      <div class="space-y-1.5">
+                        <span class="text-[11px] text-neutral-400">Vertical</span>
+                        <div class="grid grid-cols-3 gap-1">
+                          {#each [
+                            { id: 'top', label: 'Topo' },
+                            { id: 'center', label: 'Centro' },
+                            { id: 'bottom', label: 'Base' }
+                          ] as opt}
+                            <button
+                              type="button"
+                              onclick={() => updatePublicField('lyrics_align_v', opt.id as any)}
+                              class="py-1 px-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors {(localPublic.lyrics_align_v || 'center') === opt.id ? 'bg-primary text-primary-foreground font-bold border-primary' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'}"
+                            >
+                              {opt.label}
+                            </button>
+                          {/each}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Auto-scale e Tamanhos de Fonte das Letras -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <div>
+                      <div class="text-xs font-semibold text-white flex items-center gap-2">
+                        <Type size={14} class="text-primary" />
+                        Auto-scale das Letras na Projeção
+                      </div>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        O tamanho da fonte se adapta automaticamente ao volume do texto de cada estrofe.
+                      </p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-400">Tamanho Máximo (Alvo)</span>
+                          <span class="font-mono text-primary font-bold">{(localPublic.lyrics_max_font_size || localPublic.max_font_size) ?? 128}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="64"
+                          max="192"
+                          step="8"
+                          value={(localPublic.lyrics_max_font_size || localPublic.max_font_size) ?? 128}
+                          oninput={(e) => {
+                            const val = Number((e.target as HTMLInputElement).value);
+                            updatePublicField('lyrics_max_font_size', val);
+                            updatePublicField('max_font_size', val);
+                          }}
+                          class="w-full accent-primary"
+                        />
+                      </div>
+
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-400">Tamanho Mínimo</span>
+                          <span class="font-mono text-white font-bold">{(localPublic.lyrics_min_font_size || localPublic.min_font_size) ?? 24}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="16"
+                          max="64"
+                          step="4"
+                          value={(localPublic.lyrics_min_font_size || localPublic.min_font_size) ?? 24}
+                          oninput={(e) => {
+                            const val = Number((e.target as HTMLInputElement).value);
+                            updatePublicField('lyrics_min_font_size', val);
+                            updatePublicField('min_font_size', val);
+                          }}
+                          class="w-full accent-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Preenchimento Máximo -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                    <div>
+                      <div class="text-xs font-semibold text-white flex items-center gap-2">
+                        <Maximize2 size={14} class="text-primary" />
+                        Preencher o Máximo de Espaço nas Letras
+                      </div>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Amplia as letras para preencher a tela, garantindo alta legibilidade no fundo do templo.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Alternar preenchimento máximo de espaço"
+                      onclick={() => updatePublicField('fill_space', !localPublic.fill_space)}
+                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.fill_space ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      role="switch"
+                      aria-checked={localPublic.fill_space}
+                    >
+                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.fill_space ? 'left-6' : 'left-1'}"></span>
+                    </button>
+                  </div>
+
+                  <!-- Quebra de Linha -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                    <div>
+                      <div class="text-xs font-semibold text-white flex items-center gap-2">
+                        <Type size={14} class="text-primary" />
+                        Permitir Quebra de Linhas Longas (Word Wrap)
+                      </div>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Se desativado, o texto preserva os versos originais em linha única e o auto-scale reduz a fonte para caber sem reticências (...).
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Alternar quebra de linhas longas"
+                      onclick={() => updatePublicField('word_wrap', !localPublic.word_wrap)}
+                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.word_wrap ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      role="switch"
+                      aria-checked={localPublic.word_wrap}
+                    >
+                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.word_wrap ? 'left-6' : 'left-1'}"></span>
+                    </button>
+                  </div>
+
+                  <!-- Exibir Metadados -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                    <div>
+                      <div class="text-xs font-semibold text-white flex items-center gap-2">
+                        <Info size={14} class="text-primary" />
+                        Exibir Metadados do Louvor
+                      </div>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Exibe o título da música e artista/compositor em uma legenda discreta no rodapé da projeção pública.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Alternar exibição de metadados"
+                      onclick={() => updatePublicField('show_metadata', !localPublic.show_metadata)}
+                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.show_metadata ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      role="switch"
+                      aria-checked={localPublic.show_metadata}
+                    >
+                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.show_metadata ? 'left-6' : 'left-1'}"></span>
+                    </button>
+                  </div>
+                </div>
+
+              {:else if publicSection === 'scripture'}
+                <!-- SEÇÃO 2: TEXTOS BÍBLICOS (ESCRITURAS) -->
+                <div class="space-y-4">
+                  <!-- Alinhamento dos Textos Bíblicos -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <div class="text-xs font-semibold text-white flex items-center gap-2">
+                      <BookOpen size={14} class="text-primary" />
+                      Alinhamento das Passagens Bíblicas
+                    </div>
+                    <p class="text-[11px] text-neutral-400">
+                      Configure o posicionamento do texto dos versículos na tela pública. O padrão recomendado é Centralizado tanto na horizontal quanto na vertical.
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <!-- Alinhamento Horizontal Bíblico -->
+                      <div class="space-y-1.5">
+                        <span class="text-[11px] text-neutral-400">Horizontal</span>
+                        <div class="grid grid-cols-4 gap-1">
+                          {#each [
+                            { id: 'left', label: 'Esq' },
+                            { id: 'center', label: 'Centro' },
+                            { id: 'right', label: 'Dir' },
+                            { id: 'justify', label: 'Just' }
+                          ] as opt}
+                            <button
+                              type="button"
+                              onclick={() => updatePublicField('scripture_align_h', opt.id as any)}
+                              class="py-1 px-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors {(localPublic.scripture_align_h || 'center') === opt.id ? 'bg-primary text-primary-foreground font-bold border-primary' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'}"
+                            >
+                              {opt.label}
+                            </button>
+                          {/each}
+                        </div>
+                      </div>
+
+                      <!-- Alinhamento Vertical Bíblico -->
+                      <div class="space-y-1.5">
+                        <span class="text-[11px] text-neutral-400">Vertical</span>
+                        <div class="grid grid-cols-3 gap-1">
+                          {#each [
+                            { id: 'top', label: 'Topo' },
+                            { id: 'center', label: 'Centro' },
+                            { id: 'bottom', label: 'Base' }
+                          ] as opt}
+                            <button
+                              type="button"
+                              onclick={() => updatePublicField('scripture_align_v', opt.id as any)}
+                              class="py-1 px-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors {(localPublic.scripture_align_v || 'center') === opt.id ? 'bg-primary text-primary-foreground font-bold border-primary' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'}"
+                            >
+                              {opt.label}
+                            </button>
+                          {/each}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Auto-scale e Tamanhos de Fonte Bíblicos -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <div>
+                      <div class="text-xs font-semibold text-white flex items-center gap-2">
+                        <Type size={14} class="text-primary" />
+                        Auto-scale Especializado para Versículos
+                      </div>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Como passagens bíblicas contêm mais texto corrido que estrofes de louvor, você pode definir um teto máximo e mínimo próprio para a Bíblia.
+                      </p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-400">Tamanho Máximo Bíblico</span>
+                          <span class="font-mono text-primary font-bold">{localPublic.scripture_max_font_size ?? 140}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="80"
+                          max="200"
+                          step="8"
+                          value={localPublic.scripture_max_font_size ?? 140}
+                          oninput={(e) => updatePublicField('scripture_max_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary"
+                        />
+                        <div class="flex justify-between text-[9px] text-neutral-500 font-mono">
+                          <span>80px</span>
+                          <span>140px (Padrão)</span>
+                          <span>200px</span>
+                        </div>
+                      </div>
+
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-400">Tamanho Mínimo Bíblico</span>
+                          <span class="font-mono text-white font-bold">{localPublic.scripture_min_font_size ?? 28}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="18"
+                          max="64"
+                          step="2"
+                          value={localPublic.scripture_min_font_size ?? 28}
+                          oninput={(e) => updatePublicField('scripture_min_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary"
+                        />
+                        <div class="flex justify-between text-[9px] text-neutral-500 font-mono">
+                          <span>18px</span>
+                          <span>28px (Padrão)</span>
+                          <span>64px</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Preenchimento Total da Tela para Versículos -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                    <div>
+                      <div class="text-xs font-semibold text-white flex items-center gap-2">
+                        <Maximize2 size={14} class="text-primary" />
+                        Aproveitar 100% da Largura da Tela na Bíblia
+                      </div>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Permite que os versículos usem toda a largura útil da projeção, acomodando mais palavras por linha e permitindo que a fonte fique maior.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Alternar preenchimento bíblico"
+                      onclick={() => updatePublicField('scripture_fill_space', localPublic.scripture_fill_space === false ? true : false)}
+                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.scripture_fill_space !== false ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      role="switch"
+                      aria-checked={localPublic.scripture_fill_space !== false}
+                    >
+                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.scripture_fill_space !== false ? 'left-6' : 'left-1'}"></span>
+                    </button>
+                  </div>
+
+                  <!-- Exibir Rodapé com Referência e Tradução -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                    <div>
+                      <div class="text-xs font-semibold text-white flex items-center gap-2">
+                        <BookOpen size={14} class="text-primary" />
+                        Exibir Rodapé com Referência Bíblica e Versão (Ex: João 3:16 • ARA)
+                      </div>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Mostra uma barra elegante na parte inferior com livro, capítulo, versículo e a sigla da tradução utilizada.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Alternar rodapé bíblico"
+                      onclick={() => updatePublicField('scripture_show_reference', localPublic.scripture_show_reference === false ? true : false)}
+                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.scripture_show_reference !== false ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      role="switch"
+                      aria-checked={localPublic.scripture_show_reference !== false}
+                    >
+                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.scripture_show_reference !== false ? 'left-6' : 'left-1'}"></span>
+                    </button>
+                  </div>
+                </div>
+
+              {:else}
+                <!-- SEÇÃO 3: MARGENS & GERAL -->
+                <div class="space-y-4">
+                  <!-- Escurecer Plano de Fundo Geral (Backdrop da Tela Toda) -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                    <div>
+                      <div class="text-xs font-semibold text-white flex items-center gap-2">
+                        <Sun size={14} class="text-primary" />
+                        Escurecer Plano de Fundo Geral (Backdrop Completo)
+                      </div>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Aplica uma película escura translúcida sobre todo o papel de parede quando houver um slide ativo na tela para diminuir o brilho do fundo.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Alternar escurecimento do plano de fundo"
+                      onclick={() => updatePublicField('darken_background', !localPublic.darken_background)}
+                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.darken_background ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      role="switch"
+                      aria-checked={Boolean(localPublic.darken_background)}
+                    >
+                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.darken_background ? 'left-6' : 'left-1'}"></span>
+                    </button>
+                  </div>
+
+                  <!-- Fundo nas Caixas de Texto (Placa de Leitura / Card) -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                    <div>
+                      <div class="text-xs font-semibold text-white flex items-center gap-2">
+                        <Layers size={14} class="text-primary" />
+                        Fundo nas Caixas de Texto (Card de Leitura)
+                      </div>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Adiciona uma placa translúcida com cantos arredondados diretamente atrás dos textos e versículos bíblicos.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Alternar fundo nas caixas de texto"
+                      onclick={() => updatePublicField('text_box_background', !localPublic.text_box_background)}
+                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.text_box_background ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      role="switch"
+                      aria-checked={Boolean(localPublic.text_box_background)}
+                    >
+                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.text_box_background ? 'left-6' : 'left-1'}"></span>
+                    </button>
+                  </div>
+
+                  <!-- Ignorar Margens para Imagens (Edge-to-Edge) -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                    <div>
+                      <div class="text-xs font-semibold text-white flex items-center gap-2">
+                        <ImageIcon size={14} class="text-primary" />
+                        Projetar Imagens em Tela Cheia (Sem Margens de Texto)
+                      </div>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Quando ativado, imagens 16:9 ocupam 100% da tela sem aplicar as margens seguras de texto, eliminando bordas pretas extras.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Alternar margens para imagens"
+                      onclick={() => updatePublicField('ignore_margins_for_media', !localPublic.ignore_margins_for_media)}
+                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.ignore_margins_for_media !== false ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      role="switch"
+                      aria-checked={localPublic.ignore_margins_for_media !== false}
+                    >
+                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.ignore_margins_for_media !== false ? 'left-6' : 'left-1'}"></span>
+                    </button>
+                  </div>
+
+                  <!-- Encaixe Padrão de Imagens -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-2.5">
                     <div class="text-xs font-semibold text-white flex items-center gap-2">
                       <Maximize2 size={14} class="text-primary" />
-                      Preencher o Máximo de Espaço
+                      Encaixe Padrão de Imagens na Projeção
                     </div>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">
-                      Amplia os textos para preencher a tela, garantindo alta legibilidade até mesmo para fundos de auditórios.
-                    </p>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                      {#each [
+                        { id: 'contain', label: 'Ajustar (Conter)', desc: 'Sem cortar' },
+                        { id: 'cover', label: 'Preencher', desc: 'Corta excedente' },
+                        { id: 'fill', label: 'Esticar', desc: 'Preenche 100%' },
+                        { id: 'center', label: 'Original', desc: 'Sem zoom' }
+                      ] as fitOption}
+                        <button
+                          type="button"
+                          onclick={() => updatePublicField('image_fit', fitOption.id as any)}
+                          class="p-2 rounded-lg border text-left transition-all cursor-pointer {(localPublic.image_fit || 'contain') === fitOption.id ? 'border-primary bg-primary/10 text-white' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
+                        >
+                          <div class="text-xs font-medium">{(localPublic.image_fit || 'contain') === fitOption.id ? '✓ ' : ''}{fitOption.label}</div>
+                          <div class="text-[10px] opacity-70 mt-0.5">{fitOption.desc}</div>
+                        </button>
+                      {/each}
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Alternar preenchimento máximo de espaço"
-                    onclick={() => updatePublicField('fill_space', !localPublic.fill_space)}
-                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.fill_space ? 'bg-primary' : 'bg-neutral-800'}"
-                    role="switch"
-                    aria-checked={localPublic.fill_space}
-                  >
-                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.fill_space ? 'left-6' : 'left-1'}"></span>
-                  </button>
-                </div>
 
-                <!-- Quebra de Linha -->
-                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                  <div>
-                    <div class="text-xs font-semibold text-white flex items-center gap-2">
-                      <Type size={14} class="text-primary" />
-                      Permitir Quebra de Linhas Longas (Word Wrap)
-                    </div>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">
-                      Se desativado, o texto preserva os versos originais em linha única e o auto-scale reduz a fonte para caber sem reticências (...).
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Alternar quebra de linhas longas"
-                    onclick={() => updatePublicField('word_wrap', !localPublic.word_wrap)}
-                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.word_wrap ? 'bg-primary' : 'bg-neutral-800'}"
-                    role="switch"
-                    aria-checked={localPublic.word_wrap}
-                  >
-                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.word_wrap ? 'left-6' : 'left-1'}"></span>
-                  </button>
-                </div>
-
-                <!-- Auto-Scale e Tamanhos de Fonte da Projeção Pública -->
-                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                  <div>
-                    <div class="text-xs font-semibold text-white flex items-center gap-2">
-                      <Type size={14} class="text-primary" />
-                      Auto-scale de Fonte na Projeção Pública
-                    </div>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">
-                      O tamanho da fonte se adapta automaticamente ao volume do texto. Configure o tamanho máximo (alvo de impacto para frases curtas, padrão 8rem) e o tamanho mínimo permitido.
-                    </p>
-                  </div>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                      <div class="flex justify-between items-center text-xs">
-                        <span class="text-neutral-400">Tamanho Máximo (Alvo)</span>
-                        <span class="font-mono text-primary font-bold">{localPublic.max_font_size ?? 128}px ({Math.round((localPublic.max_font_size ?? 128) / 16)}rem)</span>
+                  <!-- Margens da Projeção -->
+                  <div class="pt-4 border-t border-neutral-800 space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <h4 class="text-xs font-semibold text-white">Margens da Projeção Pública (Safe Area)</h4>
+                        <p class="text-[11px] text-neutral-400 mt-0.5">
+                          Evite que as letras encostem nas bordas do telão ou sofram corte por overscan do projetor/TV.
+                        </p>
                       </div>
-                      <input
-                        type="range"
-                        min="64"
-                        max="192"
-                        step="8"
-                        value={localPublic.max_font_size ?? 128}
-                        oninput={(e) => updatePublicField('max_font_size', Number((e.target as HTMLInputElement).value))}
-                        class="w-full accent-primary"
-                      />
-                      <div class="flex justify-between text-[9px] text-neutral-500 font-mono">
-                        <span>4rem (64px)</span>
-                        <span>8rem (128px)</span>
-                        <span>12rem (192px)</span>
-                      </div>
-                    </div>
-
-                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                      <div class="flex justify-between items-center text-xs">
-                        <span class="text-neutral-400">Tamanho Mínimo</span>
-                        <span class="font-mono text-white font-bold">{localPublic.min_font_size ?? 24}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="16"
-                        max="64"
-                        step="4"
-                        value={localPublic.min_font_size ?? 24}
-                        oninput={(e) => updatePublicField('min_font_size', Number((e.target as HTMLInputElement).value))}
-                        class="w-full accent-primary"
-                      />
-                      <div class="flex justify-between text-[9px] text-neutral-500 font-mono">
-                        <span>16px (Textos longos)</span>
-                        <span>24px (Padrão)</span>
-                        <span>64px (Grande)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Exibir Metadados -->
-                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                  <div>
-                    <div class="text-xs font-semibold text-white flex items-center gap-2">
-                      <Info size={14} class="text-primary" />
-                      Exibir Metadados do Louvor
-                    </div>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">
-                      Exibe o título da música e artista/compositor em uma legenda discreta no rodapé da projeção pública.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Alternar exibição de metadados"
-                    onclick={() => updatePublicField('show_metadata', !localPublic.show_metadata)}
-                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.show_metadata ? 'bg-primary' : 'bg-neutral-800'}"
-                    role="switch"
-                    aria-checked={localPublic.show_metadata}
-                  >
-                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.show_metadata ? 'left-6' : 'left-1'}"></span>
-                  </button>
-                </div>
-
-                <!-- Escurecer Plano de Fundo Geral (Backdrop da Tela Toda) -->
-                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                  <div>
-                    <div class="text-xs font-semibold text-white flex items-center gap-2">
-                      <Sun size={14} class="text-primary" />
-                      Escurecer Plano de Fundo Geral (Backdrop Completo)
-                    </div>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">
-                      Aplica uma película escura translúcida sobre todo o papel de parede quando houver um slide ativo na tela para diminuir o brilho do fundo. (Padrão: desligado).
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Alternar escurecimento do plano de fundo"
-                    onclick={() => updatePublicField('darken_background', !localPublic.darken_background)}
-                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.darken_background ? 'bg-primary' : 'bg-neutral-800'}"
-                    role="switch"
-                    aria-checked={Boolean(localPublic.darken_background)}
-                  >
-                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.darken_background ? 'left-6' : 'left-1'}"></span>
-                  </button>
-                </div>
-
-                <!-- Fundo nas Caixas de Texto (Placa de Leitura / Card) -->
-                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                  <div>
-                    <div class="text-xs font-semibold text-white flex items-center gap-2">
-                      <Layers size={14} class="text-primary" />
-                      Fundo nas Caixas de Texto (Card de Leitura)
-                    </div>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">
-                      Adiciona uma placa translúcida com cantos arredondados diretamente atrás dos textos e versículos bíblicos. Garante legibilidade sobre imagens ou fundos com áreas claras sem escurecer toda a projeção. (Padrão: desligado).
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Alternar fundo nas caixas de texto"
-                    onclick={() => updatePublicField('text_box_background', !localPublic.text_box_background)}
-                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.text_box_background ? 'bg-primary' : 'bg-neutral-800'}"
-                    role="switch"
-                    aria-checked={Boolean(localPublic.text_box_background)}
-                  >
-                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.text_box_background ? 'left-6' : 'left-1'}"></span>
-                  </button>
-                </div>
-
-                <!-- Ignorar Margens para Imagens (Edge-to-Edge) -->
-                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                  <div>
-                    <div class="text-xs font-semibold text-white flex items-center gap-2">
-                      <ImageIcon size={14} class="text-primary" />
-                      Projetar Imagens em Tela Cheia (Sem Margens de Texto)
-                    </div>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">
-                      Quando ativado, imagens 16:9 ocupam 100% da tela sem aplicar as margens seguras de texto, eliminando bordas pretas extras.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Alternar margens para imagens"
-                    onclick={() => updatePublicField('ignore_margins_for_media', !localPublic.ignore_margins_for_media)}
-                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.ignore_margins_for_media !== false ? 'bg-primary' : 'bg-neutral-800'}"
-                    role="switch"
-                    aria-checked={localPublic.ignore_margins_for_media !== false}
-                  >
-                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localPublic.ignore_margins_for_media !== false ? 'left-6' : 'left-1'}"></span>
-                  </button>
-                </div>
-
-                <!-- Encaixe Padrão de Imagens -->
-                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-2.5">
-                  <div class="text-xs font-semibold text-white flex items-center gap-2">
-                    <Maximize2 size={14} class="text-primary" />
-                    Encaixe Padrão de Imagens na Projeção
-                  </div>
-                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                    {#each [
-                      { id: 'contain', label: 'Ajustar (Conter)', desc: 'Sem cortar' },
-                      { id: 'cover', label: 'Preencher', desc: 'Corta excedente' },
-                      { id: 'fill', label: 'Esticar', desc: 'Preenche 100%' },
-                      { id: 'center', label: 'Original', desc: 'Sem zoom' }
-                    ] as fitOption}
-                      <button
-                        type="button"
-                        onclick={() => updatePublicField('image_fit', fitOption.id as any)}
-                        class="p-2 rounded-lg border text-left transition-all cursor-pointer {(localPublic.image_fit || 'contain') === fitOption.id ? 'border-primary bg-primary/10 text-white' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-[11px] h-7"
+                        onclick={() => {
+                          localPublic = {
+                            ...localPublic,
+                            margin_top: DEFAULT_PUBLIC_SETTINGS.margin_top,
+                            margin_bottom: DEFAULT_PUBLIC_SETTINGS.margin_bottom,
+                            margin_horizontal: DEFAULT_PUBLIC_SETTINGS.margin_horizontal,
+                          };
+                          savePublicDisplaySettings(localPublic);
+                        }}
                       >
-                        <div class="text-xs font-medium">{(localPublic.image_fit || 'contain') === fitOption.id ? '✓ ' : ''}{fitOption.label}</div>
-                        <div class="text-[10px] opacity-70 mt-0.5">{fitOption.desc}</div>
-                      </button>
-                    {/each}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Margens da Projeção -->
-              <div class="pt-4 border-t border-neutral-800 space-y-4">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h4 class="text-xs font-semibold text-white">Margens da Projeção Pública (Safe Area)</h4>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">
-                      Evite que as letras encostem nas bordas do telão ou sofram corte por overscan do projetor.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="text-[11px] h-7"
-                    onclick={() => {
-                      localPublic = {
-                        ...localPublic,
-                        margin_top: DEFAULT_PUBLIC_SETTINGS.margin_top,
-                        margin_bottom: DEFAULT_PUBLIC_SETTINGS.margin_bottom,
-                        margin_horizontal: DEFAULT_PUBLIC_SETTINGS.margin_horizontal,
-                      };
-                      savePublicDisplaySettings(localPublic);
-                    }}
-                  >
-                    Restaurar Margens
-                  </Button>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                    <div class="flex justify-between text-xs">
-                      <span class="text-neutral-400">Margem Topo</span>
-                      <span class="font-mono text-white font-semibold">{localPublic.margin_top}px</span>
+                        Restaurar Margens
+                      </Button>
                     </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="160"
-                      step="4"
-                      value={localPublic.margin_top}
-                      oninput={(e) => updatePublicField('margin_top', Number((e.target as HTMLInputElement).value))}
-                      class="w-full accent-primary"
-                    />
-                  </div>
 
-                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                    <div class="flex justify-between text-xs">
-                      <span class="text-neutral-400">Margem Base</span>
-                      <span class="font-mono text-white font-semibold">{localPublic.margin_bottom}px</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                        <div class="flex justify-between text-xs">
+                          <span class="text-neutral-400">Margem Topo</span>
+                          <span class="font-mono text-white font-semibold">{localPublic.margin_top}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="160"
+                          step="4"
+                          value={localPublic.margin_top}
+                          oninput={(e) => updatePublicField('margin_top', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary"
+                        />
+                      </div>
+
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                        <div class="flex justify-between text-xs">
+                          <span class="text-neutral-400">Margem Base</span>
+                          <span class="font-mono text-white font-semibold">{localPublic.margin_bottom}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="160"
+                          step="4"
+                          value={localPublic.margin_bottom}
+                          oninput={(e) => updatePublicField('margin_bottom', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary"
+                        />
+                      </div>
+
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                        <div class="flex justify-between text-xs">
+                          <span class="text-neutral-400">Laterais</span>
+                          <span class="font-mono text-white font-semibold">{localPublic.margin_horizontal}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="240"
+                          step="4"
+                          value={localPublic.margin_horizontal}
+                          oninput={(e) => updatePublicField('margin_horizontal', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary"
+                        />
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="160"
-                      step="4"
-                      value={localPublic.margin_bottom}
-                      oninput={(e) => updatePublicField('margin_bottom', Number((e.target as HTMLInputElement).value))}
-                      class="w-full accent-primary"
-                    />
-                  </div>
 
-                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                    <div class="flex justify-between text-xs">
-                      <span class="text-neutral-400">Laterais</span>
-                      <span class="font-mono text-white font-semibold">{localPublic.margin_horizontal}px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="240"
-                      step="4"
-                      value={localPublic.margin_horizontal}
-                      oninput={(e) => updatePublicField('margin_horizontal', Number((e.target as HTMLInputElement).value))}
-                      class="w-full accent-primary"
-                    />
-                  </div>
-                </div>
-
-                <!-- Prévia gráfica das margens -->
-                <div class="p-4 rounded-xl border border-neutral-800 bg-black flex flex-col items-center justify-center">
-                  <div class="text-[10px] text-neutral-500 mb-2 font-mono uppercase">Simulação de Área Útil (16:9)</div>
-                  <div class="w-64 h-36 rounded border border-neutral-700 bg-neutral-950 flex items-center justify-center p-2 relative overflow-hidden">
-                    <div
-                      class="w-full h-full border border-dashed border-primary/60 bg-primary/5 rounded flex items-center justify-center text-center p-1"
-                      style="margin-top: {localPublic.margin_top / 6}px; margin-bottom: {localPublic.margin_bottom / 6}px; margin-left: {localPublic.margin_horizontal / 6}px; margin-right: {localPublic.margin_horizontal / 6}px;"
-                    >
-                      <span class="text-[9px] text-primary/80 font-medium">Área de Letra e Mídia</span>
+                    <!-- Prévia gráfica das margens -->
+                    <div class="p-4 rounded-xl border border-neutral-800 bg-black flex flex-col items-center justify-center">
+                      <div class="text-[10px] text-neutral-500 mb-2 font-mono uppercase">Simulação de Área Útil (16:9)</div>
+                      <div class="w-64 h-36 rounded border border-neutral-700 bg-neutral-950 flex items-center justify-center p-2 relative overflow-hidden">
+                        <div
+                          class="w-full h-full border border-dashed border-primary/60 bg-primary/5 rounded flex items-center justify-center text-center p-1"
+                          style="margin-top: {localPublic.margin_top / 6}px; margin-bottom: {localPublic.margin_bottom / 6}px; margin-left: {localPublic.margin_horizontal / 6}px; margin-right: {localPublic.margin_horizontal / 6}px;"
+                        >
+                          <span class="text-[9px] text-primary/80 font-medium">Área de Letra e Mídia</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              {/if}
             </div>
 
           <!-- ABA: FUNDOS DE LETRAS & CSS -->
@@ -1512,11 +1764,32 @@
 
               <!-- Simulação 16:9 em Tempo Real -->
               <div class="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4 sm:p-5 flex flex-col items-center">
-                <div class="w-full flex items-center justify-between mb-2 px-1">
+                <div class="w-full flex flex-col sm:flex-row items-center justify-between gap-2 mb-2 px-1">
                   <span class="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
                     <Sparkles size={13} class="text-primary" />
                     <span>Prévia em Tempo Real (16:9)</span>
                   </span>
+
+                  <!-- Alternador entre Letra de Louvor e Texto Bíblico -->
+                  <div class="flex items-center rounded-lg border border-neutral-800 bg-neutral-900 p-0.5 text-xs">
+                    <button
+                      type="button"
+                      onclick={() => (bgPreviewMode = 'lyrics')}
+                      class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {bgPreviewMode === 'lyrics' ? 'bg-primary text-primary-foreground font-semibold shadow' : 'text-neutral-400 hover:text-white'}"
+                    >
+                      <Music size={12} />
+                      <span>Letra de Louvor</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick={() => (bgPreviewMode = 'scripture')}
+                      class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {bgPreviewMode === 'scripture' ? 'bg-primary text-primary-foreground font-semibold shadow' : 'text-neutral-400 hover:text-white'}"
+                    >
+                      <BookOpen size={12} />
+                      <span>Texto Bíblico</span>
+                    </button>
+                  </div>
+
                   <div class="flex items-center gap-2">
                     {#if localBgStyles.defaultBackgroundId === currentSelectedPreset.id}
                       <span class="text-[10px] bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded-full font-semibold">
@@ -1534,29 +1807,44 @@
                     style="background: {currentSelectedPreset.style};"
                   ></div>
 
-                  <!-- Letra centralizada -->
-                  <div class="relative z-10 my-auto text-center flex flex-col items-center justify-center">
-                    <p
-                      class="text-base sm:text-xl font-bold leading-relaxed tracking-tight drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]"
-                      style="color: {currentSelectedPreset.textColor || '#ffffff'};"
-                    >
-                      Porque Deus amou o mundo de tal maneira<br />
-                      que deu o seu Filho unigênito.
-                    </p>
-                  </div>
+                  {#if bgPreviewMode === 'lyrics'}
+                    <!-- Letra de Louvor centralizada -->
+                    <div class="relative z-10 my-auto text-center flex flex-col items-center justify-center">
+                      <p
+                        class="text-base sm:text-2xl font-bold leading-relaxed tracking-tight drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]"
+                        style="color: {currentSelectedPreset.textColor || '#ffffff'};"
+                      >
+                        Grandioso és Tu, Senhor,<br />
+                        ao contemplar os céus e a terra!
+                      </p>
+                      <span class="text-[10px] sm:text-xs mt-2 opacity-75 font-medium tracking-wide" style="color: {currentSelectedPreset.textColor || '#ffffff'};">
+                        Harpa Cristã • 526
+                      </span>
+                    </div>
+                  {:else}
+                    <!-- Versículo Bíblico centralizado com rodapé -->
+                    <div class="relative z-10 my-auto text-center flex flex-col items-center justify-center">
+                      <p
+                        class="text-sm sm:text-lg font-bold leading-relaxed tracking-tight drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]"
+                        style="color: {currentSelectedPreset.textColor || '#ffffff'};"
+                      >
+                        Disse também Deus: Haja luzeiros no firmamento dos céus, para fazerem separação entre o dia e a noite; e sejam eles para sinais, para estações, para dias e anos.
+                      </p>
+                    </div>
 
-                  <!-- Rodapé com referência bíblica -->
-                  <div class="relative z-10 flex items-center justify-between border-t border-white/10 pt-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                    <span
-                      class="text-xs sm:text-sm font-bold tracking-tight"
-                      style="color: {currentSelectedPreset.textColor || '#ffffff'};"
-                    >
-                      João 3:16
-                    </span>
-                    <span class="text-[9px] px-2 py-0.5 rounded bg-white/15 border border-white/20 uppercase font-mono font-bold text-neutral-100 shadow">
-                      ARA
-                    </span>
-                  </div>
+                    <!-- Rodapé com referência bíblica -->
+                    <div class="relative z-10 flex items-center justify-between border-t border-white/10 pt-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                      <span
+                        class="text-xs sm:text-sm font-bold tracking-tight"
+                        style="color: {currentSelectedPreset.textColor || '#ffffff'};"
+                      >
+                        Gênesis 1:14
+                      </span>
+                      <span class="text-[9px] px-2 py-0.5 rounded bg-white/15 border border-white/20 uppercase font-mono font-bold text-neutral-100 shadow">
+                        ARA
+                      </span>
+                    </div>
+                  {/if}
                 </div>
               </div>
 
@@ -1796,295 +2084,463 @@
               <div>
                 <h3 class="text-sm font-semibold text-white">Layout e Cores do Monitor de Retorno</h3>
                 <p class="text-xs text-neutral-400 mt-0.5">
-                  Configure o preset visual do palco para os músicos e pregador e personalize as cores de alto contraste.
+                  Configure de forma independente o retorno de letras de louvor, versículos bíblicos e o layout/timer do palco.
                 </p>
               </div>
 
-              <!-- Preset do Palco (Grid Moderno Pro Padronizado) -->
-              <div class="space-y-3">
-                <span class="block text-xs font-semibold text-white">Preset de Exibição</span>
-                <div class="p-4 rounded-xl border border-primary bg-primary/10 ring-1 ring-primary/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div class="space-y-1">
-                    <div class="flex items-center gap-2">
-                      <div class="text-sm font-bold text-white">Grid Moderno Pro</div>
-                      <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                        Padrão Ativo
-                      </span>
-                    </div>
-                    <p class="text-xs text-neutral-300">
-                      Slide atual em destaque com auto-scale, próximo slide abaixo e coluna lateral dedicada com caixa de aviso sempre visível, relógio e cronômetro. Layout contínuo sem gaps nem cantos arredondados para aproveitamento máximo da tela.
-                    </p>
-                  </div>
-                  <div class="h-16 w-36 bg-neutral-950 rounded border border-neutral-800 p-1 flex gap-1 shrink-0">
-                    <div class="flex-[2] flex flex-col gap-0.5">
-                      <div class="flex-1 border border-blue-500/40 bg-blue-500/10 text-[7px] text-blue-300 font-bold flex items-center justify-center">Slide Atual</div>
-                      <div class="h-4 border border-yellow-500/40 bg-yellow-500/10 text-[6px] text-yellow-300 font-bold flex items-center justify-center">A Seguir</div>
-                    </div>
-                    <div class="flex-1 border border-neutral-700 bg-neutral-900 text-[6px] text-neutral-300 font-bold flex flex-col items-center justify-center gap-0.5">
-                      <span class="text-emerald-400">Aviso</span>
-                      <span class="text-neutral-400">12:00</span>
-                      <span class="text-red-400 font-mono">10:00</span>
-                    </div>
-                  </div>
-                </div>
+              <!-- Seletor de Seções do Monitor de Retorno (Stage) -->
+              <div class="p-1 bg-neutral-950 rounded-xl border border-neutral-800 grid grid-cols-3 gap-1">
+                <button
+                  type="button"
+                  onclick={() => (stageSection = 'lyrics')}
+                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {stageSection === 'lyrics' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                >
+                  <Music size={13} />
+                  <span>Letras de Louvor</span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => (stageSection = 'scripture')}
+                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {stageSection === 'scripture' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                >
+                  <BookOpen size={13} />
+                  <span>Textos Bíblicos</span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => (stageSection = 'general')}
+                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {stageSection === 'general' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                >
+                  <Sliders size={13} />
+                  <span>Layout & Tempo</span>
+                </button>
               </div>
 
-              <!-- Auto-Scale e Tamanho Mínimo de Fonte -->
-              <div class="pt-4 border-t border-neutral-800 space-y-4">
-                <div>
-                  <h4 class="text-xs font-semibold text-white">Auto-scale e Tamanho Mínimo de Fonte</h4>
-                  <p class="text-[11px] text-neutral-400 mt-0.5">
-                    O texto dos slides ajusta-se automaticamente para preencher o bloco do monitor de palco. Defina o tamanho mínimo da fonte para evitar que o texto fique excessivamente pequeno em slides longos.
-                  </p>
-                </div>
-                <div class="p-3.5 rounded-lg border border-neutral-800 bg-neutral-900/40 space-y-2.5 max-w-md">
-                  <div class="flex justify-between items-center text-xs">
-                    <span class="text-neutral-300 font-medium">Tamanho Mínimo da Fonte</span>
-                    <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                      {localStage.min_font_size ?? 24}px
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="14"
-                    max="64"
-                    step="2"
-                    value={localStage.min_font_size ?? 24}
-                    oninput={(e) => updateStageField('min_font_size', Number((e.target as HTMLInputElement).value))}
-                    class="w-full accent-primary cursor-pointer"
-                  />
-                  <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
-                    <span>14px (Mais linhas)</span>
-                    <span>24px (Padrão)</span>
-                    <span>64px (Super legível)</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Cores Customizáveis do Palco -->
-              <div class="pt-4 border-t border-neutral-800 space-y-4">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h4 class="text-xs font-semibold text-white">Cores de Texto e Molduras</h4>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">
-                      Personalize o contraste visual para melhor visualização em monitores de palco de diferentes distâncias.
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" class="text-[11px] h-7" onclick={handleResetStageColors}>
-                    Restaurar Cores Padrão
-                  </Button>
-                </div>
-
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <!-- Texto Slide Atual -->
-                  <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/30 flex items-center justify-between">
+              {#if stageSection === 'lyrics'}
+                <!-- SEÇÃO 1: LETRAS DE LOUVOR NO PALCO -->
+                <div class="space-y-4">
+                  <!-- Auto-scale das Letras no Palco -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
                     <div>
-                      <div class="text-[11px] font-semibold text-white">Texto Atual</div>
-                      <div class="text-[9px] text-neutral-400">{localStage.current_text_color}</div>
+                      <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                        <Type size={14} class="text-primary" />
+                        Tamanho Mínimo da Fonte para Louvores
+                      </h4>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Define o menor tamanho aceitável para letras de músicas no monitor de retorno, evitando que estrofes longas fiquem ilegíveis para a equipe de louvor.
+                      </p>
                     </div>
-                    <input
-                      type="color"
-                      value={localStage.current_text_color}
-                      oninput={(e) => updateStageField('current_text_color', (e.target as HTMLInputElement).value)}
-                      class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
-                    />
+                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2 max-w-md">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-neutral-300 font-medium">Tamanho Mínimo das Letras</span>
+                        <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                          {localStage.lyrics_min_font_size ?? localStage.min_font_size ?? 24}px
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="14"
+                        max="64"
+                        step="2"
+                        value={localStage.lyrics_min_font_size ?? localStage.min_font_size ?? 24}
+                        oninput={(e) => {
+                          const val = Number((e.target as HTMLInputElement).value);
+                          localStage = { ...localStage, lyrics_min_font_size: val, min_font_size: val };
+                          saveStageDisplaySettings(localStage);
+                        }}
+                        class="w-full accent-primary cursor-pointer"
+                      />
+                      <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
+                        <span>14px (Mais linhas)</span>
+                        <span>24px (Padrão)</span>
+                        <span>64px (Super legível)</span>
+                      </div>
+                    </div>
                   </div>
 
-                  <!-- Borda Slide Atual -->
-                  <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/30 flex items-center justify-between">
-                    <div>
-                      <div class="text-[11px] font-semibold text-white">Borda Atual</div>
-                      <div class="text-[9px] text-neutral-400">{localStage.current_border_color}</div>
+                  <!-- Cores das Letras de Louvor no Palco -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                          <Sliders size={14} class="text-primary" />
+                          Cores das Letras e Molduras do Palco
+                        </h4>
+                        <p class="text-[11px] text-neutral-400 mt-0.5">
+                          Personalize as cores do slide ao vivo e do próximo slide da música para contraste com a iluminação do palco.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-[11px] h-7"
+                        onclick={() => {
+                          localStage = {
+                            ...localStage,
+                            current_text_color: DEFAULT_STAGE_SETTINGS.current_text_color,
+                            next_text_color: DEFAULT_STAGE_SETTINGS.next_text_color,
+                            current_border_color: DEFAULT_STAGE_SETTINGS.current_border_color,
+                            next_border_color: DEFAULT_STAGE_SETTINGS.next_border_color,
+                          };
+                          saveStageDisplaySettings(localStage);
+                        }}
+                      >
+                        Restaurar Cores
+                      </Button>
                     </div>
-                    <input
-                      type="color"
-                      value={localStage.current_border_color}
-                      oninput={(e) => updateStageField('current_border_color', (e.target as HTMLInputElement).value)}
-                      class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
-                    />
-                  </div>
 
-                  <!-- Texto Próximo Slide -->
-                  <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/30 flex items-center justify-between">
-                    <div>
-                      <div class="text-[11px] font-semibold text-white">Texto Próximo</div>
-                      <div class="text-[9px] text-neutral-400">{localStage.next_text_color}</div>
+                    <div class="grid grid-cols-2 sm:grid-cols-2 gap-3">
+                      <!-- Texto Slide Atual -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Texto do Slide Atual</div>
+                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.current_text_color}</div>
+                        </div>
+                        <input
+                          type="color"
+                          value={localStage.current_text_color}
+                          oninput={(e) => updateStageField('current_text_color', (e.target as HTMLInputElement).value)}
+                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                        />
+                      </div>
+
+                      <!-- Borda Slide Atual -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Moldura do Slide Atual</div>
+                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.current_border_color}</div>
+                        </div>
+                        <input
+                          type="color"
+                          value={localStage.current_border_color}
+                          oninput={(e) => updateStageField('current_border_color', (e.target as HTMLInputElement).value)}
+                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                        />
+                      </div>
+
+                      <!-- Texto Próximo Slide -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Texto do Próximo Slide</div>
+                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.next_text_color}</div>
+                        </div>
+                        <input
+                          type="color"
+                          value={localStage.next_text_color}
+                          oninput={(e) => updateStageField('next_text_color', (e.target as HTMLInputElement).value)}
+                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                        />
+                      </div>
+
+                      <!-- Borda Próximo Slide -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Moldura do Próximo Slide</div>
+                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.next_border_color}</div>
+                        </div>
+                        <input
+                          type="color"
+                          value={localStage.next_border_color}
+                          oninput={(e) => updateStageField('next_border_color', (e.target as HTMLInputElement).value)}
+                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                        />
+                      </div>
                     </div>
-                    <input
-                      type="color"
-                      value={localStage.next_text_color}
-                      oninput={(e) => updateStageField('next_text_color', (e.target as HTMLInputElement).value)}
-                      class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
-                    />
-                  </div>
-
-                  <!-- Borda Próximo Slide -->
-                  <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/30 flex items-center justify-between">
-                    <div>
-                      <div class="text-[11px] font-semibold text-white">Borda Próximo</div>
-                      <div class="text-[9px] text-neutral-400">{localStage.next_border_color}</div>
-                    </div>
-                    <input
-                      type="color"
-                      value={localStage.next_border_color}
-                      oninput={(e) => updateStageField('next_border_color', (e.target as HTMLInputElement).value)}
-                      class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
-                    />
-                  </div>
-
-                  <!-- Cor do Timer -->
-                  <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/30 flex items-center justify-between">
-                    <div>
-                      <div class="text-[11px] font-semibold text-white">Cor do Timer</div>
-                      <div class="text-[9px] text-neutral-400">{localStage.timer_color}</div>
-                    </div>
-                    <input
-                      type="color"
-                      value={localStage.timer_color}
-                      oninput={(e) => updateStageField('timer_color', (e.target as HTMLInputElement).value)}
-                      class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
-                    />
-                  </div>
-
-                  <!-- Cor do Relógio -->
-                  <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/30 flex items-center justify-between">
-                    <div>
-                      <div class="text-[11px] font-semibold text-white">Cor do Relógio</div>
-                      <div class="text-[9px] text-neutral-400">{localStage.clock_color}</div>
-                    </div>
-                    <input
-                      type="color"
-                      value={localStage.clock_color}
-                      oninput={(e) => updateStageField('clock_color', (e.target as HTMLInputElement).value)}
-                      class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <!-- Proporções de Preenchimento dos Blocos na Tela -->
-              <div class="pt-4 border-t border-neutral-800 space-y-4">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h4 class="text-xs font-semibold text-white">Distribuição de Espaço na Tela (Proporções dos Blocos)</h4>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">
-                      Defina a porcentagem de área dedicada ao slide atual, próximo slide e barra de tempo no retorno.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="text-[11px] h-7"
-                    onclick={() => {
-                      localStage = {
-                        ...localStage,
-                        current_slide_percent: DEFAULT_STAGE_SETTINGS.current_slide_percent,
-                        next_slide_percent: DEFAULT_STAGE_SETTINGS.next_slide_percent,
-                        footer_time_percent: DEFAULT_STAGE_SETTINGS.footer_time_percent,
-                      };
-                      saveStageDisplaySettings(localStage);
-                    }}
-                  >
-                    Restaurar Proporções
-                  </Button>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                    <div class="flex justify-between text-xs">
-                      <span class="text-neutral-400">Slide Atual</span>
-                      <span class="font-mono text-white font-semibold">{localStage.current_slide_percent ?? 60}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="30"
-                      max="80"
-                      step="5"
-                      value={localStage.current_slide_percent ?? 60}
-                      oninput={(e) => updateStageField('current_slide_percent', Number((e.target as HTMLInputElement).value))}
-                      class="w-full accent-primary"
-                    />
-                    <div class="text-[9px] text-neutral-500">Área principal do texto ao vivo</div>
-                  </div>
-
-                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                    <div class="flex justify-between text-xs">
-                      <span class="text-neutral-400">Próximo Slide</span>
-                      <span class="font-mono text-white font-semibold">{localStage.next_slide_percent ?? 30}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="10"
-                      max="50"
-                      step="5"
-                      value={localStage.next_slide_percent ?? 30}
-                      oninput={(e) => updateStageField('next_slide_percent', Number((e.target as HTMLInputElement).value))}
-                      class="w-full accent-primary"
-                    />
-                    <div class="text-[9px] text-neutral-500">Prévia do próximo trecho</div>
-                  </div>
-
-                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                    <div class="flex justify-between text-xs">
-                      <span class="text-neutral-400">Relógio & Timer</span>
-                      <span class="font-mono text-white font-semibold">{localStage.footer_time_percent ?? 10}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="8"
-                      max="25"
-                      step="1"
-                      value={localStage.footer_time_percent ?? 10}
-                      oninput={(e) => updateStageField('footer_time_percent', Number((e.target as HTMLInputElement).value))}
-                      class="w-full accent-primary"
-                    />
-                    <div class="text-[9px] text-neutral-500">Altura da barra de status</div>
                   </div>
                 </div>
 
-                <!-- Amostra Gráfica Interativa da Divisão Proporcional -->
-                <div class="p-4 rounded-xl border border-neutral-800 bg-black flex flex-col items-center justify-center">
-                  <div class="flex items-center justify-between w-full max-w-sm mb-2">
-                    <span class="text-[10px] text-neutral-500 font-mono uppercase">Simulação do Retorno</span>
-                    <span class="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary font-mono font-semibold uppercase">
-                      Preset: {localStage.preset}
-                    </span>
+              {:else if stageSection === 'scripture'}
+                <!-- SEÇÃO 2: TEXTOS BÍBLICOS NO PALCO -->
+                <div class="space-y-4">
+                  <!-- Auto-scale dos Versículos Bíblicos no Palco -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <div>
+                      <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                        <Type size={14} class="text-primary" />
+                        Tamanho Mínimo da Fonte para Passagens Bíblicas
+                      </h4>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Versículos contêm blocos narrativos mais extensos. Ajuste o tamanho mínimo para garantir que o pregador no púlpito consiga ler confortavelmente no monitor de retorno.
+                      </p>
+                    </div>
+                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2 max-w-md">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-neutral-300 font-medium">Tamanho Mínimo Bíblico</span>
+                        <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                          {localStage.scripture_min_font_size ?? 24}px
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="14"
+                        max="64"
+                        step="2"
+                        value={localStage.scripture_min_font_size ?? 24}
+                        oninput={(e) => updateStageField('scripture_min_font_size', Number((e.target as HTMLInputElement).value))}
+                        class="w-full accent-primary cursor-pointer"
+                      />
+                      <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
+                        <span>14px (Mais compacto)</span>
+                        <span>24px (Padrão)</span>
+                        <span>64px (Máxima visibilidade)</span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div class="w-80 max-w-full">
-                    <StagePreviewBox
-                      stageSettings={localStage}
-                      activeSlide={{
-                        id: 'demo_cur',
-                        label: 'João 3:16',
-                        content: 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito',
-                      }}
-                      nextSlide={{
-                        id: 'demo_next',
-                        label: 'João 3:17',
-                        content: 'Para que todo aquele que nele crê não pereça, mas tenha a vida eterna',
-                      }}
-                      activeMedia={{
-                        id: 'demo_med',
-                        title: 'Evangelho de João',
-                        kind: 'scripture',
-                        artist_or_ref: 'ARA',
-                        slides: [],
-                      }}
-                      timer={{
-                        duration_seconds: 600,
-                        remaining_seconds: 450,
-                        running: true,
-                        is_overtime: false,
-                        allow_overtime: false,
-                        warning_threshold_seconds: 60,
-                        stage_message: 'Aviso Palco',
-                      }}
-                      stageClock="19:45:00"
-                    />
+                  <!-- Cores de Exibição Bíblica no Palco -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                          <Sliders size={14} class="text-primary" />
+                          Cores do Versículo no Monitor de Palco
+                        </h4>
+                        <p class="text-[11px] text-neutral-400 mt-0.5">
+                          Defina cores personalizadas para as passagens bíblicas no retorno do pregador.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-[11px] h-7"
+                        onclick={() => {
+                          localStage = {
+                            ...localStage,
+                            scripture_text_color: DEFAULT_STAGE_SETTINGS.scripture_text_color,
+                            scripture_border_color: DEFAULT_STAGE_SETTINGS.scripture_border_color,
+                          };
+                          saveStageDisplaySettings(localStage);
+                        }}
+                      >
+                        Restaurar Padrão
+                      </Button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <!-- Cor do Texto Bíblico -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Cor do Texto do Versículo</div>
+                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.scripture_text_color || '#FFFFFF'}</div>
+                        </div>
+                        <input
+                          type="color"
+                          value={localStage.scripture_text_color || '#FFFFFF'}
+                          oninput={(e) => updateStageField('scripture_text_color', (e.target as HTMLInputElement).value)}
+                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                        />
+                      </div>
+
+                      <!-- Cor da Moldura Bíblica -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Moldura do Bloco Bíblico</div>
+                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.scripture_border_color || '#3B82F6'}</div>
+                        </div>
+                        <input
+                          type="color"
+                          value={localStage.scripture_border_color || '#3B82F6'}
+                          oninput={(e) => updateStageField('scripture_border_color', (e.target as HTMLInputElement).value)}
+                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+
+              {:else}
+                <!-- SEÇÃO 3: LAYOUT & TEMPO -->
+                <div class="space-y-4">
+                  <!-- Preset do Palco (Grid Moderno Pro Padronizado) -->
+                  <div class="p-4 rounded-xl border border-primary bg-primary/10 ring-1 ring-primary/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div class="space-y-1">
+                      <div class="flex items-center gap-2">
+                        <div class="text-sm font-bold text-white">Grid Moderno Pro</div>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                          Padrão Ativo
+                        </span>
+                      </div>
+                      <p class="text-xs text-neutral-300">
+                        Slide atual em destaque com auto-scale, próximo slide abaixo e coluna lateral dedicada com aviso sempre visível, relógio e cronômetro. Sem gaps nem bordas arredondadas para aproveitamento máximo da tela.
+                      </p>
+                    </div>
+                    <div class="h-16 w-36 bg-neutral-950 rounded border border-neutral-800 p-1 flex gap-1 shrink-0">
+                      <div class="flex-[2] flex flex-col gap-0.5">
+                        <div class="flex-1 border border-blue-500/40 bg-blue-500/10 text-[7px] text-blue-300 font-bold flex items-center justify-center">Slide Atual</div>
+                        <div class="h-4 border border-yellow-500/40 bg-yellow-500/10 text-[6px] text-yellow-300 font-bold flex items-center justify-center">A Seguir</div>
+                      </div>
+                      <div class="flex-1 border border-neutral-700 bg-neutral-900 text-[6px] text-neutral-300 font-bold flex flex-col items-center justify-center gap-0.5">
+                        <span class="text-emerald-400">Aviso</span>
+                        <span class="text-neutral-400">12:00</span>
+                        <span class="text-red-400 font-mono">10:00</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Cores do Timer e Relógio -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                      <Clock size={14} class="text-primary" />
+                      Cores do Relógio e Cronômetro
+                    </h4>
+                    <div class="grid grid-cols-2 gap-3">
+                      <!-- Cor do Timer -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Cor do Timer / Cronômetro</div>
+                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.timer_color}</div>
+                        </div>
+                        <input
+                          type="color"
+                          value={localStage.timer_color}
+                          oninput={(e) => updateStageField('timer_color', (e.target as HTMLInputElement).value)}
+                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                        />
+                      </div>
+
+                      <!-- Cor do Relógio -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Cor do Relógio</div>
+                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.clock_color}</div>
+                        </div>
+                        <input
+                          type="color"
+                          value={localStage.clock_color}
+                          oninput={(e) => updateStageField('clock_color', (e.target as HTMLInputElement).value)}
+                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Proporções de Preenchimento dos Blocos na Tela -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <h4 class="text-xs font-semibold text-white">Distribuição de Espaço na Tela (Proporções dos Blocos)</h4>
+                        <p class="text-[11px] text-neutral-400 mt-0.5">
+                          Defina a porcentagem de área dedicada ao slide atual, próximo slide e barra de tempo no retorno.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-[11px] h-7"
+                        onclick={() => {
+                          localStage = {
+                            ...localStage,
+                            current_slide_percent: DEFAULT_STAGE_SETTINGS.current_slide_percent,
+                            next_slide_percent: DEFAULT_STAGE_SETTINGS.next_slide_percent,
+                            footer_time_percent: DEFAULT_STAGE_SETTINGS.footer_time_percent,
+                          };
+                          saveStageDisplaySettings(localStage);
+                        }}
+                      >
+                        Restaurar Proporções
+                      </Button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between text-xs">
+                          <span class="text-neutral-400">Slide Atual</span>
+                          <span class="font-mono text-white font-semibold">{localStage.current_slide_percent ?? 60}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="30"
+                          max="80"
+                          step="5"
+                          value={localStage.current_slide_percent ?? 60}
+                          oninput={(e) => updateStageField('current_slide_percent', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary"
+                        />
+                        <div class="text-[9px] text-neutral-500">Área principal do texto ao vivo</div>
+                      </div>
+
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between text-xs">
+                          <span class="text-neutral-400">Próximo Slide</span>
+                          <span class="font-mono text-white font-semibold">{localStage.next_slide_percent ?? 30}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="10"
+                          max="50"
+                          step="5"
+                          value={localStage.next_slide_percent ?? 30}
+                          oninput={(e) => updateStageField('next_slide_percent', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary"
+                        />
+                        <div class="text-[9px] text-neutral-500">Prévia do próximo trecho</div>
+                      </div>
+
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between text-xs">
+                          <span class="text-neutral-400">Relógio & Timer</span>
+                          <span class="font-mono text-white font-semibold">{localStage.footer_time_percent ?? 10}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="8"
+                          max="25"
+                          step="1"
+                          value={localStage.footer_time_percent ?? 10}
+                          oninput={(e) => updateStageField('footer_time_percent', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary"
+                        />
+                        <div class="text-[9px] text-neutral-500">Altura da barra lateral</div>
+                      </div>
+                    </div>
+
+                    <!-- Amostra Gráfica Interativa da Divisão Proporcional -->
+                    <div class="p-4 rounded-xl border border-neutral-800 bg-black flex flex-col items-center justify-center">
+                      <div class="flex items-center justify-between w-full max-w-sm mb-2">
+                        <span class="text-[10px] text-neutral-500 font-mono uppercase">Simulação do Retorno</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary font-mono font-semibold uppercase">
+                          Preset: {localStage.preset}
+                        </span>
+                      </div>
+
+                      <div class="w-80 max-w-full">
+                        <StagePreviewBox
+                          stageSettings={localStage}
+                          activeSlide={{
+                            id: 'demo_cur',
+                            label: 'João 3:16',
+                            content: 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito',
+                          }}
+                          nextSlide={{
+                            id: 'demo_next',
+                            label: 'João 3:17',
+                            content: 'Para que todo aquele que nele crê não pereça, mas tenha a vida eterna',
+                          }}
+                          activeMedia={{
+                            id: 'demo_med',
+                            title: 'Evangelho de João',
+                            kind: 'scripture',
+                            artist_or_ref: 'ARA',
+                            slides: [],
+                          }}
+                          timer={{
+                            duration_seconds: 600,
+                            remaining_seconds: 450,
+                            running: true,
+                            is_overtime: false,
+                            allow_overtime: false,
+                            warning_threshold_seconds: 60,
+                            stage_message: 'Aviso Palco',
+                          }}
+                          stageClock="19:45:00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {/if}
             </div>
 
           <!-- ABA: MARCA DA IGREJA (CHURCH BRAND) -->
@@ -2201,11 +2657,11 @@
                     type="button"
                     aria-label="Alternar exibição de logotipo na tela pública"
                     onclick={() => updateBrandField('show_logo_on_public', !localBrand.show_logo_on_public)}
-                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localBrand.show_logo_on_public ? 'bg-primary' : 'bg-neutral-800'}"
+                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localBrand.show_logo_on_public ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
                     role="switch"
                     aria-checked={localBrand.show_logo_on_public}
                   >
-                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform {localBrand.show_logo_on_public ? 'left-6' : 'left-1'}"></span>
+                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localBrand.show_logo_on_public ? 'left-6' : 'left-1'}"></span>
                   </button>
                 </div>
 

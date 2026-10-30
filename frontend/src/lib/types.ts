@@ -244,6 +244,20 @@ export interface PublicDisplaySettings {
   text_box_background?: boolean;
   min_font_size?: number;
   max_font_size?: number;
+
+  // Letras de Músicas
+  lyrics_align_h?: 'left' | 'center' | 'right' | 'justify';
+  lyrics_align_v?: 'top' | 'center' | 'bottom';
+  lyrics_min_font_size?: number;
+  lyrics_max_font_size?: number;
+
+  // Textos Bíblicos
+  scripture_align_h?: 'left' | 'center' | 'right' | 'justify';
+  scripture_align_v?: 'top' | 'center' | 'bottom';
+  scripture_min_font_size?: number;
+  scripture_max_font_size?: number;
+  scripture_fill_space?: boolean;
+  scripture_show_reference?: boolean;
 }
 
 export interface NetworkInfoResponse {
@@ -283,6 +297,14 @@ export interface StageDisplaySettings {
   current_slide_percent?: number;
   next_slide_percent?: number;
   footer_time_percent?: number;
+
+  // Letras de Músicas no Palco
+  lyrics_min_font_size?: number;
+
+  // Textos Bíblicos no Palco
+  scripture_min_font_size?: number;
+  scripture_text_color?: string;
+  scripture_border_color?: string;
 }
 
 export type SectionType =

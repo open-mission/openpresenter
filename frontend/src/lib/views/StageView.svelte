@@ -237,12 +237,12 @@
         <!-- Slide Atual Grande -->
         <div
           class="flex flex-col rounded-none bg-zinc-950/80 p-3 sm:p-5 overflow-hidden border-b transition-all min-h-0"
-          style="flex: {currentRatio}; border-color: {stageSettings.current_border_color || '#3b82f6'};"
+          style="flex: {currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
         >
           <div class="flex items-center justify-between pb-2 border-b border-zinc-800 shrink-0">
             <span
               class="text-xs font-bold uppercase tracking-widest flex items-center gap-2"
-              style="color: {stageSettings.current_text_color || '#ffffff'};"
+              style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};"
             >
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
               Slide Atual
@@ -276,9 +276,14 @@
               </div>
             {:else if activeSlide}
               <div
-                use:autoScale={{ minSize: stageSettings.min_font_size || 24, maxSize: 240 }}
+                use:autoScale={{
+                  minSize: isScripture
+                    ? (stageSettings.scripture_min_font_size || stageSettings.min_font_size || 24)
+                    : (stageSettings.lyrics_min_font_size || stageSettings.min_font_size || 24),
+                  maxSize: 240
+                }}
                 class="w-full font-black leading-tight text-center break-words select-none"
-                style="color: {stageSettings.current_text_color || '#ffffff'};"
+                style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};"
               >
                 {@html renderFormattedText(activeSlide.content)}
               </div>
@@ -325,7 +330,10 @@
               </div>
             {:else if nextSlide}
               <div
-                use:autoScale={{ minSize: Math.max(14, Math.round((stageSettings.min_font_size || 24) * 0.75)), maxSize: 180 }}
+                use:autoScale={{
+                  minSize: Math.max(14, Math.round((isScripture ? (stageSettings.scripture_min_font_size || 24) : (stageSettings.lyrics_min_font_size || stageSettings.min_font_size || 24)) * 0.75)),
+                  maxSize: 180
+                }}
                 class="w-full font-black leading-tight opacity-95 text-center break-words select-none"
                 style="color: {stageSettings.next_text_color || '#facc15'};"
               >

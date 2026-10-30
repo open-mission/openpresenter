@@ -7,6 +7,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Separação de Ajustes para Louvores e Textos Bíblicos na Projeção Pública e Retorno de Palco:**
+  - Na aba **Projeção Pública**, inclusão de navegação por sub-seções independentes: `Letras de Louvor`, `Textos Bíblicos` e `Margens & Geral`. Permite configurar alinhamentos, limites de tamanho de fonte e aproveitamento de largura de tela de forma desacoplada para músicas e versículos.
+  - Na aba **Monitor de Palco**, divisão em 3 seções: `Letras de Louvor no Palco`, `Textos Bíblicos no Palco` e `Layout & Tempo`, com personalização dedicada de cores (texto e moldura do versículo) e tamanho mínimo de fonte para garantir legibilidade no púlpito.
+  - Na aba **Fundos de Letras & CSS**, inclusão de alternador na prévia 16:9 em tempo real entre `[🎵 Letra de Louvor]` e `[📖 Texto Bíblico]`, permitindo validar o contraste e o estilo em ambos os tipos de conteúdo.
+
+### Corrigido
+- **Centralização Vertical e Auto-scale de Versículos Bíblicos na Projeção Pública (`/public`):**
+  - Correção da distribuição vertical de versículos bíblicos na tela pública, centralizando o texto harmoniosamente no viewport e garantindo o aproveitamento total de largura (`w-full`) para que a fonte expanda de maneira mais legível.
+- **Contraste e Visibilidade em Toggles e Switches de Configuração:**
+  - Substituição da cor primária monocromática nas chaves de alternância ativas (`role="switch"`) por fundo esmeralda de alto contraste (`bg-emerald-600`) e borda nítida quando inativo, eliminando a renderização totalmente branca que impedia identificar se as opções estavam ligadas ou desligadas.
 - **Integração com Google Cast (Chromecast) para Telas Pública e Retorno de Palco:**
   - Carregamento sob demanda do Google Cast Web Sender SDK (`cast_sender.js`) com gerenciador centralizado em `frontend/src/lib/cast.ts`.
   - Transmissão sem fio com latência quase zero (< 30ms) utilizando Web Receiver Chromium e sincronização via WebSocket direto na rede local.
