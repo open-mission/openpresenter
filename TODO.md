@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Correções no Controle Remoto Mobile (/remote): busca bíblica funcional no endpoint /api/bibles/:id/search com suporte a referências rápidas ("Jo 3:16", "Sl 23") via parseBibleReference; divisão estrutural de estrofes de músicas respeitando quebras duplas \n\n com parseRawLyrics; navegação contínua de versículos na Bíblia projetando o capítulo com todos os versículos para habilitar botões Anterior/Próximo e contagem correta de slides; e botão de recarregar catálogo de músicas. (commit e61c7db - 2026-10-30 17:03:29 -03:00)
+
 - [x] Refinamento do Controle Remoto Mobile (/remote) e Suporte a PWA: navegação bíblica com sub-abas (Livros em grade, Capítulos em grade touch de 44px, Versículos com leitura integral), Input Group e Drawer Shadcn para seleção de versão bíblica, correção do carregamento da Setlist (/api/setlists/:id), card de controle ao vivo retrátil (collapsible), active states em músicas e versículos projetados ao vivo, safe-area no iOS e Android (top e bottom na navigation bar), header com logotipo oficial do OpenPresenter Minimal, e suporte completo a PWA (manifest.webmanifest, service worker, ícones 192 e 512, favicons e meta tags de app standalone instalável). (commit 8b4d8e6 - 2026-10-30 16:31:19 -03:00)
 
 - [x] Adicionar saída Lower Third transparente (/lower-third) para OBS Studio e transmissão: HTML com fundo transparente (alfa nativo), texto no terço inferior, gradiente/barra customizável, sombras de alto contraste, animações de transição configuráveis (fade, slide, zoom), aba de configurações completa com prévia interativa 16:9, atalho no tray e instruções de Browser Source. (commit fc6a647 - 2026-10-30 15:57:41 -03:00)
