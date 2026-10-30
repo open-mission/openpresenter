@@ -5,6 +5,8 @@
     BookOpen,
     Play,
     ListPlus,
+    Plus,
+    Copy,
     Check,
     Layers,
     ChevronDown,
@@ -16,6 +18,7 @@
   } from 'lucide-svelte';
   import Badge from './ui/Badge.svelte';
   import Button from './ui/Button.svelte';
+  import ContextMenu, { type MenuItem } from './ContextMenu.svelte';
   import type {
     BibleVersionSummary,
     BibleBook,
@@ -344,6 +347,102 @@
     }
 
     selectedVerseNumbers = [];
+  }
+
+  function handleAddFullChapterToSetlist() {
+    if (verses.length === 0) return;
+    const abbr = currentBible?.abbreviation || 'Bíblia';
+    const mediaItem: MediaItem = {
+      id: `scripture-${Date.now()}`,
+      title: `${currentBook.name} ${selectedChapter}`,
+      artist_or_ref: abbr,
+      kind: 'scripture',
+      slides: verses.map((v) => ({
+        id: `v-${v.verse}`,
+        label: `${currentBook.name} ${selectedChapter}:${v.verse} ${abbr}`,
+        content: v.text,
+      })),
+    };
+
+    if (onaddscripturetosetlist) {
+      onaddscripturetosetlist(mediaItem);
+    } else {
+      fetch('/api/setlist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item: mediaItem }),
+      }).catch(console.error);
+    }
+  }
+
+  function handleCopySelectedVerses() {
+    const selectedVerses = verses.filter((v) => selectedVerseNumbers.includes(v.verse));
+    if (selectedVerses.length === 0) return;
+    const abbr = currentBible?.abbreviation || 'Bíblia';
+    const firstV = selectedVerseNumbers[0];
+    const lastV = selectedVerseNumbers[selectedVerseNumbers.length - 1];
+    const rangeLabel = selectedVerseNumbers.length === 1 ? `${firstV}` : `${firstV}-${lastV}`;
+    const header = `${currentBook.name} ${selectedChapter}:${rangeLabel} (${abbr})`;
+    const body = selectedVerses.map((v) => `${v.verse}. ${v.text}`).join('\n');
+    navigator.clipboard.writeText(`${header}\n\n${body}`).catch(() => {});
+  }
+
+  // Menu de Contexto nos Versículos
+  let contextMenuOpen = $state(false);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
+  let contextMenuItems = $state<MenuItem[]>([]);
+
+  function handleVerseContextMenu(e: MouseEvent, verseNum: number) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!selectedVerseNumbers.includes(verseNum)) {
+      selectedVerseNumbers = [verseNum];
+      lastClickedVerseNum = verseNum;
+    }
+
+    const count = selectedVerseNumbers.length;
+    const isSingle = count === 1;
+    const rangeText = isSingle
+      ? `${currentBook?.abbreviation || ''} ${selectedChapter}:${selectedVerseNumbers[0]}`
+      : `${currentBook?.abbreviation || ''} ${selectedChapter}:${selectedVerseNumbers[0]}-${selectedVerseNumbers[count - 1]}`;
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    contextMenuItems = [
+      {
+        id: 'add_to_setlist',
+        label: count > 1 ? `Adicionar ${count} Versículos à Setlist` : `Adicionar à Setlist (${rangeText})`,
+        icon: Plus,
+        onclick: () => handleAddSelectedToSetlist(),
+      },
+      {
+        id: 'add_chapter_to_setlist',
+        label: `Adicionar Capítulo Completo à Setlist (${currentBook?.name} ${selectedChapter})`,
+        icon: ListPlus,
+        onclick: () => handleAddFullChapterToSetlist(),
+      },
+      {
+        id: 'divider_1',
+        divider: true,
+      },
+      {
+        id: 'present_live',
+        label: `Apresentar ao Vivo (${rangeText})`,
+        icon: Play,
+        onclick: () => handleVerseDoubleClick(verseNum),
+      },
+      {
+        id: 'copy_text',
+        label: 'Copiar Texto com Referência',
+        icon: Copy,
+        onclick: () => handleCopySelectedVerses(),
+      },
+    ];
+
+    contextMenuOpen = true;
   }
 
   // --- BUSCA E PARSER DE REFERÊNCIAS ---
@@ -839,6 +938,7 @@
                 id="verse-slide-{v.verse}"
                 onclick={(e) => handleVerseClick(v.verse, e)}
                 ondblclick={() => handleVerseDoubleClick(v.verse)}
+                oncontextmenu={(e) => handleVerseContextMenu(e, v.verse)}
                 class="rounded-xl border p-2.5 flex flex-col justify-between transition-all cursor-pointer relative group {isLive ? 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/40' : isSelected ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/60 hover:bg-neutral-850 hover:border-neutral-700'}"
               >
                 <!-- Topo do Slide: Referência e Indicadores -->
@@ -854,7 +954,7 @@
 
                   <div class="flex items-center gap-1">
                     {#if isLive}
-                      <span class="px-1.5 py-0.5 rounded bg-emerald-500 text-black text-[9px] font-black uppercase tracking-wider animate-pulse">
+                      <span class="px-1.5 py-0.5 rounded bg-emerald-500 text-black text-[9px] font-black uppercase tracking-wider">
                         Ao Vivo
                       </span>
                     {/if}
@@ -891,4 +991,12 @@
       </div>
     </main>
   </div>
+
+  <ContextMenu
+    open={contextMenuOpen}
+    x={contextMenuX}
+    y={contextMenuY}
+    items={contextMenuItems}
+    onclose={() => (contextMenuOpen = false)}
+  />
 </div>

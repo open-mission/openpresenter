@@ -151,6 +151,7 @@ export interface PresentationState {
   lyrics_background_mode?: string;
   timer: TimerState;
   stage_message?: string;
+  quick_media?: MediaItem;
 }
 
 export interface OutputConfig {

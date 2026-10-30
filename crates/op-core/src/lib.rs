@@ -710,6 +710,8 @@ pub struct PresentationState {
     pub lyrics_background_mode: Option<String>,
     #[serde(default)]
     pub timer: TimerState,
+    #[serde(default)]
+    pub quick_media: Option<MediaItem>,
 }
 
 impl Default for PresentationState {
@@ -730,6 +732,7 @@ impl Default for PresentationState {
             ),
             lyrics_background_mode: Some("cover".into()),
             timer: TimerState::default(),
+            quick_media: None,
         }
     }
 }

@@ -40,6 +40,9 @@
   const activeMedia = $derived.by<MediaItem | undefined>(() => {
     const p = $presentationState;
     if (!p.active_media_id) return undefined;
+    if (p.quick_media && p.quick_media.id === p.active_media_id) {
+      return p.quick_media;
+    }
     return $mediaItemsList.find((m) => m.id === p.active_media_id);
   });
 

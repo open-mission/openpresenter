@@ -221,6 +221,12 @@
 
   // Mídia selecionada para exibição no painel central
   const selectedMedia = $derived.by<MediaItem | undefined>(() => {
+    if (
+      $presentationState.quick_media &&
+      $presentationState.quick_media.id === selectedMediaId
+    ) {
+      return $presentationState.quick_media;
+    }
     return $mediaItemsList.find((m) => m.id === selectedMediaId) ?? $mediaItemsList[0];
   });
 
@@ -228,6 +234,9 @@
   const liveMedia = $derived.by<MediaItem | undefined>(() => {
     const p = $presentationState;
     if (!p.active_media_id) return undefined;
+    if (p.quick_media && p.quick_media.id === p.active_media_id) {
+      return p.quick_media;
+    }
     return $mediaItemsList.find((m) => m.id === p.active_media_id);
   });
 

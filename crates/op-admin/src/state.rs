@@ -326,6 +326,9 @@ impl AppState {
     /// Dispara um slide específico de uma mídia para o modo ao vivo.
     pub async fn select_slide(&self, media_id: String, slide_index: usize) -> PresentationState {
         let mut state = self.presentation.write().await;
+        if state.quick_media.as_ref().is_some_and(|q| q.id != media_id) {
+            state.quick_media = None;
+        }
         state.active_media_id = Some(media_id);
         state.active_slide_index = Some(slide_index);
         state.display_mode = DisplayMode::Live;
@@ -362,6 +365,7 @@ impl AppState {
         let mut state = self.presentation.write().await;
         state.active_media_id = None;
         state.active_slide_index = None;
+        state.quick_media = None;
         state.display_mode = DisplayMode::Live;
         // Ao cancelar apresentação, volta ao plano de fundo do setlist
         state.wallpaper_path = state.setlist_wallpaper_path.clone();
@@ -558,15 +562,6 @@ impl AppState {
         item: MediaItem,
         slide_index: usize,
     ) -> PresentationState {
-        let mut items = self.media_items.write().await;
-        if let Some(existing) = items.iter_mut().find(|m| m.id == item.id) {
-            *existing = item.clone();
-        } else {
-            items.push(item.clone());
-        }
-        let all_items = items.clone();
-        drop(items);
-
         let target_idx = if slide_index < item.slides.len() {
             slide_index
         } else {
@@ -576,6 +571,7 @@ impl AppState {
         let mut state = self.presentation.write().await;
         state.active_media_id = Some(item.id.clone());
         state.active_slide_index = Some(target_idx);
+        state.quick_media = Some(item.clone());
         state.display_mode = DisplayMode::Live;
         if item.kind != op_core::MediaKind::Image {
             state.wallpaper_path = state.lyrics_background_path.clone();
@@ -584,9 +580,8 @@ impl AppState {
         let updated = state.clone();
         drop(state);
 
-        let _ = self.broadcast_tx.send(WsMessage::SyncState {
+        let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
             presentation: updated.clone(),
-            media_items: all_items,
         });
 
         updated

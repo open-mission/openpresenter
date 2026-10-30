@@ -35,6 +35,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - A opção na aba "Aparência & Cores" das Configurações permite ativar os rótulos de texto (labels) a qualquer momento.
 
 ### Alterado
+- **Bíblia: Apresentação Rápida via Duplo Clique e Menu de Contexto Completo:**
+  - O duplo clique em qualquer versículo bíblico agora ativa a projeção efêmera (`quick_media`) diretamente nas telas pública e de retorno de palco, sem poluir nem adicionar o item à setlist ativa.
+  - Adicionado menu de contexto com botão direito nos versículos bíblicos com opções para "Adicionar à Setlist (selecionados)", "Adicionar Capítulo Completo à Setlist", "Apresentar ao Vivo" e "Copiar Texto com Referência".
+  - Removido o efeito pulsante (`animate-pulse`) do badge "Ao Vivo" no card de versículo, mantendo um design estável e sem distrações visuais.
 - **Barra de Setlist: Destaque de Item ao Vivo com Borda Verde:**
   - Removido o indicador pulsante/piscante (`animate-ping`) do item ativo para eliminar distrações visuais na barra lateral de setlist.
   - O item em apresentação ao vivo agora é destacado com uma borda verde nítida (`border-emerald-500 ring-1 ring-emerald-500/50`), fundo sutil esmeralda e indicador lateral verde sólido.
