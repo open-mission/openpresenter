@@ -63,6 +63,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Na aba **Fundos de Letras & CSS**, inclusão de alternador na prévia 16:9 em tempo real entre `[🎵 Letra de Louvor]` e `[📖 Texto Bíblico]`, permitindo validar o contraste e o estilo em ambos os tipos de conteúdo.
 
 ### Corrigido
+- **Busca Bíblica no Controle Remoto Mobile:**
+  - Correção da rota de busca textual FTS para `/api/bibles/:id/search` e inclusão de parser de referências bíblicas instantâneas (ex: "Jo 3:16", "Sl 23") via `parseBibleReference`, permitindo navegar e projetar passagens digitadas diretamente na barra de busca.
+- **Divisão de Estrofes e Estrutura de Músicas no Remoto:**
+  - Substituição da lógica anterior pelo parser canônico `parseRawLyrics`, respeitando blocos separados por quebras de linha duplas (`\n\n`) e cabeçalhos de seção (`##`), dividindo músicas longas em estrofes adequadas para projeção e toque touch.
+- **Projeção Contínua e Indicador de Slides na Bíblia:**
+  - Correção do indicador de slides estático (`1/1`) na Bíblia: ao apresentar versículos pelo celular, todos os versículos do capítulo são carregados como slides do `MediaItem`, permitindo ao operador ou pregador avançar e recuar versículos com os botões Anterior/Próximo e acompanhar a contagem real (`Slide X/Total`).
+- **Atualização do Catálogo de Músicas no Remoto:**
+  - Adicionado botão de recarga instantânea (`RefreshCw`) ao lado do campo de busca de músicas.
 - **Alinhamento e Geometria dos Toggles e Switches de Configuração:**
   - Substituição da geometria anterior com posicionamentos absolutos manuais por modelo robusto baseado no padrão Tailwind UI (`border-2 border-transparent` e translação `translate-x-5`), corrigindo o botão circular que vazava para fora da pílula verde.
   - Correção do contraste nas chaves de alternância que ficavam totalmente brancas quando ativas (`peer-checked:bg-primary`).

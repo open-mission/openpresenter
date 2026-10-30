@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { parseRawLyrics } from '$lib/songParser';
+  import { parseBibleReference } from '$lib/bibleParser';
   import {
     presentationState,
     isWsConnected,
@@ -93,11 +95,17 @@
   const currentMediaTitle = $derived.by(() => {
     if (!$presentationState.active_media_id) return 'Nenhuma apresentação ativa';
     if ($presentationState.quick_media) {
+      if (currentSlide?.label) {
+        return currentSlide.label;
+      }
       return $presentationState.quick_media.title;
     }
     const item = (activeSetlistData?.items ?? []).find(
       (i) => i.id === $presentationState.active_media_id
     );
+    if (currentSlide?.label && item) {
+      return `${item.title} — ${currentSlide.label}`;
+    }
     return item?.title || 'Apresentação ativa';
   });
 
@@ -236,6 +244,15 @@
   }
 
   function songToSlides(song: Song): Slide[] {
+    if (song.lyrics_raw && song.lyrics_raw.trim()) {
+      const parsed = parseRawLyrics(song.lyrics_raw);
+      if (parsed.slides && parsed.slides.length > 0) {
+        return parsed.slides.map((s, idx) => ({
+          ...s,
+          id: `${song.id}-${idx}`,
+        }));
+      }
+    }
     if (song.sections && song.sections.length > 0) {
       return song.sections.map((sec, idx) => ({
         id: `${song.id}-${idx}`,
@@ -317,21 +334,53 @@
   }
 
   async function searchBible(query: string) {
-    if (!query.trim() || !activeBibleId) {
+    const clean = query.trim();
+    if (!clean || !activeBibleId) {
       bibleSearchResults = [];
       isSearchingBible = false;
       return;
     }
+
+    // 1. Tenta interpretar como referência bíblica direta (ex: "Jo 3:16", "Sl 23", "Gênesis 1")
+    const parsed = parseBibleReference(clean);
+    if (parsed) {
+      const targetBook = books.find(
+        (b) =>
+          b.id === parsed.book_id ||
+          b.name.toLowerCase() === parsed.book_name.toLowerCase() ||
+          b.abbreviation.toLowerCase() === parsed.book_abbreviation.toLowerCase()
+      );
+      if (targetBook) {
+        selectedBook = targetBook;
+        selectedChapter = parsed.chapter;
+        await loadVerses(activeBibleId, targetBook.id, parsed.chapter);
+        bibleNavTab = 'verses';
+        bibleSearchResults = [];
+
+        if (parsed.verse_start) {
+          const verseObj = verses.find((v) => v.verse === parsed.verse_start);
+          if (verseObj) {
+            presentVerse(verseObj);
+          }
+        }
+        return;
+      }
+    }
+
+    // 2. Busca textual FTS no endpoint oficial: /api/bibles/{id}/search
     isSearchingBible = true;
     try {
       const res = await fetch(
-        `/api/bibles/search?q=${encodeURIComponent(query.trim())}&bible_id=${activeBibleId}&exact=false`
+        `/api/bibles/${activeBibleId}/search?q=${encodeURIComponent(clean)}&limit=50`
       );
       if (res.ok) {
         bibleSearchResults = await res.json();
+      } else {
+        bibleSearchResults = [];
       }
     } catch (err) {
       console.error('Erro ao pesquisar texto bíblico:', err);
+      bibleSearchResults = [];
     } finally {
       isSearchingBible = false;
     }
@@ -393,42 +442,68 @@
     quickPresentMedia(mediaItem, slideIdx);
   }
 
-  // Apresentar Versículo Bíblico diretamente
+  // Apresentar Versículo Bíblico: projeta o capítulo inteiro com versículos nos slides
   function presentVerse(verse: BibleVerse) {
-    if (!selectedBook) return;
-    const bookName = selectedBook.name;
+    if (!selectedBook || verses.length === 0) return;
+    const currentBook = selectedBook;
+    const bookName = currentBook.name;
+    const targetIdx = verses.findIndex((v) => v.verse === verse.verse);
+    const initialSlide = targetIdx >= 0 ? targetIdx : 0;
+
     const mediaItem: MediaItem = {
-      id: `scripture-${selectedBook.id}-${selectedChapter}-${verse.verse}`,
+      id: `scripture-${activeBibleId}-${currentBook.id}-${selectedChapter}`,
       kind: 'scripture',
-      title: `${bookName} ${selectedChapter}:${verse.verse}`,
+      title: `${bookName} ${selectedChapter}`,
       artist_or_ref: activeBibleAbbr.toUpperCase(),
-      slides: [
-        {
-          id: `scripture-${selectedBook.id}-${selectedChapter}-${verse.verse}-0`,
-          label: `${bookName} ${selectedChapter}:${verse.verse}`,
-          content: verse.text,
-        },
-      ],
+      slides: verses.map((v) => ({
+        id: `scripture-${currentBook.id}-${selectedChapter}-${v.verse}`,
+        label: `${bookName} ${selectedChapter}:${v.verse}`,
+        content: v.text,
+      })),
     };
-    quickPresentMedia(mediaItem, 0);
+    quickPresentMedia(mediaItem, initialSlide);
   }
 
-  // Apresentar resultado da busca bíblica
-  function presentSearchResult(hit: any) {
-    const mediaItem: MediaItem = {
-      id: `scripture-${hit.book_id}-${hit.chapter}-${hit.verse}`,
-      kind: 'scripture',
-      title: `${hit.book_name} ${hit.chapter}:${hit.verse}`,
-      artist_or_ref: (hit.bible_version || activeBibleAbbr).toUpperCase(),
-      slides: [
-        {
-          id: `scripture-${hit.book_id}-${hit.chapter}-${hit.verse}-0`,
-          label: `${hit.book_name} ${hit.chapter}:${hit.verse}`,
-          content: hit.text,
-        },
-      ],
-    };
-    quickPresentMedia(mediaItem, 0);
+  // Apresentar resultado da busca bíblica: carrega capítulo completo com versículos nos slides
+  async function presentSearchResult(hit: any) {
+    const bookId = hit.book_id;
+    const ch = hit.chapter;
+    const vNum = hit.verse;
+
+    const targetBook = books.find((b) => b.id === bookId);
+    if (targetBook) {
+      selectedBook = targetBook;
+      selectedChapter = ch;
+    }
+
+    try {
+      const res = await fetch(`/api/bibles/${activeBibleId}/books/${bookId}/chapters/${ch}/verses`);
+      if (res.ok) {
+        const chapterVerses: BibleVerse[] = await res.json();
+        verses = chapterVerses;
+        bibleNavTab = 'verses';
+        bibleSearchResults = [];
+
+        const targetIdx = chapterVerses.findIndex((v) => v.verse === vNum);
+        const initialSlide = targetIdx >= 0 ? targetIdx : 0;
+        const bookName = hit.book_name || targetBook?.name || 'Bíblia';
+
+        const mediaItem: MediaItem = {
+          id: `scripture-${activeBibleId}-${bookId}-${ch}`,
+          kind: 'scripture',
+          title: `${bookName} ${ch}`,
+          artist_or_ref: (hit.bible_version || activeBibleAbbr).toUpperCase(),
+          slides: chapterVerses.map((v) => ({
+            id: `scripture-${bookId}-${ch}-${v.verse}`,
+            label: `${bookName} ${ch}:${v.verse}`,
+            content: v.text,
+          })),
+        };
+        quickPresentMedia(mediaItem, initialSlide);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar versículos do resultado de busca:', err);
+    }
   }
 </script>
 
@@ -702,28 +777,40 @@
     <!-- ABA 2: MÚSICAS -->
     {:else if activeTab === 'songs'}
       <div class="space-y-2">
-        <!-- Campo de busca de músicas -->
-        <div class="relative">
-          <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            oninput={handleSongSearchInput}
-            placeholder="Buscar por título ou trecho da letra..."
-            class="w-full pl-8 pr-8 py-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
-          />
-          {#if searchQuery}
-            <button
-              type="button"
-              onclick={() => {
-                searchQuery = '';
-                loadSongs('');
-              }}
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-1 cursor-pointer"
-            >
-              <X size={13} />
-            </button>
-          {/if}
+        <!-- Barra de busca de músicas com botão de recarregar -->
+        <div class="flex items-center gap-1.5">
+          <div class="relative flex-1">
+            <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              oninput={handleSongSearchInput}
+              placeholder="Buscar por título ou trecho da letra..."
+              class="w-full pl-8 pr-8 py-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+            {#if searchQuery}
+              <button
+                type="button"
+                onclick={() => {
+                  searchQuery = '';
+                  loadSongs('');
+                }}
+                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-1 cursor-pointer"
+              >
+                <X size={13} />
+              </button>
+            {/if}
+          </div>
+
+          <button
+            type="button"
+            onclick={() => loadSongs(searchQuery)}
+            class="h-10 w-10 rounded-xl bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 active:scale-95 text-neutral-300 hover:text-white flex items-center justify-center shrink-0 transition-all cursor-pointer"
+            title="Recarregar catálogo de músicas"
+            aria-label="Recarregar catálogo de músicas"
+          >
+            <RefreshCw size={15} class={isLoadingSongs ? 'animate-spin text-emerald-400' : ''} />
+          </button>
         </div>
 
         <!-- Visualização detalhada da música selecionada -->
@@ -862,7 +949,15 @@
 
           <!-- Input de Pesquisa -->
           <div class="relative flex-1 flex items-center">
-            <Search size={14} class="absolute left-2.5 text-neutral-400 pointer-events-none" />
+            <button
+              type="button"
+              onclick={() => searchBible(bibleQuery)}
+              class="absolute left-2.5 text-neutral-400 hover:text-white p-0.5 cursor-pointer transition-colors"
+              title="Pesquisar"
+              aria-label="Pesquisar"
+            >
+              <Search size={14} />
+            </button>
             <input
               type="text"
               bind:value={bibleQuery}
@@ -1083,12 +1178,22 @@
                     <span>Carregando versículos...</span>
                   </div>
                 {:else}
-                  {#each verses as v}
-                    {@const isVerseLive =
-                      selectedBook &&
-                      $presentationState.active_media_id ===
-                        `scripture-${selectedBook.id}-${selectedChapter}-${v.verse}` &&
+                  {#each verses as v, vIdx}
+                    {@const isChapterLive =
+                      !!selectedBook &&
+                      ($presentationState.active_media_id ===
+                        `scripture-${activeBibleId}-${selectedBook.id}-${selectedChapter}` ||
+                        $presentationState.active_media_id ===
+                          `scripture-${selectedBook.id}-${selectedChapter}` ||
+                        $presentationState.active_media_id ===
+                          `scripture-${selectedBook.id}-${selectedChapter}-${v.verse}`) &&
                       isLive}
+                    {@const isVerseLive =
+                      isChapterLive &&
+                      (currentSlideIndex === vIdx ||
+                        (!!selectedBook &&
+                          $presentationState.active_media_id ===
+                            `scripture-${selectedBook.id}-${selectedChapter}-${v.verse}`))}
                     <button
                       type="button"
                       onclick={() => presentVerse(v)}

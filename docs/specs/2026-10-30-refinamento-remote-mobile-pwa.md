@@ -11,6 +11,10 @@ Após a validação da primeira versão do Controle Remoto Mobile (`/remote`), f
 6. **Estados Ativos e Feedback Visual:** Destacar estrofes de músicas e versículos bíblicos que estão em exibição ao vivo no projetor público (`live`), além de sinalizar na listagem de músicas quando um item está ao vivo.
 7. **Correção do Carregamento da Setlist:** Corrigir a requisição da setlist ativa carregando o detalhe completo via `/api/setlists/{id}` para obter o array de itens.
 8. **Suporte a Progressive Web App (PWA):** Disponibilizar manifesto web (`manifest.webmanifest`), ícones de alta resolução, meta tags de tela cheia e Service Worker mínimo para que o OpenPresenter (Remoto, Painel e Telas) possa ser instalado como aplicativo standalone no computador e celular (Android e iOS).
+9. **Busca Bíblica e Parser de Referências:** Corrigir a rota de busca para `/api/bibles/{id}/search` e adicionar suporte nativo a referências bíblicas (ex: "Jo 3:16", "Sl 23") via `parseBibleReference`.
+10. **Estrutura Real de Músicas:** Utilizar o parser canônico `parseRawLyrics` para dividir estrofes e seções de músicas baseadas em quebras de linha (`\n\n`), evitando estrofes únicas gigantescas.
+11. **Navegação Contínua de Versículos na Projeção Bíblica:** Projetar o capítulo bíblico com todos os seus versículos no `MediaItem`, permitindo que os botões Anterior e Próximo avancem versículo a versículo e atualizem o indicador `Slide X/Total`.
+12. **Botão de Recarregar Músicas:** Adicionar botão de atualização no catálogo de músicas do controle remoto.
 
 ---
 
