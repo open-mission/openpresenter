@@ -13,9 +13,20 @@
     ChevronRight,
     FileText,
     BookOpen,
+    Play,
   } from 'lucide-svelte';
-  import type { SongSummary, OnlineLyricHit, Song, ParsedReference } from '../types';
+  import type {
+    SongSummary,
+    OnlineLyricHit,
+    Song,
+    ParsedReference,
+    BibleSearchResult,
+    BibleVerse,
+    BibleVersionSummary,
+    MediaItem,
+  } from '../types';
   import { parseBibleReference } from '../bibleParser';
+  import { quickPresentMedia } from '../ws';
   import Badge from './ui/Badge.svelte';
 
   interface Props {
@@ -39,9 +50,15 @@
   }: Props = $props();
 
   let query = $state('');
-  let activeTab = $state<'local' | 'online'>('local');
+  let activeTab = $state<'local' | 'bible' | 'online'>('local');
   let localResults = $state<SongSummary[]>([]);
   let onlineResults = $state<OnlineLyricHit[]>([]);
+  let bibles = $state<BibleVersionSummary[]>([]);
+  let selectedBibleId = $state<string>('');
+  let bibleResults = $state<BibleSearchResult[]>([]);
+  let bibleVerses = $state<BibleVerse[]>([]);
+  let biblePassageRef = $state<ParsedReference | null>(null);
+  let addedVerseKeys = $state<Record<string, boolean>>({});
   let isLoading = $state(false);
   let selectedIndex = $state(0);
   let addedIds = $state<Record<string, boolean>>({});
@@ -49,11 +66,30 @@
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let prevOpen = false;
 
+  const currentBible = $derived(
+    bibles.find((b) => b.id === selectedBibleId) || bibles[0]
+  );
+
   const parsedBibleRef = $derived.by<ParsedReference | null>(() => {
     const q = query.trim();
     if (!q || q.length < 2) return null;
     return parseBibleReference(q);
   });
+
+  async function loadBibles() {
+    try {
+      const resp = await fetch('/api/bibles');
+      if (resp.ok) {
+        bibles = await resp.json();
+        if (bibles.length > 0 && !selectedBibleId) {
+          const def = bibles.find((b) => b.is_default) || bibles[0];
+          selectedBibleId = def.id;
+        }
+      }
+    } catch {
+      // Ignora erro ao carregar bíblias
+    }
+  }
 
   // Gerencia abertura/fechamento do Command Palette
   $effect(() => {
@@ -62,7 +98,11 @@
       activeTab = 'local';
       localResults = [];
       onlineResults = [];
+      bibleResults = [];
+      bibleVerses = [];
+      biblePassageRef = null;
       selectedIndex = 0;
+      loadBibles();
       searchLocal('');
       setTimeout(() => {
         inputElement?.focus();
@@ -83,6 +123,8 @@
     debounceTimer = setTimeout(() => {
       if (currentTab === 'local') {
         searchLocal(currentQuery);
+      } else if (currentTab === 'bible') {
+        searchBible(currentQuery);
       } else {
         searchOnline(currentQuery);
       }
@@ -128,6 +170,72 @@
     }
   }
 
+  async function searchBible(q: string) {
+    const clean = q.trim();
+    if (!clean) {
+      bibleResults = [];
+      bibleVerses = [];
+      biblePassageRef = null;
+      return;
+    }
+
+    if (!selectedBibleId && bibles.length > 0) {
+      selectedBibleId = (bibles.find((b) => b.is_default) || bibles[0]).id;
+    }
+    if (!selectedBibleId) return;
+
+    isLoading = true;
+    try {
+      // 1. Tenta identificar se é uma referência bíblica (ex: "João 3:16", "Sl 23", "Rm 8:28-30")
+      const parsed = parseBibleReference(clean);
+      if (parsed) {
+        biblePassageRef = parsed;
+        let targetBibleId = selectedBibleId;
+        if (parsed.version) {
+          const matched = bibles.find(
+            (b) =>
+              b.abbreviation.toLowerCase() === parsed.version!.toLowerCase() ||
+              b.name.toLowerCase().includes(parsed.version!.toLowerCase())
+          );
+          if (matched) {
+            targetBibleId = matched.id;
+            selectedBibleId = matched.id;
+          }
+        }
+
+        const resp = await fetch(
+          `/api/bibles/${targetBibleId}/books/${parsed.book_id}/chapters/${parsed.chapter}/verses`
+        );
+        if (resp.ok) {
+          const allChapterVerses: BibleVerse[] = await resp.json();
+          const start = parsed.verse_start || 1;
+          const end = parsed.verse_end || (parsed.verse_start ? parsed.verse_start : allChapterVerses.length);
+          bibleVerses = allChapterVerses.filter((v) => v.verse >= start && v.verse <= end);
+          bibleResults = [];
+          selectedIndex = 0;
+        }
+        return;
+      }
+
+      // 2. Não sendo referência, realiza busca textual por palavras-chave
+      biblePassageRef = null;
+      bibleVerses = [];
+      const resp = await fetch(
+        `/api/bibles/${selectedBibleId}/search?q=${encodeURIComponent(clean)}&limit=30`
+      );
+      if (resp.ok) {
+        bibleResults = await resp.json();
+        selectedIndex = 0;
+      }
+    } catch (err) {
+      console.error('Erro na busca bíblica no CommandPalette:', err);
+      bibleResults = [];
+      bibleVerses = [];
+    } finally {
+      isLoading = false;
+    }
+  }
+
   async function addToSetlist(songId: string, e?: MouseEvent) {
     if (e) e.stopPropagation();
     try {
@@ -144,6 +252,197 @@
       }
     } catch (err) {
       console.error('Erro ao adicionar na setlist', err);
+    }
+  }
+
+  function presentBibleResult(result: BibleSearchResult) {
+    const abbr = currentBible?.abbreviation || result.book_abbreviation || 'Bíblia';
+    const mediaItem: MediaItem = {
+      id: `scripture-${selectedBibleId}-${result.book_id}-${result.chapter}-${result.verse}-${Date.now()}`,
+      title: `${result.book_name} ${result.chapter}:${result.verse}`,
+      artist_or_ref: abbr,
+      kind: 'scripture',
+      slides: [
+        {
+          id: `v-${result.verse}`,
+          label: `${result.book_name} ${result.chapter}:${result.verse}`,
+          content: result.text,
+          align_h: 'center',
+          align_v: 'center',
+        },
+      ],
+      align_h: 'center',
+      align_v: 'center',
+    };
+    quickPresentMedia(mediaItem, 0);
+    onclose();
+  }
+
+  async function addBibleResultToSetlist(result: BibleSearchResult, e?: MouseEvent) {
+    if (e) e.stopPropagation();
+    const abbr = currentBible?.abbreviation || result.book_abbreviation || 'Bíblia';
+    const key = `res-${result.book_id}-${result.chapter}-${result.verse}`;
+    const mediaItem: MediaItem = {
+      id: `scripture-${Date.now()}`,
+      title: `${result.book_name} ${result.chapter}:${result.verse}`,
+      artist_or_ref: abbr,
+      kind: 'scripture',
+      slides: [
+        {
+          id: `v-${result.verse}`,
+          label: `${result.book_name} ${result.chapter}:${result.verse}`,
+          content: result.text,
+          align_h: 'center',
+          align_v: 'center',
+        },
+      ],
+      align_h: 'center',
+      align_v: 'center',
+    };
+    try {
+      const resp = await fetch('/api/setlist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item: mediaItem }),
+      });
+      if (resp.ok) {
+        addedVerseKeys = { ...addedVerseKeys, [key]: true };
+        setTimeout(() => {
+          addedVerseKeys = { ...addedVerseKeys, [key]: false };
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Erro ao adicionar versículo à setlist:', err);
+    }
+  }
+
+  function presentBibleVerse(verse: BibleVerse) {
+    const abbr = currentBible?.abbreviation || 'Bíblia';
+    const bookName = biblePassageRef?.book_name || 'Bíblia';
+    const chapter = biblePassageRef?.chapter || verse.chapter;
+    const mediaItem: MediaItem = {
+      id: `scripture-${selectedBibleId}-${verse.book_id}-${chapter}-${verse.verse}-${Date.now()}`,
+      title: `${bookName} ${chapter}:${verse.verse}`,
+      artist_or_ref: abbr,
+      kind: 'scripture',
+      slides: [
+        {
+          id: `v-${verse.verse}`,
+          label: `${bookName} ${chapter}:${verse.verse}`,
+          content: verse.text,
+          align_h: 'center',
+          align_v: 'center',
+        },
+      ],
+      align_h: 'center',
+      align_v: 'center',
+    };
+    quickPresentMedia(mediaItem, 0);
+    onclose();
+  }
+
+  async function addBibleVerseToSetlist(verse: BibleVerse, e?: MouseEvent) {
+    if (e) e.stopPropagation();
+    const abbr = currentBible?.abbreviation || 'Bíblia';
+    const bookName = biblePassageRef?.book_name || 'Bíblia';
+    const chapter = biblePassageRef?.chapter || verse.chapter;
+    const key = `verse-${verse.book_id}-${chapter}-${verse.verse}`;
+    const mediaItem: MediaItem = {
+      id: `scripture-${Date.now()}`,
+      title: `${bookName} ${chapter}:${verse.verse}`,
+      artist_or_ref: abbr,
+      kind: 'scripture',
+      slides: [
+        {
+          id: `v-${verse.verse}`,
+          label: `${bookName} ${chapter}:${verse.verse}`,
+          content: verse.text,
+          align_h: 'center',
+          align_v: 'center',
+        },
+      ],
+      align_h: 'center',
+      align_v: 'center',
+    };
+    try {
+      const resp = await fetch('/api/setlist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item: mediaItem }),
+      });
+      if (resp.ok) {
+        addedVerseKeys = { ...addedVerseKeys, [key]: true };
+        setTimeout(() => {
+          addedVerseKeys = { ...addedVerseKeys, [key]: false };
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Erro ao adicionar versículo à setlist:', err);
+    }
+  }
+
+  function presentPassageVerses() {
+    if (bibleVerses.length === 0 || !biblePassageRef) return;
+    const abbr = currentBible?.abbreviation || 'Bíblia';
+    const firstV = bibleVerses[0].verse;
+    const lastV = bibleVerses[bibleVerses.length - 1].verse;
+    const rangeLabel = firstV === lastV ? `${firstV}` : `${firstV}-${lastV}`;
+    const mediaItem: MediaItem = {
+      id: `scripture-${Date.now()}`,
+      title: `${biblePassageRef.book_name} ${biblePassageRef.chapter}:${rangeLabel}`,
+      artist_or_ref: abbr,
+      kind: 'scripture',
+      slides: bibleVerses.map((v) => ({
+        id: `v-${v.verse}`,
+        label: `${biblePassageRef!.book_name} ${biblePassageRef!.chapter}:${v.verse}`,
+        content: v.text,
+        align_h: 'center',
+        align_v: 'center',
+      })),
+      align_h: 'center',
+      align_v: 'center',
+    };
+    quickPresentMedia(mediaItem, 0);
+    onclose();
+  }
+
+  async function addPassageToSetlist(e?: MouseEvent) {
+    if (e) e.stopPropagation();
+    if (bibleVerses.length === 0 || !biblePassageRef) return;
+    const abbr = currentBible?.abbreviation || 'Bíblia';
+    const firstV = bibleVerses[0].verse;
+    const lastV = bibleVerses[bibleVerses.length - 1].verse;
+    const rangeLabel = firstV === lastV ? `${firstV}` : `${firstV}-${lastV}`;
+    const key = `passage-${biblePassageRef.book_id}-${biblePassageRef.chapter}`;
+    const mediaItem: MediaItem = {
+      id: `scripture-${Date.now()}`,
+      title: `${biblePassageRef.book_name} ${biblePassageRef.chapter}:${rangeLabel}`,
+      artist_or_ref: abbr,
+      kind: 'scripture',
+      slides: bibleVerses.map((v) => ({
+        id: `v-${v.verse}`,
+        label: `${biblePassageRef!.book_name} ${biblePassageRef!.chapter}:${v.verse}`,
+        content: v.text,
+        align_h: 'center',
+        align_v: 'center',
+      })),
+      align_h: 'center',
+      align_v: 'center',
+    };
+    try {
+      const resp = await fetch('/api/setlist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item: mediaItem }),
+      });
+      if (resp.ok) {
+        addedVerseKeys = { ...addedVerseKeys, [key]: true };
+        setTimeout(() => {
+          addedVerseKeys = { ...addedVerseKeys, [key]: false };
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Erro ao adicionar passagem à setlist:', err);
     }
   }
 
@@ -175,12 +474,40 @@
       return;
     }
 
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      if (activeTab === 'local') {
+        activeTab = 'bible';
+        searchBible(query);
+      } else if (activeTab === 'bible') {
+        activeTab = 'online';
+        searchOnline(query);
+      } else {
+        activeTab = 'local';
+        searchLocal(query);
+      }
+      return;
+    }
+
+    const getMaxIndex = () => {
+      if (activeTab === 'local') {
+        return localResults.length + 3; // +3 opções rápidas
+      }
+      if (activeTab === 'bible') {
+        if (bibleVerses.length > 1) {
+          return bibleVerses.length + 1; // +1 card da passagem completa no topo
+        }
+        if (bibleVerses.length === 1) {
+          return 1;
+        }
+        return bibleResults.length;
+      }
+      return onlineResults.length;
+    };
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      const max =
-        activeTab === 'local'
-          ? localResults.length + 3 // +3 opções rápidas (Bíblia, Nova Música, Web)
-          : onlineResults.length;
+      const max = getMaxIndex();
       if (max > 0) {
         selectedIndex = (selectedIndex + 1) % max;
       }
@@ -189,18 +516,15 @@
 
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      const max =
-        activeTab === 'local'
-          ? localResults.length + 3
-          : onlineResults.length;
+      const max = getMaxIndex();
       if (max > 0) {
         selectedIndex = (selectedIndex - 1 + max) % max;
       }
       return;
     }
 
-    // Atalhos quando uma referência bíblica for digitada (ex: "joao 3.16" ou "Salmos 91")
-    if (parsedBibleRef) {
+    // Atalhos quando uma referência bíblica for digitada em aba local (ex: "joao 3.16" ou "Salmos 91")
+    if (activeTab === 'local' && parsedBibleRef) {
       if (e.key === 'Enter' && e.shiftKey) {
         e.preventDefault();
         onpresentscripture?.(parsedBibleRef);
@@ -224,6 +548,20 @@
         if (song) {
           addToSetlist(song.id);
         }
+      } else if (activeTab === 'bible') {
+        if (bibleVerses.length > 1) {
+          if (selectedIndex === 0) {
+            addPassageToSetlist();
+          } else {
+            const v = bibleVerses[selectedIndex - 1];
+            if (v) addBibleVerseToSetlist(v);
+          }
+        } else if (bibleVerses.length === 1) {
+          addBibleVerseToSetlist(bibleVerses[0]);
+        } else if (bibleResults.length > 0) {
+          const res = bibleResults[selectedIndex];
+          if (res) addBibleResultToSetlist(res);
+        }
       }
       return;
     }
@@ -233,9 +571,9 @@
       e.preventDefault();
       if (activeTab === 'local') {
         if (selectedIndex === 0) {
-          // Abrir Aba Bíblia Sagrada
-          onclose();
-          onopenbibletab?.();
+          // Alternar para aba Bíblia Sagrada no Command Palette
+          activeTab = 'bible';
+          searchBible(query);
         } else if (selectedIndex === 1) {
           // Criar nova música manualmente
           onclose();
@@ -250,6 +588,20 @@
           if (song) {
             addToSetlist(song.id);
           }
+        }
+      } else if (activeTab === 'bible') {
+        if (bibleVerses.length > 1) {
+          if (selectedIndex === 0) {
+            presentPassageVerses();
+          } else {
+            const v = bibleVerses[selectedIndex - 1];
+            if (v) presentBibleVerse(v);
+          }
+        } else if (bibleVerses.length === 1) {
+          presentBibleVerse(bibleVerses[0]);
+        } else if (bibleResults.length > 0) {
+          const res = bibleResults[selectedIndex];
+          if (res) presentBibleResult(res);
         }
       } else {
         const hit = onlineResults[selectedIndex];
@@ -292,7 +644,9 @@
           bind:value={query}
           placeholder={activeTab === 'local'
             ? 'Buscar música por título ou letra, ou selecione uma ação...'
-            : 'Buscar na internet (Holyrics, Vagalume)...'}
+            : activeTab === 'bible'
+              ? 'Buscar passagem (ex: João 3:16, Sl 23:1-4) ou palavras-chave (ex: luz do mundo)...'
+              : 'Buscar na internet (Holyrics, Vagalume)...'}
           class="flex-1 bg-transparent border-0 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-0"
         />
 
@@ -304,13 +658,20 @@
           <button
             type="button"
             onclick={() => {
-              activeTab = activeTab === 'local' ? 'online' : 'local';
-              if (activeTab === 'online') searchOnline(query);
-              else searchLocal(query);
+              if (activeTab === 'local') {
+                activeTab = 'bible';
+                searchBible(query);
+              } else if (activeTab === 'bible') {
+                activeTab = 'online';
+                searchOnline(query);
+              } else {
+                activeTab = 'local';
+                searchLocal(query);
+              }
             }}
             class="px-2 py-1 rounded text-[11px] font-medium border border-zinc-700/80 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 transition-colors cursor-pointer"
           >
-            {activeTab === 'local' ? 'Web 🌐' : 'Catálogo 📚'}
+            {activeTab === 'local' ? 'Músicas 🎵' : activeTab === 'bible' ? 'Bíblia 📖' : 'Web 🌐'}
           </button>
           <button
             type="button"
@@ -325,32 +686,62 @@
 
       <!-- Abas de Navegação -->
       <div class="px-4 py-1.5 bg-zinc-900/40 border-b border-zinc-800/60 flex items-center justify-between text-xs">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1.5">
           <button
             type="button"
             onclick={() => {
               activeTab = 'local';
               searchLocal(query);
             }}
-            class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer {activeTab === 'local' ? 'bg-zinc-800 text-emerald-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
+            class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {activeTab === 'local' ? 'bg-zinc-800 text-emerald-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
           >
-            Catálogo Local ({localResults.length})
+            <Music size={13} />
+            <span>Músicas ({localResults.length})</span>
           </button>
+
+          <button
+            type="button"
+            onclick={() => {
+              activeTab = 'bible';
+              searchBible(query);
+            }}
+            class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {activeTab === 'bible' ? 'bg-zinc-800 text-amber-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
+          >
+            <BookOpen size={13} />
+            <span>Bíblia Sagrada {bibleVerses.length > 0 ? `(${bibleVerses.length})` : bibleResults.length > 0 ? `(${bibleResults.length})` : ''}</span>
+          </button>
+
           <button
             type="button"
             onclick={() => {
               activeTab = 'online';
               searchOnline(query);
             }}
-            class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer {activeTab === 'online' ? 'bg-zinc-800 text-emerald-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
+            class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {activeTab === 'online' ? 'bg-zinc-800 text-sky-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
           >
-            Buscar na Internet
+            <Globe size={13} />
+            <span>Online</span>
           </button>
         </div>
 
-        <span class="text-[10px] text-zinc-500 hidden sm:inline">
-          <kbd class="px-1 py-0.5 rounded bg-zinc-800 font-mono text-[9px]">Shift+Enter</kbd> Add na Setlist
-        </span>
+        <div class="flex items-center gap-2">
+          {#if activeTab === 'bible' && bibles.length > 0}
+            <select
+              bind:value={selectedBibleId}
+              onchange={() => searchBible(query)}
+              class="bg-zinc-800 text-zinc-300 text-[11px] rounded px-2 py-0.5 border border-zinc-700/80 focus:outline-none cursor-pointer"
+              title="Versão da Bíblia"
+            >
+              {#each bibles as b (b.id)}
+                <option value={b.id}>{b.abbreviation} - {b.name}</option>
+              {/each}
+            </select>
+          {/if}
+
+          <span class="text-[10px] text-zinc-500 hidden sm:inline">
+            <kbd class="px-1 py-0.5 rounded bg-zinc-800 font-mono text-[9px]">Tab</kbd> Alternar
+          </span>
+        </div>
       </div>
 
       <!-- Lista de Resultados e Ações -->
@@ -553,6 +944,206 @@
                 <Globe size={13} />
                 Buscar "{query}" na internet
               </button>
+            </div>
+          {/if}
+        {:else if activeTab === 'bible'}
+          <!-- ABA BÍBLIA SAGRADA -->
+          {#if bibleVerses.length > 0}
+            <!-- Passagem por Referência (ex: João 3:16 ou Sl 23:1-4) -->
+            {#if bibleVerses.length > 1}
+              <!-- Card de Passagem Completa -->
+              {@const isPassageSelected = selectedIndex === 0}
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <div
+                role="button"
+                tabindex="0"
+                onclick={() => presentPassageVerses()}
+                class="w-full p-3 mb-2 rounded-xl border flex items-center justify-between gap-3 transition-colors cursor-pointer text-left {isPassageSelected ? 'bg-amber-500/20 border-amber-500 ring-1 ring-amber-500/50 text-white' : 'bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/15 text-white'}"
+              >
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                    <BookOpen size={16} />
+                  </div>
+                  <div class="min-w-0">
+                    <div class="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                      <span>Passagem Completa ({bibleVerses.length} versículos)</span>
+                      <Badge variant="outline" class="text-[9px] border-amber-500/50 text-amber-300 font-mono py-0 px-1 uppercase">
+                        {currentBible?.abbreviation || 'Bíblia'}
+                      </Badge>
+                    </div>
+                    <div class="text-sm font-extrabold text-white truncate">
+                      {biblePassageRef?.book_name} {biblePassageRef?.chapter}:{bibleVerses[0].verse}-{bibleVerses[bibleVerses.length - 1].verse}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onclick={(e) => addPassageToSetlist(e)}
+                    class="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-amber-600 hover:text-black text-xs font-semibold text-zinc-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="Adicionar todos os versículos à Setlist (Shift+Enter)"
+                  >
+                    {#if addedVerseKeys[`passage-${biblePassageRef?.book_id}-${biblePassageRef?.chapter}`]}
+                      <Check size={13} class="text-emerald-400" />
+                      <span>Adicionado</span>
+                    {:else}
+                      <Plus size={13} />
+                      <span>Add na Setlist</span>
+                    {/if}
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => presentPassageVerses()}
+                    class="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-xs font-bold text-black flex items-center gap-1.5 transition-colors cursor-pointer shadow-md"
+                    title="Projetar todos os versículos ao vivo (Enter)"
+                  >
+                    <Play size={13} class="fill-current" />
+                    <span>Projetar Passagem</span>
+                  </button>
+                </div>
+              </div>
+            {/if}
+
+            <div class="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center justify-between">
+              <span>Versículos ({bibleVerses.length}) - {currentBible?.name} ({currentBible?.abbreviation})</span>
+            </div>
+
+            {#each bibleVerses as verse, idx (verse.id || verse.verse)}
+              {@const isSelected = selectedIndex === (bibleVerses.length > 1 ? idx + 1 : idx)}
+              {@const verseKey = `verse-${verse.book_id}-${biblePassageRef?.chapter || verse.chapter}-${verse.verse}`}
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <div
+                role="button"
+                tabindex="0"
+                onclick={() => presentBibleVerse(verse)}
+                class="w-full px-3 py-2.5 rounded-lg flex items-center justify-between transition-colors cursor-pointer text-left {isSelected ? 'bg-zinc-800/90 ring-1 ring-amber-500/50' : 'hover:bg-zinc-900/80'}"
+              >
+                <div class="flex items-start gap-2.5 min-w-0 pr-3">
+                  <div class="w-6 h-6 rounded bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0 mt-0.5 text-xs font-mono font-bold">
+                    {verse.verse}
+                  </div>
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-bold text-white truncate">
+                        {biblePassageRef?.book_name} {biblePassageRef?.chapter || verse.chapter}:{verse.verse}
+                      </span>
+                      <Badge variant="outline" class="text-[9px] py-0 px-1 border-amber-500/40 text-amber-300 font-mono">
+                        {currentBible?.abbreviation || 'Bíblia'}
+                      </Badge>
+                    </div>
+                    <div class="text-xs text-zinc-300 line-clamp-2 mt-0.5 leading-snug">
+                      {verse.text}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onclick={(e) => addBibleVerseToSetlist(verse, e)}
+                    class="px-2.5 py-1 rounded bg-zinc-800 hover:bg-amber-600 hover:text-black border border-zinc-700/80 text-xs font-medium text-zinc-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    title="Adicionar versículo à Setlist"
+                  >
+                    {#if addedVerseKeys[verseKey]}
+                      <Check size={12} class="text-emerald-400" />
+                      <span>Adicionado</span>
+                    {:else}
+                      <Plus size={12} />
+                      <span>Add</span>
+                    {/if}
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => presentBibleVerse(verse)}
+                    class="px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                    title="Projetar este versículo ao vivo"
+                  >
+                    <Play size={12} class="fill-current" />
+                    <span>Ao Vivo</span>
+                  </button>
+                </div>
+              </div>
+            {/each}
+          {:else if bibleResults.length > 0}
+            <!-- Resultados Textuais da Busca por Palavras -->
+            <div class="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center justify-between">
+              <span>Versículos Encontrados ({bibleResults.length}) - Versão {currentBible?.abbreviation}</span>
+            </div>
+
+            {#each bibleResults as result, idx (`${result.book_id}-${result.chapter}-${result.verse}`)}
+              {@const isSelected = selectedIndex === idx}
+              {@const resKey = `res-${result.book_id}-${result.chapter}-${result.verse}`}
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <div
+                role="button"
+                tabindex="0"
+                onclick={() => presentBibleResult(result)}
+                class="w-full px-3 py-2.5 rounded-lg flex items-center justify-between transition-colors cursor-pointer text-left {isSelected ? 'bg-zinc-800/90 ring-1 ring-amber-500/50' : 'hover:bg-zinc-900/80'}"
+              >
+                <div class="flex items-start gap-2.5 min-w-0 pr-3">
+                  <div class="w-6 h-6 rounded bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                    <BookOpen size={13} />
+                  </div>
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-bold text-white truncate">
+                        {result.book_name} {result.chapter}:{result.verse}
+                      </span>
+                      <Badge variant="outline" class="text-[9px] py-0 px-1 border-amber-500/40 text-amber-300 font-mono">
+                        {result.book_abbreviation || currentBible?.abbreviation}
+                      </Badge>
+                    </div>
+                    <div class="text-xs text-zinc-300 line-clamp-2 mt-0.5 leading-snug">
+                      {result.text}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onclick={(e) => addBibleResultToSetlist(result, e)}
+                    class="px-2.5 py-1 rounded bg-zinc-800 hover:bg-amber-600 hover:text-black border border-zinc-700/80 text-xs font-medium text-zinc-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    title="Adicionar versículo à Setlist"
+                  >
+                    {#if addedVerseKeys[resKey]}
+                      <Check size={12} class="text-emerald-400" />
+                      <span>Adicionado</span>
+                    {:else}
+                      <Plus size={12} />
+                      <span>Add</span>
+                    {/if}
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => presentBibleResult(result)}
+                    class="px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                    title="Projetar este versículo ao vivo"
+                  >
+                    <Play size={12} class="fill-current" />
+                    <span>Ao Vivo</span>
+                  </button>
+                </div>
+              </div>
+            {/each}
+          {:else if query && !isLoading}
+            <div class="p-8 text-center text-zinc-500 text-xs space-y-2">
+              <p>Nenhum texto bíblico encontrado para "{query}" na versão {currentBible?.abbreviation || ''}.</p>
+              <p class="text-[11px] text-zinc-600">
+                Tente uma referência como <strong class="text-zinc-400">João 3:16</strong>, <strong class="text-zinc-400">Sl 23:1-4</strong>, ou palavras como <strong class="text-zinc-400">luz do mundo</strong>.
+              </p>
+            </div>
+          {:else if !query}
+            <div class="p-8 text-center text-zinc-500 text-xs space-y-2">
+              <BookOpen size={24} class="mx-auto text-amber-500/40 mb-2" />
+              <p class="font-medium text-zinc-400">Pesquise textos bíblicos por referência ou palavras-chave</p>
+              <p class="text-[11px] text-zinc-500">
+                Exemplos: <code class="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-amber-400">João 3:16</code>, <code class="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-amber-400">Sl 23:1-4</code>, <code class="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-amber-400">luz do mundo</code>, <code class="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-amber-400">princípio</code>
+              </p>
             </div>
           {/if}
         {:else}

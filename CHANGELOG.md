@@ -7,6 +7,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Busca Bíblica Integrada por Referência e Palavras no Command Palette Global:**
+  - Adicionada aba dedicada **Bíblia Sagrada** no Command Palette global (`Ctrl+K` / `Cmd+K`), com navegação por teclado rápida e atalho `Tab`.
+  - Suporte à busca de passagens bíblicas por referência (ex: `João 3:16`, `Sl 23:1-4`, `Romanos 8`), listando instantaneamente os versículos solicitados com opção de projetar passagem completa ou versículos individuais.
+  - Suporte à busca textual por palavras-chave (ex: `luz do mundo`, `princípio`), consultando a API de pesquisa bíblica e listando resultados com livro, capítulo, versículo e texto.
+  - Ações imediatas por teclado e mouse: `Enter` projeta o versículo ou passagem ao vivo, e `Shift+Enter` adiciona diretamente à setlist ativa.
+  - Seletor rápido de versão bíblica instalada (ARA, NVI, etc.) integrado no cabeçalho do Command Palette.
 - **Título Configurável para o Cronômetro no Stage Display:**
   - Adicionado campo de título editável e chips rápidos de sugestão ("Pregação", "Louvor", "Oração", "Avisos", "Palavra", "Ceia") no painel do cronômetro do operador.
   - O título definido é exibido em destaque no cabeçalho do bloco do cronômetro no monitor de palco (`/stage`), no modo standby e no preview do operador.
