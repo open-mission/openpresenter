@@ -16,6 +16,10 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Preparar a versão 0.2.0 para lançamento: unificação de versão (Cargo.toml, package.json, workflows), spec de release e atualização do CHANGELOG.md (2026-10-30 04:25:00 -03:00)
+
+- [x] Auditoria técnica Impeccable no painel do operador: correção de acessibilidade WAI-ARIA, suporte a prefers-reduced-motion, padronização de design tokens semânticos e atualização da skill para v4.8.0. (commit 26dd358 - 2026-10-30 04:13:07 -03:00)
+
 - [x] o icone do trail está estranho ![](orca-paste-1793330003849-ead85ae4-f46f-4d15-aefe-326d48b20352.png) (commit 2cdd5ff - 2026-10-30 02:35:37 -03:00)
 
 - [x] Design Feedback /: Remover badge "X itens" e botão de apagar do cabeçalho da Setlist; exibir dropdown flutuante de conexões WebSocket ativas com IP e rota ao clicar em "Online". (commit 7d3e4fa - 2026-10-30 02:10:22 -03:00)
