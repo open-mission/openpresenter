@@ -297,7 +297,7 @@
       kind: 'scripture',
       slides: verses.map((v) => ({
         id: `v-${v.verse}`,
-        label: `${currentBook.name} ${selectedChapter}:${v.verse} ${abbr}`,
+        label: `${currentBook.name} ${selectedChapter}:${v.verse}`,
         content: v.text,
       })),
     };
@@ -331,7 +331,7 @@
       kind: 'scripture',
       slides: selectedVerses.map((v) => ({
         id: `v-${v.verse}`,
-        label: `${currentBook.name} ${selectedChapter}:${v.verse} ${abbr}`,
+        label: `${currentBook.name} ${selectedChapter}:${v.verse}`,
         content: v.text,
       })),
     };
@@ -359,7 +359,7 @@
       kind: 'scripture',
       slides: verses.map((v) => ({
         id: `v-${v.verse}`,
-        label: `${currentBook.name} ${selectedChapter}:${v.verse} ${abbr}`,
+        label: `${currentBook.name} ${selectedChapter}:${v.verse}`,
         content: v.text,
       })),
     };

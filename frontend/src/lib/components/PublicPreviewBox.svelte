@@ -173,14 +173,16 @@
               </div>
 
               {#if isScripture}
-                <div class="mt-1 flex items-center justify-center gap-1.5 drop-shadow-[0_1px_4px_rgba(0,0,0,0.95)]">
-                  <span class="text-[9px] sm:text-[10px] font-black text-amber-300 tracking-tight flex items-center gap-1">
-                    <span>📖</span>
-                    <span>{activeSlide.label || activeMedia?.title}</span>
+                {@const refLabel = activeSlide.label || activeMedia?.title || 'Bíblia'}
+                {@const version = activeMedia?.artist_or_ref || ''}
+                {@const cleanRef = version && refLabel.endsWith(version) ? refLabel.slice(0, -version.length).trim() : refLabel}
+                <div class="mt-2 pt-1 border-t border-white/10 flex items-center justify-between gap-1 drop-shadow-[0_1px_4px_rgba(0,0,0,0.95)]">
+                  <span class="text-[9px] sm:text-[10px] font-bold text-white tracking-tight">
+                    {cleanRef}
                   </span>
-                  {#if activeMedia?.artist_or_ref}
+                  {#if version}
                     <span class="text-[7px] px-1 py-0.2 rounded bg-white/20 border border-white/25 uppercase font-mono font-bold text-neutral-200">
-                      {activeMedia.artist_or_ref}
+                      {version}
                     </span>
                   {/if}
                 </div>

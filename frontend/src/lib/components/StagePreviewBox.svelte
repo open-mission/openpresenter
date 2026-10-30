@@ -67,7 +67,7 @@
           style="flex: {currentRatio}; border-color: {stageSettings.current_border_color || '#3b82f6'};"
         >
           <span class="text-[8px] font-bold uppercase truncate" style="color: {stageSettings.current_text_color || '#ffffff'};">
-            ● {isScripture ? `📖 ${activeSlide?.label || 'Bíblia'}` : `Atual: ${activeSlide?.label || 'Slide'}`}
+            ● {isScripture ? `${activeSlide?.label || 'Bíblia'}` : `Atual: ${activeSlide?.label || 'Slide'}`}
           </span>
           {#if isCurrentMediaImage && activeSlide}
             <div class="w-full h-10 flex items-center justify-center my-auto">
@@ -89,7 +89,7 @@
         >
           <span class="text-[7px] font-bold uppercase truncate flex items-center gap-1" style="color: {stageSettings.next_text_color || '#facc15'};">
             <ArrowRight size={8} />
-            {isScripture && nextSlide ? `📖 ${nextSlide.label}` : 'A Seguir:'}
+            {isScripture && nextSlide ? `${nextSlide.label}` : 'A Seguir:'}
           </span>
           {#if isNextMediaImage && nextSlide}
             <div class="w-full h-8 flex items-center justify-center my-auto opacity-85">

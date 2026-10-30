@@ -124,6 +124,7 @@
 - [Spec — Apresentação Rápida da Bíblia sem Poluir a Setlist e Menu de Contexto](specs/2026-10-30-bible-double-click-quick-present-and-context-menu.md)
 - [Spec — Suporte a Sub-pastas na Aba de Imagens e Varredura Hierárquica de Mídias](specs/2026-10-30-media-images-subfolders-support.md)
 - [Spec — Layout Responsivo e Correção de Espremimento na Visualização de Músicas](specs/2026-10-30-music-preview-sheet-layout-responsive.md)
+- [Spec — Refinamento Visual da Referência Bíblica na Projeção Pública (/public)](specs/2026-10-30-public-scripture-reference-footer-design.md)
 
 ## Arquitetura e decisões
 

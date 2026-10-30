@@ -248,11 +248,13 @@
               Slide Atual
             </span>
             {#if isScripture && activeSlide}
-              <span class="text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded flex items-center gap-1.5">
-                <span>📖</span>
-                <span>{activeSlide.label || activeMedia?.title}</span>
-                {#if activeMedia?.artist_or_ref}
-                  <span class="text-[10px] opacity-75 uppercase font-mono">({activeMedia.artist_or_ref})</span>
+              {@const refLabel = activeSlide.label || activeMedia?.title || 'Bíblia'}
+              {@const version = activeMedia?.artist_or_ref || ''}
+              {@const cleanRef = version && refLabel.endsWith(version) ? refLabel.slice(0, -version.length).trim() : refLabel}
+              <span class="text-xs font-bold bg-zinc-800 text-zinc-200 border border-zinc-700 px-2.5 py-0.5 rounded flex items-center gap-1.5">
+                <span>{cleanRef}</span>
+                {#if version}
+                  <span class="text-[10px] opacity-75 uppercase font-mono">({version})</span>
                 {/if}
               </span>
             {:else if activeSlide}
@@ -302,8 +304,7 @@
               A Seguir (Próximo)
             </span>
             {#if isScripture && nextSlide}
-              <span class="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded flex items-center gap-1">
-                <span>📖</span>
+              <span class="text-[10px] font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 px-1.5 py-0.5 rounded flex items-center gap-1">
                 <span>{nextSlide.label}</span>
               </span>
             {:else if nextSlide}

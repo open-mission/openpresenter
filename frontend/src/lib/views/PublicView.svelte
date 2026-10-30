@@ -109,6 +109,15 @@
         return `top: ${my}px; right: ${mx}px;`;
     }
   });
+
+  function getScriptureInfo(label: string | undefined, artistOrRef: string | undefined) {
+    let ref = label || activeMedia?.title || 'Bíblia';
+    const version = artistOrRef?.trim() || '';
+    if (version && ref.endsWith(version)) {
+      ref = ref.slice(0, -version.length).trim();
+    }
+    return { ref, version };
+  }
 </script>
 
 <svelte:window onkeydown={(e) => { if (e.key.toLowerCase() === 'f') toggleFullscreen(); }} />
@@ -208,31 +217,33 @@
             class="w-full flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden animate-in fade-in duration-150 {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'} {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
           >
             <div
-              class="flex flex-col justify-center min-h-0 overflow-hidden {alignV === 'top' ? 'mt-0 mb-auto' : alignV === 'bottom' ? 'mt-auto mb-0' : 'my-auto'} {publicSettings.fill_space ? 'w-full flex-1' : 'max-w-5xl w-full flex-1'} {publicSettings.text_box_background ? 'bg-black/65 backdrop-blur-md rounded-3xl p-6 sm:p-10 md:p-14 border border-white/10 shadow-2xl transition-all' : ''}"
+              class="flex flex-col justify-between min-h-0 overflow-hidden {alignV === 'top' ? 'mt-0 mb-auto' : alignV === 'bottom' ? 'mt-auto mb-0' : 'my-auto'} {publicSettings.fill_space ? 'w-full flex-1' : 'max-w-5xl w-full flex-1'} {publicSettings.text_box_background ? 'bg-black/65 backdrop-blur-md rounded-3xl p-6 sm:p-10 md:p-14 border border-white/10 shadow-2xl transition-all' : ''}"
             >
-              <div
-                use:autoScale={{
-                  minSize: publicSettings.min_font_size ?? 24,
-                  maxSize: publicSettings.max_font_size ?? 128,
-                }}
-                class="w-full font-bold tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight select-none {alignH === 'left' ? 'text-left' : alignH === 'right' ? 'text-right' : alignH === 'justify' ? 'text-justify' : 'text-center'} {publicSettings.word_wrap ? 'break-words' : 'whitespace-nowrap'}"
-              >
-                {@html renderFormattedText(activeSlide.content)}
+              <div class="my-auto w-full flex flex-col justify-center overflow-hidden">
+                <div
+                  use:autoScale={{
+                    minSize: publicSettings.min_font_size ?? 24,
+                    maxSize: publicSettings.max_font_size ?? 128,
+                  }}
+                  class="w-full font-bold tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight select-none {alignH === 'left' ? 'text-left' : alignH === 'right' ? 'text-right' : alignH === 'justify' ? 'text-justify' : 'text-center'} {publicSettings.word_wrap ? 'break-words' : 'whitespace-nowrap'}"
+                >
+                  {@html renderFormattedText(activeSlide.content)}
+                </div>
               </div>
 
               {#if activeMedia?.kind === 'scripture'}
+                {@const { ref, version } = getScriptureInfo(activeSlide.label, activeMedia.artist_or_ref)}
                 <div
-                  class="mt-6 sm:mt-8 md:mt-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4 drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
+                  class="w-full mt-auto pt-4 sm:pt-6 flex items-center justify-between gap-4 border-t border-white/10 shrink-0 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]"
                 >
-                  <span class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-amber-300 tracking-tight flex items-center gap-2.5">
-                    <span class="opacity-95">📖</span>
-                    <span>{activeSlide.label || activeMedia.title}</span>
+                  <span class="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight">
+                    {ref}
                   </span>
-                  {#if activeMedia.artist_or_ref}
+                  {#if version}
                     <span
-                      class="text-sm sm:text-base md:text-lg px-3 py-1 rounded-lg bg-white/20 border border-white/25 uppercase font-mono font-bold tracking-wider text-neutral-100 shadow-md"
+                      class="text-xs sm:text-sm md:text-base px-3 py-1 rounded-lg bg-white/15 border border-white/20 uppercase font-mono font-bold tracking-wider text-neutral-100 shadow-md"
                     >
-                      {activeMedia.artist_or_ref}
+                      {version}
                     </span>
                   {/if}
                 </div>

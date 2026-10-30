@@ -58,6 +58,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Removido o subtítulo "Projeção para igrejas e eventos" do cabeçalho superior para deixar a barra de ferramentas mais limpa e compacta.
 
 ### Corrigido
+- **Design da Referência Bíblica na Projeção Pública (/public) e Monitores de Retorno:**
+  - Eliminada a duplicação de versão (ex.: "ARA ARA") na barra de referência bíblica através de sanitização automática de rótulo e metadado de versão.
+  - Removido o emoji `📖` e a tipografia amarela estridente, adotando visual branco refinado com drop-shadow integrado ao tema da projeção.
+  - A barra de referência bíblica agora fica ancorada elegantemente no rodapé da área de texto (`mt-auto`), com distribuição horizontal (`justify-between`) entre a referência (à esquerda) e a sigla da tradução (à direita).
 - **Espremimento no Catálogo de Músicas com Prévia Aberta:**
   - Corrigido o espremimento e quebra dos cards de música quando o painel de visualização/preview de letra está aberto.
   - Implementado layout adaptativo mestre-detalhe: o catálogo de músicas à esquerda se ajusta em coluna única com largura estável (`w-80 sm:w-96`), botões protegidos contra quebra e destaque para a música ativa, enquanto o painel de prévia preenche fluentemente o espaço restante com slides em proporção 16:9.
