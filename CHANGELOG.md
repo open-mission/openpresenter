@@ -25,6 +25,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Removido o subtítulo "Projeção para igrejas e eventos" do cabeçalho superior para deixar a barra de ferramentas mais limpa e compacta.
 
 ### Corrigido
+- **Aplicação e Contenção de Margens na Projeção Pública:**
+  - O container de projeção pública (`/public`) agora adota `box-sizing: border-box` e contenção fluida `w-full` (eliminando o limite rígido de `max-w-[96vw]`), garantindo que as margens superior, inferior e laterais sejam fielmente respeitadas sem vazamentos ou cortes de texto.
 - **Separação de Papel de Parede da Setlist vs. Fundo das Letras:**
   - O papel de parede selecionado na setlist agora é mantido na tela pública durante os momentos de repouso (sem apresentação ativa).
   - Ao iniciar a projeção de uma música ou versículo bíblico, o projetor comuta automaticamente para o fundo padrão configurado para letras, restaurando o contraste visual do texto.

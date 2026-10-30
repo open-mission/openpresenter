@@ -60,6 +60,10 @@
   const publicSettings = $derived($publicSettingsStore);
   const churchBrand = $derived($churchBrandStore);
 
+  const marginTop = $derived(Number(publicSettings?.margin_top ?? 32));
+  const marginBottom = $derived(Number(publicSettings?.margin_bottom ?? 32));
+  const marginHorizontal = $derived(Number(publicSettings?.margin_horizontal ?? 48));
+
   const isImageMedia = $derived(activeMedia?.kind === 'image');
   const applyMargins = $derived(!isImageMedia || !publicSettings.ignore_margins_for_media);
   const imageFitClass = $derived.by(() => {
@@ -172,10 +176,10 @@
 
     <!-- Camada de Conteúdo do Slide ou Repouso com Margens Personalizadas -->
     <div
-      class="relative z-10 w-full h-full flex items-center justify-center overflow-hidden"
+      class="relative z-10 w-full h-full box-border flex flex-col items-center justify-center overflow-hidden"
       style={applyMargins
-        ? `padding-top: ${publicSettings.margin_top}px; padding-bottom: ${publicSettings.margin_bottom}px; padding-left: ${publicSettings.margin_horizontal}px; padding-right: ${publicSettings.margin_horizontal}px;`
-        : ''}
+        ? `box-sizing: border-box; padding-top: ${marginTop}px; padding-bottom: ${marginBottom}px; padding-left: ${marginHorizontal}px; padding-right: ${marginHorizontal}px;`
+        : 'box-sizing: border-box;'}
     >
       {#if $presentationState.display_mode === 'cleartext'}
         <!-- Clear Text: texto oculto, mantém papel de parede visível -->
@@ -187,7 +191,7 @@
       {:else if activeSlide}
         <!-- Mídia do Tipo Imagem Direta -->
         {#if activeMedia?.kind === 'image'}
-          <div class="w-full h-full flex items-center justify-center overflow-hidden pointer-events-none">
+          <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden pointer-events-none">
             <img
               src={activeSlide.content}
               alt={activeMedia.title}
@@ -197,10 +201,10 @@
         {:else}
           <!-- Slide de Texto / Música / Bíblia Ao Vivo com Formatação, Margens e Preenchimento -->
           <div
-            class="w-full h-full flex flex-col animate-in fade-in duration-150 {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'} {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
+            class="w-full flex-1 min-h-0 min-w-0 flex flex-col animate-in fade-in duration-150 {alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'} {alignH === 'left' ? 'text-left items-start' : alignH === 'right' ? 'text-right items-end' : alignH === 'justify' ? 'text-justify items-stretch' : 'text-center items-center'}"
           >
             <div
-              class="my-auto {publicSettings.fill_space ? 'w-full max-w-[96vw]' : 'max-w-5xl'} {publicSettings.text_box_background ? 'bg-black/65 backdrop-blur-md rounded-3xl p-6 sm:p-10 md:p-14 border border-white/10 shadow-2xl transition-all' : ''}"
+              class="{alignV === 'top' ? 'mt-0 mb-auto' : alignV === 'bottom' ? 'mt-auto mb-0' : 'my-auto'} {publicSettings.fill_space ? 'w-full' : 'max-w-5xl w-full'} {publicSettings.text_box_background ? 'bg-black/65 backdrop-blur-md rounded-3xl p-6 sm:p-10 md:p-14 border border-white/10 shadow-2xl transition-all' : ''}"
             >
               <div
                 class="font-bold tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight {publicSettings.fill_space ? 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl' : 'text-3xl sm:text-4xl md:text-5xl lg:text-6xl'} {publicSettings.word_wrap ? 'break-words' : 'whitespace-nowrap overflow-hidden text-ellipsis'}"
