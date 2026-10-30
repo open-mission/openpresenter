@@ -53,6 +53,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - A opção na aba "Aparência & Cores" das Configurações permite ativar os rótulos de texto (labels) a qualquer momento.
 
 ### Alterado
+- **Exibição do Cronômetro no Cabeçalho Somente Quando em Execução:**
+  - O widget de cronômetro no cabeçalho do painel do operador agora é renderizado exclusivamente quando o timer estiver em execução (`isTimerRunning`), eliminando poluição visual quando pausado ou zerado.
 - **Bíblia: Apresentação Rápida via Duplo Clique e Menu de Contexto Completo:**
   - O duplo clique em qualquer versículo bíblico agora ativa a projeção efêmera (`quick_media`) diretamente nas telas pública e de retorno de palco, sem poluir nem adicionar o item à setlist ativa.
   - Adicionado menu de contexto com botão direito nos versículos bíblicos com opções para "Adicionar à Setlist (selecionados)", "Adicionar Capítulo Completo à Setlist", "Apresentar ao Vivo" e "Copiar Texto com Referência".

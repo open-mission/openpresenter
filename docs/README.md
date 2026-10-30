@@ -127,6 +127,7 @@
 - [Spec — Refinamento Visual da Referência Bíblica na Projeção Pública (/public)](specs/2026-10-30-public-scripture-reference-footer-design.md)
 - [Spec — Customização de CSS e Cor de Texto por Fundo de Letras nas Configurações](specs/2026-10-30-lyrics-backgrounds-custom-css-and-text-color.md)
 - [Spec — Importação de Fundos de Imagens e Vídeos na Aba de Mídias > Fundos](specs/2026-10-30-media-backgrounds-import-images-and-videos.md)
+- [Spec — Exibição do Timer no Header Somente Quando em Execução](specs/2026-10-30-header-timer-widget-show-only-when-running.md)
 
 ## Arquitetura e decisões
 

@@ -1028,35 +1028,31 @@
 
     <!-- Status e Ações Rápidas -->
     <div class="flex items-center gap-2 sm:gap-2.5">
-      <!-- Widget de Cronômetro Global do Operador -->
-      <div
-        class={cn(
-          'flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-colors',
-          isTimerOvertime
-            ? 'bg-rose-950/40 border-rose-600/70 text-rose-300 animate-pulse'
-            : isTimerWarning
-              ? 'bg-amber-950/40 border-amber-600/70 text-amber-300'
-              : isTimerRunning
-                ? 'bg-primary/10 border-primary/40 text-primary'
-                : 'bg-muted/40 border-border text-muted-foreground'
-        )}
-        title={`Cronômetro: ${timer.label || 'Geral'} (${isTimerRunning ? 'Em execução' : 'Pausado'})`}
-      >
-        <Timer
-          size={13}
-          class={isTimerRunning
-            ? isTimerOvertime
+      <!-- Widget de Cronômetro Global do Operador (aparece somente quando estiver rodando) -->
+      {#if isTimerRunning}
+        <div
+          class={cn(
+            'flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-colors',
+            isTimerOvertime
+              ? 'bg-rose-950/40 border-rose-600/70 text-rose-300 animate-pulse'
+              : isTimerWarning
+                ? 'bg-amber-950/40 border-amber-600/70 text-amber-300'
+                : 'bg-primary/10 border-primary/40 text-primary'
+          )}
+          title={`Cronômetro: ${timer.label || 'Geral'} (Em execução)`}
+        >
+          <Timer
+            size={13}
+            class={isTimerOvertime
               ? 'text-rose-400'
               : isTimerWarning
                 ? 'text-amber-400'
-                : 'text-primary'
-            : 'text-muted-foreground'}
-        />
-        <span class="font-mono text-xs font-semibold tabular-nums tracking-tight">
-          {formattedHeaderTimer.text}
-        </span>
-        <div class="flex items-center gap-0.5 ml-1 pl-1 border-l border-border/60">
-          {#if isTimerRunning}
+                : 'text-primary'}
+          />
+          <span class="font-mono text-xs font-semibold tabular-nums tracking-tight">
+            {formattedHeaderTimer.text}
+          </span>
+          <div class="flex items-center gap-0.5 ml-1 pl-1 border-l border-border/60">
             <button
               type="button"
               onclick={pauseTimer}
@@ -1065,26 +1061,17 @@
             >
               <Pause size={12} />
             </button>
-          {:else}
             <button
               type="button"
-              onclick={startTimer}
+              onclick={resetTimer}
               class="p-0.5 hover:bg-background/80 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              title="Iniciar Cronômetro"
+              title="Reiniciar Cronômetro"
             >
-              <Play size={12} />
+              <RotateCcw size={12} />
             </button>
-          {/if}
-          <button
-            type="button"
-            onclick={resetTimer}
-            class="p-0.5 hover:bg-background/80 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            title="Reiniciar Cronômetro"
-          >
-            <RotateCcw size={12} />
-          </button>
+          </div>
         </div>
-      </div>
+      {/if}
 
       <!-- Status WebSocket -->
       <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border text-xs">
