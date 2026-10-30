@@ -108,7 +108,7 @@
 
 - [Spec — Separação entre Papel de Parede da Setlist e Fundo de Projeção de Letras](specs/2026-10-29-setlist-wallpaper-vs-lyrics-background.md)
 - [Plano — Separação entre Papel de Parede da Setlist e Fundo de Projeção de Letras](plans/2026-10-29-setlist-wallpaper-vs-lyrics-background.md)
-- [Spec — Opção de Exibir Textos nos Botões de Controle de Saída](specs/2026-10-29-preview-action-labels-toggle.md)
+- [Spec — Modo Compacto e Exibição de Rótulos nos Botões da Interface](specs/2026-10-29-preview-action-labels-toggle.md)
 - [Spec — Ícone Oficial da Aplicação no System Tray e Executável](specs/2026-10-29-tray-and-executable-icon.md)
 - [Spec — Ajuste de Margem para Logotipo da Igreja na Tela Pública](specs/2026-10-29-church-logo-margins.md)
 - [Spec — Sincronização em Tempo Real de Configurações e Recarga Remota das Telas Public e Stage](specs/2026-10-29-realtime-settings-sync-and-remote-reload.md)

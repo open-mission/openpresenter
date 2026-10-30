@@ -19,9 +19,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 - **Ícone Oficial no System Tray e Executável Nativo:**
   - O ícone do System Tray agora carrega o bitmap da marca oficial derivado de `open-presenter-app-icon.svg`, garantindo traçado nítido e proporções perfeitas na bandeja do sistema.
   - Adicionado suporte a `winresource` via `build.rs` no Windows para embutir o arquivo `.ico` e metadados oficiais diretamente no executável `open-presenter.exe`.
-- **Modo Compacto para Botões de Controle de Saída:**
-  - Os botões da barra de saídas no painel de previews (Ao Vivo, Parar, Blackout, Limpar Texto e Fundo) agora operam em modo compacto por padrão (somente ícones) para economizar espaço de tela.
-  - Adicionada opção configurável na aba "Aparência & Cores" das Configurações para habilitar a exibição dos textos (labels) caso o operador prefira.
+- **Modo Compacto e Otimização Visual dos Botões da Interface:**
+  - Os botões da barra de navegação de slides (Apresentar, Anterior, Próximo e Parar), da barra de saídas e do cabeçalho rápido operam por padrão em modo compacto (somente ícones) para economizar espaço de tela útil.
+  - O botão "Apresentar" agora adota variante sóbria estável em repouso e variante pulsante apenas quando a apresentação estiver transmitindo ao vivo.
+  - A opção na aba "Aparência & Cores" das Configurações permite ativar os rótulos de texto (labels) a qualquer momento.
 
 ### Alterado
 - **Interface do Operador:**

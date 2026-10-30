@@ -1097,7 +1097,9 @@
         title="Configurações (Aparência, Pastas, Atalhos, Atualizações)"
       >
         <Settings size={14} class="text-muted-foreground" />
-        <span class="hidden md:inline">Configurações</span>
+        {#if $previewLabelsStore}
+          <span class="hidden md:inline">Configurações</span>
+        {/if}
       </Button>
 
       <!-- Badge / Botão de Atualização Disponível -->
@@ -1112,20 +1114,39 @@
           title="Nova versão v{updateInfo.latest_version} disponível! Clique para ver e atualizar."
         >
           <Sparkles size={13} class="text-emerald-400" />
-          <span class="hidden sm:inline">Nova Versão</span> v{updateInfo.latest_version}
+          {#if $previewLabelsStore}
+            <span class="hidden sm:inline">Nova Versão</span>
+          {/if}
+          v{updateInfo.latest_version}
         </button>
       {/if}
 
       <!-- Botões de Abertura das Saídas -->
-      <Button variant="outline" size="sm" onclick={openPublicWindow} class="gap-1.5 text-xs">
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={openPublicWindow}
+        class="gap-1.5 text-xs"
+        title="Iniciar Janela Pública (Projetor)"
+      >
         <MonitorPlay size={14} class="text-primary" />
-        <span class="hidden md:inline">Iniciar</span> Public
+        {#if $previewLabelsStore}
+          <span class="hidden md:inline">Iniciar</span> Public
+        {/if}
         <ExternalLink size={12} class="opacity-60" />
       </Button>
 
-      <Button variant="outline" size="sm" onclick={openStageWindow} class="gap-1.5 text-xs">
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={openStageWindow}
+        class="gap-1.5 text-xs"
+        title="Iniciar Janela do Stage (Palco)"
+      >
         <Tv size={14} class="text-primary" />
-        <span class="hidden md:inline">Iniciar</span> Stage
+        {#if $previewLabelsStore}
+          <span class="hidden md:inline">Iniciar</span> Stage
+        {/if}
         <ExternalLink size={12} class="opacity-60" />
       </Button>
 
@@ -1138,7 +1159,9 @@
         title="Compartilhar Saídas com Celulares e Tablets via QR Code"
       >
         <QrCode size={14} class="text-primary" />
-        <span class="hidden lg:inline">QR Code</span>
+        {#if $previewLabelsStore}
+          <span class="hidden lg:inline">QR Code</span>
+        {/if}
       </Button>
     </div>
   </header>
@@ -1496,7 +1519,7 @@
           </div>
 
           <!-- Ações e Controles de Navegação -->
-          <div class="flex items-center gap-2 shrink-0">
+          <div class="flex items-center gap-1.5 shrink-0">
             {#if isSelectedMediaLive}
               <Button
                 variant="destructive"
@@ -1506,19 +1529,23 @@
                 class="gap-1.5 text-xs font-semibold"
               >
                 <Square size={13} class="fill-current" />
-                Parar (Esc)
+                {#if $previewLabelsStore}
+                  <span>Parar (Esc)</span>
+                {/if}
               </Button>
             {/if}
 
             <Button
-              variant="live"
+              variant={isSelectedMediaLive ? 'live' : 'default'}
               size="sm"
               onclick={() => presentSlide(focusedSlideIndex)}
               title="Apresentar Slide Focado (Enter)"
               class="gap-1.5 text-xs font-semibold shadow-sm"
             >
               <Play size={13} class="fill-current" />
-              Apresentar (Enter)
+              {#if $previewLabelsStore}
+                <span>Apresentar (Enter)</span>
+              {/if}
             </Button>
 
             <div class="h-4 w-[1px] bg-neutral-700/60 mx-1"></div>
@@ -1530,7 +1557,10 @@
               title="Slide Anterior (←)"
               class="gap-1 text-xs"
             >
-              <ChevronLeft size={14} /> Anterior
+              <ChevronLeft size={14} />
+              {#if $previewLabelsStore}
+                <span>Anterior</span>
+              {/if}
             </Button>
             <Button
               variant="secondary"
@@ -1539,7 +1569,10 @@
               title="Próximo Slide (→ ou Espaço)"
               class="gap-1 text-xs"
             >
-              Próximo <ChevronRight size={14} />
+              {#if $previewLabelsStore}
+                <span>Próximo</span>
+              {/if}
+              <ChevronRight size={14} />
             </Button>
           </div>
         </div>

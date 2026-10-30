@@ -975,9 +975,9 @@
               <!-- CONTROLE DO PAINEL DE CONTROLE DE SAÍDAS / PREVIEWS -->
               <div class="pt-4 border-t border-neutral-800 space-y-4">
                 <div>
-                  <h3 class="text-sm font-semibold text-white">Barra de Controle de Saídas</h3>
+                  <h3 class="text-sm font-semibold text-white">Botões da Interface do Operador</h3>
                   <p class="text-xs text-neutral-400 mt-0.5">
-                    Personalize a exibição dos botões de controle de projeção (Ao Vivo, Parar, Blackout, Limpar Texto e Fundo).
+                    Personalize a exibição dos botões na barra de navegação de slides, controles de saídas e cabeçalho.
                   </p>
                 </div>
 
@@ -985,7 +985,7 @@
                   <div class="space-y-0.5 pr-4">
                     <div class="text-xs font-semibold text-white">Exibir textos (labels) nos botões</div>
                     <div class="text-[11px] text-neutral-400">
-                      Quando desativado, exibe apenas os ícones para economizar espaço no painel lateral de previews.
+                      Quando desativado, exibe apenas os ícones compactos para ganhar espaço de tela e manter o visual minimalista.
                     </div>
                   </div>
                   <label class="relative inline-flex items-center cursor-pointer shrink-0">
