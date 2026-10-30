@@ -154,10 +154,12 @@
 
 - [Spec — Paridade 100% no Preview do Admin, Ajustes Bíblicos e Privacidade de Imagens](specs/2026-10-30-preview-publico-paridade-total-e-privacidade-midias.md)
 
-## Controle Remoto Mobile (/remote)
+## Controle Remoto Mobile (/remote) e PWA
 
 - [Spec — Controle Remoto Mobile (/remote)](specs/2026-10-30-controle-remoto-mobile.md)
 - [Plano — Controle Remoto Mobile (/remote)](plans/2026-10-30-controle-remoto-mobile.md)
+- [Spec — Refinamento do Controle Remoto Mobile e PWA](specs/2026-10-30-refinamento-remote-mobile-pwa.md)
+- [Plano — Refinamento do Controle Remoto Mobile e PWA](plans/2026-10-30-refinamento-remote-mobile-pwa.md)
 
 ## Saída Lower Third para OBS e Transmissão (/lower-third)
 

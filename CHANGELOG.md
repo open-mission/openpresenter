@@ -7,6 +7,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Suporte a Progressive Web App (PWA) e Instalação Standalone:**
+  - Criação do manifesto web (`manifest.webmanifest`) com ícones oficiais de alta resolução (192x192 e 512x512), tema escuro e atalhos rápidos para o Painel, Remoto, Telão e Palco.
+  - Implementação de Service Worker (`sw.js`) permitindo a instalação do OpenPresenter como aplicativo autônomo (standalone) no desktop e em smartphones (Android e iOS).
+  - Suporte completo à área segura de dispositivos Apple (`viewport-fit=cover`, `safe-area-inset-top`, `safe-area-inset-bottom`) e meta tags de app em tela cheia.
+- **Refinamento Ergonômico do Controle Remoto Mobile (`/remote`):**
+  - **Navegação Bíblica com Sub-Abas em Grade:** Divisão em **Livros** (grade com 3 colunas e filtro AT/NT), **Capítulos** (grade touch com botões de 44px) e **Versículos** (leitura integral, navegação rápida e projeção direta com um toque).
+  - **Input Group e Drawer Shadcn:** Seletor de versão bíblica elegante deslizando de baixo para cima (Drawer) integrado em grupo com o campo de busca.
+  - **Card de Controle ao Vivo Retrátil (Collapsible):** Opção de recolher/expandir o card do slide atual, liberando 80% do espaço vertical da tela para leitura da Bíblia e seleção de músicas.
+  - **Estados Ativos (Active States):** Indicação visual de "Ao Vivo" nas estrofes das músicas e nos versículos que estão projetados no telão público em tempo real.
+  - **Header Otimizado para Touch com Branding Oficial:** Logotipo oficial SVG do OpenPresenter Minimal e botões de emergência com áreas de toque ampliadas.
+  - **Correção da Setlist:** Carregamento detalhado via `/api/setlists/:id` com suporte a alternar entre múltiplos cultos cadastrados.
 - **Saída Lower Third Transparente para Transmissão / OBS Studio (`/lower-third`):**
   - Nova tela dedicada e otimizada para software de transmissão ao vivo (OBS Studio, vMix, Wirecast) com canal alfa nativo e transparência total de fundo.
   - Projeção de letras de louvor e passagens bíblicas ancoradas no terço inferior da tela, sem obstruir o pastor, pregador ou ministro no enquadramento da câmera.

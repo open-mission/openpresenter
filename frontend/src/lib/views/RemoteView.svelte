@@ -25,13 +25,16 @@
     BookOpen,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
+    ChevronUp,
     Square,
     EyeOff,
     Search,
-    Radio,
     Play,
     RefreshCw,
     X,
+    Check,
+    Layers,
   } from 'lucide-svelte';
 
   // Navegação mobile entre as 3 abas principais
@@ -39,9 +42,21 @@
   let activeTab = $state<RemoteTab>('setlist');
 
   // Estado da Setlist
+  interface SetlistListItem {
+    id: string;
+    title: string;
+    description: string | null;
+    item_count: number;
+    is_active: boolean;
+  }
+  let availableSetlists = $state<SetlistListItem[]>([]);
   let activeSetlistData = $state<Setlist | null>(null);
   let isLoadingSetlist = $state(false);
   let expandedSetlistItemId = $state<string | null>(null);
+  let isSetlistDrawerOpen = $state(false);
+
+  // Estado do Card de Controle ao Vivo (Colapsável)
+  let isLiveCardCollapsed = $state(false);
 
   // Estado das Músicas
   let searchQuery = $state('');
@@ -52,6 +67,8 @@
   let songSearchTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Estado da Bíblia
+  type BibleNavTab = 'books' | 'chapters' | 'verses';
+  let bibleNavTab = $state<BibleNavTab>('verses');
   let bibles = $state<BibleVersionSummary[]>([]);
   let activeBibleId = $state<string>('');
   let books = $state<BibleBook[]>([]);
@@ -62,6 +79,8 @@
   let bibleQuery = $state('');
   let bibleSearchResults = $state<any[]>([]);
   let isSearchingBible = $state(false);
+  let testamentFilter = $state<'all' | 'ot' | 'nt'>('all');
+  let isBibleDrawerOpen = $state(false);
 
   // Derivados do estado de apresentação
   const isLive = $derived(
@@ -72,11 +91,13 @@
 
   // Slide atual ao vivo
   const currentMediaTitle = $derived.by(() => {
-    if (!$presentationState.active_media_id) return 'Nenhuma apresentação ao vivo';
+    if (!$presentationState.active_media_id) return 'Nenhuma apresentação ativa';
     if ($presentationState.quick_media) {
       return $presentationState.quick_media.title;
     }
-    const item = activeSetlistData?.items.find((i) => i.id === $presentationState.active_media_id);
+    const item = (activeSetlistData?.items ?? []).find(
+      (i) => i.id === $presentationState.active_media_id
+    );
     return item?.title || 'Apresentação ativa';
   });
 
@@ -84,7 +105,9 @@
     if ($presentationState.quick_media) {
       return $presentationState.quick_media.slides || [];
     }
-    const item = activeSetlistData?.items.find((i) => i.id === $presentationState.active_media_id);
+    const item = (activeSetlistData?.items ?? []).find(
+      (i) => i.id === $presentationState.active_media_id
+    );
     return item?.slides || [];
   });
 
@@ -96,9 +119,29 @@
       : null
   );
 
+  // Sigla da Bíblia ativa para o Input Group
+  const activeBibleSummary = $derived(
+    bibles.find((b) => b.id === activeBibleId) || bibles[0]
+  );
+  const activeBibleAbbr = $derived(
+    activeBibleSummary?.abbreviation || activeBibleSummary?.name || 'Bíblia'
+  );
+
+  // Livros filtrados por testamento
+  const filteredBooks = $derived(
+    books.filter((b) => {
+      if (testamentFilter === 'ot' && b.testament_reference_id !== 1) return false;
+      if (testamentFilter === 'nt' && b.testament_reference_id !== 2) return false;
+      return true;
+    })
+  );
+
   onMount(() => {
+    if (typeof document !== 'undefined') {
+      document.title = 'OpenPresenter — Controle Remoto';
+    }
     initWebSocket('remote');
-    loadActiveSetlist();
+    loadSetlistsAndActive();
     loadSongs();
     loadBibles();
   });
@@ -106,28 +149,48 @@
   // Reagir a mudanças no active_setlist_id do WebSocket
   $effect(() => {
     if ($presentationState.active_setlist_id) {
-      loadActiveSetlist();
+      loadSingleSetlistDetail($presentationState.active_setlist_id);
     }
   });
 
-  // Carregar a Setlist ativa
-  async function loadActiveSetlist() {
+  // Carregar lista de setlists e obter o detalhe da ativa
+  async function loadSetlistsAndActive() {
     isLoadingSetlist = true;
     try {
       const res = await fetch('/api/setlists');
       if (res.ok) {
-        const setlists: Setlist[] = await res.json();
-        const active =
-          setlists.find((s) => s.id === $presentationState.active_setlist_id || s.is_active) ||
-          setlists[0] ||
+        availableSetlists = await res.json();
+        const target =
+          availableSetlists.find((s) => s.id === $presentationState.active_setlist_id || s.is_active) ||
+          availableSetlists[0] ||
           null;
-        activeSetlistData = active;
-        if (active && !expandedSetlistItemId && $presentationState.active_media_id) {
+        if (target) {
+          await loadSingleSetlistDetail(target.id);
+        } else {
+          activeSetlistData = null;
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao listar setlists:', err);
+    } finally {
+      isLoadingSetlist = false;
+    }
+  }
+
+  // Carregar os itens completos da setlist pelo ID
+  async function loadSingleSetlistDetail(setlistId: string) {
+    isLoadingSetlist = true;
+    try {
+      const res = await fetch(`/api/setlists/${setlistId}`);
+      if (res.ok) {
+        const data: Setlist = await res.json();
+        activeSetlistData = data;
+        if (!expandedSetlistItemId && $presentationState.active_media_id) {
           expandedSetlistItemId = $presentationState.active_media_id;
         }
       }
     } catch (err) {
-      console.error('Erro ao carregar setlist:', err);
+      console.error('Erro ao buscar detalhes da setlist:', err);
     } finally {
       isLoadingSetlist = false;
     }
@@ -338,7 +401,7 @@
       id: `scripture-${selectedBook.id}-${selectedChapter}-${verse.verse}`,
       kind: 'scripture',
       title: `${bookName} ${selectedChapter}:${verse.verse}`,
-      artist_or_ref: activeBibleId.toUpperCase(),
+      artist_or_ref: activeBibleAbbr.toUpperCase(),
       slides: [
         {
           id: `scripture-${selectedBook.id}-${selectedChapter}-${verse.verse}-0`,
@@ -356,7 +419,7 @@
       id: `scripture-${hit.book_id}-${hit.chapter}-${hit.verse}`,
       kind: 'scripture',
       title: `${hit.book_name} ${hit.chapter}:${hit.verse}`,
-      artist_or_ref: (hit.bible_version || activeBibleId).toUpperCase(),
+      artist_or_ref: (hit.bible_version || activeBibleAbbr).toUpperCase(),
       slides: [
         {
           id: `scripture-${hit.book_id}-${hit.chapter}-${hit.verse}-0`,
@@ -370,132 +433,199 @@
 </script>
 
 <div class="flex flex-col h-screen w-screen max-w-md mx-auto bg-neutral-950 text-neutral-100 select-none overflow-hidden font-sans">
-  <!-- TOP BAR: Status e Ações Rápidas de Emergência -->
-  <header class="flex items-center justify-between px-3 py-2 bg-neutral-900 border-b border-neutral-800 shrink-0">
+  <!-- TOP BAR: Status, Logotipo Oficial e Ações Rápidas de Emergência com Safe-Area -->
+  <header
+    class="flex items-center justify-between px-3 py-2.5 bg-neutral-900 border-b border-neutral-800 shrink-0"
+    style="padding-top: max(env(safe-area-inset-top), 10px);"
+  >
+    <!-- Logotipo Oficial OpenPresenter Minimal -->
     <div class="flex items-center gap-2">
-      <div class="w-7 h-7 rounded-lg bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-        <Radio size={16} />
-      </div>
-      <div>
-        <h1 class="text-xs font-bold leading-tight flex items-center gap-1.5">
-          OpenPresenter
-          <span class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold {$isWsConnected ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-red-950 text-red-400 border border-red-800'}">
-            <span class="w-1.5 h-1.5 rounded-full {$isWsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}"></span>
-            {$isWsConnected ? 'Remoto' : 'Offline'}
-          </span>
-        </h1>
-        <p class="text-[10px] text-neutral-400">Controle na Palma da Mão</p>
+      <img
+        src="/branding/open-presenter-icon-dark.svg"
+        alt="OpenPresenter"
+        class="w-7 h-7 rounded-lg shadow-sm shrink-0 border border-neutral-700/50"
+      />
+      <div class="flex items-center gap-1.5">
+        <span class="font-bold text-xs tracking-tight text-white flex items-center">
+          Open<span class="text-neutral-400 font-medium">Presenter</span>
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold {$isWsConnected ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-red-950 text-red-400 border border-red-800'}"
+        >
+          <span
+            class="w-1.5 h-1.5 rounded-full {$isWsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}"
+          ></span>
+          {$isWsConnected ? 'Remoto' : 'Offline'}
+        </span>
       </div>
     </div>
 
-    <!-- Botões de Ação de Projeção -->
-    <div class="flex items-center gap-1">
+    <!-- Botões de Ação de Projeção (Tamanho adequado para toque) -->
+    <div class="flex items-center gap-1.5">
       <button
         type="button"
         onclick={handleToggleBlackout}
-        class="px-2 py-1 text-[10px] font-bold rounded flex items-center gap-1 transition-colors {isBlackout ? 'bg-red-600 text-white shadow-lg shadow-red-950' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300'}"
-        title="Blackout"
+        class="h-9 px-2.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer {isBlackout ? 'bg-red-600 text-white shadow-lg shadow-red-950' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'}"
+        title="Blackout (Tela Preta)"
       >
         <span class="w-2 h-2 rounded-full bg-red-500"></span>
-        Preto
+        <span>Preto</span>
       </button>
 
       <button
         type="button"
         onclick={handleToggleClear}
-        class="px-2 py-1 text-[10px] font-bold rounded flex items-center gap-1 transition-colors {isClear ? 'bg-amber-600 text-white' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300'}"
-        title="Limpar Texto"
+        class="h-9 px-2.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer {isClear ? 'bg-amber-600 text-white shadow-lg shadow-amber-950' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'}"
+        title="Limpar Texto da Tela"
       >
-        <EyeOff size={11} />
-        Limpar
+        <EyeOff size={13} />
+        <span>Limpar</span>
       </button>
 
       <button
         type="button"
         onclick={handleStop}
-        class="p-1 text-neutral-400 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded transition-colors cursor-pointer"
+        class="h-9 w-9 flex items-center justify-center text-neutral-400 hover:text-white bg-neutral-800 hover:bg-neutral-700 active:scale-95 rounded-lg transition-all cursor-pointer"
         title="Parar Apresentação"
         aria-label="Parar Apresentação"
       >
-        <Square size={13} />
+        <Square size={14} />
       </button>
     </div>
   </header>
 
-  <!-- LIVE CONTROL CARD: Fixado no topo, com botões ergonômicos de Anterior / Próximo -->
-  <section class="p-3 bg-neutral-900/60 border-b border-neutral-800 shrink-0">
-    <div class="flex items-center justify-between text-[11px] mb-1">
-      <div class="flex items-center gap-1 font-semibold truncate text-emerald-400">
-        <span class="w-2 h-2 rounded-full {isLive ? 'bg-emerald-400 animate-ping' : 'bg-neutral-600'}"></span>
+  <!-- LIVE CONTROL CARD: Fixado no topo, com Opção de Colapsar e botões para o polegar -->
+  <section class="p-2.5 bg-neutral-900/80 border-b border-neutral-800 shrink-0 transition-all duration-200">
+    <div class="flex items-center justify-between text-xs mb-1.5">
+      <div class="flex items-center gap-1.5 font-bold truncate text-emerald-400 min-w-0 pr-2">
+        <span class="w-2 h-2 rounded-full shrink-0 {isLive ? 'bg-emerald-400 animate-ping' : 'bg-neutral-600'}"></span>
         <span class="truncate">{currentMediaTitle}</span>
       </div>
-      {#if totalSlides > 0}
-        <span class="text-[10px] font-mono text-neutral-400 shrink-0">
-          Slide {currentSlideIndex + 1}/{totalSlides}
-        </span>
-      {/if}
+
+      <div class="flex items-center gap-1.5 shrink-0">
+        {#if totalSlides > 0}
+          <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 font-bold">
+            {currentSlideIndex + 1}/{totalSlides}
+          </span>
+        {/if}
+
+        <!-- Botão de Colapsar / Expandir -->
+        <button
+          type="button"
+          onclick={() => (isLiveCardCollapsed = !isLiveCardCollapsed)}
+          class="p-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+          title={isLiveCardCollapsed ? 'Expandir Card de Controle' : 'Recolher Card de Controle'}
+          aria-label={isLiveCardCollapsed ? 'Expandir Card de Controle' : 'Recolher Card de Controle'}
+        >
+          {#if isLiveCardCollapsed}
+            <ChevronDown size={14} />
+          {:else}
+            <ChevronUp size={14} />
+          {/if}
+        </button>
+      </div>
     </div>
 
-    <!-- Prévia do Slide Ativo -->
-    <div class="p-2.5 rounded-lg bg-black/60 border border-neutral-800/80 mb-2 min-h-[50px] flex items-center justify-center text-center">
-      {#if currentSlide}
-        <p class="text-xs font-semibold leading-relaxed line-clamp-2 text-neutral-200">
-          {currentSlide.content.replace(/\n/g, ' ')}
+    <!-- Modo Recolhido / Compacto -->
+    {#if isLiveCardCollapsed}
+      <div class="flex items-center justify-between gap-2 pt-1">
+        <p class="text-xs text-neutral-300 truncate flex-1 font-medium italic">
+          {currentSlide ? currentSlide.content.replace(/\n/g, ' ') : 'Nenhum slide ativo'}
         </p>
-      {:else}
-        <span class="text-xs text-neutral-500 italic">
-          {isBlackout ? '⚫ Projeção em Blackout' : isClear ? '👁️ Texto ocultado' : 'Nenhum slide em exibição'}
-        </span>
-      {/if}
-    </div>
 
-    <!-- Botões gigantes para o polegar -->
-    <div class="grid grid-cols-2 gap-2">
-      <button
-        type="button"
-        onclick={handlePrevSlide}
-        disabled={totalSlides === 0 || currentSlideIndex <= 0}
-        class="h-12 rounded-xl bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 disabled:opacity-40 disabled:pointer-events-none text-neutral-200 font-bold text-sm flex items-center justify-center gap-1.5 transition-all shadow active:scale-95 cursor-pointer"
-      >
-        <ChevronLeft size={18} />
-        <span>Anterior</span>
-      </button>
+        <div class="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onclick={handlePrevSlide}
+            disabled={totalSlides === 0 || currentSlideIndex <= 0}
+            class="h-8 px-2.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 disabled:pointer-events-none text-neutral-200 font-bold text-xs flex items-center gap-1 cursor-pointer"
+          >
+            <ChevronLeft size={14} />
+            <span>Ant.</span>
+          </button>
+          <button
+            type="button"
+            onclick={handleNextSlide}
+            disabled={totalSlides === 0 || currentSlideIndex >= totalSlides - 1}
+            class="h-8 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 disabled:pointer-events-none text-white font-bold text-xs flex items-center gap-1 cursor-pointer"
+          >
+            <span>Próx.</span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+    {:else}
+      <!-- Modo Expandido: Prévia do Slide Ativo e Botões Gigantes para o Polegar -->
+      <div class="p-2.5 rounded-xl bg-black/60 border border-neutral-800/80 mb-2 min-h-[52px] flex items-center justify-center text-center">
+        {#if currentSlide}
+          <p class="text-xs font-semibold leading-relaxed line-clamp-2 text-neutral-200">
+            {currentSlide.content.replace(/\n/g, ' ')}
+          </p>
+        {:else}
+          <span class="text-xs text-neutral-500 italic">
+            {isBlackout ? '⚫ Projeção em Blackout' : isClear ? '👁️ Texto ocultado' : 'Nenhum slide em exibição'}
+          </span>
+        {/if}
+      </div>
 
-      <button
-        type="button"
-        onclick={handleNextSlide}
-        disabled={totalSlides === 0 || currentSlideIndex >= totalSlides - 1}
-        class="h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-40 disabled:pointer-events-none text-white font-extrabold text-sm flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-emerald-950 active:scale-95 cursor-pointer"
-      >
-        <span>Próximo</span>
-        <ChevronRight size={18} />
-      </button>
-    </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onclick={handlePrevSlide}
+          disabled={totalSlides === 0 || currentSlideIndex <= 0}
+          class="h-12 rounded-xl bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 disabled:opacity-40 disabled:pointer-events-none text-neutral-200 font-bold text-sm flex items-center justify-center gap-1.5 transition-all shadow active:scale-95 cursor-pointer"
+        >
+          <ChevronLeft size={18} />
+          <span>Anterior</span>
+        </button>
+
+        <button
+          type="button"
+          onclick={handleNextSlide}
+          disabled={totalSlides === 0 || currentSlideIndex >= totalSlides - 1}
+          class="h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-40 disabled:pointer-events-none text-white font-extrabold text-sm flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-emerald-950 active:scale-95 cursor-pointer"
+        >
+          <span>Próximo</span>
+          <ChevronRight size={18} />
+        </button>
+      </div>
+    {/if}
   </section>
 
   <!-- CONTEÚDO PRINCIPAL: Scrollável conforme a aba selecionada -->
-  <main class="flex-1 overflow-y-auto overflow-x-hidden min-h-0 bg-neutral-950 p-2">
+  <main class="flex-1 overflow-y-auto overflow-x-hidden min-h-0 bg-neutral-950 p-2.5">
     <!-- ABA 1: SETLIST -->
     {#if activeTab === 'setlist'}
       <div class="space-y-2">
         <div class="flex items-center justify-between px-1 text-xs text-neutral-400 font-medium">
-          <span>Ordem do Culto ({activeSetlistData?.title || 'Setlist Ativa'})</span>
+          <!-- Botão para alternar entre setlists se houver mais de uma -->
           <button
             type="button"
-            onclick={loadActiveSetlist}
+            onclick={() => (isSetlistDrawerOpen = true)}
+            class="flex items-center gap-1 font-bold text-neutral-200 hover:text-white transition-colors cursor-pointer"
+          >
+            <span class="truncate max-w-[240px]">{activeSetlistData?.title || 'Setlist Ativa'}</span>
+            <ChevronDown size={14} class="text-neutral-400" />
+          </button>
+
+          <button
+            type="button"
+            onclick={loadSetlistsAndActive}
             class="p-1 hover:text-white transition-colors cursor-pointer"
-            title="Atualizar"
+            title="Atualizar Setlist"
             aria-label="Atualizar Setlist"
           >
             <RefreshCw size={13} class={isLoadingSetlist ? 'animate-spin' : ''} />
           </button>
         </div>
 
-        {#if !activeSetlistData || activeSetlistData.items.length === 0}
+        {#if !activeSetlistData || (activeSetlistData.items ?? []).length === 0}
           <div class="p-8 text-center text-neutral-500 text-xs">
             <ListMusic size={32} class="mx-auto mb-2 opacity-40" />
             <p>Nenhum item na setlist ativa.</p>
-            <p class="text-[10px] mt-1 text-neutral-600">Adicione músicas ou passagens pelo painel do operador.</p>
+            <p class="text-[10px] mt-1 text-neutral-600">
+              Adicione músicas ou passagens pelo painel do operador ou selecione outra setlist.
+            </p>
           </div>
         {:else}
           <div class="space-y-1.5">
@@ -503,7 +633,7 @@
               {@const isItemActive = $presentationState.active_media_id === item.id}
               {@const isExpanded = expandedSetlistItemId === item.id}
               <div
-                class="rounded-xl border transition-all overflow-hidden {isItemActive ? 'bg-neutral-900 border-emerald-500/80 shadow-md' : 'bg-neutral-900/60 border-neutral-800/80'}"
+                class="rounded-xl border transition-all overflow-hidden {isItemActive ? 'bg-neutral-900 border-emerald-500 shadow-lg shadow-emerald-950/20' : 'bg-neutral-900/60 border-neutral-800/80'}"
               >
                 <!-- Cabeçalho do item da setlist -->
                 <button
@@ -514,7 +644,9 @@
                   class="w-full px-3 py-2.5 flex items-center justify-between text-left cursor-pointer"
                 >
                   <div class="flex items-center gap-2 min-w-0 pr-2">
-                    <span class="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 {isItemActive ? 'bg-emerald-500 text-black' : 'bg-neutral-800 text-neutral-400'}">
+                    <span
+                      class="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 {isItemActive ? 'bg-emerald-500 text-black shadow' : 'bg-neutral-800 text-neutral-400'}"
+                    >
                       {itemIdx + 1}
                     </span>
                     <div class="truncate">
@@ -529,7 +661,7 @@
 
                   <div class="flex items-center gap-1.5 shrink-0">
                     {#if isItemActive}
-                      <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                      <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse">
                         Ao Vivo
                       </span>
                     {/if}
@@ -541,15 +673,17 @@
 
                 <!-- Slides expandidos com toque direto para projetar -->
                 {#if isExpanded}
-                  <div class="px-2 pb-2 pt-1 border-t border-neutral-800/60 space-y-1 bg-black/30">
+                  <div class="px-2 pb-2 pt-1 border-t border-neutral-800/60 space-y-1 bg-black/40">
                     {#each item.slides as slide, sIdx}
                       {@const isCurrentSlideLive = isItemActive && currentSlideIndex === sIdx && isLive}
                       <button
                         type="button"
                         onclick={() => handleSelectSlide(item.id, sIdx)}
-                        class="w-full text-left p-2 rounded-lg text-[11px] flex items-start gap-2 transition-all cursor-pointer {isCurrentSlideLive ? 'bg-emerald-600/30 border border-emerald-500 text-white font-semibold' : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-neutral-800/40'}"
+                        class="w-full text-left p-2.5 rounded-lg text-xs flex items-start gap-2 transition-all cursor-pointer {isCurrentSlideLive ? 'bg-emerald-600/30 border border-emerald-500 text-white font-semibold ring-1 ring-emerald-500' : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-neutral-800/40'}"
                       >
-                        <span class="text-[9px] px-1 rounded font-mono shrink-0 mt-0.5 {isCurrentSlideLive ? 'bg-emerald-500 text-black font-bold' : 'bg-neutral-800 text-neutral-400'}">
+                        <span
+                          class="text-[9px] px-1.5 py-0.5 rounded font-mono shrink-0 mt-0.5 {isCurrentSlideLive ? 'bg-emerald-500 text-black font-extrabold' : 'bg-neutral-800 text-neutral-400'}"
+                        >
                           {slide.label || `${sIdx + 1}`}
                         </span>
                         <p class="line-clamp-2 leading-relaxed flex-1">
@@ -576,7 +710,7 @@
             value={searchQuery}
             oninput={handleSongSearchInput}
             placeholder="Buscar por título ou trecho da letra..."
-            class="w-full pl-8 pr-8 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+            class="w-full pl-8 pr-8 py-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
           />
           {#if searchQuery}
             <button
@@ -585,9 +719,9 @@
                 searchQuery = '';
                 loadSongs('');
               }}
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-0.5 cursor-pointer"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-1 cursor-pointer"
             >
-              <X size={12} />
+              <X size={13} />
             </button>
           {/if}
         </div>
@@ -600,10 +734,18 @@
           </div>
         {:else if selectedSong}
           {@const songSlides = songToSlides(selectedSong)}
+          {@const isSongLive = $presentationState.active_media_id === selectedSong.id && isLive}
           <div class="p-3 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2.5 animate-in fade-in duration-150">
             <div class="flex items-center justify-between pb-2 border-b border-neutral-800">
               <div>
-                <h3 class="text-sm font-bold text-neutral-100">{selectedSong.title}</h3>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-sm font-bold text-neutral-100">{selectedSong.title}</h3>
+                  {#if isSongLive}
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse">
+                      Ao Vivo
+                    </span>
+                  {/if}
+                </div>
                 {#if selectedSong.artist}
                   <p class="text-xs text-neutral-400">{selectedSong.artist}</p>
                 {/if}
@@ -611,36 +753,45 @@
               <button
                 type="button"
                 onclick={() => (selectedSong = null)}
-                class="p-1 rounded-lg bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer"
+                class="p-1.5 rounded-lg bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer"
               >
                 <X size={14} />
               </button>
             </div>
 
+            <!-- Botão Apresentar Música Completa -->
             <button
               type="button"
               onclick={() => presentSong(selectedSong!)}
-              class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950 transition-colors cursor-pointer"
+              class="w-full py-2.5 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg transition-colors cursor-pointer {isSongLive ? 'bg-emerald-700 hover:bg-emerald-600 shadow-emerald-950' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-950'}"
             >
               <Play size={14} />
-              <span>Apresentar Música Completa</span>
+              <span>{isSongLive ? 'Reiniciar Música do Início' : 'Apresentar Música Completa'}</span>
             </button>
 
-            <!-- Slides / Estrofes da música -->
+            <!-- Slides / Estrofes da música com Active State -->
             <div class="space-y-1 pt-1">
               <span class="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
                 Toque em uma estrofe para projetar:
               </span>
               {#each songSlides as slide, sIdx}
+                {@const isSlideLive = isSongLive && currentSlideIndex === sIdx}
                 <button
                   type="button"
                   onclick={() => presentSong(selectedSong!, sIdx)}
-                  class="w-full text-left p-2.5 rounded-lg bg-black/40 hover:bg-neutral-800 text-neutral-200 text-xs border border-neutral-800/80 transition-colors cursor-pointer"
+                  class="w-full text-left p-2.5 rounded-xl border transition-all cursor-pointer {isSlideLive ? 'bg-emerald-950/50 border-emerald-500 ring-1 ring-emerald-500 text-white font-semibold' : 'bg-black/40 hover:bg-neutral-800 text-neutral-200 border-neutral-800/80'}"
                 >
-                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 mr-1.5">
-                    {slide.label}
-                  </span>
-                  <p class="mt-1 leading-relaxed text-neutral-300">
+                  <div class="flex items-center justify-between mb-1">
+                    <span
+                      class="text-[9px] font-bold px-1.5 py-0.5 rounded {isSlideLive ? 'bg-emerald-500 text-black font-extrabold' : 'bg-neutral-800 text-neutral-400'}"
+                    >
+                      {slide.label}
+                    </span>
+                    {#if isSlideLive}
+                      <span class="text-[9px] font-bold text-emerald-400 animate-pulse">Ao Vivo</span>
+                    {/if}
+                  </div>
+                  <p class="leading-relaxed text-xs text-neutral-300">
                     {slide.content}
                   </p>
                 </button>
@@ -649,7 +800,7 @@
           </div>
         {:else}
           <!-- Lista de músicas filtradas -->
-          <div class="space-y-1">
+          <div class="space-y-1.5">
             {#if isLoadingSongs}
               <div class="p-8 text-center text-neutral-500 text-xs">
                 <RefreshCw size={20} class="animate-spin mx-auto mb-2" />
@@ -662,20 +813,30 @@
               </div>
             {:else}
               {#each songsList as song}
+                {@const isSongActive = $presentationState.active_media_id === song.id && isLive}
                 <button
                   type="button"
                   onclick={() => openSongDetail(song)}
-                  class="w-full px-3 py-2.5 rounded-xl bg-neutral-900/80 hover:bg-neutral-850 active:bg-neutral-800 border border-neutral-800/60 flex items-center justify-between text-left transition-colors cursor-pointer"
+                  class="w-full px-3 py-2.5 rounded-xl border flex items-center justify-between text-left transition-colors cursor-pointer {isSongActive ? 'bg-neutral-900 border-emerald-500 shadow-md' : 'bg-neutral-900/80 hover:bg-neutral-850 active:bg-neutral-800 border-neutral-800/60'}"
                 >
                   <div class="min-w-0 pr-2">
-                    <p class="text-xs font-bold text-neutral-200 truncate">{song.title}</p>
+                    <p class="text-xs font-bold truncate {isSongActive ? 'text-emerald-400' : 'text-neutral-200'}">
+                      {song.title}
+                    </p>
                     {#if song.artist}
                       <p class="text-[10px] text-neutral-400 truncate">{song.artist}</p>
                     {/if}
                   </div>
-                  <span class="text-[10px] text-neutral-500 font-mono shrink-0">
-                    Toque para abrir
-                  </span>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    {#if isSongActive}
+                      <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                        Ao Vivo
+                      </span>
+                    {/if}
+                    <span class="text-[10px] text-neutral-500 font-mono">
+                      Abrir
+                    </span>
+                  </div>
                 </button>
               {/each}
             {/if}
@@ -685,27 +846,23 @@
 
     <!-- ABA 3: BÍBLIA -->
     {:else if activeTab === 'bible'}
-      <div class="space-y-2">
-        <!-- Barra de tradução bíblica e pesquisa rápida -->
-        <div class="flex items-center gap-2">
-          {#if bibles.length > 0}
-            <select
-              bind:value={activeBibleId}
-              onchange={() => {
-                if (selectedBook) {
-                  loadVerses(activeBibleId, selectedBook.id, selectedChapter);
-                }
-              }}
-              class="px-2 py-1.5 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-200 font-bold focus:outline-none focus:border-emerald-500"
-            >
-              {#each bibles as b}
-                <option value={b.id}>{b.abbreviation || b.name}</option>
-              {/each}
-            </select>
-          {/if}
+      <div class="space-y-2.5">
+        <!-- Input Group: Seletor de Versão (Drawer) + Campo de Busca Bíblica -->
+        <div class="flex items-center rounded-xl bg-neutral-900 border border-neutral-800 focus-within:border-emerald-500 overflow-hidden shadow-sm">
+          <!-- Botão de Tradução (abre Drawer do Shadcn) -->
+          <button
+            type="button"
+            onclick={() => (isBibleDrawerOpen = true)}
+            class="h-10 px-3 bg-neutral-850 hover:bg-neutral-800 text-neutral-200 font-bold text-xs flex items-center gap-1.5 border-r border-neutral-800 shrink-0 transition-colors cursor-pointer"
+            title="Alternar Tradução Bíblica"
+          >
+            <span class="text-emerald-400 font-extrabold">{activeBibleAbbr}</span>
+            <ChevronDown size={14} class="text-neutral-400" />
+          </button>
 
-          <div class="relative flex-1">
-            <Search size={13} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <!-- Input de Pesquisa -->
+          <div class="relative flex-1 flex items-center">
+            <Search size={14} class="absolute left-2.5 text-neutral-400 pointer-events-none" />
             <input
               type="text"
               bind:value={bibleQuery}
@@ -713,7 +870,7 @@
                 if (e.key === 'Enter') searchBible(bibleQuery);
               }}
               placeholder="Ex: Jo 3:16 ou amor..."
-              class="w-full pl-7 pr-7 py-1.5 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-emerald-500"
+              class="w-full h-10 pl-8 pr-8 bg-transparent text-xs text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
             />
             {#if bibleQuery}
               <button
@@ -722,9 +879,9 @@
                   bibleQuery = '';
                   bibleSearchResults = [];
                 }}
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-0.5 cursor-pointer"
+                class="absolute right-2.5 p-1 text-neutral-400 hover:text-white cursor-pointer"
               >
-                <X size={12} />
+                <X size={13} />
               </button>
             {/if}
           </div>
@@ -752,119 +909,375 @@
               <button
                 type="button"
                 onclick={() => presentSearchResult(hit)}
-                class="w-full text-left p-2 rounded-lg bg-black/40 hover:bg-neutral-800 active:bg-neutral-700 text-xs border border-neutral-800/60 transition-colors cursor-pointer"
+                class="w-full text-left p-2.5 rounded-lg bg-black/40 hover:bg-neutral-800 active:bg-neutral-700 text-xs border border-neutral-800/60 transition-colors cursor-pointer"
               >
-                <div class="flex items-center justify-between font-bold text-emerald-400 text-[11px] mb-0.5">
+                <div class="flex items-center justify-between font-bold text-emerald-400 text-xs mb-0.5">
                   <span>{hit.book_name} {hit.chapter}:{hit.verse}</span>
-                  <span class="text-[9px] uppercase font-mono text-neutral-500">{hit.bible_version || activeBibleId}</span>
+                  <span class="text-[9px] uppercase font-mono text-neutral-500">{hit.bible_version || activeBibleAbbr}</span>
                 </div>
                 <p class="text-neutral-300 leading-snug line-clamp-2">{hit.text}</p>
               </button>
             {/each}
           </div>
         {:else}
-          <!-- Navegador de Livros e Capítulos -->
-          <div class="space-y-2">
-            <!-- Seletor de Livro (Scroll horizontal) -->
-            <div>
-              <span class="text-[10px] font-bold uppercase text-neutral-400 px-1 block mb-1">
-                Livro:
-              </span>
-              <div class="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin">
-                {#each books as book}
+          <!-- NAVEGADOR BÍBLICO EM 3 SUB-ABAS: Livros | Capítulos | Versículos -->
+          <div class="grid grid-cols-3 gap-1 p-0.5 rounded-xl bg-neutral-900 border border-neutral-800">
+            <button
+              type="button"
+              onclick={() => (bibleNavTab = 'books')}
+              class="py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 {bibleNavTab === 'books' ? 'bg-emerald-600 text-white shadow' : 'text-neutral-400 hover:text-white'}"
+            >
+              <span>Livros</span>
+            </button>
+
+            <button
+              type="button"
+              onclick={() => (bibleNavTab = 'chapters')}
+              class="py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 {bibleNavTab === 'chapters' ? 'bg-emerald-600 text-white shadow' : 'text-neutral-400 hover:text-white'}"
+            >
+              <span>Capítulos</span>
+            </button>
+
+            <button
+              type="button"
+              onclick={() => (bibleNavTab = 'verses')}
+              class="py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 {bibleNavTab === 'verses' ? 'bg-emerald-600 text-white shadow' : 'text-neutral-400 hover:text-white'}"
+            >
+              <span>Versículos</span>
+            </button>
+          </div>
+
+          <!-- SUB-ABA 1: LIVROS EM GRADE -->
+          {#if bibleNavTab === 'books'}
+            <div class="space-y-2">
+              <!-- Filtro de Testamento -->
+              <div class="flex items-center gap-1">
+                <button
+                  type="button"
+                  onclick={() => (testamentFilter = 'all')}
+                  class="flex-1 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer {testamentFilter === 'all' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:bg-neutral-900'}"
+                >
+                  Todos ({books.length})
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (testamentFilter = 'ot')}
+                  class="flex-1 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer {testamentFilter === 'ot' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:bg-neutral-900'}"
+                >
+                  Antigo (39)
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (testamentFilter = 'nt')}
+                  class="flex-1 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer {testamentFilter === 'nt' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:bg-neutral-900'}"
+                >
+                  Novo (27)
+                </button>
+              </div>
+
+              <!-- Grade de Livros (3 colunas, botões altos confortáveis) -->
+              <div class="grid grid-cols-3 gap-1.5 pb-2">
+                {#each filteredBooks as book}
                   {@const isSelected = selectedBook?.id === book.id}
                   <button
                     type="button"
-                    onclick={() => selectBook(book)}
-                    class="px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0 transition-colors cursor-pointer {isSelected ? 'bg-emerald-600 text-white shadow' : 'bg-neutral-900 text-neutral-300 border border-neutral-800 hover:bg-neutral-850'}"
+                    onclick={() => {
+                      selectBook(book);
+                      bibleNavTab = 'chapters';
+                    }}
+                    class="h-12 px-2 rounded-xl flex flex-col items-center justify-center border transition-all text-center cursor-pointer active:scale-95 {isSelected ? 'bg-emerald-600 border-emerald-500 text-white font-bold shadow' : 'bg-neutral-900 border-neutral-800 text-neutral-200 hover:bg-neutral-850'}"
                   >
-                    {book.name}
+                    <span class="text-xs font-semibold leading-tight line-clamp-1">{book.name}</span>
+                    <span class="text-[9px] opacity-70 font-mono mt-0.5">{book.chapter_count} cap</span>
                   </button>
                 {/each}
               </div>
             </div>
 
-            <!-- Seletor de Capítulo (Pílulas horizontais) -->
-            {#if selectedBook}
-              <div>
-                <span class="text-[10px] font-bold uppercase text-neutral-400 px-1 block mb-1">
-                  Capítulo ({selectedBook.name}):
-                </span>
-                <div class="flex gap-1 overflow-x-auto pb-1.5 scrollbar-thin">
-                  {#each Array.from({ length: selectedBook.chapter_count || 1 }, (_, i) => i + 1) as ch}
-                    {@const isSelected = selectedChapter === ch}
-                    <button
-                      type="button"
-                      onclick={() => selectChapter(ch)}
-                      class="w-7 h-7 rounded-lg text-xs font-bold shrink-0 flex items-center justify-center transition-colors cursor-pointer {isSelected ? 'bg-emerald-600 text-white' : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-850'}"
-                    >
-                      {ch}
-                    </button>
-                  {/each}
+          <!-- SUB-ABA 2: CAPÍTULOS EM GRADE -->
+          {:else if bibleNavTab === 'chapters'}
+            <div class="space-y-2.5">
+              <!-- Cabeçalho do Livro Selecionado -->
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-neutral-900 border border-neutral-800">
+                <div>
+                  <span class="text-[10px] text-neutral-400 uppercase font-bold block">Livro Selecionado:</span>
+                  <h4 class="text-sm font-bold text-white">{selectedBook?.name || 'Selecione um Livro'}</h4>
                 </div>
+                <button
+                  type="button"
+                  onclick={() => (bibleNavTab = 'books')}
+                  class="px-2.5 py-1 text-xs font-bold rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition-colors cursor-pointer"
+                >
+                  Trocar Livro
+                </button>
               </div>
 
-              <!-- Lista de Versículos do Capítulo -->
-              <div class="space-y-1 pt-1">
-                <span class="text-[10px] font-bold uppercase text-neutral-400 px-1 block">
-                  Versículos (Toque para projetar ao vivo):
-                </span>
+              <span class="text-[10px] font-bold uppercase text-neutral-400 px-1 block">
+                Selecione o Capítulo:
+              </span>
+
+              <!-- Grade de Capítulos (5 colunas com botões amplos para o toque) -->
+              <div class="grid grid-cols-5 gap-2 pb-2">
+                {#each Array.from({ length: selectedBook?.chapter_count || 1 }, (_, i) => i + 1) as ch}
+                  {@const isSelected = selectedChapter === ch}
+                  <button
+                    type="button"
+                    onclick={() => {
+                      selectChapter(ch);
+                      bibleNavTab = 'verses';
+                    }}
+                    class="h-12 rounded-xl flex items-center justify-center font-bold text-sm transition-all border cursor-pointer active:scale-95 {isSelected ? 'bg-emerald-600 border-emerald-500 text-white shadow-lg' : 'bg-neutral-900 border-neutral-800 text-neutral-200 hover:bg-neutral-850'}"
+                  >
+                    {ch}
+                  </button>
+                {/each}
+              </div>
+            </div>
+
+          <!-- SUB-ABA 3: VERSÍCULOS COM TEXTO COMPLETO -->
+          {:else if bibleNavTab === 'verses'}
+            <div class="space-y-2">
+              <!-- Navegação Rápida entre Capítulos -->
+              <div class="flex items-center justify-between p-2 rounded-xl bg-neutral-900 border border-neutral-800">
+                <button
+                  type="button"
+                  onclick={() => {
+                    if (selectedChapter > 1) selectChapter(selectedChapter - 1);
+                  }}
+                  disabled={selectedChapter <= 1}
+                  class="h-8 px-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 disabled:pointer-events-none text-neutral-200 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <ChevronLeft size={14} />
+                  <span>Cap. {selectedChapter - 1}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => (bibleNavTab = 'chapters')}
+                  class="font-extrabold text-xs text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>{selectedBook?.name} {selectedChapter}</span>
+                  <ChevronDown size={12} />
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => {
+                    if (selectedBook && selectedChapter < (selectedBook.chapter_count || 1)) {
+                      selectChapter(selectedChapter + 1);
+                    }
+                  }}
+                  disabled={!selectedBook || selectedChapter >= (selectedBook.chapter_count || 1)}
+                  class="h-8 px-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 disabled:pointer-events-none text-neutral-200 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Cap. {selectedChapter + 1}</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+
+              <!-- Lista de Versículos -->
+              <div class="space-y-1.5 pb-2">
                 {#if isLoadingBible}
-                  <div class="p-6 text-center text-neutral-500 text-xs">
+                  <div class="p-8 text-center text-neutral-500 text-xs">
                     <RefreshCw size={18} class="animate-spin mx-auto mb-1" />
                     <span>Carregando versículos...</span>
                   </div>
                 {:else}
                   {#each verses as v}
+                    {@const isVerseLive =
+                      selectedBook &&
+                      $presentationState.active_media_id ===
+                        `scripture-${selectedBook.id}-${selectedChapter}-${v.verse}` &&
+                      isLive}
                     <button
                       type="button"
                       onclick={() => presentVerse(v)}
-                      class="w-full text-left p-2.5 rounded-xl bg-neutral-900/70 hover:bg-neutral-800 active:bg-neutral-700 border border-neutral-800/80 transition-colors flex items-start gap-2 cursor-pointer"
+                      class="w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 cursor-pointer active:scale-[0.99] {isVerseLive ? 'bg-emerald-950/60 border-emerald-500 ring-1 ring-emerald-500 text-white shadow-lg' : 'bg-neutral-900/70 hover:bg-neutral-800 active:bg-neutral-700 border-neutral-800/80'}"
                     >
-                      <span class="w-5 h-5 rounded-full bg-neutral-800 text-emerald-400 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                        {v.verse}
-                      </span>
-                      <p class="text-xs text-neutral-200 leading-relaxed flex-1">
+                      <div class="flex flex-col items-center gap-1 shrink-0 mt-0.5">
+                        <span
+                          class="w-6 h-6 rounded-full font-bold text-xs flex items-center justify-center {isVerseLive ? 'bg-emerald-500 text-black' : 'bg-neutral-800 text-emerald-400'}"
+                        >
+                          {v.verse}
+                        </span>
+                        {#if isVerseLive}
+                          <span class="text-[8px] font-bold text-emerald-400 uppercase tracking-tighter animate-pulse">
+                            Ao Vivo
+                          </span>
+                        {/if}
+                      </div>
+
+                      <p class="text-xs text-neutral-200 leading-relaxed flex-1 {isVerseLive ? 'font-semibold text-white' : ''}">
                         {v.text}
                       </p>
                     </button>
                   {/each}
                 {/if}
               </div>
-            {/if}
-          </div>
+            </div>
+          {/if}
         {/if}
       </div>
     {/if}
   </main>
 
-  <!-- BOTTOM NAVIGATION BAR (Thumb-friendly, 3 abas principais) -->
-  <nav class="h-14 bg-neutral-900 border-t border-neutral-800 grid grid-cols-3 shrink-0">
+  <!-- BOTTOM NAVIGATION BAR (Thumb-friendly, 3 abas principais com Safe-Area para iOS) -->
+  <nav
+    class="bg-neutral-900 border-t border-neutral-800 grid grid-cols-3 shrink-0"
+    style="padding-bottom: max(env(safe-area-inset-bottom), 16px);"
+  >
     <button
       type="button"
       onclick={() => (activeTab = 'setlist')}
-      class="flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer {activeTab === 'setlist' ? 'text-emerald-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'}"
+      class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab === 'setlist' ? 'text-emerald-400 font-extrabold' : 'text-neutral-400 hover:text-neutral-200'}"
     >
-      <ListMusic size={18} />
-      <span class="text-[10px]">Setlist</span>
+      <ListMusic size={20} class={activeTab === 'setlist' ? 'text-emerald-400' : 'text-neutral-400'} />
+      <span class="text-[11px]">Setlist</span>
     </button>
 
     <button
       type="button"
       onclick={() => (activeTab = 'songs')}
-      class="flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer {activeTab === 'songs' ? 'text-emerald-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'}"
+      class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab === 'songs' ? 'text-emerald-400 font-extrabold' : 'text-neutral-400 hover:text-neutral-200'}"
     >
-      <Music size={18} />
-      <span class="text-[10px]">Músicas</span>
+      <Music size={20} class={activeTab === 'songs' ? 'text-emerald-400' : 'text-neutral-400'} />
+      <span class="text-[11px]">Músicas</span>
     </button>
 
     <button
       type="button"
       onclick={() => (activeTab = 'bible')}
-      class="flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer {activeTab === 'bible' ? 'text-emerald-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'}"
+      class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab === 'bible' ? 'text-emerald-400 font-extrabold' : 'text-neutral-400 hover:text-neutral-200'}"
     >
-      <BookOpen size={18} />
-      <span class="text-[10px]">Bíblia</span>
+      <BookOpen size={20} class={activeTab === 'bible' ? 'text-emerald-400' : 'text-neutral-400'} />
+      <span class="text-[11px]">Bíblia</span>
     </button>
   </nav>
+
+  <!-- DRAWER SHADCN: Seleção de Tradução Bíblica -->
+  {#if isBibleDrawerOpen}
+    <!-- Backdrop com blur -->
+    <button
+      type="button"
+      class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm transition-opacity w-full h-full border-0 p-0 m-0 cursor-pointer"
+      onclick={() => (isBibleDrawerOpen = false)}
+      aria-label="Fechar Gaveta"
+    ></button>
+
+    <!-- Superfície do Drawer deslizando da base -->
+    <div
+      class="fixed inset-x-0 bottom-0 z-50 max-w-md mx-auto rounded-t-3xl bg-neutral-900 border-t border-neutral-800 p-4 shadow-2xl flex flex-col max-h-[80vh] font-sans"
+      style="padding-bottom: max(env(safe-area-inset-bottom), 24px);"
+    >
+      <!-- Drag Handle -->
+      <div class="w-12 h-1.5 rounded-full bg-neutral-700 mx-auto mb-3 shrink-0"></div>
+
+      <!-- Cabeçalho do Drawer -->
+      <div class="flex items-center justify-between pb-3 border-b border-neutral-800 shrink-0">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <BookOpen size={16} class="text-emerald-400" />
+            <span>Tradução da Bíblia</span>
+          </h3>
+          <p class="text-[11px] text-neutral-400">Selecione a versão para projeção e leitura</p>
+        </div>
+        <button
+          type="button"
+          onclick={() => (isBibleDrawerOpen = false)}
+          class="p-1.5 rounded-full bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer"
+        >
+          <X size={15} />
+        </button>
+      </div>
+
+      <!-- Lista de Traduções Disponíveis -->
+      <div class="space-y-1.5 py-3 overflow-y-auto min-h-0 flex-1">
+        {#each bibles as b}
+          {@const isSelected = b.id === activeBibleId}
+          <button
+            type="button"
+            onclick={() => {
+              activeBibleId = b.id;
+              if (selectedBook) {
+                loadVerses(b.id, selectedBook.id, selectedChapter);
+              }
+              isBibleDrawerOpen = false;
+            }}
+            class="w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all cursor-pointer {isSelected ? 'bg-emerald-950/40 border-emerald-500 text-white' : 'bg-neutral-850/80 border-neutral-800 text-neutral-300 hover:bg-neutral-800'}"
+          >
+            <div>
+              <div class="flex items-center gap-2">
+                <span
+                  class="px-2 py-0.5 rounded text-xs font-extrabold font-mono {isSelected ? 'bg-emerald-500 text-black' : 'bg-neutral-800 text-neutral-300'}"
+                >
+                  {b.abbreviation || b.name}
+                </span>
+                <span class="text-xs font-bold text-white">{b.name}</span>
+              </div>
+              <span class="text-[10px] text-neutral-400 mt-0.5 block">{b.book_count || 66} livros</span>
+            </div>
+            {#if isSelected}
+              <Check size={16} class="text-emerald-400 shrink-0" />
+            {/if}
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
+  <!-- DRAWER SHADCN: Seleção de Setlist -->
+  {#if isSetlistDrawerOpen}
+    <button
+      type="button"
+      class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm transition-opacity w-full h-full border-0 p-0 m-0 cursor-pointer"
+      onclick={() => (isSetlistDrawerOpen = false)}
+      aria-label="Fechar Gaveta"
+    ></button>
+
+    <div
+      class="fixed inset-x-0 bottom-0 z-50 max-w-md mx-auto rounded-t-3xl bg-neutral-900 border-t border-neutral-800 p-4 shadow-2xl flex flex-col max-h-[80vh] font-sans"
+      style="padding-bottom: max(env(safe-area-inset-bottom), 24px);"
+    >
+      <div class="w-12 h-1.5 rounded-full bg-neutral-700 mx-auto mb-3 shrink-0"></div>
+
+      <div class="flex items-center justify-between pb-3 border-b border-neutral-800 shrink-0">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <Layers size={16} class="text-emerald-400" />
+            <span>Alternar Setlist</span>
+          </h3>
+          <p class="text-[11px] text-neutral-400">Selecione o culto ou reunião a ser exibido</p>
+        </div>
+        <button
+          type="button"
+          onclick={() => (isSetlistDrawerOpen = false)}
+          class="p-1.5 rounded-full bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer"
+        >
+          <X size={15} />
+        </button>
+      </div>
+
+      <div class="space-y-1.5 py-3 overflow-y-auto min-h-0 flex-1">
+        {#each availableSetlists as s}
+          {@const isSelected = activeSetlistData?.id === s.id}
+          <button
+            type="button"
+            onclick={() => {
+              loadSingleSetlistDetail(s.id);
+              isSetlistDrawerOpen = false;
+            }}
+            class="w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all cursor-pointer {isSelected ? 'bg-emerald-950/40 border-emerald-500 text-white' : 'bg-neutral-850/80 border-neutral-800 text-neutral-300 hover:bg-neutral-800'}"
+          >
+            <div>
+              <p class="text-xs font-bold text-white">{s.title}</p>
+              <p class="text-[10px] text-neutral-400 mt-0.5">{s.item_count} itens cadastrados</p>
+            </div>
+            {#if isSelected}
+              <Check size={16} class="text-emerald-400 shrink-0" />
+            {/if}
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 </div>

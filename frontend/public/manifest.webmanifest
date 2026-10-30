@@ -1,0 +1,62 @@
+{
+  "name": "OpenPresenter Minimal",
+  "short_name": "OpenPresenter",
+  "description": "Software minimalista de projeção para igrejas e eventos",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Controle Remoto",
+      "short_name": "Remoto",
+      "description": "Abrir controle remoto mobile",
+      "url": "/remote",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Projeção Pública",
+      "short_name": "Público",
+      "description": "Abrir tela de projeção para telão",
+      "url": "/public",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Retorno de Palco",
+      "short_name": "Stage",
+      "description": "Abrir monitor de retorno para púlpito",
+      "url": "/stage",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Painel do Operador",
+      "short_name": "Admin",
+      "description": "Abrir painel administrativo principal",
+      "url": "/",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
