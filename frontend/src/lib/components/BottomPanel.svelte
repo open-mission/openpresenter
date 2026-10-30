@@ -26,6 +26,7 @@
     FolderOpen,
     BookOpen,
     Film,
+    ShieldCheck,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
@@ -122,6 +123,24 @@
   let isFoldersTreeExpanded = $state(true);
   let isLoadingImages = $state(false);
   let fileInputEl: HTMLInputElement | null = $state(null);
+
+  // Por padrão exibe apenas pastas importadas por privacidade, com opção de habilitar imagens do sistema
+  let showSystemImages = $state<boolean>(
+    typeof window !== 'undefined'
+      ? localStorage.getItem('open_presenter_show_system_images') === 'true'
+      : false
+  );
+
+  function toggleShowSystemImages() {
+    showSystemImages = !showSystemImages;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('open_presenter_show_system_images', String(showSystemImages));
+    }
+  }
+
+  const visibleImagesCount = $derived(
+    showSystemImages ? images.length : images.filter((img) => img.is_external).length
+  );
 
   function handleSetImageFit(fit: ImageFitMode) {
     const updated = { ...$publicSettingsStore, image_fit: fit };
@@ -286,9 +305,13 @@
     return f?.subfolders || [];
   });
 
-  // Filtragem de imagens com suporte a sub-pastas
+  // Filtragem de imagens com suporte a sub-pastas e privacidade
   const filteredImages = $derived.by(() => {
     let list = images;
+    // Por padrão (privacidade ativa), exibe apenas pastas importadas externas
+    if (!showSystemImages && selectedFolderFilter !== 'app') {
+      list = list.filter((img) => img.is_external);
+    }
     if (selectedFolderFilter === 'app') {
       list = list.filter((img) => !img.is_external);
     } else if (selectedFolderFilter !== 'all') {
@@ -302,8 +325,8 @@
 
   // Nome da pasta selecionada para Breadcrumbs
   const currentFolderName = $derived.by(() => {
-    if (selectedFolderFilter === 'all') return 'Todas as Imagens';
-    if (selectedFolderFilter === 'app') return 'Pasta do App';
+    if (selectedFolderFilter === 'all') return showSystemImages ? 'Todas as Imagens (+ Sistema)' : 'Pastas Importadas';
+    if (selectedFolderFilter === 'app') return 'Pasta do App (Sistema)';
     const f = folders.find((item) => item.id === selectedFolderFilter);
     return f ? f.name : 'Pasta Selecionada';
   });
@@ -322,9 +345,10 @@
     });
   });
 
-  // Aplicação instantânea de fundo no projetor
+  // Aplicação instantânea de fundo no projetor respeitando wallpaper_fit configurado
   function applyBackground(encodedOrUrl: string) {
-    setPresentationWallpaper(encodedOrUrl, 'cover');
+    const fit = $publicSettingsStore.wallpaper_fit || 'contain';
+    setPresentationWallpaper(encodedOrUrl, fit);
   }
 
   // Arraste para redimensionamento de altura
@@ -483,7 +507,7 @@
         <ImageIcon size={13} class="text-cyan-400" />
         <span>Imagens & Pastas</span>
         <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
-          {images.length}
+          {visibleImagesCount}
         </Badge>
       </button>
 
@@ -787,7 +811,7 @@
               Navegação de Pastas
             </span>
 
-            <!-- Nó: Todas as Imagens -->
+            <!-- Nó: Todas as Imagens / Pastas Importadas -->
             <button
               type="button"
               onclick={() => {
@@ -798,14 +822,14 @@
             >
               <div class="flex items-center gap-2 truncate">
                 <Layers size={13} />
-                <span class="truncate">Todas as Imagens</span>
+                <span class="truncate">{showSystemImages ? 'Todas as Imagens' : 'Pastas Importadas'}</span>
               </div>
               <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
-                {images.length}
+                {visibleImagesCount}
               </Badge>
             </button>
 
-            <!-- Nó: Pasta do App -->
+            <!-- Nó: Pasta do App (Sistema) -->
             <button
               type="button"
               onclick={() => {
@@ -816,7 +840,7 @@
             >
               <div class="flex items-center gap-2 truncate">
                 <Folder size={13} class="text-primary" />
-                <span class="truncate">Pasta do App</span>
+                <span class="truncate">Pasta do App (Sistema)</span>
               </div>
               <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
                 {images.filter((i) => !i.is_external).length}
@@ -975,6 +999,22 @@
 
               <!-- Ações de Upload e Gerenciamento -->
               <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                <!-- Filtro de Privacidade: Apenas Pastas Importadas vs Sistema -->
+                <button
+                  type="button"
+                  onclick={toggleShowSystemImages}
+                  class="px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors flex items-center gap-1.5 cursor-pointer {!showSystemImages ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25' : 'bg-muted/60 text-muted-foreground border-border hover:text-foreground'}"
+                  title={!showSystemImages ? 'Exibindo apenas pastas importadas por segurança (fotos pessoais ocultas). Clique para incluir imagens do sistema.' : 'Exibindo todas as imagens incluindo do sistema. Clique para ocultar fotos do sistema.'}
+                >
+                  {#if !showSystemImages}
+                    <ShieldCheck size={12} class="text-emerald-400" />
+                    <span>Pastas Importadas</span>
+                  {:else}
+                    <Eye size={12} />
+                    <span>Todas + Sistema</span>
+                  {/if}
+                </button>
+
                 <!-- Controle Rápido de Margens e Encaixe de Imagens na Projeção -->
                 <div class="flex items-center gap-1.5 px-2 py-0.5 bg-muted/40 border border-border rounded-lg text-xs">
                   <button

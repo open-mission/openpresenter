@@ -7,12 +7,28 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Paridade Visual 100% no Preview da Projeção Pública do Painel Admin (`PublicPreviewBox.svelte`):**
+  - Implementação de renderização virtual com resolução base HD 1080p (1920x1080) escalada dinamicamente via `transform: scale()` para o tamanho exato da coluna de preview.
+  - O auto-scale (`autoScale.ts`), as quebras de linha de texto, proporções de margens, tipografia, logotipo da igreja e posicionamento de referência bíblica agora são 100% idênticos à tela pública real do projetor (`/public`).
+- **Opções Avançadas de Referência Bíblica e Encaixe de Fundo na Projeção Pública:**
+  - Adicionada opção de posicionamento da referência bíblica: **No Rodapé** (barra inferior com divisor elegante) ou **Abaixo do Texto** (acompanhando o versículo centralizado).
+  - Controle deslizante para personalizar o tamanho da fonte da referência bíblica no rodapé (16px a 64px, padrão 28px).
+  - Opção de Encaixe do Papel de Parede na Projeção (`wallpaper_fit`): `contain` (sem cortes em TV/Chromecast), `cover` (preenchimento completo) e `fill` (esticar sem bordas).
+  - Margens seguras aplicáveis ao papel de parede (`wallpaper_safe_margins`) para proteger contra overscan de televisores HDMI e Chromecast.
+- **Privacidade e Filtro de Imagens Importadas vs. Sistema na Galeria (`BottomPanel.svelte`):**
+  - Por padrão, a galeria de imagens exibe apenas arquivos de pastas importadas/mapeadas (`is_external: true`), impedindo que fotos pessoais ou arquivos residuais do sistema apareçam acidentalmente em cultos.
+  - Adicionado botão de alternância de privacidade na barra de ferramentas ("Pastas Importadas" vs. "Todas + Sistema"), persistido no armazenamento local do navegador.
 - **Separação de Ajustes para Louvores e Textos Bíblicos na Projeção Pública e Retorno de Palco:**
   - Na aba **Projeção Pública**, inclusão de navegação por sub-seções independentes: `Letras de Louvor`, `Textos Bíblicos` e `Margens & Geral`. Permite configurar alinhamentos, limites de tamanho de fonte e aproveitamento de largura de tela de forma desacoplada para músicas e versículos.
   - Na aba **Monitor de Palco**, divisão em 3 seções: `Letras de Louvor no Palco`, `Textos Bíblicos no Palco` e `Layout & Tempo`, com personalização dedicada de cores (texto e moldura do versículo) e tamanho mínimo de fonte para garantir legibilidade no púlpito.
   - Na aba **Fundos de Letras & CSS**, inclusão de alternador na prévia 16:9 em tempo real entre `[🎵 Letra de Louvor]` e `[📖 Texto Bíblico]`, permitindo validar o contraste e o estilo em ambos os tipos de conteúdo.
 
 ### Corrigido
+- **Alinhamento e Geometria dos Toggles e Switches de Configuração:**
+  - Substituição da geometria anterior com posicionamentos absolutos manuais por modelo robusto baseado no padrão Tailwind UI (`border-2 border-transparent` e translação `translate-x-5`), corrigindo o botão circular que vazava para fora da pílula verde.
+  - Correção do contraste nas chaves de alternância que ficavam totalmente brancas quando ativas (`peer-checked:bg-primary`).
+- **Priorização de Arquivos Estáticos Compilados do Frontend em Disco:**
+  - Em `op-admin`, priorização dos arquivos estáticos locais em `frontend/dist` antes dos assets embutidos em tempo de compilação, permitindo que alterações recentes de interface, CSS e Chromecast sejam servidas imediatamente aos clientes sem necessidade de recompilar o binário Rust.
 - **Centralização Vertical e Auto-scale de Versículos Bíblicos na Projeção Pública (`/public`):**
   - Correção da distribuição vertical de versículos bíblicos na tela pública, centralizando o texto harmoniosamente no viewport e garantindo o aproveitamento total de largura (`w-full`) para que a fonte expanda de maneira mais legível.
 - **Contraste e Visibilidade em Toggles e Switches de Configuração:**

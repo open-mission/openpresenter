@@ -15,6 +15,8 @@ export const DEFAULT_PUBLIC_SETTINGS: PublicDisplaySettings = {
   margin_bottom: 32,
   margin_horizontal: 48,
   image_fit: 'contain',
+  wallpaper_fit: 'contain',
+  wallpaper_safe_margins: false,
   ignore_margins_for_media: true,
   darken_background: false,
   text_box_background: false,
@@ -34,6 +36,8 @@ export const DEFAULT_PUBLIC_SETTINGS: PublicDisplaySettings = {
   scripture_max_font_size: 140,
   scripture_fill_space: true,
   scripture_show_reference: true,
+  scripture_reference_position: 'footer',
+  scripture_reference_font_size: 28,
 };
 
 export const DEFAULT_CHURCH_BRAND: ChurchBrandSettings = {

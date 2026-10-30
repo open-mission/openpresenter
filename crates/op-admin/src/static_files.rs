@@ -40,29 +40,32 @@ pub fn find_frontend_dist() -> PathBuf {
 pub async fn static_fallback_handler(uri: Uri) -> Response<Body> {
     let path = uri.path();
     let relative_path = path.trim_start_matches('/');
+    let dist_dir = find_frontend_dist();
 
-    // 1. Tenta servir primeiro arquivo estático específico a partir dos assets embutidos
-    if !relative_path.is_empty() {
-        if let Some(resp) = serve_embedded_file(relative_path) {
-            return resp;
+    // 1. Prioriza arquivos locais atualizados no disco (frontend/dist) se o diretório existir
+    if dist_dir.exists() {
+        if !relative_path.is_empty() {
+            let asset_file = dist_dir.join(relative_path);
+            if let Ok(resp) = serve_local_file(&asset_file).await {
+                return resp;
+            }
         }
 
-        // Fallback para disco local (útil durante desenvolvimento)
-        let dist_dir = find_frontend_dist();
-        let asset_file = dist_dir.join(relative_path);
-        if let Ok(resp) = serve_local_file(&asset_file).await {
+        let index_file = dist_dir.join("index.html");
+        if let Ok(resp) = serve_local_file(&index_file).await {
             return resp;
         }
     }
 
-    // 2. Se for uma rota SPA (como /, /admin, /public, /stage), serve o index.html
-    if let Some(resp) = serve_embedded_file("index.html") {
+    // 2. Fallback para os assets embutidos diretamente no binário Rust
+    if let Some(resp) = (!relative_path.is_empty())
+        .then(|| serve_embedded_file(relative_path))
+        .flatten()
+    {
         return resp;
     }
 
-    let dist_dir = find_frontend_dist();
-    let index_file = dist_dir.join("index.html");
-    if let Ok(resp) = serve_local_file(&index_file).await {
+    if let Some(resp) = serve_embedded_file("index.html") {
         return resp;
     }
 

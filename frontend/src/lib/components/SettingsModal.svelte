@@ -1159,17 +1159,19 @@
                       Quando desativado, exibe apenas os ícones compactos para ganhar espaço de tela e manter o visual minimalista.
                     </div>
                   </div>
-                  <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={$previewLabelsStore}
-                      onchange={(e) => setPreviewLabels(e.currentTarget.checked)}
-                      class="sr-only peer"
-                    />
-                    <div
-                      class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"
-                    ></div>
-                  </label>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-label="Alternar exibição de textos nos botões"
+                    aria-checked={$previewLabelsStore}
+                    onclick={() => setPreviewLabels(!$previewLabelsStore)}
+                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {$previewLabelsStore ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {$previewLabelsStore ? 'translate-x-5' : 'translate-x-0'}"
+                    ></span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1336,11 +1338,11 @@
                       type="button"
                       aria-label="Alternar preenchimento máximo de espaço"
                       onclick={() => updatePublicField('fill_space', !localPublic.fill_space)}
-                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.fill_space ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.fill_space ? 'bg-emerald-600' : 'bg-neutral-800'}"
                       role="switch"
                       aria-checked={localPublic.fill_space}
                     >
-                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.fill_space ? 'left-6' : 'left-1'}"></span>
+                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.fill_space ? 'translate-x-5' : 'translate-x-0'}"></span>
                     </button>
                   </div>
 
@@ -1359,11 +1361,11 @@
                       type="button"
                       aria-label="Alternar quebra de linhas longas"
                       onclick={() => updatePublicField('word_wrap', !localPublic.word_wrap)}
-                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.word_wrap ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.word_wrap ? 'bg-emerald-600' : 'bg-neutral-800'}"
                       role="switch"
                       aria-checked={localPublic.word_wrap}
                     >
-                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.word_wrap ? 'left-6' : 'left-1'}"></span>
+                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.word_wrap ? 'translate-x-5' : 'translate-x-0'}"></span>
                     </button>
                   </div>
 
@@ -1382,11 +1384,11 @@
                       type="button"
                       aria-label="Alternar exibição de metadados"
                       onclick={() => updatePublicField('show_metadata', !localPublic.show_metadata)}
-                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.show_metadata ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.show_metadata ? 'bg-emerald-600' : 'bg-neutral-800'}"
                       role="switch"
                       aria-checked={localPublic.show_metadata}
                     >
-                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.show_metadata ? 'left-6' : 'left-1'}"></span>
+                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.show_metadata ? 'translate-x-5' : 'translate-x-0'}"></span>
                     </button>
                   </div>
                 </div>
@@ -1518,35 +1520,89 @@
                       type="button"
                       aria-label="Alternar preenchimento bíblico"
                       onclick={() => updatePublicField('scripture_fill_space', localPublic.scripture_fill_space === false ? true : false)}
-                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.scripture_fill_space !== false ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.scripture_fill_space !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
                       role="switch"
                       aria-checked={localPublic.scripture_fill_space !== false}
                     >
-                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.scripture_fill_space !== false ? 'left-6' : 'left-1'}"></span>
+                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.scripture_fill_space !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
                     </button>
                   </div>
 
-                  <!-- Exibir Rodapé com Referência e Tradução -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        <BookOpen size={14} class="text-primary" />
-                        Exibir Rodapé com Referência Bíblica e Versão (Ex: João 3:16 • ARA)
+                  <!-- Exibir Referência e Tradução -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <div class="flex items-center justify-between gap-4">
+                      <div>
+                        <div class="text-xs font-semibold text-white flex items-center gap-2">
+                          <BookOpen size={14} class="text-primary" />
+                          Exibir Referência Bíblica e Versão (Ex: João 3:16 • ARA)
+                        </div>
+                        <p class="text-[11px] text-neutral-400 mt-0.5">
+                          Mostra o livro, capítulo, versículo e a sigla da tradução utilizada na projeção pública.
+                        </p>
                       </div>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Mostra uma barra elegante na parte inferior com livro, capítulo, versículo e a sigla da tradução utilizada.
-                      </p>
+                      <button
+                        type="button"
+                        aria-label="Alternar referência bíblica"
+                        onclick={() => updatePublicField('scripture_show_reference', localPublic.scripture_show_reference === false ? true : false)}
+                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.scripture_show_reference !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                        role="switch"
+                        aria-checked={localPublic.scripture_show_reference !== false}
+                      >
+                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.scripture_show_reference !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      aria-label="Alternar rodapé bíblico"
-                      onclick={() => updatePublicField('scripture_show_reference', localPublic.scripture_show_reference === false ? true : false)}
-                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.scripture_show_reference !== false ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
-                      role="switch"
-                      aria-checked={localPublic.scripture_show_reference !== false}
-                    >
-                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.scripture_show_reference !== false ? 'left-6' : 'left-1'}"></span>
-                    </button>
+
+                    {#if localPublic.scripture_show_reference !== false}
+                      <!-- Posição da Referência: No Rodapé vs Abaixo do Texto -->
+                      <div class="pt-2 border-t border-neutral-800/80 space-y-2.5">
+                        <span class="text-xs font-medium text-neutral-300">Posição da Referência na Tela</span>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onclick={() => updatePublicField('scripture_reference_position', 'footer')}
+                            class="p-2.5 rounded-lg border text-left transition-all cursor-pointer {(localPublic.scripture_reference_position ?? 'footer') === 'footer' ? 'border-primary bg-primary/10 text-white' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
+                          >
+                            <div class="text-xs font-semibold">{(localPublic.scripture_reference_position ?? 'footer') === 'footer' ? '✓ ' : ''}No Rodapé (Inferior da Tela)</div>
+                            <div class="text-[10px] opacity-70 mt-0.5">Fixado na parte inferior com linha divisória elegante</div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onclick={() => updatePublicField('scripture_reference_position', 'below_text')}
+                            class="p-2.5 rounded-lg border text-left transition-all cursor-pointer {localPublic.scripture_reference_position === 'below_text' ? 'border-primary bg-primary/10 text-white' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
+                          >
+                            <div class="text-xs font-semibold">{localPublic.scripture_reference_position === 'below_text' ? '✓ ' : ''}Abaixo do Texto (Junto ao Versículo)</div>
+                            <div class="text-[10px] opacity-70 mt-0.5">Acompanha o versículo centralizado verticalmente</div>
+                          </button>
+                        </div>
+                      </div>
+
+                      {#if (localPublic.scripture_reference_position ?? 'footer') === 'footer'}
+                        <!-- Tamanho da Fonte da Referência no Rodapé -->
+                        <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2 max-w-md">
+                          <div class="flex justify-between items-center text-xs">
+                            <span class="text-neutral-300 font-medium">Tamanho da Fonte da Referência no Rodapé</span>
+                            <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                              {localPublic.scripture_reference_font_size ?? 28}px
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="16"
+                            max="64"
+                            step="2"
+                            value={localPublic.scripture_reference_font_size ?? 28}
+                            oninput={(e) => updatePublicField('scripture_reference_font_size', Number((e.target as HTMLInputElement).value))}
+                            class="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                          <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
+                            <span>16px (Discreto)</span>
+                            <span>28px (Padrão)</span>
+                            <span>64px (Grande)</span>
+                          </div>
+                        </div>
+                      {/if}
+                    {/if}
                   </div>
                 </div>
 
@@ -1568,11 +1624,11 @@
                       type="button"
                       aria-label="Alternar escurecimento do plano de fundo"
                       onclick={() => updatePublicField('darken_background', !localPublic.darken_background)}
-                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.darken_background ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.darken_background ? 'bg-emerald-600' : 'bg-neutral-800'}"
                       role="switch"
                       aria-checked={Boolean(localPublic.darken_background)}
                     >
-                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.darken_background ? 'left-6' : 'left-1'}"></span>
+                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.darken_background ? 'translate-x-5' : 'translate-x-0'}"></span>
                     </button>
                   </div>
 
@@ -1591,11 +1647,11 @@
                       type="button"
                       aria-label="Alternar fundo nas caixas de texto"
                       onclick={() => updatePublicField('text_box_background', !localPublic.text_box_background)}
-                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.text_box_background ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.text_box_background ? 'bg-emerald-600' : 'bg-neutral-800'}"
                       role="switch"
                       aria-checked={Boolean(localPublic.text_box_background)}
                     >
-                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.text_box_background ? 'left-6' : 'left-1'}"></span>
+                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.text_box_background ? 'translate-x-5' : 'translate-x-0'}"></span>
                     </button>
                   </div>
 
@@ -1614,19 +1670,68 @@
                       type="button"
                       aria-label="Alternar margens para imagens"
                       onclick={() => updatePublicField('ignore_margins_for_media', !localPublic.ignore_margins_for_media)}
-                      class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localPublic.ignore_margins_for_media !== false ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.ignore_margins_for_media !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
                       role="switch"
                       aria-checked={localPublic.ignore_margins_for_media !== false}
                     >
-                      <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localPublic.ignore_margins_for_media !== false ? 'left-6' : 'left-1'}"></span>
+                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.ignore_margins_for_media !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
                     </button>
                   </div>
 
-                  <!-- Encaixe Padrão de Imagens -->
+                  <!-- Encaixe do Papel de Parede na Projeção (Wallpaper Fit) -->
                   <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-2.5">
                     <div class="text-xs font-semibold text-white flex items-center gap-2">
                       <Maximize2 size={14} class="text-primary" />
-                      Encaixe Padrão de Imagens na Projeção
+                      Encaixe do Papel de Parede na Projeção (TV / Chromecast)
+                    </div>
+                    <p class="text-[11px] text-neutral-400">
+                      Escolha como a imagem de fundo deve se ajustar à tela. Para TVs ou Chromecast com cortes de borda (overscan), use "Ajustar (Conter)".
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                      {#each [
+                        { id: 'contain', label: 'Ajustar (Conter)', desc: '100% visível, sem cortes (TV)' },
+                        { id: 'cover', label: 'Preencher (Cobrir)', desc: 'Preenche cortando bordas' },
+                        { id: 'fill', label: 'Esticar', desc: 'Preenche 100% da tela' }
+                      ] as wallFitOpt}
+                        <button
+                          type="button"
+                          onclick={() => updatePublicField('wallpaper_fit', wallFitOpt.id as any)}
+                          class="p-2 rounded-lg border text-left transition-all cursor-pointer {(localPublic.wallpaper_fit || 'contain') === wallFitOpt.id ? 'border-primary bg-primary/10 text-white' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
+                        >
+                          <div class="text-xs font-medium">{(localPublic.wallpaper_fit || 'contain') === wallFitOpt.id ? '✓ ' : ''}{wallFitOpt.label}</div>
+                          <div class="text-[10px] opacity-70 mt-0.5">{wallFitOpt.desc}</div>
+                        </button>
+                      {/each}
+                    </div>
+                  </div>
+
+                  <!-- Margens Seguras no Papel de Parede -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
+                    <div>
+                      <div class="text-xs font-semibold text-white flex items-center gap-2">
+                        <Sliders size={14} class="text-primary" />
+                        Margens Seguras no Papel de Parede (Anti-Overscan TV)
+                      </div>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Aplica as margens seguras também ao plano de fundo, evitando que artes com bordas sejam cortadas por televisores ou Chromecast.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Alternar margens seguras no papel de parede"
+                      onclick={() => updatePublicField('wallpaper_safe_margins', !localPublic.wallpaper_safe_margins)}
+                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.wallpaper_safe_margins ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                      role="switch"
+                      aria-checked={Boolean(localPublic.wallpaper_safe_margins)}
+                    >
+                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.wallpaper_safe_margins ? 'translate-x-5' : 'translate-x-0'}"></span>
+                    </button>
+                  </div>
+                  <!-- Encaixe Padrão de Imagens de Mídia -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-2.5">
+                    <div class="text-xs font-semibold text-white flex items-center gap-2">
+                      <ImageIcon size={14} class="text-primary" />
+                      Encaixe Padrão de Imagens de Mídia (Slides/Fotos)
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                       {#each [
@@ -1822,7 +1927,7 @@
                       </span>
                     </div>
                   {:else}
-                    <!-- Versículo Bíblico centralizado com rodapé -->
+                    <!-- Versículo Bíblico centralizado com rodapé ou abaixo do texto -->
                     <div class="relative z-10 my-auto text-center flex flex-col items-center justify-center">
                       <p
                         class="text-sm sm:text-lg font-bold leading-relaxed tracking-tight drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]"
@@ -1830,20 +1935,33 @@
                       >
                         Disse também Deus: Haja luzeiros no firmamento dos céus, para fazerem separação entre o dia e a noite; e sejam eles para sinais, para estações, para dias e anos.
                       </p>
+
+                      {#if localPublic.scripture_show_reference !== false && localPublic.scripture_reference_position === 'below_text'}
+                        <div class="mt-3 flex items-center justify-center gap-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                          <span class="text-xs sm:text-sm font-bold tracking-tight opacity-90" style="color: {currentSelectedPreset.textColor || '#ffffff'};">
+                            Gênesis 1:14
+                          </span>
+                          <span class="text-[8px] px-1.5 py-0.5 rounded bg-white/15 border border-white/20 uppercase font-mono font-bold text-neutral-100">
+                            ARA
+                          </span>
+                        </div>
+                      {/if}
                     </div>
 
-                    <!-- Rodapé com referência bíblica -->
-                    <div class="relative z-10 flex items-center justify-between border-t border-white/10 pt-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                      <span
-                        class="text-xs sm:text-sm font-bold tracking-tight"
-                        style="color: {currentSelectedPreset.textColor || '#ffffff'};"
-                      >
-                        Gênesis 1:14
-                      </span>
-                      <span class="text-[9px] px-2 py-0.5 rounded bg-white/15 border border-white/20 uppercase font-mono font-bold text-neutral-100 shadow">
-                        ARA
-                      </span>
-                    </div>
+                    {#if localPublic.scripture_show_reference !== false && (localPublic.scripture_reference_position ?? 'footer') === 'footer'}
+                      <!-- Rodapé com referência bíblica -->
+                      <div class="relative z-10 flex items-center justify-between border-t border-white/10 pt-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                        <span
+                          class="font-bold tracking-tight"
+                          style="color: {currentSelectedPreset.textColor || '#ffffff'}; font-size: {Math.max(12, Math.round((localPublic.scripture_reference_font_size ?? 28) * 0.45))}px;"
+                        >
+                          Gênesis 1:14
+                        </span>
+                        <span class="text-[9px] px-2 py-0.5 rounded bg-white/15 border border-white/20 uppercase font-mono font-bold text-neutral-100 shadow">
+                          ARA
+                        </span>
+                      </div>
+                    {/if}
                   {/if}
                 </div>
               </div>
@@ -2657,11 +2775,11 @@
                     type="button"
                     aria-label="Alternar exibição de logotipo na tela pública"
                     onclick={() => updateBrandField('show_logo_on_public', !localBrand.show_logo_on_public)}
-                    class="w-11 h-6 rounded-full transition-colors relative cursor-pointer {localBrand.show_logo_on_public ? 'bg-emerald-600' : 'bg-neutral-800 border border-neutral-700'}"
+                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localBrand.show_logo_on_public ? 'bg-emerald-600' : 'bg-neutral-800'}"
                     role="switch"
                     aria-checked={localBrand.show_logo_on_public}
                   >
-                    <span class="w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm {localBrand.show_logo_on_public ? 'left-6' : 'left-1'}"></span>
+                    <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localBrand.show_logo_on_public ? 'translate-x-5' : 'translate-x-0'}"></span>
                   </button>
                 </div>
 

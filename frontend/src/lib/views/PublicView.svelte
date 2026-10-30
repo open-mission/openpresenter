@@ -92,7 +92,7 @@
   );
 
   const wallpaper = $derived($presentationState.wallpaper_path);
-  const wallpaperFit = $derived($presentationState.wallpaper_mode || 'cover');
+  const wallpaperFit = $derived(publicSettings?.wallpaper_fit || $presentationState.wallpaper_mode || 'contain');
   const resolvedBg = $derived(resolveBackground(wallpaper, $backgroundStylesStore));
   const activeTextColor = $derived(resolvedBg.textColor || '#ffffff');
 
@@ -165,16 +165,21 @@
   {:else}
     <!-- Fundo / Papel de Parede da Setlist Ativa -->
     {#if resolvedBg.isCss || resolvedBg.isImage || resolvedBg.isVideo}
-      <div class="absolute inset-0 z-0 overflow-hidden flex items-center justify-center pointer-events-none">
+      <div
+        class="absolute inset-0 z-0 overflow-hidden flex items-center justify-center pointer-events-none"
+        style={publicSettings?.wallpaper_safe_margins
+          ? `box-sizing: border-box; padding-top: ${marginTop}px; padding-bottom: ${marginBottom}px; padding-left: ${marginHorizontal}px; padding-right: ${marginHorizontal}px;`
+          : ''}
+      >
         {#if resolvedBg.isCss}
           <div
             class="w-full h-full {resolvedBg.className}"
-            style={resolvedBg.style}
+            style="{resolvedBg.style}; {publicSettings?.wallpaper_safe_margins ? 'border-radius: 1rem;' : ''}"
           ></div>
         {:else if resolvedBg.isVideo}
           <video
             src={resolvedBg.url}
-            class="w-full h-full {wallpaperFit === 'contain' ? 'object-contain' : 'object-cover'}"
+            class="w-full h-full {wallpaperFit === 'contain' ? 'object-contain' : wallpaperFit === 'fill' ? 'object-fill' : 'object-cover'} {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl' : ''}"
             autoplay
             loop
             muted
@@ -182,33 +187,39 @@
           ></video>
         {:else if wallpaperFit === 'repeat'}
           <div
-            class="w-full h-full"
+            class="w-full h-full {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl overflow-hidden' : ''}"
             style="background-image: url('{resolvedBg.url}'); background-repeat: repeat;"
           ></div>
         {:else if wallpaperFit === 'contain'}
           <img
             src={resolvedBg.url}
             alt="Plano de Fundo"
-            class="w-full h-full object-contain"
+            class="w-full h-full object-contain {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl' : ''}"
+          />
+        {:else if wallpaperFit === 'fill'}
+          <img
+            src={resolvedBg.url}
+            alt="Plano de Fundo"
+            class="w-full h-full object-fill {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl' : ''}"
           />
         {:else if wallpaperFit === 'center'}
           <img
             src={resolvedBg.url}
             alt="Plano de Fundo"
-            class="max-w-full max-h-full object-none"
+            class="max-w-full max-h-full object-none {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl' : ''}"
           />
         {:else}
           <!-- cover (padrão) -->
           <img
             src={resolvedBg.url}
             alt="Plano de Fundo"
-            class="w-full h-full object-cover"
+            class="w-full h-full object-cover {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl' : ''}"
           />
         {/if}
 
         <!-- Overlay escuro opcional sobre o plano de fundo geral -->
         {#if publicSettings.darken_background && activeSlide && activeMedia?.kind !== 'image'}
-          <div class="absolute inset-0 bg-black/60 backdrop-blur-[2px] transition-all duration-300"></div>
+          <div class="absolute inset-0 bg-black/60 backdrop-blur-[2px] transition-all duration-300 {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl' : ''}"></div>
         {/if}
       </div>
     {/if}
@@ -271,19 +282,45 @@
                 >
                   {@html renderFormattedText(activeSlide.content)}
                 </div>
+
+                {#if isScripture && (publicSettings.scripture_show_reference !== false) && publicSettings.scripture_reference_position === 'below_text'}
+                  {@const { ref, version } = getScriptureInfo(activeSlide.label, activeMedia?.artist_or_ref)}
+                  <div
+                    class="mt-4 sm:mt-6 flex items-center {alignH === 'left' ? 'justify-start' : alignH === 'right' ? 'justify-end' : 'justify-center'} gap-3 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] shrink-0"
+                  >
+                    <span
+                      style="color: {activeTextColor}; font-size: {Math.max(16, (publicSettings.scripture_reference_font_size ?? 28) * 0.9)}px;"
+                      class="font-bold tracking-tight opacity-90"
+                    >
+                      {ref}
+                    </span>
+                    {#if version}
+                      <span
+                        style="font-size: {Math.max(11, Math.round((publicSettings.scripture_reference_font_size ?? 28) * 0.55))}px;"
+                        class="px-2.5 py-0.5 rounded-md bg-white/15 border border-white/20 uppercase font-mono font-bold tracking-wider text-neutral-100 shadow-md"
+                      >
+                        {version}
+                      </span>
+                    {/if}
+                  </div>
+                {/if}
               </div>
 
-              {#if isScripture && (publicSettings.scripture_show_reference !== false)}
+              {#if isScripture && (publicSettings.scripture_show_reference !== false) && (publicSettings.scripture_reference_position ?? 'footer') === 'footer'}
                 {@const { ref, version } = getScriptureInfo(activeSlide.label, activeMedia?.artist_or_ref)}
                 <div
                   class="w-full mt-auto pt-4 sm:pt-6 flex items-center justify-between gap-4 border-t border-white/10 shrink-0 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]"
                 >
-                  <span style="color: {activeTextColor};" class="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
+                  <span
+                    style="color: {activeTextColor}; font-size: {publicSettings.scripture_reference_font_size ?? 28}px;"
+                    class="font-bold tracking-tight"
+                  >
                     {ref}
                   </span>
                   {#if version}
                     <span
-                      class="text-xs sm:text-sm md:text-base px-3 py-1 rounded-lg bg-white/15 border border-white/20 uppercase font-mono font-bold tracking-wider text-neutral-100 shadow-md"
+                      style="font-size: {Math.max(12, Math.round((publicSettings.scripture_reference_font_size ?? 28) * 0.55))}px;"
+                      class="px-3 py-1 rounded-lg bg-white/15 border border-white/20 uppercase font-mono font-bold tracking-wider text-neutral-100 shadow-md"
                     >
                       {version}
                     </span>

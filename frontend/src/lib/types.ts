@@ -245,6 +245,10 @@ export interface PublicDisplaySettings {
   min_font_size?: number;
   max_font_size?: number;
 
+  // Encaixe e Margens do Plano de Fundo (Wallpaper)
+  wallpaper_fit?: ImageFitMode;
+  wallpaper_safe_margins?: boolean;
+
   // Letras de Músicas
   lyrics_align_h?: 'left' | 'center' | 'right' | 'justify';
   lyrics_align_v?: 'top' | 'center' | 'bottom';
@@ -258,6 +262,8 @@ export interface PublicDisplaySettings {
   scripture_max_font_size?: number;
   scripture_fill_space?: boolean;
   scripture_show_reference?: boolean;
+  scripture_reference_position?: 'footer' | 'below_text' | 'none';
+  scripture_reference_font_size?: number;
 }
 
 export interface NetworkInfoResponse {
