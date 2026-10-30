@@ -154,6 +154,11 @@
 
 - [Spec — Paridade 100% no Preview do Admin, Ajustes Bíblicos e Privacidade de Imagens](specs/2026-10-30-preview-publico-paridade-total-e-privacidade-midias.md)
 
+## Controle Remoto Mobile (/remote)
+
+- [Spec — Controle Remoto Mobile (/remote)](specs/2026-10-30-controle-remoto-mobile.md)
+- [Plano — Controle Remoto Mobile (/remote)](plans/2026-10-30-controle-remoto-mobile.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

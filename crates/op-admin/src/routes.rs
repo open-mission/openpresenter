@@ -318,6 +318,7 @@ pub struct NetworkInfoResponse {
     pub port: u16,
     pub public_url: String,
     pub stage_url: String,
+    pub remote_url: String,
 }
 
 pub fn get_local_ip() -> String {
@@ -353,12 +354,14 @@ async fn get_network_info(State(state): State<AppState>) -> Json<NetworkInfoResp
     let local_ip = get_local_ip();
     let public_url = format!("http://{}:{}/public", local_ip, port);
     let stage_url = format!("http://{}:{}/stage", local_ip, port);
+    let remote_url = format!("http://{}:{}/remote", local_ip, port);
 
     Json(NetworkInfoResponse {
         local_ip,
         port,
         public_url,
         stage_url,
+        remote_url,
     })
 }
 

@@ -271,6 +271,7 @@ export interface NetworkInfoResponse {
   port: number;
   public_url: string;
   stage_url: string;
+  remote_url: string;
 }
 
 export interface ChurchBrandSettings {

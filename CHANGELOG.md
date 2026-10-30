@@ -7,6 +7,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Controle Remoto Mobile para Smartphones (`/remote`):**
+  - Nova interface web dedicada e otimizada para smartphones (mobile-first e touch ergonomics), permitindo aos operadores, pregadores e líderes de louvor controlarem o culto diretamente do celular via rede local Wi-Fi.
+  - Navegação inferior fixa com 3 abas principais:
+    - **Setlist:** Visualização da ordem de culto em tempo real com indicador visual do item ativo, expansão de slides e avanço imediato.
+    - **Músicas:** Catálogo e busca instantânea de letras, prévia de estrofes e projeção rápida com um toque.
+    - **Bíblia:** Seletor de traduções bíblicas ativas, livros e capítulos, busca rápida por referência ou palavras e projeção ao vivo de versículos.
+  - Card de controle persistente no topo com visualização do slide ativo e botões grandes de Anterior e Próximo para o polegar.
+  - Botões de emergência rápida: Blackout total, Limpar Texto e Parar Apresentação.
+  - Aba dedicada no modal de compartilhamento (`ShareOutputsModal.svelte`) com QR Code para leitura rápida com a câmera de qualquer smartphone conectado ao Wi-Fi da igreja.
+  - Atalho no menu do System Tray ("Abrir Controle Remoto (Mobile)") e exibição da rota no banner de inicialização.
 - **Paridade Visual 100% no Preview da Projeção Pública do Painel Admin (`PublicPreviewBox.svelte`):**
   - Implementação de renderização virtual com resolução base HD 1080p (1920x1080) escalada dinamicamente via `transform: scale()` para o tamanho exato da coluna de preview.
   - O auto-scale (`autoScale.ts`), as quebras de linha de texto, proporções de margens, tipografia, logotipo da igreja e posicionamento de referência bíblica agora são 100% idênticos à tela pública real do projetor (`/public`).

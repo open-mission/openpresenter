@@ -136,6 +136,10 @@ fn main() -> anyhow::Result<()> {
                     port = port
                 );
                 println!(
+                    "║  • Controle Remoto:http://localhost:{port:<5}/remote                   ║",
+                    port = port
+                );
+                println!(
                     "║  • API Status:     http://localhost:{port:<5}/api/status               ║",
                     port = port
                 );
@@ -221,6 +225,8 @@ fn main() -> anyhow::Result<()> {
                         let _ = open::that(format!("http://localhost:{}/public", port));
                     } else if menu_event.id == ids.open_stage {
                         let _ = open::that(format!("http://localhost:{}/stage", port));
+                    } else if menu_event.id == ids.open_remote {
+                        let _ = open::that(format!("http://localhost:{}/remote", port));
                     } else if menu_event.id == ids.change_port {
                         if let Some(new_p) = prompt_change_port(port).filter(|&p| p != port) {
                             if let Some(db) = db_ref.as_ref().and_then(|m| m.try_lock().ok()) {

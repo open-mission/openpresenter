@@ -114,6 +114,7 @@
     Sparkles,
     Globe,
     Cast,
+    Smartphone,
   } from 'lucide-svelte';
   import { castStore } from '$lib/cast';
 
@@ -134,7 +135,7 @@
   let isImageSelectorOpen = $state(false);
   let imageSelectorMode = $state<'single' | 'folder'>('single');
   let isShareOutputsOpen = $state(false);
-  let shareOutputsTab = $state<'stage' | 'public' | 'cast'>('stage');
+  let shareOutputsTab = $state<'stage' | 'public' | 'remote' | 'cast'>('stage');
   let isConnectionsDropdownOpen = $state(false);
   let previewImage = $state<ImageMediaItem | null>(null);
   let isPreviewImageOpen = $state(false);
@@ -1278,6 +1279,23 @@
         <QrCode size={14} class="text-primary" />
         {#if $previewLabelsStore}
           <span class="hidden lg:inline">QR Code</span>
+        {/if}
+      </Button>
+
+      <!-- Botão Controle Remoto Mobile -->
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={() => {
+          shareOutputsTab = 'remote';
+          isShareOutputsOpen = true;
+        }}
+        class="gap-1.5 text-xs border-emerald-500/30 hover:border-emerald-500/60"
+        title="Abrir QR Code do Controle Remoto para Celular (/remote)"
+      >
+        <Smartphone size={14} class="text-emerald-400" />
+        {#if $previewLabelsStore}
+          <span class="hidden lg:inline">Remoto</span>
         {/if}
       </Button>
     </div>

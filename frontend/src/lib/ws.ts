@@ -30,7 +30,7 @@ let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let pingInterval: ReturnType<typeof setInterval> | null = null;
 
-export function initWebSocket(clientType: 'admin' | 'public' | 'stage' = 'admin') {
+export function initWebSocket(clientType: 'admin' | 'public' | 'stage' | 'remote' = 'admin') {
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
     return;
   }

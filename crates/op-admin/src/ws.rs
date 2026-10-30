@@ -103,6 +103,7 @@ async fn handle_socket(socket: WebSocket, state: AppState, client_ip: String) {
                         let active_route = route.unwrap_or_else(|| match client_type.as_str() {
                             "public" => "/public".to_string(),
                             "stage" => "/stage".to_string(),
+                            "remote" => "/remote".to_string(),
                             _ => "/".to_string(),
                         });
                         info!(
