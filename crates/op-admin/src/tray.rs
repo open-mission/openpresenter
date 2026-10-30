@@ -21,40 +21,15 @@ pub struct TrayState {
     pub port: u16,
 }
 
-/// Cria o ícone nativo da bandeja com a marca do OpenPresenter.
+/// Cria o ícone nativo da bandeja com a marca oficial do OpenPresenter.
 pub fn create_tray_icon() -> Result<Icon, Box<dyn std::error::Error>> {
-    const SIZE: u32 = 32;
-    let mut rgba = Vec::with_capacity((SIZE * SIZE * 4) as usize);
+    const ICON_BYTES: &[u8] =
+        include_bytes!("../../../assets/branding/open-presenter-app-icon-32.png");
+    let img = image::load_from_memory(ICON_BYTES)?.into_rgba8();
+    let (width, height) = img.dimensions();
+    let rgba = img.into_raw();
 
-    // Desenha ícone de 32x32 com bordas arredondadas e cor esmeralda / símbolo branco
-    for y in 0..SIZE {
-        for x in 0..SIZE {
-            let dx = if x < 6 { 6 - x } else { x.saturating_sub(25) };
-            let dy = if y < 6 { 6 - y } else { y.saturating_sub(25) };
-            let dist_sq = dx * dx + dy * dy;
-
-            if dist_sq > 36 {
-                // Fora dos cantos arredondados: transparente
-                rgba.extend_from_slice(&[0, 0, 0, 0]);
-            } else {
-                // Desenha o símbolo de projeção/play central em branco
-                let is_center_play = (12..=22).contains(&x)
-                    && (10..=22).contains(&y)
-                    && (x as i32 - 12
-                        <= (if y <= 16 { (y - 10) * 2 } else { (22 - y) * 2 }) as i32);
-
-                if is_center_play {
-                    // Branco sólido
-                    rgba.extend_from_slice(&[255, 255, 255, 255]);
-                } else {
-                    // Fundo esmeralda da marca OpenPresenter (#10b981)
-                    rgba.extend_from_slice(&[16, 185, 129, 255]);
-                }
-            }
-        }
-    }
-
-    Ok(Icon::from_rgba(rgba, SIZE, SIZE)?)
+    Ok(Icon::from_rgba(rgba, width, height)?)
 }
 
 /// Constrói o menu nativo da bandeja do sistema operacional.
@@ -235,5 +210,19 @@ pub fn show_native_alert(title: &str, message: &str) {
             .arg(format!("--title={}", title))
             .arg(format!("--text={}", message))
             .spawn();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_tray_icon_loads_official_branding() {
+        let icon = create_tray_icon();
+        assert!(
+            icon.is_ok(),
+            "Ícone do tray deve carregar com sucesso os bytes oficiais"
+        );
     }
 }
