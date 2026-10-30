@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Ajustar modo compacto de botões (somente ícones) na barra de navegação dos slides e cabeçalho, com suporte a toggle nas configurações de aparência (prints orca-paste) (commit a4f9bbd - 2026-10-29 22:52:19 -03:00)
+
 - [x] Add a descanso mode quando nao tem nada apresentando mostrar o relogio e/ou timer na tela stage. Ele normalmente aparece quando o papel de parede do setlist é ativado. (commit 9a8dc49 - 2026-10-29 22:19:02 -03:00)
 - [x] No header do Painel temos o botao para fechar o sidebars porem podemos remove-los pois temos eles nos paines abaixo. Entao fica duplicado. (commit 4af462c - 2026-10-29 22:15:30 -03:00)
 - [x] Nas configuracoes temoa a opcao de margem nas definicoes da tela public, porem me parece que nao está funcionando em si, pois nao está aplicando a margem no publico. (commit 02fee4d - 2026-10-29 22:12:23 -03:00)
