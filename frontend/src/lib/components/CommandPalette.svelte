@@ -918,7 +918,7 @@
                 <button
                   type="button"
                   onclick={(e) => addToSetlist(song.id, e)}
-                  class="px-2.5 py-1 rounded bg-zinc-800 hover:bg-emerald-600 hover:text-white border border-zinc-700/80 text-xs font-medium text-zinc-200 transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+                  class="px-2.5 py-1 rounded bg-muted hover:bg-emerald-600 text-foreground hover:text-white border border-border text-xs font-medium transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
                 >
                   {#if addedIds[song.id]}
                     <Check size={12} class="text-emerald-400" />
@@ -981,7 +981,7 @@
                   <button
                     type="button"
                     onclick={(e) => addPassageToSetlist(e)}
-                    class="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-amber-600 hover:text-black text-xs font-semibold text-zinc-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+                    class="px-2.5 py-1.5 rounded-lg bg-muted hover:bg-amber-600 text-foreground hover:text-white border border-border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                     title="Adicionar todos os versículos à Setlist (Shift+Enter)"
                   >
                     {#if addedVerseKeys[`passage-${biblePassageRef?.book_id}-${biblePassageRef?.chapter}`]}
@@ -1043,7 +1043,7 @@
                   <button
                     type="button"
                     onclick={(e) => addBibleVerseToSetlist(verse, e)}
-                    class="px-2.5 py-1 rounded bg-zinc-800 hover:bg-amber-600 hover:text-black border border-zinc-700/80 text-xs font-medium text-zinc-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    class="px-2.5 py-1 rounded bg-muted hover:bg-amber-600 text-foreground hover:text-white border border-border text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
                     title="Adicionar versículo à Setlist"
                   >
                     {#if addedVerseKeys[verseKey]}
@@ -1106,7 +1106,7 @@
                   <button
                     type="button"
                     onclick={(e) => addBibleResultToSetlist(result, e)}
-                    class="px-2.5 py-1 rounded bg-zinc-800 hover:bg-amber-600 hover:text-black border border-zinc-700/80 text-xs font-medium text-zinc-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    class="px-2.5 py-1 rounded bg-muted hover:bg-amber-600 text-foreground hover:text-white border border-border text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
                     title="Adicionar versículo à Setlist"
                   >
                     {#if addedVerseKeys[resKey]}
@@ -1185,7 +1185,7 @@
                 <button
                   type="button"
                   onclick={() => importOnlineHit(hit)}
-                  class="px-2.5 py-1 rounded bg-zinc-800 hover:bg-sky-600 hover:text-white border border-zinc-700/80 text-xs font-medium text-zinc-200 transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+                  class="px-2.5 py-1 rounded bg-muted hover:bg-sky-600 text-foreground hover:text-white border border-border text-xs font-medium transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
                 >
                   <FileText size={12} />
                   <span>Importar e Editar</span>

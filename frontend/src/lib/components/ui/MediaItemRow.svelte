@@ -138,12 +138,6 @@
       if (e.key === 'Enter') onclick?.();
     }}
   >
-    {#if isLive}
-      <div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
-    {:else if selected}
-      <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
-    {/if}
-
     <div class="flex items-center gap-2.5 min-w-0 flex-1">
       <!-- Drag Handle -->
       <div

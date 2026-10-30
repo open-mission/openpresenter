@@ -156,3 +156,20 @@ body {
   background-size: 200% 200% !important;
   animation: cosmic-pulse 15s ease-in-out infinite alternate;
 }
+
+/* Suporte intencional a preferência de movimento reduzido (A11y & Craft) */
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-"] {
+    animation: none !important;
+  }
+
+  * {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Seleção de texto e realce com tokens do tema */
+::selection {
+  background-color: var(--ring);
+  color: var(--primary-foreground);
+}

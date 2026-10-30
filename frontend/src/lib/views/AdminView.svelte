@@ -1026,7 +1026,8 @@
     <button
       type="button"
       onclick={() => (isCommandPaletteOpen = true)}
-      class="flex items-center gap-2 h-8 px-3 rounded-lg bg-muted/40 hover:bg-muted/70 border border-border text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-44 sm:w-64 md:w-80 justify-between mx-2"
+      aria-label="Abrir busca global e paleta de comandos"
+      class="flex items-center gap-2 h-8 px-3 rounded-lg bg-muted/40 hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none border border-border text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-44 sm:w-64 md:w-80 justify-between mx-2"
     >
       <span class="flex items-center gap-2 truncate">
         <Search size={14} class="text-muted-foreground shrink-0" />
@@ -1067,7 +1068,8 @@
             <button
               type="button"
               onclick={pauseTimer}
-              class="p-0.5 hover:bg-background/80 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              aria-label="Pausar cronômetro"
+              class="p-1 hover:bg-background/80 rounded text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
               title="Pausar Cronômetro"
             >
               <Pause size={12} />
@@ -1075,7 +1077,8 @@
             <button
               type="button"
               onclick={resetTimer}
-              class="p-0.5 hover:bg-background/80 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              aria-label="Reiniciar cronômetro"
+              class="p-1 hover:bg-background/80 rounded text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
               title="Reiniciar Cronômetro"
             >
               <RotateCcw size={12} />
@@ -1089,7 +1092,10 @@
         <button
           type="button"
           onclick={() => (isConnectionsDropdownOpen = !isConnectionsDropdownOpen)}
-          class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 hover:bg-muted/70 border border-border text-xs transition-colors cursor-pointer select-none"
+          aria-label="Conexões ativas do WebSocket"
+          aria-expanded={isConnectionsDropdownOpen}
+          aria-haspopup="true"
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none border border-border text-xs transition-colors cursor-pointer select-none"
           title="Ver conexões ativas do WebSocket"
         >
           {#if $isWsConnected}
@@ -1117,7 +1123,7 @@
 
           <!-- Dropdown com lista de conexões ativas -->
           <div
-            class="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-xl border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-3 shadow-2xl z-50 text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
+            class="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-xl border border-border bg-card/95 backdrop-blur-md p-3 shadow-2xl z-50 text-xs text-foreground select-none animate-in fade-in zoom-in-95 duration-100"
           >
             <div class="flex items-center justify-between pb-2 mb-2 border-b border-neutral-800">
               <div class="flex items-center gap-2">
@@ -1256,33 +1262,36 @@
   <div class="flex-1 flex overflow-hidden">
     <!-- COLUNA 1: SIDEBAR DE MÍDIAS / SETLIST (Esquerda) -->
     {#if isSetlistSidebarOpen}
-      <aside class="w-72 lg:w-80 border-r border-neutral-800/80 bg-neutral-900/30 flex flex-col shrink-0">
+      <aside class="w-72 lg:w-80 border-r border-border bg-card/30 flex flex-col shrink-0">
         <!-- Cabeçalho da Setlist com Seletor e Ações -->
-        <div class="p-3 border-b border-neutral-800/80 space-y-2.5">
+        <div class="p-3 border-b border-border space-y-2.5">
           <div class="flex items-center justify-between">
             <!-- Dropdown Seletor de Setlist -->
             <div class="relative min-w-0 flex-1 mr-2">
               <button
                 type="button"
                 onclick={() => (isSetlistSelectorOpen = !isSetlistSelectorOpen)}
-                class="w-full flex items-center justify-between gap-1.5 px-2 py-1 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-left transition-colors cursor-pointer group"
+                aria-label="Alternar ou gerenciar Setlists"
+                aria-expanded={isSetlistSelectorOpen}
+                aria-haspopup="true"
+                class="w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md bg-card hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none border border-border text-left transition-colors cursor-pointer group"
                 title="Alternar ou gerenciar Setlists"
               >
                 <div class="flex items-center gap-1.5 min-w-0">
                   <Layers size={14} class="text-emerald-400 shrink-0" />
-                  <span class="text-xs font-bold text-neutral-100 truncate">
+                  <span class="text-xs font-bold text-foreground truncate">
                     {currentSetlistTitle}
                   </span>
                 </div>
-                <ChevronDown size={13} class="text-neutral-500 group-hover:text-neutral-300 shrink-0" />
+                <ChevronDown size={13} class="text-muted-foreground group-hover:text-foreground shrink-0" />
               </button>
 
               <!-- Dropdown Menu de Setlists -->
               {#if isSetlistSelectorOpen}
                 <div
-                  class="absolute left-0 top-full mt-1 w-64 rounded-xl border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
+                  class="absolute left-0 top-full mt-1 w-64 rounded-xl border border-border bg-card/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-foreground select-none animate-in fade-in zoom-in-95 duration-100"
                 >
-                  <div class="px-2 py-1 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">
+                  <div class="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                     Setlists Cadastradas
                   </div>
 
@@ -1291,17 +1300,18 @@
                       <button
                         type="button"
                         onclick={() => handleSwitchSetlist(s.id)}
+                        aria-label={`Selecionar setlist ${s.title}`}
                         class={cn(
-                          'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer',
+                          'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                           s.is_active || s.id === $presentationState.active_setlist_id
-                            ? 'bg-neutral-800 text-emerald-400 font-semibold'
-                            : 'hover:bg-neutral-850 text-neutral-300 hover:text-white'
+                            ? 'bg-muted text-emerald-400 font-semibold'
+                            : 'hover:bg-muted/70 text-foreground/90 hover:text-foreground'
                         )}
                       >
                         <div class="min-w-0">
                           <div class="truncate text-xs">{s.title}</div>
                           {#if s.description}
-                            <div class="text-[10px] text-neutral-500 truncate">{s.description}</div>
+                            <div class="text-[10px] text-muted-foreground truncate">{s.description}</div>
                           {/if}
                         </div>
 
@@ -1312,12 +1322,13 @@
                     {/each}
                   </div>
 
-                  <div class="h-[1px] bg-neutral-800 my-1"></div>
+                  <div class="h-[1px] bg-border my-1"></div>
 
                   <button
                     type="button"
                     onclick={handleOpenCreateSetlist}
-                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-neutral-200 hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                    aria-label="Criar nova setlist"
+                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
                     <Plus size={13} class="text-emerald-400" />
                     <span>+ Nova Setlist</span>
@@ -1326,9 +1337,10 @@
                   <button
                     type="button"
                     onclick={handleOpenEditSetlist}
-                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-neutral-200 hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                    aria-label="Editar detalhes da setlist atual"
+                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
-                    <Settings size={13} class="text-neutral-400" />
+                    <Settings size={13} class="text-muted-foreground" />
                     <span>Editar Setlist Atual...</span>
                   </button>
 
@@ -1336,7 +1348,8 @@
                     type="button"
                     disabled={$mediaItemsList.length === 0}
                     onclick={handleClearSetlist}
-                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-neutral-200 hover:bg-neutral-800 hover:text-amber-300 transition-colors cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                    aria-label="Limpar todos os itens da setlist ativa"
+                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-foreground hover:bg-muted hover:text-amber-300 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
                   >
                     <Eraser size={13} class="text-amber-400" />
                     <span>Limpar Itens da Setlist</span>
@@ -1346,7 +1359,8 @@
                     <button
                       type="button"
                       onclick={handleDeleteSetlist}
-                      class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors cursor-pointer"
+                      aria-label="Excluir setlist atual"
+                      class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-destructive hover:bg-destructive/20 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:outline-none transition-colors cursor-pointer"
                     >
                       <Trash2 size={13} />
                       <span>Excluir Setlist</span>
@@ -1361,8 +1375,11 @@
               <button
                 type="button"
                 title="Adicionar à Setlist"
+                aria-label="Adicionar item à Setlist"
+                aria-expanded={isAddMenuOpen}
+                aria-haspopup="true"
                 onclick={() => (isAddMenuOpen = !isAddMenuOpen)}
-                class="w-7 h-7 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center transition-colors cursor-pointer"
+                class="w-8 h-8 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
               >
                 <Plus size={14} />
               </button>
@@ -1370,8 +1387,9 @@
               <button
                 type="button"
                 title="Recolher Setlist"
+                aria-label="Recolher barra lateral da Setlist"
                 onclick={() => (isSetlistSidebarOpen = false)}
-                class="w-7 h-7 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+                class="w-8 h-8 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground border border-border flex items-center justify-center transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
               >
                 <PanelLeftClose size={14} />
               </button>
@@ -1379,7 +1397,7 @@
               <!-- Dropdown Menu do Botão + -->
               {#if isAddMenuOpen}
                 <div
-                  class="absolute right-0 top-full mt-1.5 w-48 rounded-xl border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
+                  class="absolute right-0 top-full mt-1.5 w-48 rounded-xl border border-border bg-card/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-foreground select-none animate-in fade-in zoom-in-95 duration-100"
                 >
                   <button
                     type="button"
@@ -1387,7 +1405,8 @@
                       isAddMenuOpen = false;
                       isCommandPaletteOpen = true;
                     }}
-                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                    aria-label="Adicionar Música via Paleta de Comandos"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
                     <Music size={14} class="text-emerald-400" />
                     <span>Música (⌘K)</span>
@@ -1401,7 +1420,8 @@
                       editingQuickItem = null;
                       isQuickItemModalOpen = true;
                     }}
-                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                    aria-label="Adicionar Seção ou Divisor"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
                     <Bookmark size={14} class="text-cyan-400" />
                     <span>Seção / Divisor</span>
@@ -1416,7 +1436,8 @@
                       editingSong = null;
                       isSongEditorOpen = true;
                     }}
-                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                    aria-label="Adicionar Texto Livre ou Apresentação"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
                     <FileText size={14} class="text-amber-400" />
                     <span>Texto Livre / Apresentação</span>
@@ -1429,7 +1450,8 @@
                       imageSelectorMode = 'single';
                       isImageSelectorOpen = true;
                     }}
-                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                    aria-label="Adicionar Imagem à Setlist"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
                     <ImageIcon size={14} class="text-primary" />
                     <span>Imagem...</span>
@@ -1442,16 +1464,17 @@
                       imageSelectorMode = 'folder';
                       isImageSelectorOpen = true;
                     }}
-                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
+                    aria-label="Adicionar Pasta de Imagens à Setlist"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
                     <Folder size={14} class="text-primary" />
                     <span>Pasta de Imagens...</span>
                   </button>
 
-                  <div class="h-[1px] bg-neutral-800 my-1"></div>
+                  <div class="h-[1px] bg-border my-1"></div>
 
                   <div
-                    class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-neutral-500 opacity-50 cursor-not-allowed"
+                    class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-muted-foreground opacity-50 cursor-not-allowed"
                   >
                     <div class="flex items-center gap-2.5">
                       <BookOpen size={14} />
@@ -1466,23 +1489,25 @@
 
           <!-- Barra de Busca com Input Group e Botão de Filtros -->
           <div class="relative flex items-center">
-            <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
+            <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <input
               type="text"
               bind:value={searchQuery}
               placeholder="Filtrar setlist (ou ⌘K p/ buscar)..."
-              class="w-full h-8 pl-8 pr-8 bg-neutral-900 border border-neutral-800 rounded-md text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
+              class="w-full h-8 pl-8 pr-8 bg-card border border-border rounded-md text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
             />
             <!-- Botão Toggle de Filtro no Input Group -->
             <button
               type="button"
               onclick={() => (showCategoryFilters = !showCategoryFilters)}
+              aria-label={showCategoryFilters ? 'Ocultar filtros de categoria' : 'Filtrar por categoria (Louvores, Bíblia, Avisos)'}
+              aria-expanded={showCategoryFilters}
               title={showCategoryFilters ? 'Ocultar filtros de categoria' : 'Filtrar por categoria (Louvores, Bíblia, Avisos)'}
               class={cn(
-                'absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center transition-colors cursor-pointer',
+                'absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                 showCategoryFilters || filterKind !== 'all'
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                  : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               )}
             >
               <Filter size={12} />
@@ -1501,11 +1526,12 @@
                 <button
                   type="button"
                   onclick={() => (filterKind = tab.id as any)}
+                  aria-label={`Filtrar por ${tab.label}`}
                   class={cn(
-                    'px-2 py-1 rounded text-[11px] font-medium transition-colors shrink-0 cursor-pointer',
+                    'px-2.5 py-1 rounded text-[11px] font-medium transition-colors shrink-0 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                     filterKind === tab.id
-                      ? 'bg-neutral-800 text-emerald-400 font-semibold'
-                      : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'
+                      ? 'bg-muted text-emerald-400 font-semibold'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
                   )}
                 >
                   {tab.label}
@@ -1533,7 +1559,7 @@
               ondropitem={(e, targetIdx) => handleDropReorder(draggedItemIndex, targetIdx)}
             />
           {:else}
-            <div class="p-6 text-center text-xs text-neutral-500">
+            <div class="p-6 text-center text-xs text-muted-foreground">
               Nenhuma mídia encontrada na Setlist. Clique com o botão direito para adicionar.
             </div>
           {/each}
@@ -1541,20 +1567,22 @@
       </aside>
     {:else}
       <!-- Rail Colapsado da Setlist -->
-      <aside class="w-10 border-r border-neutral-800/80 bg-neutral-900/40 flex flex-col items-center py-3 gap-4 shrink-0 select-none">
+      <aside class="w-10 border-r border-border bg-card/40 flex flex-col items-center py-3 gap-4 shrink-0 select-none">
         <button
           type="button"
           onclick={() => (isSetlistSidebarOpen = true)}
-          class="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+          aria-label="Expandir barra lateral da Setlist"
+          class="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           title="Expandir Setlist"
         >
           <PanelLeftOpen size={16} />
         </button>
         <span
-          class="text-[10px] uppercase font-bold tracking-widest text-neutral-400 [writing-mode:vertical-lr] rotate-180 cursor-pointer hover:text-white transition-colors py-2"
+          class="text-[10px] uppercase font-bold tracking-widest text-muted-foreground [writing-mode:vertical-lr] rotate-180 cursor-pointer hover:text-foreground transition-colors py-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           onclick={() => (isSetlistSidebarOpen = true)}
           role="button"
           tabindex="0"
+          aria-label="Expandir barra lateral da Setlist"
           onkeydown={(e) => { if (e.key === 'Enter') isSetlistSidebarOpen = true; }}
         >
           Setlist ({$mediaItemsList.length})
@@ -1563,13 +1591,13 @@
     {/if}
 
     <!-- COLUNA 2: PAINEL CENTRAL DE SLIDES / PREVIEW -->
-    <main class="flex-1 flex flex-col min-w-0 bg-neutral-950/60 overflow-hidden">
+    <main class="flex-1 flex flex-col min-w-0 bg-background/80 overflow-hidden">
       {#if selectedMedia}
         <!-- Cabeçalho da Mídia Selecionada com Ações de Apresentação -->
-        <div class="h-14 px-5 border-b border-neutral-800/80 bg-neutral-900/40 flex items-center justify-between shrink-0">
+        <div class="h-14 px-5 border-b border-border bg-card/40 flex items-center justify-between shrink-0">
           <div class="min-w-0">
             <div class="flex items-center gap-2">
-              <h2 class="text-base font-bold text-white truncate leading-tight">
+              <h2 class="text-base font-bold text-foreground truncate leading-tight">
                 {selectedMedia.title}
               </h2>
               <Badge variant="default" class="text-[10px] py-0 px-1.5">
@@ -1582,7 +1610,7 @@
               {/if}
             </div>
             {#if selectedMedia.artist_or_ref}
-              <p class="text-xs text-neutral-400 truncate mt-0.5">
+              <p class="text-xs text-muted-foreground truncate mt-0.5">
                 {selectedMedia.artist_or_ref}
               </p>
             {/if}
@@ -1595,6 +1623,7 @@
                 variant="destructive"
                 size="sm"
                 onclick={stopPresentation}
+                aria-label="Parar apresentação (Esc)"
                 title="Parar Projeção (Esc)"
                 class="gap-1.5 text-xs font-semibold"
               >
@@ -1609,6 +1638,7 @@
               variant={isSelectedMediaLive ? 'live' : 'default'}
               size="sm"
               onclick={() => presentSlide(focusedSlideIndex)}
+              aria-label="Apresentar slide selecionado (Enter)"
               title="Apresentar Slide Focado (Enter)"
               class="gap-1.5 text-xs font-semibold shadow-sm"
             >
@@ -1618,12 +1648,13 @@
               {/if}
             </Button>
 
-            <div class="h-4 w-[1px] bg-neutral-700/60 mx-1"></div>
+            <div class="h-4 w-[1px] bg-border mx-1"></div>
 
             <Button
               variant="secondary"
               size="sm"
               onclick={prevSlide}
+              aria-label="Slide anterior (Seta para a esquerda)"
               title="Slide Anterior (←)"
               class="gap-1 text-xs"
             >
@@ -1636,6 +1667,7 @@
               variant="secondary"
               size="sm"
               onclick={nextSlide}
+              aria-label="Próximo slide (Seta para a direita ou barra de espaço)"
               title="Próximo Slide (→ ou Espaço)"
               class="gap-1 text-xs"
             >
@@ -1660,17 +1692,18 @@
 
               <div
                 class={cn(
-                  'group flex flex-col rounded-lg border transition-all duration-150 overflow-hidden cursor-pointer select-none relative',
+                  'group flex flex-col rounded-lg border transition-all duration-150 overflow-hidden cursor-pointer select-none relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                   isLive
-                    ? 'border-emerald-500 bg-neutral-900 shadow-lg ring-2 ring-emerald-500/50'
+                    ? 'border-emerald-500 bg-card shadow-lg ring-2 ring-emerald-500/50'
                     : isFocused
-                      ? 'border-sky-500 bg-neutral-900 shadow-md ring-2 ring-sky-500/40'
-                      : 'border-neutral-800 bg-neutral-900/50 hover:border-neutral-700 hover:bg-neutral-850'
+                      ? 'border-sky-500 bg-card shadow-md ring-2 ring-sky-500/40'
+                      : 'border-border bg-card/60 hover:border-border hover:bg-muted/70'
                 )}
                 onclick={() => selectSlideForFocus(idx)}
                 ondblclick={() => presentSlide(idx)}
                 role="button"
                 tabindex="0"
+                aria-label={`Slide ${idx + 1}: ${slide.label}`}
                 onkeydown={(e) => {
                   if (e.key === 'Enter') presentSlide(idx);
                 }}
@@ -1709,7 +1742,7 @@
                 {#if selectedMedia.kind === 'image'}
                   <div class="aspect-video w-full bg-black/80 flex items-center justify-center relative overflow-hidden">
                     <img src={slide.content} alt={selectedMedia.title} class="w-full h-full object-contain" />
-                    <span class="absolute bottom-1.5 right-2 text-[10px] text-neutral-400 font-mono bg-black/60 px-1 rounded">
+                    <span class="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground font-mono bg-black/60 px-1 rounded">
                       Imagem 16:9
                     </span>
                   </div>
@@ -1739,14 +1772,14 @@
                             ? 'text-emerald-200'
                             : isFocused
                               ? 'text-white'
-                              : 'text-neutral-200 group-hover:text-white'
+                              : 'text-foreground/90 group-hover:text-foreground'
                         )}
                       >
                         {@html renderFormattedText(slide.content)}
                       </div>
                     </div>
 
-                    <span class="absolute bottom-1.5 right-2 text-[10px] text-neutral-600 font-mono">
+                    <span class="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground/60 font-mono">
                       16:9
                     </span>
                   </div>
@@ -1756,7 +1789,7 @@
           </div>
         </div>
       {:else}
-        <div class="flex-1 flex items-center justify-center text-neutral-500 text-sm">
+        <div class="flex-1 flex items-center justify-center text-muted-foreground text-sm">
           Selecione uma mídia na setlist para visualizar os slides.
         </div>
       {/if}
@@ -1764,17 +1797,18 @@
 
     <!-- COLUNA 3: PAINEL DE PREVIEWS (PUBLIC E STAGE - 16:9) -->
     {#if isPreviewSidebarOpen}
-      <aside class="w-80 lg:w-96 border-l border-neutral-800/80 bg-neutral-900/30 flex flex-col shrink-0 overflow-y-auto">
+      <aside class="w-80 lg:w-96 border-l border-border bg-card/30 flex flex-col shrink-0 overflow-y-auto">
         <!-- Botões de Controle Global da Projeção e Botão Fechar Sidebar -->
-        <div class="p-3 border-b border-neutral-800/80 space-y-2 bg-neutral-900/60 shrink-0">
+        <div class="p-3 border-b border-border space-y-2 bg-card/60 shrink-0">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-neutral-400 uppercase tracking-wider block">
+            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
               Controle de Saídas
             </span>
             <button
               type="button"
               onclick={() => (isPreviewSidebarOpen = false)}
-              class="w-6 h-6 rounded hover:bg-neutral-800 text-neutral-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              aria-label="Recolher painel de saídas"
+              class="w-7 h-7 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
               title="Recolher painel de saídas"
             >
               <PanelRightClose size={14} />
@@ -1855,21 +1889,22 @@
         </div>
 
         <!-- PREVIEW PUBLIC (16:9) -->
-        <div class="p-3 border-b border-neutral-800/80 space-y-2">
+        <div class="p-3 border-b border-border space-y-2">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-1.5">
               <MonitorPlay size={14} class="text-emerald-400" />
-              <span class="text-xs font-bold text-neutral-200">Public (Projetor)</span>
+              <span class="text-xs font-bold text-foreground">Public (Projetor)</span>
             </div>
 
             <div class="flex items-center gap-1">
               <button
                 type="button"
                 onclick={() => reloadOutputs('public')}
-                class="w-5 h-5 rounded flex items-center justify-center text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+                aria-label="Recarregar tela pública (projetor) remotamente"
+                class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                 title="Recarregar tela pública (projetor) remotamente"
               >
-                <RefreshCw size={11} />
+                <RefreshCw size={12} />
               </button>
               <Badge variant={$presentationState.public_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
                 {$presentationState.public_connected ? 'Conectado' : 'Aguardando'}
@@ -1895,17 +1930,18 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-1.5">
               <Tv size={14} class="text-emerald-400" />
-              <span class="text-xs font-bold text-neutral-200">Stage (Retorno Palco)</span>
+              <span class="text-xs font-bold text-foreground">Stage (Retorno Palco)</span>
             </div>
 
             <div class="flex items-center gap-1">
               <button
                 type="button"
                 onclick={() => reloadOutputs('stage')}
-                class="w-5 h-5 rounded flex items-center justify-center text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+                aria-label="Recarregar tela de retorno de palco remotamente"
+                class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                 title="Recarregar tela de retorno de palco remotamente"
               >
-                <RefreshCw size={11} />
+                <RefreshCw size={12} />
               </button>
               <Badge variant={$presentationState.stage_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
                 {$presentationState.stage_connected ? 'Conectado' : 'Aguardando'}
@@ -1929,20 +1965,22 @@
       </aside>
     {:else}
       <!-- Rail Colapsado de Previews -->
-      <aside class="w-10 border-l border-neutral-800/80 bg-neutral-900/40 flex flex-col items-center py-3 gap-4 shrink-0 select-none">
+      <aside class="w-10 border-l border-border bg-card/40 flex flex-col items-center py-3 gap-4 shrink-0 select-none">
         <button
           type="button"
           onclick={() => (isPreviewSidebarOpen = true)}
-          class="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+          aria-label="Expandir painel de saídas e previews"
+          class="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           title="Expandir Previews de Saída"
         >
           <PanelRightOpen size={16} />
         </button>
         <span
-          class="text-[10px] uppercase font-bold tracking-widest text-neutral-400 [writing-mode:vertical-lr] cursor-pointer hover:text-white transition-colors py-2"
+          class="text-[10px] uppercase font-bold tracking-widest text-muted-foreground [writing-mode:vertical-lr] cursor-pointer hover:text-foreground transition-colors py-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           onclick={() => (isPreviewSidebarOpen = true)}
           role="button"
           tabindex="0"
+          aria-label="Expandir painel de saídas e previews"
           onkeydown={(e) => { if (e.key === 'Enter') isPreviewSidebarOpen = true; }}
         >
           Saídas (Public / Stage)

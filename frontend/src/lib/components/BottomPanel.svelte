@@ -29,6 +29,7 @@
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
+  import { cn } from '../utils';
   import BiblePanel from './BiblePanel.svelte';
   import { renderFormattedText } from '../markdown';
   import {
@@ -400,35 +401,59 @@
 />
 
 <div
-  class="border-t border-neutral-800 bg-neutral-900/95 backdrop-blur-md flex flex-col shrink-0 select-none transition-[height] duration-150 relative z-30"
+  class="border-t border-border bg-card/95 backdrop-blur-md flex flex-col shrink-0 select-none transition-[height] duration-150 relative z-30"
   style={isCollapsed
     ? 'height: 40px;'
     : isMaximized
       ? 'height: calc(100vh - 56px);'
       : `height: ${panelHeight}px;`}
 >
-  <!-- Handle de Redimensionamento Superior -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- Handle de Redimensionamento Superior Acessível -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div
-    class="h-1.5 w-full cursor-row-resize bg-neutral-800/40 hover:bg-primary/50 transition-colors absolute top-0 left-0 right-0 z-40"
+    role="separator"
+    tabindex="0"
+    aria-orientation="horizontal"
+    aria-label="Ajustar altura do painel de mídias (setas para cima ou para baixo)"
+    class="h-2 w-full cursor-row-resize bg-border/40 hover:bg-primary/50 focus-visible:bg-primary focus-visible:outline-none transition-colors absolute top-0 left-0 right-0 z-40"
     onmousedown={startResize}
-    title="Arrastar para ajustar altura"
+    onkeydown={(e) => {
+      if (e.key === 'ArrowUp') {
+        panelHeight = Math.min(panelHeight + 20, window.innerHeight - 80);
+        isCollapsed = false;
+      } else if (e.key === 'ArrowDown') {
+        panelHeight = Math.max(180, panelHeight - 20);
+      }
+    }}
+    title="Arrastar ou usar setas para ajustar altura"
   ></div>
 
   <!-- Barra de Abas e Controles -->
   <div
-    class="h-10 px-3 border-b border-neutral-800 flex items-center justify-between shrink-0 bg-neutral-950/60"
+    role="tablist"
+    aria-label="Mídias e recursos do painel inferior"
+    class="h-10 px-3 border-b border-border flex items-center justify-between shrink-0 bg-card/60"
   >
     <!-- Abas Disponíveis -->
     <div class="flex items-center gap-1">
       <!-- Aba Músicas -->
       <button
         type="button"
+        role="tab"
+        id="tab-songs"
+        aria-controls="panel-songs"
+        aria-selected={activeTab === 'songs' && !isCollapsed}
         onclick={() => {
           activeTab = 'songs';
           if (isCollapsed) isCollapsed = false;
         }}
-        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {activeTab === 'songs' && !isCollapsed ? 'bg-neutral-800 text-white shadow-xs' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'}"
+        class={cn(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
+          activeTab === 'songs' && !isCollapsed
+            ? 'bg-muted text-foreground shadow-xs border border-border'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+        )}
       >
         <Music size={13} class="text-primary" />
         <span>Músicas</span>
@@ -440,11 +465,20 @@
       <!-- Aba Imagens -->
       <button
         type="button"
+        role="tab"
+        id="tab-images"
+        aria-controls="panel-images"
+        aria-selected={activeTab === 'images' && !isCollapsed}
         onclick={() => {
           activeTab = 'images';
           if (isCollapsed) isCollapsed = false;
         }}
-        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {activeTab === 'images' && !isCollapsed ? 'bg-neutral-800 text-white shadow-xs' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'}"
+        class={cn(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
+          activeTab === 'images' && !isCollapsed
+            ? 'bg-muted text-foreground shadow-xs border border-border'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+        )}
       >
         <ImageIcon size={13} class="text-cyan-400" />
         <span>Imagens & Pastas</span>
@@ -456,11 +490,20 @@
       <!-- Aba Fundos & Gradientes -->
       <button
         type="button"
+        role="tab"
+        id="tab-backgrounds"
+        aria-controls="panel-backgrounds"
+        aria-selected={activeTab === 'backgrounds' && !isCollapsed}
         onclick={() => {
           activeTab = 'backgrounds';
           if (isCollapsed) isCollapsed = false;
         }}
-        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {activeTab === 'backgrounds' && !isCollapsed ? 'bg-neutral-800 text-white shadow-xs' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'}"
+        class={cn(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
+          activeTab === 'backgrounds' && !isCollapsed
+            ? 'bg-muted text-foreground shadow-xs border border-border'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+        )}
       >
         <Palette size={13} class="text-fuchsia-400" />
         <span>Fundos & Gradientes</span>
@@ -472,11 +515,20 @@
       <!-- Aba Bíblia -->
       <button
         type="button"
+        role="tab"
+        id="tab-bible"
+        aria-controls="panel-bible"
+        aria-selected={activeTab === 'bible' && !isCollapsed}
         onclick={() => {
           activeTab = 'bible';
           if (isCollapsed) isCollapsed = false;
         }}
-        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {activeTab === 'bible' && !isCollapsed ? 'bg-neutral-800 text-white shadow-xs' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850'}"
+        class={cn(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
+          activeTab === 'bible' && !isCollapsed
+            ? 'bg-muted text-foreground shadow-xs border border-border'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+        )}
       >
         <BookOpen size={13} class="text-amber-400" />
         <span>Bíblia</span>
@@ -484,12 +536,13 @@
     </div>
 
     <!-- Controles de Janela do Painel Inferior -->
-    <div class="flex items-center gap-1 text-neutral-400">
+    <div class="flex items-center gap-1 text-muted-foreground">
       <button
         type="button"
         onclick={toggleMaximize}
+        aria-label={isMaximized ? 'Restaurar altura do painel de mídias' : 'Maximizar painel de mídias'}
         title={isMaximized ? 'Restaurar Altura' : 'Expandir 100%'}
-        class="w-7 h-7 rounded hover:bg-neutral-800 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+        class="w-8 h-8 rounded hover:bg-muted hover:text-foreground flex items-center justify-center transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
       >
         {#if isMaximized}
           <Minimize2 size={13} />
@@ -501,8 +554,9 @@
       <button
         type="button"
         onclick={toggleCollapse}
+        aria-label={isCollapsed ? 'Expandir painel de mídias' : 'Recolher painel de mídias'}
         title={isCollapsed ? 'Abrir Painel' : 'Recolher Painel'}
-        class="w-7 h-7 rounded hover:bg-neutral-800 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+        class="w-8 h-8 rounded hover:bg-muted hover:text-foreground flex items-center justify-center transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
       >
         {#if isCollapsed}
           <ChevronUp size={15} />
@@ -515,10 +569,11 @@
 
   <!-- Conteúdo das Abas (Exibido quando não estiver colapsado) -->
   {#if !isCollapsed}
-    <div class="flex-1 flex flex-col overflow-hidden bg-neutral-950/40 p-3">
+    <div class="flex-1 flex flex-col overflow-hidden bg-background/60 p-3">
       <!-- ================= ABA 1: MÚSICAS ================= -->
       {#if activeTab === 'songs'}
-        <!-- Barra de Ações da Aba Músicas -->
+        <div role="tabpanel" id="panel-songs" aria-labelledby="tab-songs" class="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <!-- Barra de Ações da Aba Músicas -->
         <div class="flex items-center justify-between gap-3 mb-2 shrink-0">
           <div class="relative flex-1 max-w-md">
             <Search size={13} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
@@ -721,10 +776,11 @@
             </div>
           {/if}
         </div>
+      </div>
 
       <!-- ================= ABA 2: IMAGENS & PASTAS ================= -->
       {:else if activeTab === 'images'}
-        <div class="flex-1 flex overflow-hidden gap-3">
+        <div role="tabpanel" id="panel-images" aria-labelledby="tab-images" class="flex-1 flex overflow-hidden gap-3">
           <!-- Tree Navigation Vertical para Pastas de Imagens -->
           <aside class="w-52 border-r border-border bg-card/40 flex flex-col shrink-0 p-2 overflow-y-auto space-y-1">
             <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1 block">
@@ -1082,7 +1138,7 @@
 
       <!-- ================= ABA 3: FUNDOS & GRADIENTES ================= -->
       {:else if activeTab === 'backgrounds'}
-        <div class="flex-1 flex overflow-hidden gap-3">
+        <div role="tabpanel" id="panel-backgrounds" aria-labelledby="tab-backgrounds" class="flex-1 flex overflow-hidden gap-3">
           <!-- Tree Navigation Vertical para Categorias de Fundos -->
           <aside class="w-52 border-r border-border bg-card/40 flex flex-col shrink-0 p-2 overflow-y-auto space-y-1">
             <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1 block">
@@ -1359,12 +1415,14 @@
 
       <!-- ================= ABA 4: BÍBLIA ================= -->
       {:else if activeTab === 'bible'}
-        <BiblePanel
-          targetPassage={targetScriptureRef}
-          {onpresentscripture}
-          {onaddscripturetosetlist}
-          {onopenbibleconfig}
-        />
+        <div role="tabpanel" id="panel-bible" aria-labelledby="tab-bible" class="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <BiblePanel
+            targetPassage={targetScriptureRef}
+            {onpresentscripture}
+            {onaddscripturetosetlist}
+            {onopenbibleconfig}
+          />
+        </div>
       {/if}
     </div>
   {/if}

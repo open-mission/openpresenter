@@ -7,6 +7,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Refinamento de Craft, Acessibilidade (A11y) e Design Tokens no Painel do Operador (Impeccable Audit):**
+  - Eliminação de todos os anti-patterns de interface detectados pelo Impeccable (remoção de `gray-on-color` e substituição de `animate-bounce` por transições intencionais e suaves).
+  - Suporte completo e nativo a `prefers-reduced-motion` no CSS global (`frontend/src/app.css`), honrando preferências de acessibilidade do usuário contra movimento excessivo.
+  - Implementação completa do padrão WAI-ARIA em abas (`role="tablist"`, `role="tab"`, `aria-controls`, `aria-selected`, `role="tabpanel"`) e no redimensionador superior acessível por teclado com setas (`role="separator"`, `aria-orientation`) em `BottomPanel.svelte`.
+  - Enriquecimento semântico com `aria-label`, `aria-expanded`, `aria-haspopup` e anéis de foco visíveis (`focus-visible:ring-2`) em todos os botões de ação, menus e modais do operador em `AdminView.svelte`.
+  - Padronização de tokens de design semânticos no lugar de classes neutras estáticas (`bg-card`, `border-border`, `bg-muted`, `text-foreground`, `text-muted-foreground`).
+  - Atualização do componente base `Button.svelte` para suportar e propagar atributos ARIA (`aria-label`, `aria-expanded`, `aria-haspopup`, `aria-controls`) de primeira classe.
+  - Atualização do ecossistema de skills Impeccable para a versão mais recente (`v4.8.0`).
 - **Painel Flutuante de Conexões WebSocket Ativas no Cabeçalho:**
   - O indicador "Online" no topo da interface agora é um botão interativo com contador de clientes conectados.
   - Ao clicar, exibe um dropdown moderno listando todas as conexões WebSocket ativas em tempo real, informando o tipo do cliente (Painel Operador, Projetor Público, Retorno de Palco), endereço IP do dispositivo, rota aberta (`/`, `/public`, `/stage`) e horário da conexão.

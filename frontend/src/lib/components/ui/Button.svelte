@@ -9,6 +9,11 @@
     disabled?: boolean;
     type?: 'button' | 'submit' | 'reset';
     title?: string;
+    'aria-label'?: string;
+    'aria-expanded'?: boolean | 'true' | 'false';
+    'aria-haspopup'?: boolean | 'true' | 'false' | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog';
+    'aria-controls'?: string;
+    id?: string;
     onclick?: (e: MouseEvent) => void;
     children?: Snippet;
   }
@@ -20,6 +25,11 @@
     disabled = false,
     type = 'button',
     title,
+    'aria-label': ariaLabel,
+    'aria-expanded': ariaExpanded,
+    'aria-haspopup': ariaHasPopup,
+    'aria-controls': ariaControls,
+    id,
     onclick,
     children,
   }: Props = $props();
@@ -43,10 +53,15 @@
 </script>
 
 <button
+  {id}
   {type}
   {title}
   {disabled}
   {onclick}
+  aria-label={ariaLabel}
+  aria-expanded={ariaExpanded}
+  aria-haspopup={ariaHasPopup}
+  aria-controls={ariaControls}
   class={cn(
     'inline-flex items-center justify-center gap-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none',
     variantClasses[variant],

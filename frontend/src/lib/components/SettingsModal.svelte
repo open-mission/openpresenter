@@ -3194,7 +3194,7 @@
                   <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/60 space-y-3">
                     <div class="flex items-center justify-between text-xs">
                       <span class="text-neutral-300 font-medium flex items-center gap-1.5">
-                        <Download size={14} class="animate-bounce text-primary" />
+                        <Download size={14} class="animate-pulse text-primary transition-transform duration-300" />
                         Baixando nova versão...
                       </span>
                       <span class="font-mono text-primary font-bold">
