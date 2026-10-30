@@ -6,6 +6,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Integração com Google Cast (Chromecast) para Telas Pública e Retorno de Palco:**
+  - Carregamento sob demanda do Google Cast Web Sender SDK (`cast_sender.js`) com gerenciador centralizado em `frontend/src/lib/cast.ts`.
+  - Transmissão sem fio com latência quase zero (< 30ms) utilizando Web Receiver Chromium e sincronização via WebSocket direto na rede local.
+  - Suporte completo à transmissão tanto da Tela Pública (`/public`) quanto do Monitor de Retorno de Palco (`/stage`).
+  - Nova aba "Chromecast" dentro do modal de compartilhamento de saídas na rede local (`ShareOutputsModal.svelte`) com componente dedicado `CastControl.svelte`.
+  - Atalho de transmissão Cast com indicador de status no cabeçalho do painel do operador (`AdminView.svelte`).
+  - Guia de contingência e orientações passo a passo para espelhamento nativo de aba via Chrome / Edge em ambientes 100% offline.
+  - Registro de decisão arquitetural (ADR 0013) documentando a superioridade do Web Receiver com WebSocket local em relação a streams de vídeo HLS para projeção de cultos ao vivo.
+
 ## [0.2.0] - 2026-10-30
 
 ### Adicionado

@@ -113,7 +113,9 @@
     QrCode,
     Sparkles,
     Globe,
+    Cast,
   } from 'lucide-svelte';
+  import { castStore } from '$lib/cast';
 
   let selectedMediaId = $state<string>('song-1');
   let searchQuery = $state<string>('');
@@ -132,6 +134,7 @@
   let isImageSelectorOpen = $state(false);
   let imageSelectorMode = $state<'single' | 'folder'>('single');
   let isShareOutputsOpen = $state(false);
+  let shareOutputsTab = $state<'stage' | 'public' | 'cast'>('stage');
   let isConnectionsDropdownOpen = $state(false);
   let previewImage = $state<ImageMediaItem | null>(null);
   let isPreviewImageOpen = $state(false);
@@ -1242,11 +1245,33 @@
         <ExternalLink size={12} class="opacity-60" />
       </Button>
 
+      <!-- Botão Transmitir Chromecast (Google Cast) -->
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={() => {
+          shareOutputsTab = 'cast';
+          isShareOutputsOpen = true;
+        }}
+        class="gap-1.5 text-xs {$castStore.isConnected ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300' : ''}"
+        title="Transmitir sem fio para TV ou Chromecast (Google Cast)"
+      >
+        <Cast size={14} class={$castStore.isConnected ? 'text-emerald-400 animate-pulse' : 'text-primary'} />
+        {#if $previewLabelsStore}
+          <span class="hidden lg:inline">
+            {$castStore.isConnected ? 'Cast Conectado' : 'Cast'}
+          </span>
+        {/if}
+      </Button>
+
       <!-- Botão Compartilhar Saídas (QR Code) -->
       <Button
         variant="outline"
         size="sm"
-        onclick={() => (isShareOutputsOpen = true)}
+        onclick={() => {
+          shareOutputsTab = 'stage';
+          isShareOutputsOpen = true;
+        }}
         class="gap-1.5 text-xs"
         title="Compartilhar Saídas com Celulares e Tablets via QR Code"
       >
@@ -2136,6 +2161,7 @@
 
   <ShareOutputsModal
     open={isShareOutputsOpen}
+    initialTab={shareOutputsTab}
     onclose={() => (isShareOutputsOpen = false)}
   />
 
