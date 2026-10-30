@@ -44,8 +44,26 @@
 </script>
 
 <div class="w-full aspect-video rounded-lg bg-black border border-neutral-800 p-1.5 flex flex-col justify-between relative overflow-hidden shadow-inner select-none font-sans text-[10px]">
+  {#if !activeSlide}
+    <!-- MODO DE DESCANSO NO PREVIEW -->
+    <div class="flex-1 flex flex-col items-center justify-center p-2 text-center bg-zinc-950/80 rounded border border-zinc-800/80 gap-1.5 animate-in fade-in duration-200">
+      <div class="text-[8px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1">
+        <Clock size={9} class="text-emerald-400" />
+        <span>Modo Descanso (Palco)</span>
+      </div>
+      <div class="text-xl font-mono font-black text-white tracking-tight">
+        {stageClock || '00:00:00'}
+      </div>
+      <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[9px] font-mono font-bold {timer.remaining_seconds < 0 ? 'text-rose-400' : timer.remaining_seconds <= (timer.warning_threshold_seconds || 60) && timer.running ? 'text-amber-400' : 'text-zinc-300'}">
+        <Hourglass size={8} class="opacity-70" />
+        <span>{timer.label || 'Timer'}: {formatTime(timer.remaining_seconds)}</span>
+      </div>
+      <div class="text-[7.5px] text-zinc-600 truncate max-w-[90%]">
+        Aguardando disparo de slide
+      </div>
+    </div>
   <!-- PRESET 1: SPLIT 50-50 (LADO A LADO) -->
-  {#if stageSettings.preset === 'split-50-50'}
+  {:else if stageSettings.preset === 'split-50-50'}
     <div class="flex-1 flex gap-1 min-h-0" style="flex: {100 - footerRatio};">
       <!-- Slide Atual -->
       <div

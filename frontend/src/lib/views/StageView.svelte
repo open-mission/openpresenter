@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { presentationState, mediaItemsList, initWebSocket } from '$lib/ws';
+  import { presentationState, mediaItemsList, activeSetlist, initWebSocket } from '$lib/ws';
   import type { MediaItem, Slide } from '$lib/types';
   import { renderFormattedText } from '$lib/markdown';
   import {
@@ -150,9 +150,85 @@
   {/if}
 
   <!-- ========================================================================= -->
+  <!-- MODO DE DESCANSO / STANDBY (Quando não há slide ativo em apresentação)   -->
+  <!-- ========================================================================= -->
+  {#if !activeSlide}
+    <div class="flex-1 flex flex-col justify-between items-center text-center p-6 sm:p-10 md:p-14 animate-in fade-in zoom-in-95 duration-200 min-h-0">
+      <!-- Topo: Identificação e Alternar Tela Cheia -->
+      <div class="w-full flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-400">
+          <Clock size={14} class="text-emerald-400" />
+          <span class="font-semibold text-zinc-200">Modo de Descanso (Standby)</span>
+          {#if $activeSetlist?.title}
+            <span class="text-zinc-600">•</span>
+            <span class="text-zinc-400 truncate max-w-xs">{$activeSetlist.title}</span>
+          {/if}
+        </div>
+
+        <button
+          type="button"
+          onclick={toggleFullscreen}
+          class="p-2 rounded-lg bg-zinc-900/80 border border-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+          title="Alternar Tela Cheia (F)"
+        >
+          {#if isFullscreen}
+            <Minimize size={16} />
+          {:else}
+            <Maximize size={16} />
+          {/if}
+        </button>
+      </div>
+
+      <!-- Mensagem de Palco em Destaque (se houver) -->
+      {#if stageMessage}
+        <div class="w-full max-w-3xl my-2 p-3 sm:p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-base sm:text-lg md:text-xl font-bold text-center shadow-lg animate-pulse shrink-0">
+          ⚠️ {stageMessage}
+        </div>
+      {/if}
+
+      <!-- Centro: Horário em Tipografia Gigante e Imponente -->
+      <div class="my-auto flex flex-col items-center justify-center space-y-2 select-none">
+        <div
+          class="text-7xl sm:text-9xl md:text-[140px] lg:text-[170px] font-mono font-black tracking-tight leading-none drop-shadow-2xl"
+          style="color: {stageSettings.current_text_color || '#ffffff'};"
+        >
+          {currentTime || '00:00:00'}
+        </div>
+        <div class="text-base sm:text-xl md:text-2xl text-zinc-400 capitalize font-medium tracking-wide">
+          {currentDate}
+        </div>
+
+        <!-- Bloco do Cronômetro / Timer Centralizado -->
+        <div
+          class="mt-6 sm:mt-8 px-8 sm:px-12 py-4 sm:py-6 rounded-3xl bg-zinc-900/70 border-2 transition-all flex flex-col items-center gap-1.5 shadow-2xl {isOvertime ? 'border-rose-500/80 bg-rose-950/40 animate-pulse' : isWarning ? 'border-amber-500/80 bg-amber-950/40' : 'border-zinc-800'}"
+        >
+          <div class="text-xs sm:text-sm uppercase tracking-widest font-bold flex items-center gap-2 {isOvertime ? 'text-rose-300' : isWarning ? 'text-amber-300' : 'text-zinc-400'}">
+            <Hourglass size={14} class={timer.running ? 'animate-spin' : ''} />
+            <span>{timer.label || 'Cronômetro'} {timer.running ? '(Em andamento)' : ''}</span>
+          </div>
+
+          <div class="text-5xl sm:text-6xl md:text-7xl font-mono font-black tracking-tight {timerColorClass}">
+            {formatTime(timer.remaining_seconds)}
+          </div>
+
+          {#if isOvertime}
+            <div class="text-xs text-rose-300 font-bold uppercase tracking-wider mt-0.5">
+              Tempo Excedido
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Rodapé: Orientação Discreta -->
+      <div class="w-full flex items-center justify-center text-xs text-zinc-500 font-medium shrink-0 pt-4">
+        <span>Aguardando início de slide ou louvor pelo operador</span>
+      </div>
+    </div>
+
+  <!-- ========================================================================= -->
   <!-- PRESET 1: SPLIT 50-50 (Divisão Equilibrada) -->
   <!-- ========================================================================= -->
-  {#if stageSettings.preset === 'split-50-50'}
+  {:else if stageSettings.preset === 'split-50-50'}
     <div class="flex-1 flex flex-col gap-4 min-h-0">
       <!-- Grade dinâmica com dois cartões com bordas e etiquetas -->
       <div

@@ -114,6 +114,7 @@
 - [Spec — Sincronização em Tempo Real de Configurações e Recarga Remota das Telas Public e Stage](specs/2026-10-29-realtime-settings-sync-and-remote-reload.md)
 - [Spec — Correção e Aplicação Confiável de Margens na Projeção Pública](specs/2026-10-29-fix-public-screen-margins.md)
 - [Spec — Remoção de Botões Duplicados de Sidebars no Header](specs/2026-10-29-remove-duplicate-sidebar-buttons-from-header.md)
+- [Spec — Modo de Descanso (Standby) com Relógio e Timer no Monitor de Palco](specs/2026-10-29-stage-idle-standby-clock-mode.md)
 
 ## Arquitetura e decisões
 

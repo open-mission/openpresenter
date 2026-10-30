@@ -7,6 +7,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Modo de Descanso (Standby) com Relógio e Cronômetro Gigantes no Monitor de Palco:**
+  - Quando não há apresentação ativa (repouso com papel de parede da setlist no público), o monitor de palco (`/stage`) e seu preview exibem automaticamente um relógio em tipografia gigante, data por extenso e o cronômetro/timer centralizado com alertas de aviso e overtime.
+  - Ao iniciar qualquer slide de música ou bíblia, a tela comuta instantaneamente para o preset configurado de slides.
 - **Sincronização em Tempo Real de Configurações e Recarga Remota das Telas:**
   - Alterações salvas nas configurações agora disparam transmissão imediata via WebSocket (`WsMessage::SettingUpdated`), atualizando as telas `/public` e `/stage` instantaneamente sem necessidade de recarregar a página (F5).
   - Adicionados botões de ação rápida nos cabeçalhos de preview do painel do operador para recarga remota imediata das saídas de projeção e retorno de palco.
