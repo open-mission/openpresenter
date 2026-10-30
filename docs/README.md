@@ -131,6 +131,7 @@
 - [Spec — Título Configurável para o Cronômetro no Stage Display](specs/2026-10-30-timer-configurable-title-for-stage.md)
 - [Spec — Busca de Textos Bíblicos por Referência e Palavras no Command Palette Global](specs/2026-10-30-command-palette-bible-search-and-reference.md)
 - [Spec — Limpeza da Barra Lateral da Setlist e Dropdown de Conexões WebSocket](specs/2026-10-30-sidebar-setlist-cleanup-and-websocket-connections-dropdown.md)
+- [Spec — Correção de Transparência e Template do Ícone no System Tray](specs/2026-10-30-tray-icon-template-and-transparency-fix.md)
 
 ## Arquitetura e decisões
 

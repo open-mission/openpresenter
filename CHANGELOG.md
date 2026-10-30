@@ -90,6 +90,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Removido o subtítulo "Projeção para igrejas e eventos" do cabeçalho superior para deixar a barra de ferramentas mais limpa e compacta.
 
 ### Corrigido
+- **Ícone e Transparência do System Tray (macOS Menu Bar e Bandeja do Sistema):**
+  - Corrigido o visual do ícone da aplicação no System Tray, eliminando o bloco quadrado escuro e os cantos brancos opacos na barra de menus.
+  - Implementado novo asset bitmap transparente da marca (`open-presenter-icon-tray-32.png` e `@2x` 64x64) com fundo 100% transparente e silhueta preenchida com botão play vazado em espaço negativo.
+  - Ativado o modo template nativo no macOS (`with_icon_templated`), permitindo que o sistema operacional aplique automaticamente a cor apropriada (branca ou preta) e gerencie estados de seleção de acordo com a aparência do sistema (modo claro ou escuro).
 - **Design da Referência Bíblica na Projeção Pública (/public) e Monitores de Retorno:**
   - Eliminada a duplicação de versão (ex.: "ARA ARA") na barra de referência bíblica através de sanitização automática de rótulo e metadado de versão.
   - Removido o emoji `📖` e a tipografia amarela estridente, adotando visual branco refinado com drop-shadow integrado ao tema da projeção.

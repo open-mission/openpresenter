@@ -21,10 +21,10 @@ pub struct TrayState {
     pub port: u16,
 }
 
-/// Cria o ícone nativo da bandeja com a versão escura da marca oficial do OpenPresenter.
+/// Cria o ícone nativo da bandeja com a versão oficial da marca do OpenPresenter com fundo transparente.
 pub fn create_tray_icon() -> Result<Icon, Box<dyn std::error::Error>> {
     const ICON_BYTES: &[u8] =
-        include_bytes!("../../../assets/branding/open-presenter-icon-dark-32.png");
+        include_bytes!("../../../assets/branding/open-presenter-icon-tray-32.png");
     let img = image::load_from_memory(ICON_BYTES)?.into_rgba8();
     let (width, height) = img.dimensions();
     let rgba = img.into_raw();
@@ -76,11 +76,19 @@ pub fn init_tray(port: u16) -> Result<TrayState, Box<dyn std::error::Error>> {
 
     let tooltip = format!("OpenPresenter Minimal — Servidor ativo na porta {}", port);
 
-    let tray_icon = TrayIconBuilder::new()
+    #[cfg(target_os = "macos")]
+    let builder = TrayIconBuilder::new()
         .with_menu(Box::new(menu))
         .with_tooltip(tooltip)
-        .with_icon(icon)
-        .build()?;
+        .with_icon_templated(icon);
+
+    #[cfg(not(target_os = "macos"))]
+    let builder = TrayIconBuilder::new()
+        .with_menu(Box::new(menu))
+        .with_tooltip(tooltip)
+        .with_icon(icon);
+
+    let tray_icon = builder.build()?;
 
     Ok(TrayState {
         tray_icon,
@@ -223,6 +231,48 @@ mod tests {
         assert!(
             icon.is_ok(),
             "Ícone do tray deve carregar com sucesso os bytes oficiais"
+        );
+    }
+
+    #[test]
+    fn test_tray_icon_transparency_and_silhouette() {
+        const ICON_BYTES: &[u8] =
+            include_bytes!("../../../assets/branding/open-presenter-icon-tray-32.png");
+        let img = image::load_from_memory(ICON_BYTES)
+            .expect("Deve carregar PNG")
+            .into_rgba8();
+        let (width, height) = img.dimensions();
+        assert_eq!(width, 32);
+        assert_eq!(height, 32);
+
+        // Os 4 cantos devem ser 100% transparentes (alpha == 0)
+        assert_eq!(
+            img.get_pixel(0, 0)[3],
+            0,
+            "Canto superior-esquerdo deve ser transparente"
+        );
+        assert_eq!(
+            img.get_pixel(31, 0)[3],
+            0,
+            "Canto superior-direito deve ser transparente"
+        );
+        assert_eq!(
+            img.get_pixel(0, 31)[3],
+            0,
+            "Canto inferior-esquerdo deve ser transparente"
+        );
+        assert_eq!(
+            img.get_pixel(31, 31)[3],
+            0,
+            "Canto inferior-direito deve ser transparente"
+        );
+
+        // Deve possuir pixels opacos formando a silhueta da tela e do bezel
+        let non_zero_alpha = img.pixels().filter(|p| p[3] > 0).count();
+        assert!(
+            (150..=600).contains(&non_zero_alpha),
+            "Esperado entre 150 e 600 pixels visíveis para o glifo 32x32, obtido {}",
+            non_zero_alpha
         );
     }
 }
