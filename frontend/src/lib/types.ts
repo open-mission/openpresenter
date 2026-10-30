@@ -258,6 +258,7 @@ export interface StageDisplaySettings {
   timer_color: string;
   clock_color: string;
   font_size_scale?: number;
+  min_font_size?: number;
   current_slide_percent?: number;
   next_slide_percent?: number;
   footer_time_percent?: number;

@@ -35,14 +35,15 @@ export const DEFAULT_CHURCH_BRAND: ChurchBrandSettings = {
 };
 
 export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
-  preset: 'split-50-50',
+  preset: 'modern-grid',
   current_text_color: '#FFFFFF',
   next_text_color: '#FACC15',
-  current_border_color: '#4B5563',
+  current_border_color: '#3B82F6',
   next_border_color: '#EAB308',
   timer_color: '#EF4444',
   clock_color: '#E5E7EB',
   font_size_scale: 1.0,
+  min_font_size: 24,
   current_slide_percent: 60,
   next_slide_percent: 30,
   footer_time_percent: 10,

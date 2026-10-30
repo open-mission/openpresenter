@@ -1281,98 +1281,64 @@
                 </p>
               </div>
 
-              <!-- Presets do Palco (Cards com diagramas) -->
+              <!-- Preset do Palco (Grid Moderno Pro Padronizado) -->
               <div class="space-y-3">
                 <span class="block text-xs font-semibold text-white">Preset de Exibição</span>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <!-- Preset 1: Split 50-50 -->
-                  <button
-                    type="button"
-                    onclick={() => updateStageField('preset', 'split-50-50')}
-                    class="p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {localStage.preset === 'split-50-50' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
-                  >
-                    <div class="flex items-center justify-between mb-2">
-                      <div class="text-xs font-bold text-white">Divisão Equilibrada (50/50)</div>
-                      {#if localStage.preset === 'split-50-50'}
-                        <Check size={15} class="text-primary" />
-                      {/if}
+                <div class="p-4 rounded-xl border border-primary bg-primary/10 ring-1 ring-primary/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                      <div class="text-sm font-bold text-white">Grid Moderno Pro</div>
+                      <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                        Padrão Ativo
+                      </span>
                     </div>
-                    <div class="h-14 w-full bg-neutral-950 rounded border border-neutral-800 p-1 flex gap-1 mb-2">
-                      <div class="flex-1 rounded border border-blue-500/40 bg-blue-500/10 flex items-center justify-center text-[8px] text-blue-300 font-bold">Atual</div>
-                      <div class="flex-1 rounded border border-yellow-500/40 bg-yellow-500/10 flex items-center justify-center text-[8px] text-yellow-300 font-bold">A Seguir</div>
+                    <p class="text-xs text-neutral-300">
+                      Slide atual em destaque com auto-scale, próximo slide abaixo e coluna lateral dedicada com caixa de aviso sempre visível, relógio e cronômetro. Layout contínuo sem gaps nem cantos arredondados para aproveitamento máximo da tela.
+                    </p>
+                  </div>
+                  <div class="h-16 w-36 bg-neutral-950 rounded border border-neutral-800 p-1 flex gap-1 shrink-0">
+                    <div class="flex-[2] flex flex-col gap-0.5">
+                      <div class="flex-1 border border-blue-500/40 bg-blue-500/10 text-[7px] text-blue-300 font-bold flex items-center justify-center">Slide Atual</div>
+                      <div class="h-4 border border-yellow-500/40 bg-yellow-500/10 text-[6px] text-yellow-300 font-bold flex items-center justify-center">A Seguir</div>
                     </div>
-                    <div class="text-[10px] text-neutral-400">Dois cartões lado a lado com etiquetas e rodapé de tempo.</div>
-                  </button>
+                    <div class="flex-1 border border-neutral-700 bg-neutral-900 text-[6px] text-neutral-300 font-bold flex flex-col items-center justify-center gap-0.5">
+                      <span class="text-emerald-400">Aviso</span>
+                      <span class="text-neutral-400">12:00</span>
+                      <span class="text-red-400 font-mono">10:00</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-                  <!-- Preset 2: Modern Grid -->
-                  <button
-                    type="button"
-                    onclick={() => updateStageField('preset', 'modern-grid')}
-                    class="p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {localStage.preset === 'modern-grid' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
-                  >
-                    <div class="flex items-center justify-between mb-2">
-                      <div class="text-xs font-bold text-white">Grid Moderno Pro</div>
-                      {#if localStage.preset === 'modern-grid'}
-                        <Check size={15} class="text-primary" />
-                      {/if}
-                    </div>
-                    <div class="h-14 w-full bg-neutral-950 rounded border border-neutral-800 p-1 flex gap-1 mb-2">
-                      <div class="flex-[2] flex flex-col gap-0.5">
-                        <div class="flex-1 rounded border border-blue-500/40 bg-blue-500/10 text-[7px] text-blue-300 font-bold flex items-center justify-center">Slide Atual</div>
-                        <div class="h-4 rounded border border-yellow-500/40 bg-yellow-500/10 text-[6px] text-yellow-300 font-bold flex items-center justify-center">A Seguir</div>
-                      </div>
-                      <div class="flex-1 rounded border border-neutral-700 bg-neutral-900 text-[6px] text-neutral-300 font-bold flex flex-col items-center justify-center gap-0.5">
-                        <span>Aviso</span>
-                        <span class="text-red-400 font-mono">10:00</span>
-                      </div>
-                    </div>
-                    <div class="text-[10px] text-neutral-400">Slide atual em destaque, próximo abaixo e coluna lateral para timer e aviso.</div>
-                  </button>
-
-                  <!-- Preset 3: Video Focus -->
-                  <button
-                    type="button"
-                    onclick={() => updateStageField('preset', 'video-focus')}
-                    class="p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {localStage.preset === 'video-focus' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
-                  >
-                    <div class="flex items-center justify-between mb-2">
-                      <div class="text-xs font-bold text-white">Foco em Vídeo / Letra</div>
-                      {#if localStage.preset === 'video-focus'}
-                        <Check size={15} class="text-primary" />
-                      {/if}
-                    </div>
-                    <div class="h-14 w-full bg-neutral-950 rounded border border-neutral-800 p-1 flex flex-col gap-1 mb-2">
-                      <div class="flex-1 rounded border border-blue-500/40 bg-blue-500/10 flex items-center justify-center text-[8px] text-blue-300 font-bold">Projeção Central Expandida</div>
-                      <div class="h-3.5 rounded bg-neutral-900 border border-neutral-700 flex items-center justify-between px-1 text-[6px] text-neutral-400">
-                        <span class="text-yellow-400 truncate">Próximo...</span>
-                        <span class="text-red-400 font-mono">08:30</span>
-                      </div>
-                    </div>
-                    <div class="text-[10px] text-neutral-400">Área ampla central para leitura e barra inferior minimalista com contadores.</div>
-                  </button>
-
-                  <!-- Preset 4: Horizontal Stack -->
-                  <button
-                    type="button"
-                    onclick={() => updateStageField('preset', 'horizontal-stack')}
-                    class="p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {localStage.preset === 'horizontal-stack' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
-                  >
-                    <div class="flex items-center justify-between mb-2">
-                      <div class="text-xs font-bold text-white">Faixas Horizontais</div>
-                      {#if localStage.preset === 'horizontal-stack'}
-                        <Check size={15} class="text-primary" />
-                      {/if}
-                    </div>
-                    <div class="h-14 w-full bg-neutral-950 rounded border border-neutral-800 p-1 flex flex-col gap-0.5 mb-2">
-                      <div class="h-3 rounded bg-neutral-900 border border-neutral-700 flex items-center justify-between px-1 text-[6px] text-neutral-400">
-                        <span>Horário</span>
-                        <span class="text-red-400 font-mono">05:00</span>
-                      </div>
-                      <div class="flex-1 rounded border border-blue-500/40 bg-blue-500/10 flex items-center justify-center text-[8px] text-blue-300 font-bold">Slide Atual Gigante</div>
-                      <div class="h-3 rounded border border-yellow-500/40 bg-yellow-500/10 flex items-center px-1 text-[6px] text-yellow-300 font-bold">A Seguir...</div>
-                    </div>
-                    <div class="text-[10px] text-neutral-400">Header de status, texto central em tipografia máxima e próximo slide na base.</div>
-                  </button>
+              <!-- Auto-Scale e Tamanho Mínimo de Fonte -->
+              <div class="pt-4 border-t border-neutral-800 space-y-4">
+                <div>
+                  <h4 class="text-xs font-semibold text-white">Auto-scale e Tamanho Mínimo de Fonte</h4>
+                  <p class="text-[11px] text-neutral-400 mt-0.5">
+                    O texto dos slides ajusta-se automaticamente para preencher o bloco do monitor de palco. Defina o tamanho mínimo da fonte para evitar que o texto fique excessivamente pequeno em slides longos.
+                  </p>
+                </div>
+                <div class="p-3.5 rounded-lg border border-neutral-800 bg-neutral-900/40 space-y-2.5 max-w-md">
+                  <div class="flex justify-between items-center text-xs">
+                    <span class="text-neutral-300 font-medium">Tamanho Mínimo da Fonte</span>
+                    <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                      {localStage.min_font_size ?? 24}px
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="14"
+                    max="64"
+                    step="2"
+                    value={localStage.min_font_size ?? 24}
+                    oninput={(e) => updateStageField('min_font_size', Number((e.target as HTMLInputElement).value))}
+                    class="w-full accent-primary cursor-pointer"
+                  />
+                  <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
+                    <span>14px (Mais linhas)</span>
+                    <span>24px (Padrão)</span>
+                    <span>64px (Super legível)</span>
+                  </div>
                 </div>
               </div>
 

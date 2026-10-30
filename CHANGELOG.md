@@ -7,6 +7,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Preset Grid Moderno Pro Padronizado, Auto-scale e Maximização de Espaço no Monitor de Palco (/stage):**
+  - O monitor de palco e seu preview foram simplificados e unificados no preset **Grid Moderno Pro**, garantindo a melhor experiência visual para palco.
+  - Implementado sistema de auto-scale dinâmico com medição e ajuste em tempo real (ResizeObserver e busca binária de font-size), fazendo com que o texto dos slides preencha todo o espaço do quadro sem transbordar.
+  - Adicionada configuração de **Tamanho Mínimo da Fonte** (`min_font_size`, padrão 24px) nas Configurações de Palco para garantir legibilidade ideal mesmo em textos extensos.
+  - Removidos gaps e cantos arredondados (`rounded-none`, `gap-0`, `p-0`) entre as caixas do palco para maximizar a área útil de visualização.
+  - A caixa de mensagens e avisos para o palco agora permanece sempre visível na coluna lateral com estado neutro quando inativa, eliminando saltos bruscos de layout quando mensagens entram ou saem do ar.
 - **Modo de Descanso (Standby) com Relógio e Cronômetro Gigantes no Monitor de Palco:**
   - Quando não há apresentação ativa (repouso com papel de parede da setlist no público), o monitor de palco (`/stage`) e seu preview exibem automaticamente um relógio em tipografia gigante, data por extenso e o cronômetro/timer centralizado com alertas de aviso e overtime.
   - Ao iniciar qualquer slide de música ou bíblia, a tela comuta instantaneamente para o preset configurado de slides.
