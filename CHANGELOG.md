@@ -30,6 +30,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Removido o subtítulo "Projeção para igrejas e eventos" do cabeçalho superior para deixar a barra de ferramentas mais limpa e compacta.
 
 ### Corrigido
+- **Monitor de Palco (/stage):**
+  - Corrigido erro de execução JavaScript no modo Standby (`ReferenceError`) provocado por identificadores incorretos de timer e overtime, eliminando a tela preta e restaurando a exibição do relógio e cronômetro gigantes.
 - **Aplicação e Contenção de Margens na Projeção Pública:**
   - O container de projeção pública (`/public`) agora adota `box-sizing: border-box` e contenção fluida `w-full` (eliminando o limite rígido de `max-w-[96vw]`), garantindo que as margens superior, inferior e laterais sejam fielmente respeitadas sem vazamentos ou cortes de texto.
 - **Separação de Papel de Parede da Setlist vs. Fundo das Letras:**
@@ -136,6 +138,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Remoção dos botões "Abrir Janela do Public" e "Abrir Janela do Stage" que ficavam abaixo das caixas de preview 16:9 na barra lateral de saídas (`AdminView.svelte`), mantendo a abertura de telas e janelas centralizada na barra superior do operador (header) e no modal de conexões/QR Code.
 
 ### Corrigido
+- **Monitor de Palco (/stage):**
+  - Corrigido erro de execução JavaScript no modo Standby (`ReferenceError`) provocado por identificadores incorretos de timer e overtime, eliminando a tela preta e restaurando a exibição do relógio e cronômetro gigantes.
 
 - **Sincronização Reativa Automática das Versões da Bíblia ao Fechar Configurações:**
   - Criação da store reativa `biblesStore` e do utilitário `refreshBibles()`, garantindo que importações, renomeações, exclusões e alterações de versão padrão feitas no modal de configurações atualizem imediatamente o seletor do painel de Bíblias sem necessidade de recarregar a página.

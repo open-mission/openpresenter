@@ -121,7 +121,16 @@
       timer.remaining_seconds > 0
   );
 
-  function formatTime(remaining: number, isOvertime: boolean): string {
+  // Cor do timer de acordo com o estado
+  const timerColorClass = $derived(
+    timerIsOvertime
+      ? 'text-rose-500 animate-pulse'
+      : timerIsNearEnd
+        ? 'text-amber-400'
+        : 'text-white'
+  );
+
+  function formatTime(remaining: number, isOvertime = false): string {
     const isNeg = remaining < 0 || isOvertime;
     const abs = Math.abs(remaining);
     const m = Math.floor(abs / 60);
@@ -200,18 +209,18 @@
 
         <!-- Bloco do Cronômetro / Timer Centralizado -->
         <div
-          class="mt-6 sm:mt-8 px-8 sm:px-12 py-4 sm:py-6 rounded-3xl bg-zinc-900/70 border-2 transition-all flex flex-col items-center gap-1.5 shadow-2xl {isOvertime ? 'border-rose-500/80 bg-rose-950/40 animate-pulse' : isWarning ? 'border-amber-500/80 bg-amber-950/40' : 'border-zinc-800'}"
+          class="mt-6 sm:mt-8 px-8 sm:px-12 py-4 sm:py-6 rounded-3xl bg-zinc-900/70 border-2 transition-all flex flex-col items-center gap-1.5 shadow-2xl {timerIsOvertime ? 'border-rose-500/80 bg-rose-950/40 animate-pulse' : timerIsNearEnd ? 'border-amber-500/80 bg-amber-950/40' : 'border-zinc-800'}"
         >
-          <div class="text-xs sm:text-sm uppercase tracking-widest font-bold flex items-center gap-2 {isOvertime ? 'text-rose-300' : isWarning ? 'text-amber-300' : 'text-zinc-400'}">
+          <div class="text-xs sm:text-sm uppercase tracking-widest font-bold flex items-center gap-2 {timerIsOvertime ? 'text-rose-300' : timerIsNearEnd ? 'text-amber-300' : 'text-zinc-400'}">
             <Hourglass size={14} class={timer.running ? 'animate-spin' : ''} />
             <span>{timer.label || 'Cronômetro'} {timer.running ? '(Em andamento)' : ''}</span>
           </div>
 
           <div class="text-5xl sm:text-6xl md:text-7xl font-mono font-black tracking-tight {timerColorClass}">
-            {formatTime(timer.remaining_seconds)}
+            {formatTime(timer.remaining_seconds, timerIsOvertime)}
           </div>
 
-          {#if isOvertime}
+          {#if timerIsOvertime}
             <div class="text-xs text-rose-300 font-bold uppercase tracking-wider mt-0.5">
               Tempo Excedido
             </div>
