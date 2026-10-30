@@ -96,6 +96,8 @@ pub struct WallpaperItem {
     pub name: String,
     pub url: String,
     pub is_default: bool,
+    #[serde(default)]
+    pub is_video: bool,
 }
 
 #[derive(Serialize)]
@@ -772,18 +774,23 @@ async fn list_wallpapers() -> Json<Vec<WallpaperItem>> {
                     && let Some(name) = path.file_name().and_then(|n| n.to_str())
                 {
                     let lower = name.to_lowercase();
-                    if lower.ends_with(".jpg")
+                    let is_image = lower.ends_with(".jpg")
                         || lower.ends_with(".jpeg")
                         || lower.ends_with(".png")
                         || lower.ends_with(".webp")
-                        || lower.ends_with(".svg")
-                    {
+                        || lower.ends_with(".svg");
+                    let is_video = lower.ends_with(".mp4")
+                        || lower.ends_with(".webm")
+                        || lower.ends_with(".mov")
+                        || lower.ends_with(".mkv");
+                    if is_image || is_video {
                         items.push(WallpaperItem {
                             name: name.to_string(),
                             url: format!("/api/media/files/wallpapers/{name}"),
                             is_default: name == "dark-ambient.svg"
                                 || name == "worship-glow.svg"
                                 || name == "cross-subtle.svg",
+                            is_video,
                         });
                     }
                 }

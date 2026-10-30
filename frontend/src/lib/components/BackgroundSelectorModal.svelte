@@ -10,6 +10,7 @@
     Search,
     ChevronRight,
     Play,
+    Film,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
@@ -314,11 +315,26 @@
                   class="group rounded-xl border overflow-hidden flex flex-col transition-all cursor-pointer bg-card {isSelected ? 'border-primary ring-2 ring-primary/40 shadow-lg' : 'border-border hover:border-primary/50'}"
                 >
                   <div class="aspect-video w-full relative overflow-hidden bg-black/60 flex items-center justify-center">
-                    <img
-                      src={wall.url}
-                      alt={wall.name}
-                      class="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200"
-                    />
+                    {#if wall.is_video}
+                      <video
+                        src={wall.url}
+                        class="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200"
+                        autoplay
+                        loop
+                        muted
+                        playsinline
+                      ></video>
+                      <div class="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/75 border border-white/20 text-[9px] font-mono font-bold text-white flex items-center gap-1 shadow">
+                        <Film size={10} class="text-primary" />
+                        <span>Vídeo</span>
+                      </div>
+                    {:else}
+                      <img
+                        src={wall.url}
+                        alt={wall.name}
+                        class="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200"
+                      />
+                    {/if}
 
                     {#if isSelected}
                       <div class="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow">

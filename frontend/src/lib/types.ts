@@ -129,6 +129,7 @@ export interface WallpaperItem {
   name: string;
   url: string;
   is_default: boolean;
+  is_video?: boolean;
 }
 
 export type DisplayMode = 'live' | 'blackout' | 'cleartext';

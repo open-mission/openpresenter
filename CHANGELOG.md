@@ -7,6 +7,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Importação de Fundos de Imagens e Vídeos na Aba de Mídias > Fundos:**
+  - Adicionado botão "Importar Fundo" na barra de ferramentas da aba de Fundos com suporte a imagens e clipes de vídeo (.mp4, .webm, .mov).
+  - O backend passa a reconhecer e listar arquivos de vídeo na pasta de papéis de parede locais com streaming e detecção de MIME apropriada.
+  - O sistema de resolução de planos de fundo identifica arquivos de vídeo e ativa reprodução em loop contínuo e silencioso (`autoplay`, `loop`, `muted`, `playsinline`) na tela pública (`/public`) e no preview do operador.
+  - A galeria da aba de Fundos e o modal seletor exibem cartões interativos de vídeo com prévia em movimento e badge identificador `<Film /> Vídeo`.
 - **Customização de Fundos de Letras, Estilos CSS e Cores de Texto nas Configurações:**
   - Adicionada a aba dedicada "Fundos de Letras & CSS" nas Configurações do OpenPresenter.
   - Permite configurar o CSS da propriedade `background` (gradientes lineares, radiais, mesh ou cores sólidas), classe de animação CSS e a cor específica do texto (`textColor`) para cada plano de fundo.

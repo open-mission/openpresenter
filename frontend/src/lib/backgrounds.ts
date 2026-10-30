@@ -14,6 +14,7 @@ export interface ResolvedBackground {
   style: string;
   className: string;
   isImage: boolean;
+  isVideo: boolean;
   url: string;
   textColor: string;
 }
@@ -233,6 +234,7 @@ export function resolveBackground(
       style: '',
       className: '',
       isImage: false,
+      isVideo: false,
       url: '',
       textColor: '#ffffff',
     };
@@ -273,6 +275,7 @@ export function resolveBackground(
       style: `background: ${style};`,
       className: anim === 'none' ? '' : anim,
       isImage: false,
+      isVideo: false,
       url: '',
       textColor: textColor || '#ffffff',
     };
@@ -298,17 +301,26 @@ export function resolveBackground(
       style: `background: ${trimmed};`,
       className: '',
       isImage: false,
+      isVideo: false,
       url: '',
       textColor,
     };
   }
 
-  // Imagem normal de arquivo ou URL
+  // Imagem ou Vídeo normal de arquivo ou URL
+  const lower = trimmed.toLowerCase();
+  const isVideo =
+    lower.endsWith('.mp4') ||
+    lower.endsWith('.webm') ||
+    lower.endsWith('.mov') ||
+    lower.endsWith('.mkv');
+
   return {
     isCss: false,
     style: '',
     className: '',
-    isImage: true,
+    isImage: !isVideo,
+    isVideo,
     url: trimmed,
     textColor: '#ffffff',
   };

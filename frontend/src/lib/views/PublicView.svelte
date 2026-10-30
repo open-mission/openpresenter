@@ -134,13 +134,22 @@
     <div class="absolute inset-0 bg-black z-30"></div>
   {:else}
     <!-- Fundo / Papel de Parede da Setlist Ativa -->
-    {#if resolvedBg.isCss || resolvedBg.isImage}
+    {#if resolvedBg.isCss || resolvedBg.isImage || resolvedBg.isVideo}
       <div class="absolute inset-0 z-0 overflow-hidden flex items-center justify-center pointer-events-none">
         {#if resolvedBg.isCss}
           <div
             class="w-full h-full {resolvedBg.className}"
             style={resolvedBg.style}
           ></div>
+        {:else if resolvedBg.isVideo}
+          <video
+            src={resolvedBg.url}
+            class="w-full h-full {wallpaperFit === 'contain' ? 'object-contain' : 'object-cover'}"
+            autoplay
+            loop
+            muted
+            playsinline
+          ></video>
         {:else if wallpaperFit === 'repeat'}
           <div
             class="w-full h-full"

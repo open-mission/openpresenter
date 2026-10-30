@@ -25,6 +25,7 @@
     Layers,
     FolderOpen,
     BookOpen,
+    Film,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
@@ -213,6 +214,43 @@
       console.error('Erro ao carregar papéis de parede:', err);
     } finally {
       isLoadingWallpapers = false;
+    }
+  }
+
+  let isUploadingWallpaper = $state(false);
+  let wallpaperFileInput = $state<HTMLInputElement>();
+
+  function triggerImportWallpaper() {
+    wallpaperFileInput?.click();
+  }
+
+  async function handleWallpaperUpload(e: Event) {
+    const input = e.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    isUploadingWallpaper = true;
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const b64 = (reader.result as string).split(',')[1];
+        const res = await fetch('/api/media/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            content_base64: b64,
+          }),
+        });
+        if (res.ok) {
+          await loadWallpapers();
+        }
+        isUploadingWallpaper = false;
+        input.value = '';
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Falha ao importar fundo:', err);
+      isUploadingWallpaper = false;
     }
   }
 
@@ -1163,15 +1201,36 @@
                 </span>
               </nav>
 
-              <!-- Busca Rápida de Fundos -->
-              <div class="relative w-64">
-                <Search size={12} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <!-- Ações da Barra: Busca e Importação de Fundos -->
+              <div class="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={triggerImportWallpaper}
+                  disabled={isUploadingWallpaper}
+                  class="h-6 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 shrink-0 cursor-pointer"
+                  title="Importar imagens ou vídeos de fundo"
+                >
+                  <Upload size={12} />
+                  <span>{isUploadingWallpaper ? 'Importando...' : 'Importar Fundo'}</span>
+                </Button>
                 <input
-                  type="text"
-                  bind:value={bgSearchQuery}
-                  placeholder="Filtrar fundos..."
-                  class="w-full h-6 pl-7 pr-3 bg-neutral-900 border border-neutral-800 rounded-md text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  type="file"
+                  bind:this={wallpaperFileInput}
+                  onchange={handleWallpaperUpload}
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml,video/mp4,video/webm,video/quicktime"
+                  class="hidden"
                 />
+
+                <div class="relative w-56 sm:w-64">
+                  <Search size={12} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    bind:value={bgSearchQuery}
+                    placeholder="Filtrar fundos..."
+                    class="w-full h-6 pl-7 pr-3 bg-neutral-900 border border-neutral-800 rounded-md text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
               </div>
             </div>
 
@@ -1244,11 +1303,26 @@
                       class="group relative rounded-xl border overflow-hidden flex flex-col transition-all cursor-pointer bg-card {isLiveBg ? 'border-primary ring-2 ring-primary shadow-lg' : 'border-border hover:border-primary/50'}"
                     >
                       <div class="aspect-video w-full relative overflow-hidden bg-black/60 flex items-center justify-center">
-                        <img
-                          src={wall.url}
-                          alt={wall.name}
-                          class="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200"
-                        />
+                        {#if wall.is_video}
+                          <video
+                            src={wall.url}
+                            class="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200"
+                            autoplay
+                            loop
+                            muted
+                            playsinline
+                          ></video>
+                          <div class="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/75 border border-white/20 text-[9px] font-mono font-bold text-white flex items-center gap-1 shadow">
+                            <Film size={10} class="text-primary" />
+                            <span>Vídeo</span>
+                          </div>
+                        {:else}
+                          <img
+                            src={wall.url}
+                            alt={wall.name}
+                            class="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200"
+                          />
+                        {/if}
 
                         {#if isLiveBg}
                           <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center gap-1 shadow-md">
