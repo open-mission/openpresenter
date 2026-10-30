@@ -236,6 +236,7 @@ const STORAGE_BASE_COLOR_KEY = 'open_presenter_base_color';
 const STORAGE_ACCENT_THEME_KEY = 'open_presenter_accent_theme';
 const STORAGE_SECTIONS_KEY = 'open_presenter_sections';
 const STORAGE_WALLPAPER_FIT_KEY = 'open_presenter_wallpaper_fit';
+const STORAGE_PREVIEW_LABELS_KEY = 'open_presenter_preview_labels';
 
 function loadInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'system';
@@ -297,6 +298,12 @@ function loadInitialWallpaperFit(): WallpaperFitMode {
   return 'cover';
 }
 
+function loadInitialPreviewLabels(): boolean {
+  if (typeof window === 'undefined') return false;
+  const saved = localStorage.getItem(STORAGE_PREVIEW_LABELS_KEY);
+  return saved === 'true';
+}
+
 function loadInitialSections(): CustomSectionConfig[] {
   if (typeof window === 'undefined') return DEFAULT_SECTIONS;
   try {
@@ -318,6 +325,7 @@ export const baseColorStore = writable<BaseColor>(loadInitialBaseColor());
 export const neutralFamilyStore = baseColorStore; // alias
 export const accentThemeStore = writable<AccentTheme>(loadInitialAccentTheme());
 export const wallpaperFitStore = writable<WallpaperFitMode>(loadInitialWallpaperFit());
+export const previewLabelsStore = writable<boolean>(loadInitialPreviewLabels());
 export const sectionsStore = writable<CustomSectionConfig[]>(loadInitialSections());
 
 export function applyBaseColor(color: BaseColor, isDark = true) {
@@ -427,6 +435,13 @@ export function setWallpaperFit(fit: WallpaperFitMode) {
     localStorage.setItem(STORAGE_WALLPAPER_FIT_KEY, fit);
   }
   wallpaperFitStore.set(fit);
+}
+
+export function setPreviewLabels(show: boolean) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_PREVIEW_LABELS_KEY, String(show));
+  }
+  previewLabelsStore.set(show);
 }
 
 export function applyTheme(mode: ThemeMode) {

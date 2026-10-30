@@ -6,6 +6,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Modo Compacto para Botões de Controle de Saída:**
+  - Os botões da barra de saídas no painel de previews (Ao Vivo, Parar, Blackout, Limpar Texto e Fundo) agora operam em modo compacto por padrão (somente ícones) para economizar espaço de tela.
+  - Adicionada opção configurável na aba "Aparência & Cores" das Configurações para habilitar a exibição dos textos (labels) caso o operador prefira.
+
 ### Alterado
 - **Interface do Operador:**
   - Removido o subtítulo "Projeção para igrejas e eventos" do cabeçalho superior para deixar a barra de ferramentas mais limpa e compacta.

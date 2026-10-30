@@ -62,6 +62,7 @@
   import {
     themeStore,
     sectionsStore,
+    previewLabelsStore,
     applyTheme,
     initAppTheme,
     getSectionStyle,
@@ -1719,11 +1720,13 @@
               variant={$presentationState.display_mode === 'live' && $presentationState.active_media_id ? 'live' : 'secondary'}
               size="sm"
               onclick={() => setDisplayMode('live')}
-              class="text-xs px-1"
+              class="text-xs px-1 flex items-center justify-center gap-1"
               title="Colocar projeção ao vivo"
             >
-              <Radio size={12} />
-              <span class="truncate text-[10px]">Ao Vivo</span>
+              <Radio size={$previewLabelsStore ? 12 : 14} />
+              {#if $previewLabelsStore}
+                <span class="truncate text-[10px]">Ao Vivo</span>
+              {/if}
             </Button>
 
             <!-- Botão Parar Apresentação -->
@@ -1731,11 +1734,13 @@
               variant="secondary"
               size="sm"
               onclick={stopPresentation}
-              class="text-xs px-1 hover:bg-red-950/40 hover:text-red-400"
+              class="text-xs px-1 hover:bg-red-950/40 hover:text-red-400 flex items-center justify-center gap-1"
               title="Parar apresentação (Esc)"
             >
-              <Square size={12} class="text-red-400" />
-              <span class="truncate text-[10px]">Parar</span>
+              <Square size={$previewLabelsStore ? 12 : 14} class="text-red-400" />
+              {#if $previewLabelsStore}
+                <span class="truncate text-[10px]">Parar</span>
+              {/if}
             </Button>
 
             <!-- Botão Blackout -->
@@ -1743,11 +1748,13 @@
               variant={$presentationState.display_mode === 'blackout' ? 'destructive' : 'secondary'}
               size="sm"
               onclick={toggleBlackout}
-              class="text-xs px-1"
+              class="text-xs px-1 flex items-center justify-center gap-1"
               title="Blackout total (. ou Alt+B ou F1)"
             >
-              <EyeOff size={12} />
-              <span class="truncate text-[10px]">Black</span>
+              <EyeOff size={$previewLabelsStore ? 12 : 14} />
+              {#if $previewLabelsStore}
+                <span class="truncate text-[10px]">Black</span>
+              {/if}
             </Button>
 
             <!-- Botão Limpar Texto -->
@@ -1755,11 +1762,13 @@
               variant={$presentationState.display_mode === 'cleartext' ? 'default' : 'secondary'}
               size="sm"
               onclick={toggleClearText}
-              class="text-xs px-1"
+              class="text-xs px-1 flex items-center justify-center gap-1"
               title="Ocultar texto (, ou Alt+C ou F2)"
             >
-              <Slash size={12} />
-              <span class="truncate text-[10px]">Limpar</span>
+              <Slash size={$previewLabelsStore ? 12 : 14} />
+              {#if $previewLabelsStore}
+                <span class="truncate text-[10px]">Limpar</span>
+              {/if}
             </Button>
 
             <!-- Botão Papel de Parede / Fundo -->
@@ -1767,11 +1776,13 @@
               variant={$presentationState.display_mode === 'cleartext' && $presentationState.wallpaper_path ? 'default' : 'secondary'}
               size="sm"
               onclick={() => setDisplayMode('cleartext')}
-              class="text-xs px-1"
+              class="text-xs px-1 flex items-center justify-center gap-1"
               title="Tela de repouso / Papel de parede (/ ou Alt+W ou F3)"
             >
-              <ImageIcon size={12} />
-              <span class="truncate text-[10px]">Fundo</span>
+              <ImageIcon size={$previewLabelsStore ? 12 : 14} />
+              {#if $previewLabelsStore}
+                <span class="truncate text-[10px]">Fundo</span>
+              {/if}
             </Button>
           </div>
         </div>

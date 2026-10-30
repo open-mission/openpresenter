@@ -108,6 +108,7 @@
 
 - [Spec — Separação entre Papel de Parede da Setlist e Fundo de Projeção de Letras](specs/2026-10-29-setlist-wallpaper-vs-lyrics-background.md)
 - [Plano — Separação entre Papel de Parede da Setlist e Fundo de Projeção de Letras](plans/2026-10-29-setlist-wallpaper-vs-lyrics-background.md)
+- [Spec — Opção de Exibir Textos nos Botões de Controle de Saída](specs/2026-10-29-preview-action-labels-toggle.md)
 
 ## Arquitetura e decisões
 

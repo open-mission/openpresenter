@@ -52,10 +52,12 @@
     accentThemeStore,
     sectionsStore,
     wallpaperFitStore,
+    previewLabelsStore,
     setTheme,
     setBaseColor,
     setAccentTheme,
     setWallpaperFit,
+    setPreviewLabels,
     saveSections,
     resetSectionsToDefault,
     COLOR_PRESETS,
@@ -967,6 +969,36 @@
                       {/each}
                     </div>
                   {/if}
+                </div>
+              </div>
+
+              <!-- CONTROLE DO PAINEL DE CONTROLE DE SAÍDAS / PREVIEWS -->
+              <div class="pt-4 border-t border-neutral-800 space-y-4">
+                <div>
+                  <h3 class="text-sm font-semibold text-white">Barra de Controle de Saídas</h3>
+                  <p class="text-xs text-neutral-400 mt-0.5">
+                    Personalize a exibição dos botões de controle de projeção (Ao Vivo, Parar, Blackout, Limpar Texto e Fundo).
+                  </p>
+                </div>
+
+                <div class="flex items-center justify-between p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40">
+                  <div class="space-y-0.5 pr-4">
+                    <div class="text-xs font-semibold text-white">Exibir textos (labels) nos botões</div>
+                    <div class="text-[11px] text-neutral-400">
+                      Quando desativado, exibe apenas os ícones para economizar espaço no painel lateral de previews.
+                    </div>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={$previewLabelsStore}
+                      onchange={(e) => setPreviewLabels(e.currentTarget.checked)}
+                      class="sr-only peer"
+                    />
+                    <div
+                      class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"
+                    ></div>
+                  </label>
                 </div>
               </div>
             </div>
