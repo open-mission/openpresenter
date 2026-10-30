@@ -2,7 +2,8 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, broadcast};
 
 use op_core::{
-    DisplayMode, MediaItem, MediaKind, OutputsConfig, PresentationState, Setlist, Slide, WsMessage,
+    ClientConnection, DisplayMode, MediaItem, MediaKind, OutputsConfig, PresentationState, Setlist,
+    Slide, WsMessage,
 };
 
 use crate::session::SessionView;
@@ -18,6 +19,7 @@ pub struct AppState {
     pub media_items: Arc<RwLock<Vec<MediaItem>>>,
     pub active_setlist: Arc<RwLock<Option<Setlist>>>,
     pub outputs: Arc<RwLock<OutputsConfig>>,
+    pub connections: Arc<RwLock<Vec<ClientConnection>>>,
     pub broadcast_tx: broadcast::Sender<WsMessage>,
     pub db: Option<Arc<tokio::sync::Mutex<op_db::Database>>>,
     pub http_client: reqwest::Client,
@@ -95,6 +97,7 @@ impl AppState {
             media_items: Arc::new(RwLock::new(initial_items)),
             active_setlist: Arc::new(RwLock::new(Some(initial_setlist))),
             outputs: Arc::new(RwLock::new(outputs)),
+            connections: Arc::new(RwLock::new(Vec::new())),
             broadcast_tx,
             db: db.map(|d| Arc::new(tokio::sync::Mutex::new(d))),
             http_client: reqwest::Client::builder()
@@ -454,6 +457,53 @@ impl AppState {
         });
 
         updated
+    }
+
+    /// Registra ou atualiza uma conexão ativa de cliente WebSocket.
+    pub async fn add_or_update_connection(
+        &self,
+        id: &str,
+        ip: &str,
+        route: &str,
+        client_type: &str,
+    ) {
+        let mut conns = self.connections.write().await;
+        if let Some(existing) = conns.iter_mut().find(|c| c.id == id) {
+            existing.route = route.to_string();
+            existing.client_type = client_type.to_string();
+        } else {
+            let now = chrono::Local::now().format("%H:%M:%S").to_string();
+            conns.push(ClientConnection {
+                id: id.to_string(),
+                ip: ip.to_string(),
+                route: route.to_string(),
+                client_type: client_type.to_string(),
+                connected_at: now,
+            });
+        }
+        let list = conns.clone();
+        drop(conns);
+
+        let _ = self
+            .broadcast_tx
+            .send(WsMessage::ConnectionsUpdated { connections: list });
+    }
+
+    /// Remove uma conexão ativa de cliente WebSocket.
+    pub async fn remove_connection(&self, id: &str) {
+        let mut conns = self.connections.write().await;
+        conns.retain(|c| c.id != id);
+        let list = conns.clone();
+        drop(conns);
+
+        let _ = self
+            .broadcast_tx
+            .send(WsMessage::ConnectionsUpdated { connections: list });
+    }
+
+    /// Retorna a lista atual de conexões ativas.
+    pub async fn get_connections(&self) -> Vec<ClientConnection> {
+        self.connections.read().await.clone()
     }
 
     /// Atualiza status de conexão de uma tela.

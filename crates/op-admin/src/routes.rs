@@ -155,6 +155,7 @@ pub fn create_routes(state: AppState) -> Router {
             post(set_presentation_wallpaper),
         )
         .route("/api/system/network-info", get(get_network_info))
+        .route("/api/connections", get(get_connections_endpoint))
         .route("/api/timer", get(get_timer))
         .route("/api/timer/start", post(start_timer))
         .route("/api/timer/pause", post(pause_timer))
@@ -238,6 +239,13 @@ async fn get_status(State(state): State<AppState>) -> Json<StatusResponse> {
 async fn get_media(State(state): State<AppState>) -> Json<Vec<MediaItem>> {
     let items = state.media_items.read().await.clone();
     Json(items)
+}
+
+async fn get_connections_endpoint(
+    State(state): State<AppState>,
+) -> Json<Vec<op_core::ClientConnection>> {
+    let conns = state.get_connections().await;
+    Json(conns)
 }
 
 async fn select_live_slide(

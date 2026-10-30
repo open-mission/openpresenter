@@ -147,11 +147,14 @@ fn main() -> anyhow::Result<()> {
                     "╚════════════════════════════════════════════════════════════════════╝\n"
                 );
 
-                let _ = axum::serve(listener, app)
-                    .with_graceful_shutdown(async move {
-                        let _ = shutdown_rx.await;
-                    })
-                    .await;
+                let _ = axum::serve(
+                    listener,
+                    app.into_make_service_with_connect_info::<SocketAddr>(),
+                )
+                .with_graceful_shutdown(async move {
+                    let _ = shutdown_rx.await;
+                })
+                .await;
             }
             Err(e) => {
                 eprintln!("Erro ao vincular listener na porta {}: {}", port, e);
@@ -1276,5 +1279,79 @@ mod tests {
         let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(status_json["stage"]["type"], "ReadyToRestart");
         assert_eq!(status_json["stage"]["new_version"], "0.2.0");
+    }
+
+    #[tokio::test]
+    async fn test_connections_endpoint_and_state_work() {
+        let dummy_view = crate::session::SessionView {
+            app_version: op_core::VERSION.to_string(),
+            tagline: op_core::TAGLINE.to_string(),
+            stack: op_core::STACK.to_string(),
+            db_path: ":memory:".into(),
+            media_path: "/tmp/media".into(),
+            db_ready: true,
+            db_error: String::new(),
+            schema_version: 7,
+            theme_label: "Sistema".into(),
+            locale: "pt-BR".into(),
+            first_run_at: "agora".into(),
+            last_run_at: "agora".into(),
+            is_first_run: true,
+        };
+
+        let state = AppState::new(dummy_view, OutputsConfig::default(), None);
+        let app = create_routes(state.clone());
+
+        // Inicialmente vazio
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/connections")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let conns: Vec<op_core::ClientConnection> = serde_json::from_slice(&body).unwrap();
+        assert!(conns.is_empty());
+
+        // Adiciona conexões
+        state
+            .add_or_update_connection("c1", "192.168.1.50", "/public", "public")
+            .await;
+        state
+            .add_or_update_connection("c2", "192.168.1.55", "/stage", "stage")
+            .await;
+
+        let resp2 = create_routes(state.clone())
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/connections")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let body2 = axum::body::to_bytes(resp2.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let conns2: Vec<op_core::ClientConnection> = serde_json::from_slice(&body2).unwrap();
+        assert_eq!(conns2.len(), 2);
+        assert_eq!(conns2[0].client_type, "public");
+        assert_eq!(conns2[0].ip, "192.168.1.50");
+        assert_eq!(conns2[0].route, "/public");
+
+        // Remove c1
+        state.remove_connection("c1").await;
+        let remaining = state.get_connections().await;
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].id, "c2");
     }
 }

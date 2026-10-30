@@ -748,6 +748,16 @@ impl Default for PresentationState {
     }
 }
 
+/// Registro de uma conexão ativa de cliente WebSocket.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClientConnection {
+    pub id: String,
+    pub ip: String,
+    pub route: String,
+    pub client_type: String,
+    pub connected_at: String,
+}
+
 /// Mensagem transmitida via WebSocket entre Admin, Public, Stage e servidor.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload", rename_all = "snake_case")]
@@ -800,9 +810,15 @@ pub enum WsMessage {
     SetStageMessage {
         message: Option<String>,
     },
-    /// Identificação do cliente ao se conectar (admin, public, stage).
+    /// Identificação do cliente ao se conectar (admin, public, stage) e rota ativa.
     Identify {
         client_type: String,
+        #[serde(default)]
+        route: Option<String>,
+    },
+    /// Notificação com a lista de conexões ativas no WebSocket.
+    ConnectionsUpdated {
+        connections: Vec<ClientConnection>,
     },
     /// Notificação de atualização enviada aos clientes.
     StateUpdated {

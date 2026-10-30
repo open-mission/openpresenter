@@ -1,17 +1,22 @@
 use axum::{
     Router,
     extract::{
-        State,
+        ConnectInfo, State,
         ws::{Message, WebSocket, WebSocketUpgrade},
     },
+    http::HeaderMap,
     response::IntoResponse,
     routing::get,
 };
 use futures_util::{SinkExt, StreamExt};
 use op_core::WsMessage;
+use std::net::SocketAddr;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tracing::{debug, error, info, warn};
 
 use crate::state::AppState;
+
+static NEXT_CONN_ID: AtomicU64 = AtomicU64::new(1);
 
 pub fn create_ws_router(state: AppState) -> Router {
     Router::new()
@@ -19,12 +24,31 @@ pub fn create_ws_router(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
+async fn ws_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    ws: WebSocketUpgrade,
+) -> impl IntoResponse {
+    let client_ip = headers
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.split(',').next())
+        .map(|s| s.trim().to_string())
+        .or_else(|| {
+            headers
+                .get("x-real-ip")
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.trim().to_string())
+        })
+        .unwrap_or_else(|| addr.ip().to_string());
+
+    ws.on_upgrade(move |socket| handle_socket(socket, state, client_ip))
 }
 
-async fn handle_socket(socket: WebSocket, state: AppState) {
+async fn handle_socket(socket: WebSocket, state: AppState, client_ip: String) {
     let (mut sender, mut receiver) = socket.split();
+    let conn_id = format!("conn-{}", NEXT_CONN_ID.fetch_add(1, Ordering::Relaxed));
 
     // 1. Envia estado inicial completo ao cliente conectado
     let presentation = state.presentation.read().await.clone();
@@ -40,6 +64,15 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     {
         warn!("Falha ao enviar estado inicial para cliente WebSocket: {err}");
         return;
+    }
+
+    // Envia lista atual de conexões
+    let current_conns = state.get_connections().await;
+    let conns_sync = WsMessage::ConnectionsUpdated {
+        connections: current_conns,
+    };
+    if let Ok(json) = serde_json::to_string(&conns_sync) {
+        let _ = sender.send(Message::Text(json.into())).await;
     }
 
     // 2. Cria canal de escuta do broadcast interno do servidor
@@ -58,6 +91,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
     let mut client_identity: Option<String> = None;
     let state_for_cleanup = state.clone();
+    let conn_id_for_cleanup = conn_id.clone();
 
     // 4. Loop de leitura de mensagens enviadas pelo cliente
     while let Some(result) = receiver.next().await {
@@ -65,9 +99,24 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
             Ok(Message::Text(text)) => {
                 debug!("Mensagem WebSocket recebida: {text}");
                 match serde_json::from_str::<WsMessage>(&text) {
-                    Ok(WsMessage::Identify { client_type }) => {
-                        info!("Cliente WebSocket identificado como '{client_type}'");
+                    Ok(WsMessage::Identify { client_type, route }) => {
+                        let active_route = route.unwrap_or_else(|| match client_type.as_str() {
+                            "public" => "/public".to_string(),
+                            "stage" => "/stage".to_string(),
+                            _ => "/".to_string(),
+                        });
+                        info!(
+                            "Cliente WebSocket identificado como '{client_type}' rota '{active_route}' ip '{client_ip}'"
+                        );
                         state.set_connection(&client_type, true).await;
+                        state
+                            .add_or_update_connection(
+                                &conn_id,
+                                &client_ip,
+                                &active_route,
+                                &client_type,
+                            )
+                            .await;
                         client_identity = Some(client_type);
                     }
                     Ok(WsMessage::SelectSlide {
@@ -145,6 +194,9 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     send_task.abort();
 
     // 5. Limpeza de conexão
+    state_for_cleanup
+        .remove_connection(&conn_id_for_cleanup)
+        .await;
     if let Some(ident) = client_identity {
         info!("Cliente '{ident}' desconectado do WebSocket");
         state_for_cleanup.set_connection(&ident, false).await;

@@ -6,6 +6,7 @@
     mediaItemsList,
     activeSetlist,
     isWsConnected,
+    connectedClients,
     initWebSocket,
     selectSlide,
     setDisplayMode,
@@ -111,6 +112,7 @@
     Folder,
     QrCode,
     Sparkles,
+    Globe,
   } from 'lucide-svelte';
 
   let selectedMediaId = $state<string>('song-1');
@@ -130,6 +132,7 @@
   let isImageSelectorOpen = $state(false);
   let imageSelectorMode = $state<'single' | 'folder'>('single');
   let isShareOutputsOpen = $state(false);
+  let isConnectionsDropdownOpen = $state(false);
   let previewImage = $state<ImageMediaItem | null>(null);
   let isPreviewImageOpen = $state(false);
 
@@ -168,6 +171,11 @@
     initAppTheme();
     syncDisplaySettingsFromBackend();
     loadSetlists();
+
+    fetch('/api/connections')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => connectedClients.set(data))
+      .catch(() => {});
 
     fetchUpdateCheck()
       .then((res) => {
@@ -442,7 +450,8 @@
       isSettingsOpen ||
       isSetlistModalOpen ||
       isQuickItemModalOpen ||
-      isRenameModalOpen
+      isRenameModalOpen ||
+      isConnectionsDropdownOpen
     ) {
       if (e.key === 'Escape') {
         isCommandPaletteOpen = false;
@@ -453,6 +462,7 @@
         isRenameModalOpen = false;
         isSetlistSelectorOpen = false;
         isAddMenuOpen = false;
+        isConnectionsDropdownOpen = false;
       }
       return;
     }
@@ -460,9 +470,10 @@
     // Tecla Escape: Para a apresentação
     if (e.key === 'Escape') {
       e.preventDefault();
-      if (isSetlistSelectorOpen || isAddMenuOpen) {
+      if (isSetlistSelectorOpen || isAddMenuOpen || isConnectionsDropdownOpen) {
         isSetlistSelectorOpen = false;
         isAddMenuOpen = false;
+        isConnectionsDropdownOpen = false;
         return;
       }
       if (numberBuffer) {
@@ -1073,14 +1084,93 @@
         </div>
       {/if}
 
-      <!-- Status WebSocket -->
-      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border text-xs">
-        {#if $isWsConnected}
-          <Wifi size={13} class="text-emerald-400" />
-          <span class="text-emerald-400 font-medium">Online</span>
-        {:else}
-          <WifiOff size={13} class="text-destructive" />
-          <span class="text-destructive font-medium">Reconectando</span>
+      <!-- Status WebSocket & Dropdown de Conexões Ativas -->
+      <div class="relative">
+        <button
+          type="button"
+          onclick={() => (isConnectionsDropdownOpen = !isConnectionsDropdownOpen)}
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 hover:bg-muted/70 border border-border text-xs transition-colors cursor-pointer select-none"
+          title="Ver conexões ativas do WebSocket"
+        >
+          {#if $isWsConnected}
+            <Wifi size={13} class="text-emerald-400" />
+            <span class="text-emerald-400 font-medium">Online</span>
+            {#if $connectedClients.length > 0}
+              <span class="text-[10px] px-1 py-0.2 bg-emerald-500/20 text-emerald-300 rounded font-mono font-bold leading-none">
+                {$connectedClients.length}
+              </span>
+            {/if}
+          {:else}
+            <WifiOff size={13} class="text-destructive" />
+            <span class="text-destructive font-medium">Reconectando</span>
+          {/if}
+        </button>
+
+        {#if isConnectionsDropdownOpen}
+          <!-- Backdrop invisível para fechar ao clicar fora -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            class="fixed inset-0 z-40"
+            onclick={() => (isConnectionsDropdownOpen = false)}
+          ></div>
+
+          <!-- Dropdown com lista de conexões ativas -->
+          <div
+            class="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-xl border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-3 shadow-2xl z-50 text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
+          >
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-neutral-800">
+              <div class="flex items-center gap-2">
+                <Wifi size={14} class="text-emerald-400" />
+                <span class="font-bold text-white text-xs">Conexões WebSocket Ativas</span>
+              </div>
+              <span class="text-[10px] font-mono text-neutral-400 bg-neutral-800 px-1.5 py-0.5 rounded">
+                {$connectedClients.length} {$connectedClients.length === 1 ? 'ativa' : 'ativas'}
+              </span>
+            </div>
+
+            {#if $connectedClients.length === 0}
+              <div class="py-4 text-center text-neutral-400 text-xs">
+                Nenhuma outra conexão registrada no momento.
+              </div>
+            {:else}
+              <div class="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
+                {#each $connectedClients as conn (conn.id)}
+                  <div class="flex items-center justify-between p-2 rounded-lg bg-neutral-950/70 border border-neutral-800/80">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <div class="w-6 h-6 rounded flex items-center justify-center shrink-0 {conn.client_type === 'public' ? 'bg-purple-500/20 text-purple-400' : conn.client_type === 'stage' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}">
+                        {#if conn.client_type === 'public'}
+                          <MonitorPlay size={13} />
+                        {:else if conn.client_type === 'stage'}
+                          <Tv size={13} />
+                        {:else}
+                          <Globe size={13} />
+                        {/if}
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                          <span class="font-semibold text-white text-xs truncate">
+                            {conn.client_type === 'public' ? 'Projetor Público' : conn.client_type === 'stage' ? 'Retorno de Palco' : 'Painel Operador'}
+                          </span>
+                          <span class="text-[10px] font-mono px-1 py-0.2 rounded bg-neutral-800 text-neutral-300">
+                            {conn.route}
+                          </span>
+                        </div>
+                        <div class="text-[11px] font-mono text-neutral-400 truncate">
+                          IP: <span class="text-neutral-200">{conn.ip}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="text-[10px] font-mono text-neutral-400 shrink-0 text-right">
+                      <div class="text-neutral-500">às</div>
+                      <div class="text-neutral-300 font-semibold">{conn.connected_at}</div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
         {/if}
       </div>
 
@@ -1268,22 +1358,6 @@
 
             <!-- Botão + com Menu Suspenso de Adição e Botão Fechar Sidebar -->
             <div class="relative shrink-0 flex items-center gap-1.5">
-              <Badge variant="secondary" class="text-[11px] py-0 px-1.5">
-                {$mediaItemsList.length} itens
-              </Badge>
-
-              <!-- Botão Rápido de Limpar Setlist -->
-              {#if $mediaItemsList.length > 0}
-                <button
-                  type="button"
-                  title="Limpar todos os itens da Setlist ativa"
-                  onclick={handleClearSetlist}
-                  class="w-7 h-7 rounded-md hover:bg-amber-500/20 text-neutral-400 hover:text-amber-300 border border-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
-                >
-                  <Eraser size={13} />
-                </button>
-              {/if}
-
               <button
                 type="button"
                 title="Adicionar à Setlist"

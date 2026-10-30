@@ -198,6 +198,14 @@ export interface StatusResponse {
   outputs: OutputsConfig;
 }
 
+export interface ClientConnection {
+  id: string;
+  ip: string;
+  route: string;
+  client_type: string;
+  connected_at: string;
+}
+
 export type WsMessage =
   | { type: 'sync_state'; payload: { presentation: PresentationState; media_items: MediaItem[] } }
   | { type: 'select_slide'; payload: { media_id: string; slide_index: number } }
@@ -211,7 +219,8 @@ export type WsMessage =
   | { type: 'set_timer_overtime'; payload: { allow_overtime: boolean } }
   | { type: 'quick_present_media'; payload: { item: MediaItem; slide_index?: number } }
   | { type: 'set_stage_message'; payload: { message?: string } }
-  | { type: 'identify'; payload: { client_type: string } }
+  | { type: 'identify'; payload: { client_type: string; route?: string } }
+  | { type: 'connections_updated'; payload: { connections: ClientConnection[] } }
   | { type: 'state_updated'; payload: { presentation: PresentationState } }
   | { type: 'media_items_updated'; payload: { media_items: MediaItem[] } }
   | { type: 'setlist_updated'; payload: { setlist: Setlist } }

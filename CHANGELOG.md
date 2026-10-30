@@ -7,6 +7,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Painel Flutuante de Conexões WebSocket Ativas no Cabeçalho:**
+  - O indicador "Online" no topo da interface agora é um botão interativo com contador de clientes conectados.
+  - Ao clicar, exibe um dropdown moderno listando todas as conexões WebSocket ativas em tempo real, informando o tipo do cliente (Painel Operador, Projetor Público, Retorno de Palco), endereço IP do dispositivo, rota aberta (`/`, `/public`, `/stage`) e horário da conexão.
+  - Adicionado endpoint `GET /api/connections` e sincronização instantânea via evento `ConnectionsUpdated`.
 - **Busca Bíblica Integrada por Referência e Palavras no Command Palette Global:**
   - Adicionada aba dedicada **Bíblia Sagrada** no Command Palette global (`Ctrl+K` / `Cmd+K`), com navegação por teclado rápida e atalho `Tab`.
   - Suporte à busca de passagens bíblicas por referência (ex: `João 3:16`, `Sl 23:1-4`, `Romanos 8`), listando instantaneamente os versículos solicitados com opção de projetar passagem completa ou versículos individuais.
@@ -63,6 +67,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - A opção na aba "Aparência & Cores" das Configurações permite ativar os rótulos de texto (labels) a qualquer momento.
 
 ### Alterado
+- **Limpeza do Cabeçalho da Barra Lateral da Setlist:**
+  - Removido o badge numérico com a contagem de itens ("X itens") do cabeçalho da setlist para evitar poluição visual.
+  - Removido o botão de apagar todos os itens da setlist com ícone de borracha (`Eraser`) do cabeçalho, evitando limpezas acidentais durante o culto (a gestão de itens permanece nos menus contextuais e ações específicas).
 - **Exibição do Cronômetro no Cabeçalho Somente Quando em Execução:**
   - O widget de cronômetro no cabeçalho do painel do operador agora é renderizado exclusivamente quando o timer estiver em execução (`isTimerRunning`), eliminando poluição visual quando pausado ou zerado.
 - **Bíblia: Apresentação Rápida via Duplo Clique e Menu de Contexto Completo:**
