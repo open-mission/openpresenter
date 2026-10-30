@@ -60,6 +60,9 @@ fn resolve_server_port(db_opt: Option<&Arc<tokio::sync::Mutex<op_db::Database>>>
 }
 
 fn main() -> anyhow::Result<()> {
+    #[cfg(target_os = "macos")]
+    setup_macos_app_icon();
+
     // Inicializa logs estruturados
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -263,6 +266,36 @@ fn main() -> anyhow::Result<()> {
             }
 
             _ => {}
+        }
+    });
+}
+
+/// No macOS, atribui o ícone oficial da marca do OpenPresenter ao arquivo executável
+/// no Finder e define o ícone de exibição no Dock / Cocoa do sistema operacional.
+#[cfg(target_os = "macos")]
+fn setup_macos_app_icon() {
+    std::thread::spawn(|| {
+        const ICON_BYTES: &[u8] =
+            include_bytes!("../../../assets/branding/open-presenter-app-icon-256.png");
+        let temp_icon = std::env::temp_dir().join("open-presenter-app-icon.png");
+        if let (Ok(()), Ok(exe_path)) = (
+            std::fs::write(&temp_icon, ICON_BYTES),
+            std::env::current_exe(),
+        ) {
+            let script = format!(
+                "use framework \"Cocoa\"\n\
+                 set img to (current application's NSImage's alloc()'s initWithContentsOfFile:\"{}\")\n\
+                 if img is not missing value then\n\
+                     (current application's NSWorkspace's sharedWorkspace()'s setIcon:img forFile:\"{}\" options:0)\n\
+                     (current application's NSApp's setApplicationIconImage:img)\n\
+                 end if",
+                temp_icon.to_string_lossy(),
+                exe_path.to_string_lossy()
+            );
+            let _ = std::process::Command::new("osascript")
+                .arg("-e")
+                .arg(script)
+                .output();
         }
     });
 }
@@ -1271,7 +1304,7 @@ mod tests {
         {
             let mut st = state.updater.write().await;
             st.stage = crate::updater::UpdateStage::ReadyToRestart {
-                new_version: "0.2.0".into(),
+                new_version: "0.3.0".into(),
             };
         }
 
@@ -1290,7 +1323,7 @@ mod tests {
             .unwrap();
         let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(status_json["stage"]["type"], "ReadyToRestart");
-        assert_eq!(status_json["stage"]["new_version"], "0.2.0");
+        assert_eq!(status_json["stage"]["new_version"], "0.3.0");
     }
 
     #[tokio::test]

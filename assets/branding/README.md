@@ -8,7 +8,9 @@ Assets de marca copiados de `/Users/claudio/cafg-second-brain/Projects/OpenPrese
 - `open-presenter-app-icon-32.png` — renderização bitmap 32x32 para o System Tray e barras de status.
 - `open-presenter-app-icon-64.png` — renderização bitmap 64x64 de alta densidade.
 - `open-presenter-app-icon-256.png` — renderização bitmap 256x256 para ícones de alta resolução.
+- `open-presenter-app-icon-1024.png` — renderização bitmap 1024x1024 Ultra HD para geração de ícones nativos de sistema.
 - `open-presenter-app-icon.ico` — ícone nativo multi-resolução para o executável Windows (`.exe`).
+- `open-presenter-app-icon.icns` — ícone nativo multi-resolução Retina para o executável e aplicativo macOS (`.app` / Mach-O).
 - `open-presenter-icon-tray-32.png` — renderização bitmap 32x32 com fundo transparente para o System Tray / Menu Bar (modo template).
 - `open-presenter-icon-tray-64.png` — renderização bitmap 64x64 Retina com fundo transparente para o System Tray / Menu Bar.
 - `open-presenter-icon-dark-32.png` — renderização bitmap 32x32 do ícone com fundo transparente para o System Tray em barras de status escuras.

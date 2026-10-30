@@ -6,7 +6,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-30
+
 ### Adicionado
+- **Ícone Nativo do Executável do OpenPresenter (Multiplataforma):**
+  - No macOS, geração do arquivo de ícones oficial `.icns` com resolução Retina de 16x16 até 1024x1024 (`assets/branding/open-presenter-app-icon.icns`).
+  - Criação de script de empacotamento (`scripts/package-macos.sh`) gerando o bundle nativo `OpenPresenter.app` com `Info.plist` e recursos de ícone completos.
+  - Atribuição do ícone oficial da marca diretamente no arquivo executável Mach-O (`open-presenter`) via atributos estendidos do Finder (`com.apple.FinderInfo`), garantindo que o arquivo avulso exiba o ícone no Finder e desktop.
+  - Configuração em tempo de execução no `main.rs` para registrar o ícone oficial no Cocoa `NSApplication`, assegurando exibição na Dock do macOS e no alternador de tarefas (Cmd+Tab).
+  - No Windows, incorporação do ícone nos recursos PE do executável `.exe` via `winresource` apontando para `open-presenter-app-icon.ico`.
 - **Suporte a Progressive Web App (PWA) e Instalação Standalone:**
   - Criação do manifesto web (`manifest.webmanifest`) com ícones oficiais de alta resolução (192x192 e 512x512), tema escuro e atalhos rápidos para o Painel, Remoto, Telão e Palco.
   - Implementação de Service Worker (`sw.js`) permitindo a instalação do OpenPresenter como aplicativo autônomo (standalone) no desktop e em smartphones (Android e iOS).

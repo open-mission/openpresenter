@@ -135,6 +135,11 @@
 - [Spec — Correção de Transparência e Template do Ícone no System Tray](specs/2026-10-30-tray-icon-template-and-transparency-fix.md)
 - [Spec — Impeccable Audit & Craft Fixes no Painel do Operador](specs/2026-10-30-impeccable-admin-ui-audit-and-craft-fixes.md)
 
+## Versão 0.3.0: Controle Remoto Mobile, Lower Third, PWA e Ícone Nativo
+
+- [Spec — Versão 0.3.0: Preparação de Release](specs/2026-10-30-release-0-3-0.md)
+- [Plano — Versão 0.3.0: Preparação de Release](plans/2026-10-30-release-0-3-0.md)
+
 ## Versão 0.2.0: Mídias em Vídeo, Busca Bíblica Global, Conexões em Tempo Real e Refinamento de Craft
 
 - [Spec — Versão 0.2.0: Preparação de Release](specs/2026-10-30-versao-0-2-0-preparacao-de-release.md)
