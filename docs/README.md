@@ -120,6 +120,7 @@
 - [Spec — Interface Minimalista e Limpa no Modo Standby do Stage](specs/2026-10-29-stage-standby-minimal-clean-ui.md)
 - [Spec — Modernização do Stage Display: Preset Grid Moderno Pro, Auto-scale e Otimização de Espaço](specs/2026-10-30-stage-modern-grid-pro-auto-scale-e-layout.md)
 - [Spec — Auto-scale de Fontes e Controle de Tamanho na Tela Pública (/public)](specs/2026-10-30-public-view-auto-scale-font-size.md)
+- [Spec — Borda Verde para Item ao Vivo na Barra de Setlist](specs/2026-10-30-setlist-bar-live-item-green-border.md)
 
 ## Arquitetura e decisões
 

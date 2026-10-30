@@ -121,9 +121,11 @@
     class={cn(
       'w-full text-left p-2.5 rounded-lg border transition-all duration-150 flex items-center justify-between gap-2 group relative overflow-hidden select-none',
       isDragOver ? 'border-primary ring-2 ring-primary/40 bg-neutral-800' : '',
-      selected
-        ? 'bg-neutral-800/90 border-primary/50 shadow-sm text-neutral-100 ring-1 ring-primary/30'
-        : 'bg-neutral-900/40 border-neutral-800/60 hover:bg-neutral-850 hover:border-neutral-700 text-neutral-300'
+      isLive
+        ? 'border-emerald-500 ring-1 ring-emerald-500/50 bg-emerald-950/20 text-neutral-100 shadow-sm'
+        : selected
+          ? 'bg-neutral-800/90 border-primary/50 shadow-sm text-neutral-100 ring-1 ring-primary/30'
+          : 'bg-neutral-900/40 border-neutral-800/60 hover:bg-neutral-850 hover:border-neutral-700 text-neutral-300'
     )}
     oncontextmenu={(e) => {
       e.preventDefault();
@@ -136,7 +138,9 @@
       if (e.key === 'Enter') onclick?.();
     }}
   >
-    {#if selected}
+    {#if isLive}
+      <div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
+    {:else if selected}
       <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
     {/if}
 
@@ -152,9 +156,11 @@
       <div
         class={cn(
           'w-8 h-8 rounded-md flex items-center justify-center shrink-0 border transition-colors',
-          selected
-            ? 'bg-primary/10 border-primary/30 text-primary'
-            : 'bg-neutral-800/80 border-neutral-700/50 text-neutral-400 group-hover:text-neutral-200'
+          isLive
+            ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+            : selected
+              ? 'bg-primary/10 border-primary/30 text-primary'
+              : 'bg-neutral-800/80 border-neutral-700/50 text-neutral-400 group-hover:text-neutral-200'
         )}
       >
         <Icon size={16} />
@@ -162,12 +168,9 @@
 
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-1.5">
-          <h4 class="text-sm font-medium truncate text-neutral-100 leading-tight">
+          <h4 class="text-sm font-medium truncate {isLive ? 'text-white font-semibold' : 'text-neutral-100'} leading-tight">
             {item.title}
           </h4>
-          {#if isLive}
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0"></span>
-          {/if}
         </div>
         {#if item.artist_or_ref}
           <p class="text-xs text-neutral-400 truncate mt-0.5">
@@ -179,7 +182,7 @@
 
     <div class="flex items-center gap-1.5 shrink-0">
       {#if isLive}
-        <Badge variant="live" class="text-[10px] uppercase tracking-wider py-0 px-1.5">
+        <Badge variant="success" class="text-[10px] uppercase font-bold tracking-wider py-0 px-1.5 bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
           Ao Vivo
         </Badge>
       {/if}
@@ -190,7 +193,7 @@
         size={14}
         class={cn(
           'transition-transform text-neutral-500 group-hover:text-neutral-300',
-          selected ? 'text-primary translate-x-0.5' : ''
+          isLive ? 'text-emerald-400' : selected ? 'text-primary translate-x-0.5' : ''
         )}
       />
     </div>

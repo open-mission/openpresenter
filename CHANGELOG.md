@@ -35,6 +35,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - A opção na aba "Aparência & Cores" das Configurações permite ativar os rótulos de texto (labels) a qualquer momento.
 
 ### Alterado
+- **Barra de Setlist: Destaque de Item ao Vivo com Borda Verde:**
+  - Removido o indicador pulsante/piscante (`animate-ping`) do item ativo para eliminar distrações visuais na barra lateral de setlist.
+  - O item em apresentação ao vivo agora é destacado com uma borda verde nítida (`border-emerald-500 ring-1 ring-emerald-500/50`), fundo sutil esmeralda e indicador lateral verde sólido.
 - **Modo de Descanso no Monitor de Palco (/stage):**
   - O bloco do cronômetro agora é exibido exclusivamente quando o timer estiver em execução (`running`) ou em overtime, evitando poluição visual quando inativo.
   - Removidos os badges de "Modo de Descanso (Standby)" e texto de orientação do rodapé, deixando o relógio gigante e a data centralizados de forma ultra limpa e minimalista.
