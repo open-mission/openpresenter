@@ -6,6 +6,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Alterado
+- **Interface do Operador:**
+  - Removido o subtítulo "Projeção para igrejas e eventos" do cabeçalho superior para deixar a barra de ferramentas mais limpa e compacta.
+
 ### Corrigido
 - **Separação de Papel de Parede da Setlist vs. Fundo das Letras:**
   - O papel de parede selecionado na setlist agora é mantido na tela pública durante os momentos de repouso (sem apresentação ativa).

@@ -1016,8 +1016,6 @@
           <span class="font-bold text-foreground">Open</span><span class="font-normal text-muted-foreground ml-0.5">Presenter</span>
         </div>
       </a>
-      <span class="text-border hidden sm:inline">|</span>
-      <span class="text-xs text-muted-foreground hidden xl:inline">Projeção para igrejas e eventos</span>
     </div>
 
     <!-- Busca Global e Command Palette (⌘K) -->
