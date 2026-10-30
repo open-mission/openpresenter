@@ -16,6 +16,16 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Paridade 100% no preview do operador com canvas virtual HD 1080p escalado (idêntico à tela pública real), personalização de posicionamento da referência bíblica (rodapé vs. abaixo do texto) com tamanho de fonte customizável, opções de encaixe do papel de parede (contain, cover, fill) com proteção de margens seguras contra overscan, alinhamento dos switches Tailwind UI e filtro de privacidade na galeria de imagens para proteger arquivos pessoais. (commit 95ee5ca - 2026-10-30 15:01:21 -03:00)
+
+- [x] Separação de configurações dedicadas para letras de louvor e textos bíblicos na Projeção Pública e Monitor de Palco (sub-seções no modal de configurações, alinhamentos, tamanhos de fonte e preenchimento de tela independentes, cores dedicadas no stage) e correção do contraste dos interruptores (switches) de configurações. (commit 0da4508 - 2026-10-30 13:49:51 -03:00)
+
+- [x] Correção de colapso de viewport e auto-scale em receptores Google Cast / Chromecast e Smart TVs HDMI, assegurando dimensões 100% na raiz do DOM e distribuição vertical correta. (commit 5fd74a6 - 2026-10-30 12:59:24 -03:00)
+
+- [x] Integração completa com Google Cast (Chromecast): transmissão sem fio com latência quase zero (<30ms) via Web Receiver Chromium e WebSocket local para Telas Pública (/public) e Monitor de Palco (/stage), modal dedicado de Cast e atalho com status no header do painel. (commit 526a3dc - 2026-10-30 04:39:25 -03:00)
+
+- [x] Especificação técnica, plano de execução e Registro de Decisão Arquitetural (ADR 0013) para suporte a Google Cast com Web Receiver em relação a streams de vídeo HLS. (commit b54a64a - 2026-10-30 04:34:44 -03:00)
+
 - [x] Preparar a versão 0.2.0 para lançamento: unificação de versão (Cargo.toml, package.json, workflows), spec de release e atualização do CHANGELOG.md (2026-10-30 04:25:00 -03:00)
 
 - [x] Auditoria técnica Impeccable no painel do operador: correção de acessibilidade WAI-ARIA, suporte a prefers-reduced-motion, padronização de design tokens semânticos e atualização da skill para v4.8.0. (commit 26dd358 - 2026-10-30 04:13:07 -03:00)

@@ -143,7 +143,16 @@
 
 - [Spec — Integração com Google Cast para Telas Pública e Retorno de Palco](specs/2026-10-30-integracao-google-cast.md)
 - [Plano — Integração com Google Cast para Telas Pública e Retorno de Palco](plans/2026-10-30-integracao-google-cast.md)
+- [Spec — Correção de Viewport e Auto-Scale em TVs e Chromecast](specs/2026-10-30-fix-viewport-e-autoscale-chromecast-tvs.md)
 - [ADR 0013 — Integração com Google Cast: Web Receiver via WebSocket vs. Transmissão de Vídeo HLS](decisions/0013-integracao-google-cast-web-receiver-vs-hls.md)
+
+## Configurações Desacopladas de Louvores e Textos Bíblicos
+
+- [Spec — Configurações Desacopladas de Louvores e Textos Bíblicos](specs/2026-10-30-configuracoes-desacopladas-louvores-e-biblia.md)
+
+## Paridade 100% no Preview do Painel e Privacidade de Mídias
+
+- [Spec — Paridade 100% no Preview do Admin, Ajustes Bíblicos e Privacidade de Imagens](specs/2026-10-30-preview-publico-paridade-total-e-privacidade-midias.md)
 
 ## Arquitetura e decisões
 
