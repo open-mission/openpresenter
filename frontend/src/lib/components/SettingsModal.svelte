@@ -1801,6 +1801,41 @@
                       />
                     </div>
                   </div>
+
+                  <!-- Margens em Relação às Bordas -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                      <div class="flex justify-between text-xs">
+                        <span class="text-neutral-400">Margem Horizontal</span>
+                        <span class="font-mono text-white font-semibold">{localBrand.logo_margin_horizontal ?? 24}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="160"
+                        step="4"
+                        value={localBrand.logo_margin_horizontal ?? 24}
+                        oninput={(e) => updateBrandField('logo_margin_horizontal', Number((e.target as HTMLInputElement).value))}
+                        class="w-full accent-primary"
+                      />
+                    </div>
+
+                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
+                      <div class="flex justify-between text-xs">
+                        <span class="text-neutral-400">Margem Vertical</span>
+                        <span class="font-mono text-white font-semibold">{localBrand.logo_margin_vertical ?? 24}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="160"
+                        step="4"
+                        value={localBrand.logo_margin_vertical ?? 24}
+                        oninput={(e) => updateBrandField('logo_margin_vertical', Number((e.target as HTMLInputElement).value))}
+                        class="w-full accent-primary"
+                      />
+                    </div>
+                  </div>
                 {/if}
               </div>
             </div>

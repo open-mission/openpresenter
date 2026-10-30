@@ -241,6 +241,8 @@ export interface ChurchBrandSettings {
   logo_position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   logo_opacity: number;
   logo_size: number;
+  logo_margin_horizontal?: number;
+  logo_margin_vertical?: number;
 }
 
 export type StagePreset = 'split-50-50' | 'modern-grid' | 'video-focus' | 'horizontal-stack';

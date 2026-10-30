@@ -66,17 +66,20 @@
     );
   });
 
-  const logoPositionClasses = $derived.by<string>(() => {
+  const logoPositionStyles = $derived.by<string>(() => {
+    const scale = 0.25;
+    const mx = Math.round((churchBrand?.logo_margin_horizontal ?? 24) * scale);
+    const my = Math.round((churchBrand?.logo_margin_vertical ?? 24) * scale);
     switch (churchBrand?.logo_position) {
       case 'top-left':
-        return 'top-1.5 left-1.5';
+        return `top: ${Math.max(2, my)}px; left: ${Math.max(2, mx)}px;`;
       case 'bottom-left':
-        return 'bottom-1.5 left-1.5';
+        return `bottom: ${Math.max(2, my)}px; left: ${Math.max(2, mx)}px;`;
       case 'bottom-right':
-        return 'bottom-1.5 right-1.5';
+        return `bottom: ${Math.max(2, my)}px; right: ${Math.max(2, mx)}px;`;
       case 'top-right':
       default:
-        return 'top-1.5 right-1.5';
+        return `top: ${Math.max(2, my)}px; right: ${Math.max(2, mx)}px;`;
     }
   });
 
@@ -129,8 +132,8 @@
     <!-- Logotipo da Igreja sobreposto no preview -->
     {#if activeLogoUrl}
       <div
-        class="absolute pointer-events-none z-20 {logoPositionClasses}"
-        style="opacity: {(churchBrand?.logo_opacity ?? 85) / 100};"
+        class="absolute pointer-events-none z-20"
+        style="{logoPositionStyles} opacity: {(churchBrand?.logo_opacity ?? 85) / 100};"
       >
         <img
           src={activeLogoUrl}

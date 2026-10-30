@@ -86,17 +86,19 @@
     return churchBrand.logo_primary || churchBrand.logo_light || churchBrand.logo_dark || churchBrand.logo_full || '';
   });
 
-  const logoPositionClasses = $derived.by<string>(() => {
+  const logoPositionStyles = $derived.by<string>(() => {
+    const mx = churchBrand.logo_margin_horizontal ?? 24;
+    const my = churchBrand.logo_margin_vertical ?? 24;
     switch (churchBrand.logo_position) {
       case 'top-left':
-        return 'top-6 left-6';
+        return `top: ${my}px; left: ${mx}px;`;
       case 'bottom-left':
-        return 'bottom-6 left-6';
+        return `bottom: ${my}px; left: ${mx}px;`;
       case 'bottom-right':
-        return 'bottom-6 right-6';
+        return `bottom: ${my}px; right: ${mx}px;`;
       case 'top-right':
       default:
-        return 'top-6 right-6';
+        return `top: ${my}px; right: ${mx}px;`;
     }
   });
 </script>
@@ -156,8 +158,8 @@
     <!-- Logotipo da Igreja sobreposto na tela pública -->
     {#if activeLogoUrl}
       <div
-        class="absolute pointer-events-none z-20 {logoPositionClasses} transition-all duration-200"
-        style="opacity: {churchBrand.logo_opacity / 100};"
+        class="absolute pointer-events-none z-20 transition-all duration-200"
+        style="{logoPositionStyles} opacity: {churchBrand.logo_opacity / 100};"
       >
         <img
           src={activeLogoUrl}

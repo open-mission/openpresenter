@@ -30,6 +30,8 @@ export const DEFAULT_CHURCH_BRAND: ChurchBrandSettings = {
   logo_position: 'top-right',
   logo_opacity: 85,
   logo_size: 64,
+  logo_margin_horizontal: 24,
+  logo_margin_vertical: 24,
 };
 
 export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {

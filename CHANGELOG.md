@@ -7,6 +7,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Ajuste de Margem para Logotipo da Igreja na Tela Pública:**
+  - Adicionadas configurações deslizantes de margem horizontal e margem vertical na aba "Marca da Igreja" das Configurações.
+  - O logotipo sobreposto na tela pública (`/public`) e no preview do operador agora respeita o distanciamento exato em pixels configurado para os quatro cantos da tela.
 - **Ícone Oficial no System Tray e Executável Nativo:**
   - O ícone do System Tray agora carrega o bitmap da marca oficial derivado de `open-presenter-app-icon.svg`, garantindo traçado nítido e proporções perfeitas na bandeja do sistema.
   - Adicionado suporte a `winresource` via `build.rs` no Windows para embutir o arquivo `.ico` e metadados oficiais diretamente no executável `open-presenter.exe`.
