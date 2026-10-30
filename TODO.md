@@ -8,8 +8,6 @@
 
 ## Backlog
 
-- [ ] Add a saida lower third para ser usado no OBS por exemplo, a ideia é um html transparente com o texto em lower, uma ideia inicial é termos um grandiente central baseado na cor de fundo selecionado no fundo do public e a letras branca com shadow. Add aba de configuracoes necessarias, para ajuste de tamanho de fontes, forca do shadow entre outras coisas necessarias, animacoes para transicionar entre slides ou aparecer ou ocultar. 
-
 
 
 ## Doing
@@ -18,7 +16,9 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
-- [x] Implementação do Controle Remoto Mobile (/remote) permitindo apresentar setlist, músicas e Bíblia pelo celular: interface mobile-first responsiva com bottom navigation bar em 3 abas, card persistente de controle ao vivo com botões ergonômicos de anterior/próximo para o polegar, ações rápidas de blackout/limpar/parar, busca instantânea, sincronização WebSocket em tempo real, rota no system tray e aba com QR Code no modal de compartilhamento. (commit pendente - 2026-10-30 15:38:00 -03:00)
+- [x] Adicionar saída Lower Third transparente (/lower-third) para OBS Studio e transmissão: HTML com fundo transparente (alfa nativo), texto no terço inferior, gradiente/barra customizável, sombras de alto contraste, animações de transição configuráveis (fade, slide, zoom), aba de configurações completa com prévia interativa 16:9, atalho no tray e instruções de Browser Source. (commit fc6a647 - 2026-10-30 15:57:41 -03:00)
+
+- [x] Implementação do Controle Remoto Mobile (/remote) permitindo apresentar setlist, músicas e Bíblia pelo celular: interface mobile-first responsiva com bottom navigation bar em 3 abas, card persistente de controle ao vivo com botões ergonômicos de anterior/próximo para o polegar, ações rápidas de blackout/limpar/parar, busca instantânea, sincronização WebSocket em tempo real, rota no system tray e aba com QR Code no modal de compartilhamento. (commit 52d45eb - 2026-10-30 15:39:03 -03:00)
 
 - [x] Paridade 100% no preview do operador com canvas virtual HD 1080p escalado (idêntico à tela pública real), personalização de posicionamento da referência bíblica (rodapé vs. abaixo do texto) com tamanho de fonte customizável, opções de encaixe do papel de parede (contain, cover, fill) com proteção de margens seguras contra overscan, alinhamento dos switches Tailwind UI e filtro de privacidade na galeria de imagens para proteger arquivos pessoais. (commit 95ee5ca - 2026-10-30 15:01:21 -03:00)
 
