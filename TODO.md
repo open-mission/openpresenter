@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Refinar visual do modo Standby no Stage: cronômetro aparece somente se estiver rodando, remoção do badge superior e do rodapé (commit 7c71974 - 2026-10-29 23:46:05 -03:00)
+
 - [x] Quando eu fecho a aba do painel ele fica abrindo de novo, normalmente se eu já consigo acessar pelo trail, ele nao precisa ficar reabrindo toda hora, abrir automaticamente somente quando abrir a aplicacao. O icone do trail está fundo branco. Ajuste para a versao do icone preto. (commit 6d89743 - 2026-10-29 23:38:48 -03:00)
 
 - [x] Ao acessar http://localhost:18080/stage a tela está preta e nao mostra nada, mesmo que no preview pareça mostrar (commit afa1e3c - 2026-10-29 23:14:46 -03:00)
