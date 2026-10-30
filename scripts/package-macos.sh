@@ -8,7 +8,7 @@ set -e
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-VERSION="0.3.0"
+VERSION="0.3.1"
 APP_NAME="OpenPresenter"
 BUNDLE_DIR="$ROOT_DIR/dist/macos/${APP_NAME}.app"
 CONTENTS_DIR="$BUNDLE_DIR/Contents"
@@ -40,7 +40,7 @@ echo "==> Copiando ícone oficial (.icns)..."
 cp "$ROOT_DIR/assets/branding/open-presenter-app-icon.icns" "$RESOURCES_DIR/open-presenter-app-icon.icns"
 
 echo "==> Gerando Info.plist..."
-cat << 'EOF' > "$CONTENTS_DIR/Info.plist"
+cat << EOF > "$CONTENTS_DIR/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -62,9 +62,9 @@ cat << 'EOF' > "$CONTENTS_DIR/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.3.0</string>
+    <string>${VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>0.3.0</string>
+    <string>${VERSION}</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.15</string>
     <key>NSHighResolutionCapable</key>

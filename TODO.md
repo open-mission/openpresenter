@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Lançamento da versão 0.3.1: unificação de versão em todo o workspace (Cargo.toml, package.json, workflows, componentes e testes), consolidação das correções no Lower Third e PWA Remote no iOS, fechamento da release 0.3.1 no CHANGELOG.md, spec docs/specs/2026-10-30-release-0-3-1.md e publicação da tag v0.3.1. (commit a_preencher - 2026-10-30 18:16:00 -03:00)
+
 - [x] Correções no Lower Third (/lower-third) e suporte a PWA Remote no iOS: resolução resiliente de activeMedia e slides cobrindo músicas da biblioteca/setlist e textos bíblicos com fallback sob demanda; eliminação de tela branca no navegador convencional com introdução de tela de status/boas-vindas para operadores e alternância de simulação de câmera/transparência alfa; classes explícitas is-lower-third no html/body; e criação do manifesto dedicado manifest-remote.webmanifest com start_url: /remote e scope: /remote, alternância dinâmica de manifesto e tags de título do iOS e redirecionamento de PWA mobile standalone da raiz / para /remote. (commit 3fb26f9 - 2026-10-30 18:12:27 -03:00)
 
 - [x] Preparar a versão 0.3.0 para lançamento e ícone oficial no executável: unificação de versão em todo o workspace (Cargo.toml, package.json, workflows, componentes e testes), geração de ícone nativo .icns e PNG 1024x1024 a partir da marca oficial, script de empacotamento macOS (scripts/package-macos.sh) gerando OpenPresenter.app e atribuindo atributos de ícone do Finder ao executável Mach-O, injeção em runtime via Cocoa (Dock/App Switcher), fechamento da release 0.3.0 no CHANGELOG.md e spec docs/specs/2026-10-30-release-0-3-0.md. (commit 4bdf3bb - 2026-10-30 17:29:48 -03:00)

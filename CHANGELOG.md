@@ -6,6 +6,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-30
+
 ### Corrigido
 - **Resolução de Mídia e Renderização na Saída Lower Third (`/lower-third`):**
   - Correção na resolução de slide ativo em `LowerThirdView`, expandindo a busca para `$mediaItemsList`, `$activeSetlist` e fallback assíncrono sob demanda `/api/songs/:id`, garantindo que músicas da biblioteca/setlist e textos bíblicos sejam projetados normalmente.

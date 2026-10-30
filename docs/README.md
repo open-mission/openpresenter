@@ -178,6 +178,11 @@
 - [Spec — Preparação da Versão 0.3.0 e Ícone do Executável](specs/2026-10-30-release-0-3-0.md)
 - [Plano — Preparação da Versão 0.3.0 e Ícone do Executável](plans/2026-10-30-release-0-3-0.md)
 
+## Release v0.3.1: Correções no Lower Third e PWA Remote iOS
+
+- [Spec — Preparação e Lançamento da Versão 0.3.1](specs/2026-10-30-release-0-3-1.md)
+- [Plano — Preparação e Lançamento da Versão 0.3.1](plans/2026-10-30-release-0-3-1.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
