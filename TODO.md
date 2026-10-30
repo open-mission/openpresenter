@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Refinamento do Controle Remoto Mobile (/remote) e Suporte a PWA: navegação bíblica com sub-abas (Livros em grade, Capítulos em grade touch de 44px, Versículos com leitura integral), Input Group e Drawer Shadcn para seleção de versão bíblica, correção do carregamento da Setlist (/api/setlists/:id), card de controle ao vivo retrátil (collapsible), active states em músicas e versículos projetados ao vivo, safe-area no iOS e Android (top e bottom na navigation bar), header com logotipo oficial do OpenPresenter Minimal, e suporte completo a PWA (manifest.webmanifest, service worker, ícones 192 e 512, favicons e meta tags de app standalone instalável). (commit 8b4d8e6 - 2026-10-30 16:31:19 -03:00)
+
 - [x] Adicionar saída Lower Third transparente (/lower-third) para OBS Studio e transmissão: HTML com fundo transparente (alfa nativo), texto no terço inferior, gradiente/barra customizável, sombras de alto contraste, animações de transição configuráveis (fade, slide, zoom), aba de configurações completa com prévia interativa 16:9, atalho no tray e instruções de Browser Source. (commit fc6a647 - 2026-10-30 15:57:41 -03:00)
 
 - [x] Implementação do Controle Remoto Mobile (/remote) permitindo apresentar setlist, músicas e Bíblia pelo celular: interface mobile-first responsiva com bottom navigation bar em 3 abas, card persistente de controle ao vivo com botões ergonômicos de anterior/próximo para o polegar, ações rápidas de blackout/limpar/parar, busca instantânea, sincronização WebSocket em tempo real, rota no system tray e aba com QR Code no modal de compartilhamento. (commit 52d45eb - 2026-10-30 15:39:03 -03:00)
