@@ -162,35 +162,24 @@
   <!-- MODO DE DESCANSO / STANDBY (Quando não há slide ativo em apresentação)   -->
   <!-- ========================================================================= -->
   {#if !activeSlide}
-    <div class="flex-1 flex flex-col justify-between items-center text-center p-6 sm:p-10 md:p-14 animate-in fade-in zoom-in-95 duration-200 min-h-0">
-      <!-- Topo: Identificação e Alternar Tela Cheia -->
-      <div class="w-full flex items-center justify-between shrink-0">
-        <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-400">
-          <Clock size={14} class="text-emerald-400" />
-          <span class="font-semibold text-zinc-200">Modo de Descanso (Standby)</span>
-          {#if $activeSetlist?.title}
-            <span class="text-zinc-600">•</span>
-            <span class="text-zinc-400 truncate max-w-xs">{$activeSetlist.title}</span>
-          {/if}
-        </div>
-
-        <button
-          type="button"
-          onclick={toggleFullscreen}
-          class="p-2 rounded-lg bg-zinc-900/80 border border-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-          title="Alternar Tela Cheia (F)"
-        >
-          {#if isFullscreen}
-            <Minimize size={16} />
-          {:else}
-            <Maximize size={16} />
-          {/if}
-        </button>
-      </div>
+    <div class="flex-1 flex flex-col justify-center items-center text-center p-6 sm:p-10 md:p-14 animate-in fade-in zoom-in-95 duration-200 min-h-0 relative">
+      <!-- Botão Discreto de Alternar Tela Cheia no Canto Superior Direito -->
+      <button
+        type="button"
+        onclick={toggleFullscreen}
+        class="absolute top-5 right-5 p-2 rounded-lg bg-zinc-900/40 border border-zinc-800/60 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer opacity-40 hover:opacity-100"
+        title="Alternar Tela Cheia (F)"
+      >
+        {#if isFullscreen}
+          <Minimize size={16} />
+        {:else}
+          <Maximize size={16} />
+        {/if}
+      </button>
 
       <!-- Mensagem de Palco em Destaque (se houver) -->
       {#if stageMessage}
-        <div class="w-full max-w-3xl my-2 p-3 sm:p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-base sm:text-lg md:text-xl font-bold text-center shadow-lg animate-pulse shrink-0">
+        <div class="w-full max-w-3xl mb-8 p-3 sm:p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-base sm:text-lg md:text-xl font-bold text-center shadow-lg animate-pulse shrink-0">
           ⚠️ {stageMessage}
         </div>
       {/if}
@@ -207,30 +196,27 @@
           {currentDate}
         </div>
 
-        <!-- Bloco do Cronômetro / Timer Centralizado -->
-        <div
-          class="mt-6 sm:mt-8 px-8 sm:px-12 py-4 sm:py-6 rounded-3xl bg-zinc-900/70 border-2 transition-all flex flex-col items-center gap-1.5 shadow-2xl {timerIsOvertime ? 'border-rose-500/80 bg-rose-950/40 animate-pulse' : timerIsNearEnd ? 'border-amber-500/80 bg-amber-950/40' : 'border-zinc-800'}"
-        >
-          <div class="text-xs sm:text-sm uppercase tracking-widest font-bold flex items-center gap-2 {timerIsOvertime ? 'text-rose-300' : timerIsNearEnd ? 'text-amber-300' : 'text-zinc-400'}">
-            <Hourglass size={14} class={timer.running ? 'animate-spin' : ''} />
-            <span>{timer.label || 'Cronômetro'} {timer.running ? '(Em andamento)' : ''}</span>
-          </div>
-
-          <div class="text-5xl sm:text-6xl md:text-7xl font-mono font-black tracking-tight {timerColorClass}">
-            {formatTime(timer.remaining_seconds, timerIsOvertime)}
-          </div>
-
-          {#if timerIsOvertime}
-            <div class="text-xs text-rose-300 font-bold uppercase tracking-wider mt-0.5">
-              Tempo Excedido
+        <!-- Bloco do Cronômetro / Timer Centralizado (Apenas se estiver rodando ou em overtime) -->
+        {#if timer && (timer.running || timerIsOvertime)}
+          <div
+            class="mt-6 sm:mt-8 px-8 sm:px-12 py-4 sm:py-6 rounded-3xl bg-zinc-900/70 border-2 transition-all flex flex-col items-center gap-1.5 shadow-2xl {timerIsOvertime ? 'border-rose-500/80 bg-rose-950/40 animate-pulse' : timerIsNearEnd ? 'border-amber-500/80 bg-amber-950/40' : 'border-zinc-800'}"
+          >
+            <div class="text-xs sm:text-sm uppercase tracking-widest font-bold flex items-center gap-2 {timerIsOvertime ? 'text-rose-300' : timerIsNearEnd ? 'text-amber-300' : 'text-zinc-400'}">
+              <Hourglass size={14} class={timer.running ? 'animate-spin' : ''} />
+              <span>{timer.label || 'Cronômetro'} {timer.running ? '(Em andamento)' : ''}</span>
             </div>
-          {/if}
-        </div>
-      </div>
 
-      <!-- Rodapé: Orientação Discreta -->
-      <div class="w-full flex items-center justify-center text-xs text-zinc-500 font-medium shrink-0 pt-4">
-        <span>Aguardando início de slide ou louvor pelo operador</span>
+            <div class="text-5xl sm:text-6xl md:text-7xl font-mono font-black tracking-tight {timerColorClass}">
+              {formatTime(timer.remaining_seconds, timerIsOvertime)}
+            </div>
+
+            {#if timerIsOvertime}
+              <div class="text-xs text-rose-300 font-bold uppercase tracking-wider mt-0.5">
+                Tempo Excedido
+              </div>
+            {/if}
+          </div>
+        {/if}
       </div>
     </div>
 

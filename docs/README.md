@@ -117,6 +117,7 @@
 - [Spec — Modo de Descanso (Standby) com Relógio e Timer no Monitor de Palco](specs/2026-10-29-stage-idle-standby-clock-mode.md)
 - [Spec — Correção de Tela Preta no Monitor de Palco (/stage)](specs/2026-10-29-fix-stage-view-black-screen-reference-error.md)
 - [Spec — Ícone Escuro no System Tray e Controle de Reabertura do Navegador](specs/2026-10-29-tray-icon-dark-and-prevent-auto-reopen.md)
+- [Spec — Interface Minimalista e Limpa no Modo Standby do Stage](specs/2026-10-29-stage-standby-minimal-clean-ui.md)
 
 ## Arquitetura e decisões
 

@@ -25,6 +25,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - A opção na aba "Aparência & Cores" das Configurações permite ativar os rótulos de texto (labels) a qualquer momento.
 
 ### Alterado
+- **Modo de Descanso no Monitor de Palco (/stage):**
+  - O bloco do cronômetro agora é exibido exclusivamente quando o timer estiver em execução (`running`) ou em overtime, evitando poluição visual quando inativo.
+  - Removidos os badges de "Modo de Descanso (Standby)" e texto de orientação do rodapé, deixando o relógio gigante e a data centralizados de forma ultra limpa e minimalista.
 - **System Tray e Abertura do Navegador:**
   - O ícone do System Tray agora utiliza a versão oficial com fundo preto e traçado branco (`open-presenter-icon-dark-32.png`), integrando-se perfeitamente com temas escuros da barra de tarefas e menu bar.
   - O navegador agora abre automaticamente apenas uma única vez na inicialização da aplicação, eliminando a reabertura indesejada da aba do painel em interações com a bandeja do sistema. A reabertura sob demanda continua disponível a qualquer momento pelo menu nativo ("Abrir Painel de Controle").
