@@ -16,11 +16,39 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] o icone do trail está estranho ![](orca-paste-1793330003849-ead85ae4-f46f-4d15-aefe-326d48b20352.png) (commit 2cdd5ff - 2026-10-30 02:35:37 -03:00)
+
+- [x] Design Feedback /: Remover badge "X itens" e botão de apagar do cabeçalho da Setlist; exibir dropdown flutuante de conexões WebSocket ativas com IP e rota ao clicar em "Online". (commit 7d3e4fa - 2026-10-30 02:10:22 -03:00)
+
+- [x] Add no command pallete global do app a opcao de pesquisar textos biblico por referencia ou palavras igual acontece no painel da biblias. (commit 6f2498a - 2026-10-30 01:53:27 -03:00)
+
+- [x] Design Feedback /: div "Cronômetro & Palco" - Add a opcao de dar um titulo para o cronometro que irá aparecer no stage. (commit 9044ed4 - 2026-10-30 01:41:35 -03:00)
+
+- [x] Design Feedback /: div "Cronômetro: Cronômetro (Pausado)" no header - Isso aqui só deve aparecer se o timer estiver rodando. (commit 09003ca - 2026-10-30 01:36:35 -03:00)
+
+- [x] Add a opcao de importar fundos de imagens e videos na aba de midias > fundos. (commit a97efc5 - 2026-10-30 01:32:56 -03:00)
+
+- [x] Nos fundos de letras precisamos implementar um sistema que tenhamos um css nas configuracoes para ajustar tanto o fundo como a cor de texto para cada fundo. Isso pode ser util se quisermos entrarmos novos fundos futuramente. (commit d7cb27f - 2026-10-30 01:24:16 -03:00)
+
+- [x] Design Feedback /public: div "📖 João 3:1 ARA ARA" - mover para o rodapé em space-between, remover duplicidade de ARA, remover emoji e tipografia amarela (commit fea7e6a - 2026-10-30 01:05:46 -03:00)
+
+- [x] Quando na aba de musicas o sheet de preview está aberto.  o item de musica fica espremido. ![](orca-paste-1793329505020-6cf2d68b-36b1-487c-92ad-aeaff9836e82.png) (commit dde80a9 - 2026-10-30 01:00:21 -03:00)
+
+- [x] Na aba de imagens ele nao aceita a sub-pastas. Se eu importo uma pasta ele nao mostra as subpastas e os items. (commit b0ee635 - 2026-10-30 00:56:03 -03:00)
+
+- [x] Na aba de Biblias quando clico duas vezes em um versiculo ele está add no setlist o capitulo. PRecisamos corrigir isso. A ideia é que se eu clicar duas vezes ele apresenta mais nao add no setlist. Se eu clicar com o botao direito mostrar o contexto menu para adicionar no setlist. (commit 852b76d - 2026-10-30 00:44:00 -03:00)
+
+- [x] No setlist Bar quando um item está ao vivo ele tem um indicativo que fica piscando. Vamos remover isso e add a borda verde para quando estamos apresentando um item. (commit ba84d09 - 2026-10-30 00:32:55 -03:00)
+
+- [x] Na Tela Public, add o Auto Scale nas fonts, add a opcao de font-size minimo algo proximo a font-size: 8rem, mas podendo ser ajustado nas configuracoes. Quando a quebra de linha está desatvado está add ... mas a ideia é que reduza o tamanho da fonte para caber. (commit c510264 - 2026-10-30 00:30:14 -03:00)
+
+- [x] Ajustar O stage: Vamos simplificar. A principio vamos manter apenas o preset Grid Moderno Pro. Ajustar o texto para preenhcer o texto fazendo auto-scale para sempre caber no box. Add a opcao de Font-size minimo nas configuracoes. Para ganharmos espaco podemos remover os gaps das boxes e tirar o border-radius. Fazer o Boz de Messagem sempre visivel no Stage. (commit dd36342 - 2026-10-30 00:26:18 -03:00)
+
 - [x] Refinar visual do modo Standby no Stage: cronômetro aparece somente se estiver rodando, remoção do badge superior e do rodapé (commit 7c71974 - 2026-10-29 23:46:05 -03:00)
 
 - [x] Quando eu fecho a aba do painel ele fica abrindo de novo, normalmente se eu já consigo acessar pelo trail, ele nao precisa ficar reabrindo toda hora, abrir automaticamente somente quando abrir a aplicacao. O icone do trail está fundo branco. Ajuste para a versao do icone preto. (commit 6d89743 - 2026-10-29 23:38:48 -03:00)
 
-- [x] Ao acessar http://localhost:18080/stage a tela está preta e nao mostra nada, mesmo que no preview pareça mostrar (commit afa1e3c - 2026-10-29 23:14:46 -03:00)
+- [x] Ao acessar [http://localhost:18080/stage](http://localhost:18080/stage) a tela está preta e nao mostra nada, mesmo que no preview pareça mostrar (commit afa1e3c - 2026-10-29 23:14:46 -03:00)
 
 - [x] Ajustar modo compacto de botões (somente ícones) na barra de navegação dos slides e cabeçalho, com suporte a toggle nas configurações de aparência (prints orca-paste) (commit a4f9bbd - 2026-10-29 22:52:19 -03:00)
 
