@@ -9,6 +9,9 @@ Assets de marca copiados de `/Users/claudio/cafg-second-brain/Projects/OpenPrese
 - `open-presenter-app-icon-64.png` — renderização bitmap 64x64 de alta densidade.
 - `open-presenter-app-icon-256.png` — renderização bitmap 256x256 para ícones de alta resolução.
 - `open-presenter-app-icon.ico` — ícone nativo multi-resolução para o executável Windows (`.exe`).
+- `open-presenter-icon-dark-32.png` — renderização bitmap 32x32 do ícone com fundo preto para o System Tray em barras de status escuras.
+- `open-presenter-icon-dark-64.png` — renderização bitmap 64x64 do ícone com fundo preto.
+- `open-presenter-icon-dark-256.png` — renderização bitmap 256x256 do ícone com fundo preto.
 - `open-presenter-icon-dark.svg`
 - `open-presenter-icon-filled.svg`
 - `open-presenter-icon-inverted.svg`

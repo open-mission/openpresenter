@@ -242,8 +242,9 @@ fn main() -> anyhow::Result<()> {
             }
 
             Event::UserEvent(UserEvent::Tray(_tray_event)) => {
-                // Clique direto no ícone abre o painel admin
-                let _ = open::that(format!("http://localhost:{}", port));
+                // Eventos de interação ou foco no ícone da bandeja não reabrem o navegador;
+                // a abertura sob demanda é feita pelo menu do tray ("Abrir Painel de Controle")
+                // ou automaticamente apenas uma única vez na inicialização da aplicação.
             }
 
             _ => {}

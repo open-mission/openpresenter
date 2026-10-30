@@ -21,10 +21,10 @@ pub struct TrayState {
     pub port: u16,
 }
 
-/// Cria o ícone nativo da bandeja com a marca oficial do OpenPresenter.
+/// Cria o ícone nativo da bandeja com a versão escura da marca oficial do OpenPresenter.
 pub fn create_tray_icon() -> Result<Icon, Box<dyn std::error::Error>> {
     const ICON_BYTES: &[u8] =
-        include_bytes!("../../../assets/branding/open-presenter-app-icon-32.png");
+        include_bytes!("../../../assets/branding/open-presenter-icon-dark-32.png");
     let img = image::load_from_memory(ICON_BYTES)?.into_rgba8();
     let (width, height) = img.dimensions();
     let rgba = img.into_raw();

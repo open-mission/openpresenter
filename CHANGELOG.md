@@ -25,6 +25,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - A opção na aba "Aparência & Cores" das Configurações permite ativar os rótulos de texto (labels) a qualquer momento.
 
 ### Alterado
+- **System Tray e Abertura do Navegador:**
+  - O ícone do System Tray agora utiliza a versão oficial com fundo preto e traçado branco (`open-presenter-icon-dark-32.png`), integrando-se perfeitamente com temas escuros da barra de tarefas e menu bar.
+  - O navegador agora abre automaticamente apenas uma única vez na inicialização da aplicação, eliminando a reabertura indesejada da aba do painel em interações com a bandeja do sistema. A reabertura sob demanda continua disponível a qualquer momento pelo menu nativo ("Abrir Painel de Controle").
 - **Interface do Operador:**
   - Removidos os botões duplicados de alternância de sidebars (Setlist e Previews) do cabeçalho superior; o controle de recolher e expandir agora fica centralizado exclusivamente nos botões nativos dos cabeçalhos dos painéis e nos rails laterais colapsados.
   - Removido o subtítulo "Projeção para igrejas e eventos" do cabeçalho superior para deixar a barra de ferramentas mais limpa e compacta.

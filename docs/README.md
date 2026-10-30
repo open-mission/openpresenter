@@ -116,6 +116,7 @@
 - [Spec — Remoção de Botões Duplicados de Sidebars no Header](specs/2026-10-29-remove-duplicate-sidebar-buttons-from-header.md)
 - [Spec — Modo de Descanso (Standby) com Relógio e Timer no Monitor de Palco](specs/2026-10-29-stage-idle-standby-clock-mode.md)
 - [Spec — Correção de Tela Preta no Monitor de Palco (/stage)](specs/2026-10-29-fix-stage-view-black-screen-reference-error.md)
+- [Spec — Ícone Escuro no System Tray e Controle de Reabertura do Navegador](specs/2026-10-29-tray-icon-dark-and-prevent-auto-reopen.md)
 
 ## Arquitetura e decisões
 
