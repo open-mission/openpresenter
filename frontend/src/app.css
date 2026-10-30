@@ -71,6 +71,9 @@ body {
 }
 
 /* Suporte a transparência alfa no OBS Studio e vMix para a rota Lower Third */
+html.is-lower-third,
+body.is-lower-third,
+body.is-lower-third #app,
 body:has(.lower-third-root),
 html:has(.lower-third-root),
 #app:has(.lower-third-root) {

@@ -170,6 +170,13 @@
 
 - [Spec — Saída Lower Third Transparente para OBS e Transmissão (/lower-third)](specs/2026-10-30-saida-lower-third-obs.md)
 - [Plano — Saída Lower Third Transparente para OBS e Transmissão (/lower-third)](plans/2026-10-30-saida-lower-third-obs.md)
+- [Spec — Correções no Lower Third e PWA Remote iOS](specs/2026-10-30-correcoes-lower-third-e-pwa-ios.md)
+- [Plano — Correções no Lower Third e PWA Remote iOS](plans/2026-10-30-correcoes-lower-third-e-pwa-ios.md)
+
+## Release v0.3.0 e Ícone do Executável
+
+- [Spec — Preparação da Versão 0.3.0 e Ícone do Executável](specs/2026-10-30-release-0-3-0.md)
+- [Plano — Preparação da Versão 0.3.0 e Ícone do Executável](plans/2026-10-30-release-0-3-0.md)
 
 ## Arquitetura e decisões
 

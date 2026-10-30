@@ -9,6 +9,18 @@
   let currentPath = $state(window.location.pathname);
 
   onMount(() => {
+    // Redirecionamento inteligente: se aberto em modo standalone (PWA adicionado à tela de início no celular)
+    // na raiz '/', direciona automaticamente para o controle remoto '/remote'
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true;
+    const isMobileScreen = window.innerWidth <= 768;
+
+    if (isStandalone && isMobileScreen && window.location.pathname === '/') {
+      window.history.replaceState({}, '', '/remote');
+      currentPath = '/remote';
+    }
+
     const handlePopState = () => {
       currentPath = window.location.pathname;
     };
@@ -37,6 +49,41 @@
       return 'lower-third';
     }
     return 'admin';
+  });
+
+  // Atualiza manifesto PWA dinâmico e classes de escopo global
+  $effect(() => {
+    if (typeof document === 'undefined') return;
+
+    const manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    const appleTitleMeta = document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]');
+
+    if (viewMode === 'remote') {
+      if (manifestLink) manifestLink.href = '/manifest-remote.webmanifest';
+      if (appleTitleMeta) appleTitleMeta.content = 'Remoto';
+      document.title = 'OpenPresenter Remoto';
+    } else {
+      if (manifestLink) manifestLink.href = '/manifest.webmanifest';
+      if (appleTitleMeta) appleTitleMeta.content = 'OpenPresenter';
+      if (viewMode === 'lower-third') {
+        document.title = 'OpenPresenter — Lower Third (OBS)';
+      } else if (viewMode === 'public') {
+        document.title = 'OpenPresenter — Projeção Pública';
+      } else if (viewMode === 'stage') {
+        document.title = 'OpenPresenter — Monitor de Palco';
+      } else {
+        document.title = 'OpenPresenter — Projeção para igrejas e eventos';
+      }
+    }
+
+    // Classes no html e body para transparência na rota Lower Third
+    if (viewMode === 'lower-third') {
+      document.documentElement.classList.add('is-lower-third');
+      document.body.classList.add('is-lower-third');
+    } else {
+      document.documentElement.classList.remove('is-lower-third');
+      document.body.classList.remove('is-lower-third');
+    }
   });
 </script>
 

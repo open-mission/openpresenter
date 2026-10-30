@@ -6,6 +6,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Corrigido
+- **Resolução de Mídia e Renderização na Saída Lower Third (`/lower-third`):**
+  - Correção na resolução de slide ativo em `LowerThirdView`, expandindo a busca para `$mediaItemsList`, `$activeSetlist` e fallback assíncrono sob demanda `/api/songs/:id`, garantindo que músicas da biblioteca/setlist e textos bíblicos sejam projetados normalmente.
+  - Correção da exibição no navegador convencional: inclusão de classes explícitas `is-lower-third` no `<html>` e `<body>`, eliminação da tela branca vazia com introdução de tela de status elegante quando não há slides em exibição e botão de alternar simulação de vídeo/transparência alfa para testes no desktop.
+- **PWA no iOS apontando para `/remote`:**
+  - Criação de manifesto dedicado `manifest-remote.webmanifest` com `start_url: "/remote"` e `scope: "/remote"`.
+  - Alternância dinâmica do manifesto e tags de título do iOS (`apple-mobile-web-app-title`) em `App.svelte` de acordo com a rota ativa.
+  - Redirecionamento automático de dispositivos móveis em modo standalone (PWA instalado) que abrirem na raiz `/` diretamente para o controle remoto `/remote`.
+
 ## [0.3.0] - 2026-10-30
 
 ### Adicionado

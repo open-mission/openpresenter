@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import {
     presentationState,
+    mediaItemsList,
+    activeSetlist,
     initWebSocket,
   } from '$lib/ws';
   import {
@@ -12,13 +14,94 @@
   import { resolveBackground } from '$lib/backgrounds';
   import { renderFormattedText } from '$lib/markdown';
   import type { Slide, MediaItem } from '$lib/types';
+  import { Camera, Layers, CheckCircle2, Tv } from 'lucide-svelte';
+
+  let isPreviewBackground = $state(false);
+  let isObsBrowser = $state(false);
+  let fetchedSong = $state<MediaItem | null>(null);
 
   onMount(() => {
     initWebSocket('lower-third');
     syncDisplaySettingsFromBackend();
+
+    // Detecta se está sendo executado no navegador OBS Studio CEF
+    isObsBrowser =
+      typeof window !== 'undefined' &&
+      ((window as any).obsstudio !== undefined ||
+        new URLSearchParams(window.location.search).has('obs'));
+
+    // Parâmetro de teste/preview na URL (ex: /lower-third?preview=1 ou /lower-third?bg=dark)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('preview') === '1' || params.get('test') === '1' || params.get('bg') === 'dark') {
+      isPreviewBackground = true;
+    }
+
+    // Se estiver em um navegador de desktop comum (fora do OBS) e sem parâmetro explícito,
+    // ativa o modo simulação de câmera para não exibir tela branca vazia no browser
+    if (!isObsBrowser && params.get('transparent') !== '1') {
+      isPreviewBackground = true;
+    }
+
+    // Aplica classes de transparência no html e body para garantir compatibilidade no OBS
+    document.documentElement.classList.add('is-lower-third');
+    document.body.classList.add('is-lower-third');
+
+    return () => {
+      document.documentElement.classList.remove('is-lower-third');
+      document.body.classList.remove('is-lower-third');
+    };
   });
 
   const lt = $derived($lowerThirdSettingsStore);
+
+  // Busca mídia ativa em quick_media, mediaItemsList, activeSetlist e fallback de fetch sob demanda
+  const activeMedia = $derived.by<MediaItem | null>(() => {
+    const p = $presentationState;
+    if (!p.active_media_id) return null;
+
+    // 1. Quick Media (Bíblia instantânea, apresentação rápida)
+    if (p.quick_media && p.quick_media.id === p.active_media_id) {
+      return p.quick_media;
+    }
+
+    // 2. Catálogo de mídias da sessão/setlist
+    const fromList = $mediaItemsList.find((m) => m.id === p.active_media_id);
+    if (fromList) return fromList;
+
+    // 3. Setlist ativa no momento
+    if ($activeSetlist && $activeSetlist.items) {
+      const fromSetlist = $activeSetlist.items.find((si) => si.id === p.active_media_id);
+      if (fromSetlist) return fromSetlist;
+    }
+
+    // 4. Mídia sob demanda buscada via fetch
+    if (fetchedSong && fetchedSong.id === p.active_media_id) {
+      return fetchedSong;
+    }
+
+    return null;
+  });
+
+  // Fallback assíncrono caso a página tenha sido aberta isoladamente no OBS
+  $effect(() => {
+    const mediaId = $presentationState.active_media_id;
+    if (mediaId && !activeMedia && mediaId.startsWith('song-')) {
+      fetch(`/api/songs/${mediaId}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((song) => {
+          if (song && song.id === mediaId) {
+            fetchedSong = {
+              id: song.id,
+              title: song.title,
+              artist_or_ref: song.artist,
+              kind: 'song',
+              slides: song.slides || [],
+            };
+          }
+        })
+        .catch(() => {});
+    }
+  });
 
   // Determinar se o conteúdo deve estar visível
   const isVisible = $derived.by(() => {
@@ -30,19 +113,11 @@
   });
 
   // Slide atual
-  const activeMedia = $derived.by<MediaItem | null>(() => {
-    if ($presentationState.quick_media) {
-      return $presentationState.quick_media;
-    }
-    return null;
-  });
-
   const currentSlide = $derived.by<Slide | null>(() => {
-    if (!isVisible) return null;
-    const media = activeMedia;
+    if (!isVisible || !activeMedia) return null;
     const idx = $presentationState.active_slide_index ?? 0;
-    if (media && media.slides && media.slides[idx]) {
-      return media.slides[idx];
+    if (activeMedia.slides && activeMedia.slides[idx]) {
+      return activeMedia.slides[idx];
     }
     return null;
   });
@@ -53,7 +128,7 @@
   const mediaLabel = $derived.by(() => {
     if (!activeMedia) return '';
     if (isScripture) {
-      return activeMedia.title || currentSlide?.label || 'Bíblia';
+      return currentSlide?.label || activeMedia.title || 'Bíblia';
     }
     return activeMedia.title || '';
   });
@@ -130,9 +205,64 @@
   A classe .lower-third-root sinaliza ao app.css para aplicar background: transparent !important.
 -->
 <div
-  class="lower-third-root fixed inset-0 w-screen h-screen overflow-hidden flex flex-col justify-end select-none pointer-events-none font-sans"
-  style="background: transparent;"
+  class="lower-third-root fixed inset-0 w-screen h-screen overflow-hidden flex flex-col justify-end select-none font-sans"
+  style={isPreviewBackground
+    ? 'background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%); pointer-events: auto;'
+    : 'background: transparent; pointer-events: none;'}
 >
+  <!-- Barra de utilitários flutuante para operadores testando no navegador (fora do OBS) -->
+  {#if !isObsBrowser}
+    <aside
+      aria-label="Controles de teste e prévia do Lower Third"
+      class="absolute top-3 right-3 flex items-center gap-2 z-50 pointer-events-auto bg-neutral-950/85 backdrop-blur-md border border-neutral-800 text-xs px-3 py-1.5 rounded-xl text-neutral-300 shadow-xl opacity-80 hover:opacity-100 transition-opacity"
+    >
+      <div class="flex items-center gap-1.5 text-[11px] font-medium text-emerald-400">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>OBS Lower Third</span>
+      </div>
+      <div class="h-3 w-px bg-neutral-700"></div>
+      <button
+        type="button"
+        onclick={() => (isPreviewBackground = !isPreviewBackground)}
+        class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer {isPreviewBackground
+          ? 'bg-blue-600 text-white'
+          : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-750'}"
+        title="Alterna entre simulação de vídeo escuro e transparência alfa para OBS"
+      >
+        {#if isPreviewBackground}
+          <Camera class="w-3.5 h-3.5" />
+          <span>Simulação Vídeo</span>
+        {:else}
+          <Layers class="w-3.5 h-3.5" />
+          <span>Fundo Transparente</span>
+        {/if}
+      </button>
+    </aside>
+  {/if}
+
+  <!-- Banner de status quando aberto no navegador comum e nenhum slide estiver ao vivo -->
+  {#if !isObsBrowser && isPreviewBackground && (!isVisible || !currentSlide)}
+    <div class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-20 pointer-events-none">
+      <div class="max-w-md p-6 rounded-2xl bg-neutral-900/90 border border-neutral-800 shadow-2xl backdrop-blur-md space-y-3">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+          <Tv class="w-6 h-6" />
+        </div>
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center justify-center gap-1.5">
+            <CheckCircle2 class="w-4 h-4 text-emerald-400" />
+            Lower Third Conectado
+          </h2>
+          <p class="text-xs text-neutral-400 mt-1 leading-relaxed">
+            Aguardando projeção ao vivo. Projete uma <strong>música</strong> ou <strong>versículo bíblico</strong> no painel administrativo ou pelo celular para visualizar aqui no terço inferior.
+          </p>
+        </div>
+        <div class="pt-2 border-t border-neutral-800 text-[11px] text-neutral-400 font-mono">
+          URL no OBS: http://localhost:18080/lower-third
+        </div>
+      </div>
+    </div>
+  {/if}
+
   <!-- Caixa do Lower Third ancorada no terço inferior da tela -->
   <div
     class="w-full flex flex-col items-center justify-end transition-all duration-300"
