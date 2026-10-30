@@ -597,6 +597,15 @@ pub struct MediaItem {
     pub align_v: Option<String>,
 }
 
+/// Sub-pasta descoberta no sistema de arquivos local.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MediaSubfolder {
+    pub relative_path: String,
+    pub name: String,
+    #[serde(default)]
+    pub count: usize,
+}
+
 /// Pasta de mídias mapeada no sistema de arquivos local do usuário.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MediaFolder {
@@ -606,6 +615,8 @@ pub struct MediaFolder {
     #[serde(default = "default_media_folder_kind")]
     pub kind: String,
     pub created_at: String,
+    #[serde(default)]
+    pub subfolders: Vec<MediaSubfolder>,
 }
 
 fn default_media_folder_kind() -> String {

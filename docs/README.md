@@ -122,6 +122,7 @@
 - [Spec — Auto-scale de Fontes e Controle de Tamanho na Tela Pública (/public)](specs/2026-10-30-public-view-auto-scale-font-size.md)
 - [Spec — Borda Verde para Item ao Vivo na Barra de Setlist](specs/2026-10-30-setlist-bar-live-item-green-border.md)
 - [Spec — Apresentação Rápida da Bíblia sem Poluir a Setlist e Menu de Contexto](specs/2026-10-30-bible-double-click-quick-present-and-context-menu.md)
+- [Spec — Suporte a Sub-pastas na Aba de Imagens e Varredura Hierárquica de Mídias](specs/2026-10-30-media-images-subfolders-support.md)
 
 ## Arquitetura e decisões
 

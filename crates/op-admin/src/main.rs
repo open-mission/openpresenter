@@ -501,7 +501,9 @@ mod tests {
 
         // Testa POST /api/media/folders com diretório do tempdir
         let sample_dir = dir.path().join("imagens-culto");
-        std::fs::create_dir_all(&sample_dir).unwrap();
+        let sub_dir = sample_dir.join("avisos");
+        std::fs::create_dir_all(&sub_dir).unwrap();
+        std::fs::write(sub_dir.join("slide1.png"), b"fake-png-data").unwrap();
 
         let post_folder_resp = app
             .clone()
@@ -524,7 +526,29 @@ mod tests {
             .unwrap();
         assert_eq!(post_folder_resp.status(), StatusCode::OK);
 
-        // Testa GET /api/media/images
+        // Verifica se sub-pastas e imagens aninhadas são descobertas
+        let folders_list_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/media/folders")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let folders_bytes = axum::body::to_bytes(folders_list_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let folders_json: Vec<op_core::MediaFolder> =
+            serde_json::from_slice(&folders_bytes).unwrap();
+        assert_eq!(folders_json.len(), 1);
+        assert_eq!(folders_json[0].subfolders.len(), 1);
+        assert_eq!(folders_json[0].subfolders[0].name, "avisos");
+        assert_eq!(folders_json[0].subfolders[0].count, 1);
+
+        // Testa GET /api/media/images com imagem na sub-pasta
         let images_resp = app
             .clone()
             .oneshot(
@@ -537,6 +561,14 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(images_resp.status(), StatusCode::OK);
+        let img_bytes = axum::body::to_bytes(images_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let img_json: serde_json::Value = serde_json::from_slice(&img_bytes).unwrap();
+        let arr = img_json.as_array().unwrap();
+        let found = arr.iter().find(|i| i["name"] == "slide1.png");
+        assert!(found.is_some());
+        assert_eq!(found.unwrap()["subfolder"], "avisos");
 
         // Testa POST /api/system/open-path com caminho inexistente (retorna 404)
         let open_resp = app

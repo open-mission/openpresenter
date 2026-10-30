@@ -762,6 +762,7 @@ impl Database {
                     path: row.get(2)?,
                     kind: row.get(3)?,
                     created_at: row.get(4)?,
+                    subfolders: Vec::new(),
                 })
             })
             .map_err(DbError::Read)?;
@@ -1995,6 +1996,7 @@ mod tests {
             path: "/dummy/path/culto".into(),
             kind: "images".into(),
             created_at: "2026-10-29T10:00:00.000Z".into(),
+            subfolders: Vec::new(),
         };
 
         db.save_media_folder(&f1).unwrap();

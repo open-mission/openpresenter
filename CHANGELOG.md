@@ -7,6 +7,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Suporte a Sub-pastas na Aba de Imagens e Varredura Hierárquica de Mídias:**
+  - O sistema de varredura de pastas de mídia locais agora percorre diretórios recursivamente, descobrindo automaticamente todas as sub-pastas e seus arquivos de imagem.
+  - Na aba de Imagens do painel inferior, adicionada navegação expansível na árvore lateral de pastas, cards navegáveis de sub-pastas no topo da galeria e navegação por breadcrumbs para entrar e sair de sub-diretórios.
+  - Imagens dentro de sub-pastas exibem identificador discreto de sua localização e podem ser apresentadas ao vivo ou adicionadas à setlist normalmente.
+  - O modal de inserção de imagens para setlist passa a buscar e indicar sub-pastas na listagem de arquivos.
 - **Auto-scale Dinâmico e Controle de Tamanho de Fonte na Tela Pública (/public):**
   - Implementado auto-scale responsivo para textos de músicas e versículos na projeção pública, ajustando dinamicamente o tamanho da fonte para preencher a tela de forma harmoniosa.
   - Quando a quebra de linha estiver desativada (`word_wrap: false`), eliminadas as reticências (`...`); o auto-scale reduz suavemente o tamanho da fonte para que todas as linhas caibam inteiramente na largura da tela.

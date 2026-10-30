@@ -18,12 +18,19 @@ export interface MediaItem {
   align_v?: 'top' | 'center' | 'bottom';
 }
 
+export interface MediaSubfolder {
+  relative_path: string;
+  name: string;
+  count: number;
+}
+
 export interface MediaFolder {
   id: string;
   name: string;
   path: string;
   kind: string;
   created_at: string;
+  subfolders?: MediaSubfolder[];
 }
 
 export interface ImageMediaItem {
@@ -32,6 +39,7 @@ export interface ImageMediaItem {
   path: string;
   folder_id: string;
   folder_name: string;
+  subfolder?: string;
   url: string;
   is_external: boolean;
   size_bytes: number;

@@ -122,6 +122,8 @@ pub struct ImageMediaItem {
     pub path: String,
     pub folder_id: String,
     pub folder_name: String,
+    #[serde(default)]
+    pub subfolder: Option<String>,
     pub url: String,
     pub is_external: bool,
     pub size_bytes: u64,
@@ -992,7 +994,13 @@ async fn list_media_folders(State(state): State<AppState>) -> Json<Vec<op_core::
         None => return Json(Vec::new()),
     };
     let db_guard = db.lock().await;
-    let list = db_guard.list_media_folders().unwrap_or_default();
+    let mut list = db_guard.list_media_folders().unwrap_or_default();
+    for f in &mut list {
+        let p = std::path::Path::new(&f.path);
+        if p.is_dir() {
+            f.subfolders = discover_subfolders(p, 4);
+        }
+    }
     Json(list)
 }
 
@@ -1032,6 +1040,7 @@ async fn create_media_folder(
         path: raw_path.to_string(),
         kind: payload.kind.unwrap_or_else(|| "images".to_string()),
         created_at: chrono::Utc::now().to_rfc3339(),
+        subfolders: discover_subfolders(p, 4),
     };
 
     let db_guard = db.lock().await;
@@ -1087,67 +1096,183 @@ fn url_encode(s: &str) -> String {
     encoded
 }
 
-async fn list_images(State(state): State<AppState>) -> Json<Vec<ImageMediaItem>> {
-    let mut items = Vec::new();
+struct ScannedImage {
+    pub path: std::path::PathBuf,
+    pub filename: String,
+    pub subfolder: Option<String>,
+    pub rel_path: String,
+    pub size_bytes: u64,
+}
 
-    // 1. Imagens internas do app (<data_dir>/media/images)
-    if let Ok(media_dir) = crate::session::resolve_media_dir() {
-        let app_img_dir = media_dir.join("images");
-        let _ = std::fs::create_dir_all(&app_img_dir);
-        if let Ok(entries) = std::fs::read_dir(&app_img_dir) {
+fn scan_images_recursively(
+    root: &std::path::Path,
+    current: &std::path::Path,
+    depth: usize,
+    max_depth: usize,
+    out: &mut Vec<ScannedImage>,
+) {
+    if depth > max_depth {
+        return;
+    }
+    let entries = match std::fs::read_dir(current) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let fname = match path.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+        if fname.starts_with('.') {
+            continue;
+        }
+        if path.is_dir() {
+            scan_images_recursively(root, &path, depth + 1, max_depth, out);
+        } else if path.is_file() && is_image_file(&path) {
+            let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+            let (subfolder, rel_path) = if let Ok(rel) = path.strip_prefix(root) {
+                let sub = rel.parent().and_then(|p| {
+                    let s = p.to_string_lossy().replace('\\', "/");
+                    if s.is_empty() { None } else { Some(s) }
+                });
+                (sub, rel.to_string_lossy().replace('\\', "/"))
+            } else {
+                (None, fname.clone())
+            };
+            out.push(ScannedImage {
+                path,
+                filename: fname,
+                subfolder,
+                rel_path,
+                size_bytes: size,
+            });
+        }
+    }
+}
+
+fn discover_subfolders(root: &std::path::Path, max_depth: usize) -> Vec<op_core::MediaSubfolder> {
+    let mut scanned = Vec::new();
+    scan_images_recursively(root, root, 1, max_depth, &mut scanned);
+
+    use std::collections::BTreeMap;
+    let mut sub_counts: BTreeMap<String, usize> = BTreeMap::new();
+
+    fn walk_dirs(
+        root: &std::path::Path,
+        current: &std::path::Path,
+        depth: usize,
+        max_depth: usize,
+        counts: &mut BTreeMap<String, usize>,
+    ) {
+        if depth > max_depth {
+            return;
+        }
+        if let Ok(entries) = std::fs::read_dir(current) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_file()
-                    && is_image_file(&path)
-                    && let Some(name) = path.file_name().and_then(|n| n.to_str())
-                {
-                    let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-                    items.push(ImageMediaItem {
-                        id: format!("app-img-{}", name),
-                        name: name.to_string(),
-                        path: path.display().to_string(),
-                        folder_id: "app".to_string(),
-                        folder_name: "Pasta do App".to_string(),
-                        url: format!("/api/media/files/images/{name}"),
-                        is_external: false,
-                        size_bytes: size,
-                    });
+                let fname = match path.file_name().and_then(|n| n.to_str()) {
+                    Some(n) => n,
+                    None => continue,
+                };
+                if fname.starts_with('.') {
+                    continue;
+                }
+                if path.is_dir() {
+                    if let Ok(rel) = path.strip_prefix(root) {
+                        let rel_str = rel.to_string_lossy().replace('\\', "/");
+                        counts.entry(rel_str).or_insert(0);
+                    }
+                    walk_dirs(root, &path, depth + 1, max_depth, counts);
                 }
             }
         }
     }
+    walk_dirs(root, root, 1, max_depth, &mut sub_counts);
 
-    // 2. Pastas externas mapeadas
+    for img in &scanned {
+        if let Some(ref sub) = img.subfolder {
+            *sub_counts.entry(sub.clone()).or_insert(0) += 1;
+        }
+    }
+
+    sub_counts
+        .into_iter()
+        .map(|(relative_path, count)| {
+            let name = relative_path
+                .split('/')
+                .next_back()
+                .unwrap_or(&relative_path)
+                .to_string();
+            op_core::MediaSubfolder {
+                relative_path,
+                name,
+                count,
+            }
+        })
+        .collect()
+}
+
+async fn list_images(State(state): State<AppState>) -> Json<Vec<ImageMediaItem>> {
+    let mut items = Vec::new();
+
+    // 1. Imagens internas do app (<data_dir>/media/images) com suporte a sub-pastas
+    if let Ok(media_dir) = crate::session::resolve_media_dir() {
+        let app_img_dir = media_dir.join("images");
+        let _ = std::fs::create_dir_all(&app_img_dir);
+        let mut scanned = Vec::new();
+        scan_images_recursively(&app_img_dir, &app_img_dir, 1, 5, &mut scanned);
+        for item in scanned {
+            let enc_rel = item
+                .rel_path
+                .split('/')
+                .map(url_encode)
+                .collect::<Vec<_>>()
+                .join("/");
+            items.push(ImageMediaItem {
+                id: format!("app-img-{}", item.rel_path.replace('/', "-")),
+                name: item.filename,
+                path: item.path.display().to_string(),
+                folder_id: "app".to_string(),
+                folder_name: "Pasta do App".to_string(),
+                subfolder: item.subfolder,
+                url: format!("/api/media/files/images/{enc_rel}"),
+                is_external: false,
+                size_bytes: item.size_bytes,
+            });
+        }
+    }
+
+    // 2. Pastas externas mapeadas com suporte a sub-pastas recursivas
     if let Some(ref db) = state.db {
         let db_guard = db.lock().await;
         if let Ok(folders) = db_guard.list_media_folders() {
             for f in folders {
                 let p = std::path::Path::new(&f.path);
-                if p.is_dir()
-                    && let Ok(entries) = std::fs::read_dir(p)
-                {
-                    for entry in entries.flatten() {
-                        let fpath = entry.path();
-                        if fpath.is_file()
-                            && is_image_file(&fpath)
-                            && let Some(fname) = fpath.file_name().and_then(|n| n.to_str())
-                        {
-                            let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-                            let enc_name = url_encode(fname);
-                            items.push(ImageMediaItem {
-                                id: format!("ext-{}-{}", f.id, fname),
-                                name: fname.to_string(),
-                                path: fpath.display().to_string(),
-                                folder_id: f.id.clone(),
-                                folder_name: f.name.clone(),
-                                url: format!(
-                                    "/api/media/external-file?folder_id={}&file={}",
-                                    f.id, enc_name
-                                ),
-                                is_external: true,
-                                size_bytes: size,
-                            });
-                        }
+                if p.is_dir() {
+                    let mut scanned = Vec::new();
+                    scan_images_recursively(p, p, 1, 5, &mut scanned);
+                    for item in scanned {
+                        let enc_rel = item
+                            .rel_path
+                            .split('/')
+                            .map(url_encode)
+                            .collect::<Vec<_>>()
+                            .join("/");
+                        items.push(ImageMediaItem {
+                            id: format!("ext-{}-{}", f.id, item.rel_path.replace('/', "-")),
+                            name: item.filename,
+                            path: item.path.display().to_string(),
+                            folder_id: f.id.clone(),
+                            folder_name: f.name.clone(),
+                            subfolder: item.subfolder,
+                            url: format!(
+                                "/api/media/external-file?folder_id={}&file={enc_rel}",
+                                f.id
+                            ),
+                            is_external: true,
+                            size_bytes: item.size_bytes,
+                        });
                     }
                 }
             }
@@ -1199,7 +1324,8 @@ async fn serve_external_file(
     State(state): State<AppState>,
     Query(query): Query<ExternalFileQuery>,
 ) -> impl IntoResponse {
-    if query.file.contains("..") || query.file.starts_with('/') {
+    let clean_file = query.file.replace('\\', "/");
+    if clean_file.contains("..") || clean_file.starts_with('/') {
         return (StatusCode::BAD_REQUEST, "Arquivo inválido").into_response();
     }
 
@@ -1223,7 +1349,7 @@ async fn serve_external_file(
         }
     };
 
-    let file_path = folder_path.join(&query.file);
+    let file_path = folder_path.join(&clean_file);
     if !file_path.exists() || !file_path.is_file() {
         return (StatusCode::NOT_FOUND, "Arquivo não encontrado").into_response();
     }

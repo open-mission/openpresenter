@@ -76,7 +76,8 @@
 
       const matchesSearch =
         searchQuery === '' ||
-        img.name.toLowerCase().includes(searchQuery.toLowerCase());
+        img.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (img.subfolder && img.subfolder.toLowerCase().includes(searchQuery.toLowerCase()));
 
       return matchesFolder && matchesSearch;
     });
@@ -300,7 +301,7 @@
                   <!-- Legenda -->
                   <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2 pt-4">
                     <p class="text-[11px] font-semibold text-white truncate drop-shadow">{img.name}</p>
-                    <p class="text-[9px] text-neutral-400 truncate">{img.folder_name}</p>
+                    <p class="text-[9px] text-neutral-400 truncate">{img.folder_name}{img.subfolder ? ` • ${img.subfolder}` : ''}</p>
                   </div>
                 </div>
               {/each}

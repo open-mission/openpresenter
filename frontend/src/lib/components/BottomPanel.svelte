@@ -209,11 +209,49 @@
     }
   }
 
-  // Filtragem de imagens
+  let selectedSubfolder = $state<string | null>(null);
+  let expandedFolders = $state<Record<string, boolean>>({});
+
+  function toggleFolderExpand(folderId: string, e?: MouseEvent) {
+    e?.stopPropagation();
+    expandedFolders = {
+      ...expandedFolders,
+      [folderId]: !expandedFolders[folderId],
+    };
+  }
+
+  // Sub-pastas da pasta atualmente selecionada
+  const currentSubfolders = $derived.by(() => {
+    if (selectedFolderFilter === 'all') return [];
+    if (selectedFolderFilter === 'app') {
+      const set = new Map<string, number>();
+      for (const img of images) {
+        if (!img.is_external && img.subfolder) {
+          set.set(img.subfolder, (set.get(img.subfolder) || 0) + 1);
+        }
+      }
+      return Array.from(set.entries()).map(([sub, count]) => ({
+        relative_path: sub,
+        name: sub.split('/').pop() || sub,
+        count,
+      }));
+    }
+    const f = folders.find((item) => item.id === selectedFolderFilter);
+    return f?.subfolders || [];
+  });
+
+  // Filtragem de imagens com suporte a sub-pastas
   const filteredImages = $derived.by(() => {
-    if (selectedFolderFilter === 'all') return images;
-    if (selectedFolderFilter === 'app') return images.filter((img) => !img.is_external);
-    return images.filter((img) => img.folder_id === selectedFolderFilter);
+    let list = images;
+    if (selectedFolderFilter === 'app') {
+      list = list.filter((img) => !img.is_external);
+    } else if (selectedFolderFilter !== 'all') {
+      list = list.filter((img) => img.folder_id === selectedFolderFilter);
+    }
+    if (selectedSubfolder !== null) {
+      list = list.filter((img) => img.subfolder === selectedSubfolder);
+    }
+    return list;
   });
 
   // Nome da pasta selecionada para Breadcrumbs
@@ -648,7 +686,10 @@
             <!-- Nó: Todas as Imagens -->
             <button
               type="button"
-              onclick={() => (selectedFolderFilter = 'all')}
+              onclick={() => {
+                selectedFolderFilter = 'all';
+                selectedSubfolder = null;
+              }}
               class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedFolderFilter === 'all' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
             >
               <div class="flex items-center gap-2 truncate">
@@ -663,7 +704,10 @@
             <!-- Nó: Pasta do App -->
             <button
               type="button"
-              onclick={() => (selectedFolderFilter = 'app')}
+              onclick={() => {
+                selectedFolderFilter = 'app';
+                selectedSubfolder = null;
+              }}
               class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedFolderFilter === 'app' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
             >
               <div class="flex items-center gap-2 truncate">
@@ -696,24 +740,80 @@
               </button>
 
               {#if isFoldersTreeExpanded}
-                <div class="space-y-0.5 mt-1 pl-2">
+                <div class="space-y-0.5 mt-1 pl-1">
                   {#if folders.length === 0}
                     <p class="text-[10px] text-muted-foreground italic px-2 py-1">Nenhuma pasta mapeada</p>
                   {:else}
                     {#each folders as f (f.id)}
                       {@const count = images.filter((i) => i.folder_id === f.id).length}
-                      <button
-                        type="button"
-                        onclick={() => (selectedFolderFilter = f.id)}
-                        class="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer {selectedFolderFilter === f.id ? 'bg-primary/15 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
-                        title={f.path}
-                      >
-                        <div class="flex items-center gap-2 min-w-0">
-                          <FolderOpen size={12} class="text-amber-400 shrink-0" />
-                          <span class="truncate text-[11px]">{f.name}</span>
+                      {@const subs = f.subfolders || []}
+                      {@const isExpanded = !!expandedFolders[f.id]}
+                      {@const isFolderSelected = selectedFolderFilter === f.id}
+
+                      <div class="space-y-0.5">
+                        <div
+                          role="button"
+                          tabindex="0"
+                          onclick={() => {
+                            selectedFolderFilter = f.id;
+                            selectedSubfolder = null;
+                            if (subs.length > 0) expandedFolders[f.id] = true;
+                          }}
+                          onkeydown={(e) => {
+                            if (e.key === 'Enter') {
+                              selectedFolderFilter = f.id;
+                              selectedSubfolder = null;
+                            }
+                          }}
+                          class="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer {isFolderSelected && selectedSubfolder === null ? 'bg-primary/15 text-primary font-bold' : isFolderSelected ? 'bg-muted/60 text-foreground font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+                          title={f.path}
+                        >
+                          <div class="flex items-center gap-1.5 min-w-0">
+                            {#if subs.length > 0}
+                              <button
+                                type="button"
+                                onclick={(e) => toggleFolderExpand(f.id, e)}
+                                class="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+                                title={isExpanded ? 'Recolher sub-pastas' : 'Expandir sub-pastas'}
+                              >
+                                {#if isExpanded}
+                                  <ChevronDown size={11} />
+                                {:else}
+                                  <ChevronRight size={11} />
+                                {/if}
+                              </button>
+                            {:else}
+                              <span class="w-3.5"></span>
+                            {/if}
+                            <FolderOpen size={12} class="text-amber-400 shrink-0" />
+                            <span class="truncate text-[11px]">{f.name}</span>
+                          </div>
+                          <span class="text-[9px] font-mono text-muted-foreground ml-1 shrink-0">{count}</span>
                         </div>
-                        <span class="text-[9px] font-mono text-muted-foreground ml-1 shrink-0">{count}</span>
-                      </button>
+
+                        {#if isExpanded && subs.length > 0}
+                          <div class="pl-4 space-y-0.5 border-l border-border/50 ml-3">
+                            {#each subs as sub (sub.relative_path)}
+                              {@const isSubSelected = isFolderSelected && selectedSubfolder === sub.relative_path}
+                              <button
+                                type="button"
+                                onclick={() => {
+                                  selectedFolderFilter = f.id;
+                                  selectedSubfolder = sub.relative_path;
+                                }}
+                                class="w-full flex items-center justify-between px-2 py-1 rounded text-[11px] transition-colors cursor-pointer {isSubSelected ? 'bg-primary/20 text-primary font-bold' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'}"
+                                title="{f.name} / {sub.relative_path}"
+                              >
+                                <div class="flex items-center gap-1.5 min-w-0">
+                                  <Folder size={11} class="text-amber-400/80 shrink-0" />
+                                  <span class="truncate">{sub.name}</span>
+                                </div>
+                                <span class="text-[9px] font-mono opacity-80 ml-1 shrink-0">{sub.count}</span>
+                              </button>
+                            {/each}
+                          </div>
+                        {/if}
+                      </div>
                     {/each}
                   {/if}
                 </div>
@@ -729,7 +829,10 @@
               <nav class="flex items-center gap-1.5 text-xs text-muted-foreground overflow-x-auto">
                 <button
                   type="button"
-                  onclick={() => (selectedFolderFilter = 'all')}
+                  onclick={() => {
+                    selectedFolderFilter = 'all';
+                    selectedSubfolder = null;
+                  }}
                   class="hover:text-foreground transition-colors cursor-pointer"
                 >
                   Mídias
@@ -737,15 +840,30 @@
                 <ChevronRight size={11} />
                 <button
                   type="button"
-                  onclick={() => (selectedFolderFilter = 'all')}
+                  onclick={() => {
+                    selectedFolderFilter = 'all';
+                    selectedSubfolder = null;
+                  }}
                   class="hover:text-foreground transition-colors cursor-pointer"
                 >
                   Imagens
                 </button>
-                <ChevronRight size={11} />
-                <span class="text-foreground font-bold truncate max-w-xs">
-                  {currentFolderName}
-                </span>
+                {#if selectedFolderFilter !== 'all'}
+                  <ChevronRight size={11} />
+                  <button
+                    type="button"
+                    onclick={() => (selectedSubfolder = null)}
+                    class="hover:text-foreground transition-colors cursor-pointer {selectedSubfolder ? 'text-muted-foreground hover:text-foreground' : 'text-foreground font-bold'}"
+                  >
+                    {currentFolderName}
+                  </button>
+                {/if}
+                {#if selectedSubfolder}
+                  <ChevronRight size={11} />
+                  <span class="text-foreground font-bold truncate max-w-xs">
+                    {selectedSubfolder}
+                  </span>
+                {/if}
                 <Badge variant="secondary" class="text-[9px] py-0 px-1 ml-1 font-mono">
                   {filteredImages.length}
                 </Badge>
@@ -813,6 +931,36 @@
 
             <!-- Grade de Miniaturas de Imagens com Ação de Apresentar Direta -->
             <div class="flex-1 overflow-y-auto pr-1">
+              {#if selectedSubfolder === null && currentSubfolders.length > 0}
+                <div class="mb-3.5 pb-3 border-b border-border/50">
+                  <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                    <Folder size={12} class="text-amber-400" />
+                    <span>Sub-pastas ({currentSubfolders.length})</span>
+                  </div>
+                  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                    {#each currentSubfolders as sub (sub.relative_path)}
+                      <button
+                        type="button"
+                        onclick={() => (selectedSubfolder = sub.relative_path)}
+                        class="p-2 rounded-xl border border-border bg-card/60 hover:bg-neutral-850 hover:border-primary/50 text-left transition-all flex items-center gap-2.5 group cursor-pointer shadow-xs"
+                      >
+                        <div class="w-8 h-8 rounded-lg bg-amber-400/10 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                          <Folder size={16} />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                          <p class="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                            {sub.name}
+                          </p>
+                          <p class="text-[10px] text-muted-foreground font-mono">
+                            {sub.count} {sub.count === 1 ? 'item' : 'itens'}
+                          </p>
+                        </div>
+                      </button>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+
               {#if filteredImages.length === 0}
                 <div class="h-32 flex flex-col items-center justify-center text-xs text-muted-foreground">
                   Nenhuma imagem encontrada nesta pasta.
@@ -840,6 +988,9 @@
                         <!-- Overlay com nome e pasta -->
                         <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1 pt-3">
                           <p class="text-[10px] text-white font-medium truncate drop-shadow">{img.name}</p>
+                          {#if img.subfolder && selectedSubfolder === null}
+                            <p class="text-[9px] text-amber-300 font-mono truncate drop-shadow">{img.subfolder}</p>
+                          {/if}
                         </div>
                       </div>
 
