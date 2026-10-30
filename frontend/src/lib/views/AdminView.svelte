@@ -989,25 +989,6 @@
   <!-- Top Bar / Header Operacional -->
   <header class="h-14 border-b border-border bg-card/60 px-4 flex items-center justify-between shrink-0">
     <div class="flex items-center gap-2.5">
-      <!-- Botão Alternar Barra Lateral da Setlist -->
-      <button
-        type="button"
-        onclick={() => (isSetlistSidebarOpen = !isSetlistSidebarOpen)}
-        class={cn(
-          'p-1.5 rounded-lg border transition-colors cursor-pointer',
-          isSetlistSidebarOpen
-            ? 'bg-muted text-foreground border-border hover:bg-muted/80'
-            : 'bg-card/80 text-muted-foreground hover:text-foreground border-border hover:bg-muted'
-        )}
-        title={isSetlistSidebarOpen ? 'Recolher Setlist' : 'Expandir Setlist'}
-      >
-        {#if isSetlistSidebarOpen}
-          <PanelLeftClose size={16} />
-        {:else}
-          <PanelLeftOpen size={16} />
-        {/if}
-      </button>
-
       <!-- Logo Oficial com Tamanho Nítido e Sem Duplicação -->
       <a href="/" class="flex items-center gap-2 group cursor-pointer" title="OpenPresenter Minimal">
         <img
@@ -1159,25 +1140,6 @@
         <QrCode size={14} class="text-primary" />
         <span class="hidden lg:inline">QR Code</span>
       </Button>
-
-      <!-- Botão Alternar Painel de Saídas (Previews) -->
-      <button
-        type="button"
-        onclick={() => (isPreviewSidebarOpen = !isPreviewSidebarOpen)}
-        class={cn(
-          'p-1.5 rounded-lg border transition-colors cursor-pointer ml-1',
-          isPreviewSidebarOpen
-            ? 'bg-muted text-foreground border-border hover:bg-muted/80'
-            : 'bg-card/80 text-muted-foreground hover:text-foreground border-border hover:bg-muted'
-        )}
-        title={isPreviewSidebarOpen ? 'Recolher Previews de Saída' : 'Expandir Previews de Saída'}
-      >
-        {#if isPreviewSidebarOpen}
-          <PanelRightClose size={16} />
-        {:else}
-          <PanelRightOpen size={16} />
-        {/if}
-      </button>
     </div>
   </header>
 

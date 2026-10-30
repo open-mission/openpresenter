@@ -22,6 +22,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ### Alterado
 - **Interface do Operador:**
+  - Removidos os botões duplicados de alternância de sidebars (Setlist e Previews) do cabeçalho superior; o controle de recolher e expandir agora fica centralizado exclusivamente nos botões nativos dos cabeçalhos dos painéis e nos rails laterais colapsados.
   - Removido o subtítulo "Projeção para igrejas e eventos" do cabeçalho superior para deixar a barra de ferramentas mais limpa e compacta.
 
 ### Corrigido
