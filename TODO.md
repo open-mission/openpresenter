@@ -16,7 +16,7 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
-- [x] Preparar a versão 0.3.0 para lançamento e ícone oficial no executável: unificação de versão em todo o workspace (Cargo.toml, package.json, workflows, componentes e testes), geração de ícone nativo .icns e PNG 1024x1024 a partir da marca oficial, script de empacotamento macOS (scripts/package-macos.sh) gerando OpenPresenter.app e atribuindo atributos de ícone do Finder ao executável Mach-O, injeção em runtime via Cocoa (Dock/App Switcher), fechamento da release 0.3.0 no CHANGELOG.md e spec docs/specs/2026-10-30-release-0-3-0.md. (commit a_preencher - 2026-10-30 17:30:00 -03:00)
+- [x] Preparar a versão 0.3.0 para lançamento e ícone oficial no executável: unificação de versão em todo o workspace (Cargo.toml, package.json, workflows, componentes e testes), geração de ícone nativo .icns e PNG 1024x1024 a partir da marca oficial, script de empacotamento macOS (scripts/package-macos.sh) gerando OpenPresenter.app e atribuindo atributos de ícone do Finder ao executável Mach-O, injeção em runtime via Cocoa (Dock/App Switcher), fechamento da release 0.3.0 no CHANGELOG.md e spec docs/specs/2026-10-30-release-0-3-0.md. (commit 4bdf3bb - 2026-10-30 17:29:48 -03:00)
 
 - [x] Correções no Controle Remoto Mobile (/remote): busca bíblica funcional no endpoint /api/bibles/:id/search com suporte a referências rápidas ("Jo 3:16", "Sl 23") via parseBibleReference; divisão estrutural de estrofes de músicas respeitando quebras duplas \n\n com parseRawLyrics; navegação contínua de versículos na Bíblia projetando o capítulo com todos os versículos para habilitar botões Anterior/Próximo e contagem correta de slides; e botão de recarregar catálogo de músicas. (commit e61c7db - 2026-10-30 17:03:29 -03:00)
 
