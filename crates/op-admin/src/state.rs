@@ -46,10 +46,27 @@ impl AppState {
             updated_at: "".into(),
         };
 
+        let mut lyrics_bg =
+            Some("css:none|linear-gradient(135deg, #022c22 0%, #064e3b 50%, #021a14 100%)".into());
+        let mut lyrics_mode = Some("cover".into());
+
+        if let Some(ref mut db_conn) = db {
+            if let Ok(Some(saved_bg)) = db_conn.get_setting("lyrics_background_path") {
+                lyrics_bg = Some(saved_bg);
+            }
+            if let Ok(Some(saved_mode)) = db_conn.get_setting("lyrics_background_mode") {
+                lyrics_mode = Some(saved_mode);
+            }
+        }
+
         let mut initial_presentation = PresentationState {
             active_setlist_id: Some(initial_setlist.id.clone()),
             wallpaper_path: initial_setlist.wallpaper_path.clone(),
             wallpaper_mode: initial_setlist.wallpaper_mode.clone(),
+            setlist_wallpaper_path: initial_setlist.wallpaper_path.clone(),
+            setlist_wallpaper_mode: initial_setlist.wallpaper_mode.clone(),
+            lyrics_background_path: lyrics_bg,
+            lyrics_background_mode: lyrics_mode,
             ..Default::default()
         };
 
@@ -61,6 +78,8 @@ impl AppState {
                 initial_presentation.active_setlist_id = Some(active.id.clone());
                 initial_presentation.wallpaper_path = active.wallpaper_path.clone();
                 initial_presentation.wallpaper_mode = active.wallpaper_mode.clone();
+                initial_presentation.setlist_wallpaper_path = active.wallpaper_path.clone();
+                initial_presentation.setlist_wallpaper_mode = active.wallpaper_mode.clone();
                 initial_items = active.items.clone();
                 initial_setlist = active;
             } else {
@@ -156,6 +175,8 @@ impl AppState {
                 pres.active_media_id = None;
                 pres.active_slide_index = None;
                 pres.display_mode = DisplayMode::ClearText;
+                pres.wallpaper_path = pres.setlist_wallpaper_path.clone();
+                pres.wallpaper_mode = pres.setlist_wallpaper_mode.clone();
             }
             let updated_pres = pres.clone();
             drop(pres);
@@ -183,6 +204,8 @@ impl AppState {
             pres.active_media_id = None;
             pres.active_slide_index = None;
             pres.display_mode = DisplayMode::ClearText;
+            pres.wallpaper_path = pres.setlist_wallpaper_path.clone();
+            pres.wallpaper_mode = pres.setlist_wallpaper_mode.clone();
         }
         let updated_pres = pres.clone();
         drop(pres);
@@ -268,8 +291,12 @@ impl AppState {
 
         let mut pres = self.presentation.write().await;
         pres.active_setlist_id = Some(setlist.id.clone());
-        pres.wallpaper_path = setlist.wallpaper_path.clone();
-        pres.wallpaper_mode = setlist.wallpaper_mode.clone();
+        pres.setlist_wallpaper_path = setlist.wallpaper_path.clone();
+        pres.setlist_wallpaper_mode = setlist.wallpaper_mode.clone();
+        if pres.active_media_id.is_none() {
+            pres.wallpaper_path = setlist.wallpaper_path.clone();
+            pres.wallpaper_mode = setlist.wallpaper_mode.clone();
+        }
         let updated_pres = pres.clone();
         drop(pres);
 
@@ -302,6 +329,9 @@ impl AppState {
         state.active_media_id = Some(media_id);
         state.active_slide_index = Some(slide_index);
         state.display_mode = DisplayMode::Live;
+        // Ao iniciar apresentação, aplica o fundo de apresentação/letras
+        state.wallpaper_path = state.lyrics_background_path.clone();
+        state.wallpaper_mode = state.lyrics_background_mode.clone();
         let updated = state.clone();
         drop(state);
 
@@ -326,12 +356,16 @@ impl AppState {
         updated
     }
 
-    /// Para ou cancela a apresentação ativa, limpando qualquer mídia e slide ao vivo.
+    /// Para ou cancela a apresentação ativa, limpando qualquer mídia e slide ao vivo
+    /// e restaurando o papel de parede do setlist.
     pub async fn stop_presentation(&self) -> PresentationState {
         let mut state = self.presentation.write().await;
         state.active_media_id = None;
         state.active_slide_index = None;
         state.display_mode = DisplayMode::Live;
+        // Ao cancelar apresentação, volta ao plano de fundo do setlist
+        state.wallpaper_path = state.setlist_wallpaper_path.clone();
+        state.wallpaper_mode = state.setlist_wallpaper_mode.clone();
         let updated = state.clone();
         drop(state);
 
@@ -342,32 +376,36 @@ impl AppState {
         updated
     }
 
-    /// Atualiza o papel de parede ou fundo da apresentação ao vivo e sincroniza com a setlist ativa.
+    /// Atualiza o fundo da apresentação de letras e sincroniza o estado.
     pub async fn set_wallpaper(
         &self,
         path: Option<String>,
         mode: Option<String>,
     ) -> PresentationState {
         let mut state = self.presentation.write().await;
-        state.wallpaper_path = path.clone();
+        // Atualiza o background padrão de apresentação das letras
+        state.lyrics_background_path = path.clone();
         if let Some(ref m) = mode {
-            state.wallpaper_mode = Some(m.clone());
+            state.lyrics_background_mode = Some(m.clone());
+        }
+        // Se houver apresentação ao vivo, atualiza o fundo no ar imediatamente
+        if state.active_media_id.is_some() {
+            state.wallpaper_path = path.clone();
+            if let Some(ref m) = mode {
+                state.wallpaper_mode = Some(m.clone());
+            }
         }
         let updated = state.clone();
         drop(state);
 
-        // Se houver uma setlist ativa, atualiza também seu wallpaper
-        {
-            let mut active = self.active_setlist.write().await;
-            if let Some(ref mut s) = *active {
-                s.wallpaper_path = path;
-                if let Some(m) = mode {
-                    s.wallpaper_mode = Some(m);
-                }
-                if let Some(ref db_opt) = self.db {
-                    let mut db = db_opt.lock().await;
-                    let _ = db.save_setlist(s);
-                }
+        // Salva a preferência nas configurações do banco de dados
+        if let Some(ref db_opt) = self.db {
+            let db = db_opt.lock().await;
+            if let Some(ref p) = path {
+                let _ = db.set_setting("lyrics_background_path", p);
+            }
+            if let Some(ref m) = mode {
+                let _ = db.set_setting("lyrics_background_mode", m);
             }
         }
 
@@ -536,9 +574,13 @@ impl AppState {
         };
 
         let mut state = self.presentation.write().await;
-        state.active_media_id = Some(item.id);
+        state.active_media_id = Some(item.id.clone());
         state.active_slide_index = Some(target_idx);
         state.display_mode = DisplayMode::Live;
+        if item.kind != op_core::MediaKind::Image {
+            state.wallpaper_path = state.lyrics_background_path.clone();
+            state.wallpaper_mode = state.lyrics_background_mode.clone();
+        }
         let updated = state.clone();
         drop(state);
 

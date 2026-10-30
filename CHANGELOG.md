@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Corrigido
+- **Separação de Papel de Parede da Setlist vs. Fundo das Letras:**
+  - O papel de parede selecionado na setlist agora é mantido na tela pública durante os momentos de repouso (sem apresentação ativa).
+  - Ao iniciar a projeção de uma música ou versículo bíblico, o projetor comuta automaticamente para o fundo padrão configurado para letras, restaurando o contraste visual do texto.
+  - Ao encerrar a apresentação (Esc / Parar Projeção / Limpar), a tela pública retorna automaticamente ao papel de parede da setlist.
+
 ## [0.1.0] - 2026-10-29
 
 ### Adicionado

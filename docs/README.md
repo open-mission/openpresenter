@@ -104,6 +104,11 @@
 - [Plano — Sistema de Atualização Automática Completa (Auto-Updater)](plans/2026-10-29-auto-updater-completo.md)
 - [ADR 0012 — Sistema de Auto-Updater Completo, Verificação de Releases e Substituição Atômica Multiplataforma](decisions/0012-auto-updater-multiplataforma-e-github-releases.md)
 
+## Separação entre Papel de Parede da Setlist e Fundo de Projeção de Letras
+
+- [Spec — Separação entre Papel de Parede da Setlist e Fundo de Projeção de Letras](specs/2026-10-29-setlist-wallpaper-vs-lyrics-background.md)
+- [Plano — Separação entre Papel de Parede da Setlist e Fundo de Projeção de Letras](plans/2026-10-29-setlist-wallpaper-vs-lyrics-background.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

@@ -1003,7 +1003,7 @@
                 {#if selectedBgCategory !== 'local'}
                   {#each filteredBackgrounds as preset (preset.id)}
                     {@const encoded = encodeBackground(preset)}
-                    {@const isLiveBg = $presentationState.wallpaper_path === encoded}
+                    {@const isLiveBg = $presentationState.lyrics_background_path === encoded || ($presentationState.active_media_id && $presentationState.wallpaper_path === encoded)}
 
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
@@ -1022,7 +1022,7 @@
 
                         {#if isLiveBg}
                           <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center gap-1 shadow-md">
-                            <Check size={10} /> Ativo no Public
+                            <Check size={10} /> Fundo das Letras
                           </div>
                         {/if}
 
@@ -1042,10 +1042,10 @@
                             applyBackground(encoded);
                           }}
                           class="flex-1 h-6 rounded bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                          title="Aplicar imediatamente no projetor"
+                          title="Definir como fundo de apresentação das letras"
                         >
                           <Play size={10} class="fill-current" />
-                          <span>Aplicar</span>
+                          <span>Usar nas Letras</span>
                         </button>
                       </div>
                     </div>
@@ -1055,7 +1055,7 @@
                 <!-- Papéis de Parede Locais da Pasta Wallpapers -->
                 {#if selectedBgCategory === 'all' || selectedBgCategory === 'local'}
                   {#each localWallpapers as wall (wall.url)}
-                    {@const isLiveBg = $presentationState.wallpaper_path === wall.url}
+                    {@const isLiveBg = $presentationState.lyrics_background_path === wall.url || ($presentationState.active_media_id && $presentationState.wallpaper_path === wall.url)}
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
                       onclick={() => applyBackground(wall.url)}
@@ -1073,7 +1073,7 @@
 
                         {#if isLiveBg}
                           <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center gap-1 shadow-md">
-                            <Check size={10} /> Ativo no Public
+                            <Check size={10} /> Fundo das Letras
                           </div>
                         {/if}
 
@@ -1090,10 +1090,10 @@
                             applyBackground(wall.url);
                           }}
                           class="flex-1 h-6 rounded bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                          title="Aplicar imediatamente no projetor"
+                          title="Definir como fundo de apresentação das letras"
                         >
                           <Play size={10} class="fill-current" />
-                          <span>Aplicar</span>
+                          <span>Usar nas Letras</span>
                         </button>
                       </div>
                     </div>

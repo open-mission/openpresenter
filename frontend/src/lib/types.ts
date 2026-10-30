@@ -145,6 +145,10 @@ export interface PresentationState {
   active_setlist_id?: string;
   wallpaper_path?: string;
   wallpaper_mode?: string;
+  setlist_wallpaper_path?: string;
+  setlist_wallpaper_mode?: string;
+  lyrics_background_path?: string;
+  lyrics_background_mode?: string;
   timer: TimerState;
   stage_message?: string;
 }

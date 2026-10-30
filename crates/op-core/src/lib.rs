@@ -701,6 +701,14 @@ pub struct PresentationState {
     #[serde(default)]
     pub wallpaper_mode: Option<String>,
     #[serde(default)]
+    pub setlist_wallpaper_path: Option<String>,
+    #[serde(default)]
+    pub setlist_wallpaper_mode: Option<String>,
+    #[serde(default)]
+    pub lyrics_background_path: Option<String>,
+    #[serde(default)]
+    pub lyrics_background_mode: Option<String>,
+    #[serde(default)]
     pub timer: TimerState,
 }
 
@@ -715,6 +723,12 @@ impl Default for PresentationState {
             active_setlist_id: None,
             wallpaper_path: None,
             wallpaper_mode: Some("cover".into()),
+            setlist_wallpaper_path: None,
+            setlist_wallpaper_mode: Some("cover".into()),
+            lyrics_background_path: Some(
+                "css:none|linear-gradient(135deg, #022c22 0%, #064e3b 50%, #021a14 100%)".into(),
+            ),
+            lyrics_background_mode: Some("cover".into()),
             timer: TimerState::default(),
         }
     }

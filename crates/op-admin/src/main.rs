@@ -648,6 +648,8 @@ mod tests {
         let pres = state.presentation.read().await;
         assert_eq!(pres.active_media_id, None);
         assert_eq!(pres.active_slide_index, None);
+        // Ao parar, o wallpaper deve retornar para o setlist_wallpaper_path (repouso)
+        assert_eq!(pres.wallpaper_path, pres.setlist_wallpaper_path);
     }
 
     #[tokio::test]
