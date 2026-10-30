@@ -103,6 +103,7 @@
 - [Spec — Sistema de Atualização Automática Completa (Auto-Updater)](specs/2026-10-29-auto-updater-completo.md)
 - [Plano — Sistema de Atualização Automática Completa (Auto-Updater)](plans/2026-10-29-auto-updater-completo.md)
 - [ADR 0012 — Sistema de Auto-Updater Completo, Verificação de Releases e Substituição Atômica Multiplataforma](decisions/0012-auto-updater-multiplataforma-e-github-releases.md)
+- [ADR 0013 — Integração com Google Cast: Web Receiver via WebSocket vs. Transmissão de Vídeo HLS](decisions/0013-integracao-google-cast-web-receiver-vs-hls.md)
 
 ## Separação entre Papel de Parede da Setlist e Fundo de Projeção de Letras
 
@@ -138,6 +139,12 @@
 
 - [Spec — Versão 0.2.0: Preparação de Release](specs/2026-10-30-versao-0-2-0-preparacao-de-release.md)
 
+## Integração com Google Cast (Chromecast)
+
+- [Spec — Integração com Google Cast para Telas Pública e Retorno de Palco](specs/2026-10-30-integracao-google-cast.md)
+- [Plano — Integração com Google Cast para Telas Pública e Retorno de Palco](plans/2026-10-30-integracao-google-cast.md)
+- [ADR 0013 — Integração com Google Cast: Web Receiver via WebSocket vs. Transmissão de Vídeo HLS](decisions/0013-integracao-google-cast-web-receiver-vs-hls.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
@@ -154,6 +161,7 @@
 - [ADR 0010 — Módulo de Bíblias em Arquivos SQLite Desacoplados, Parser de Referências em Português e Exibição de Escrituras no Palco](decisions/0010-modulo-biblia-sqlite-parser-referencias-e-stage.md)
 - [ADR 0011 — Versão 0.1.0: Executável Autocontido com Tray Icon, Frontend Embutido e CI/CD Multiplataforma](decisions/0011-versao-0-1-0-tray-icon-frontend-embutido-e-release-matrix.md)
 - [ADR 0012 — Sistema de Auto-Updater Completo, Verificação de Releases e Substituição Atômica Multiplataforma](decisions/0012-auto-updater-multiplataforma-e-github-releases.md)
+- [ADR 0013 — Integração com Google Cast: Web Receiver via WebSocket vs. Transmissão de Vídeo HLS](decisions/0013-integracao-google-cast-web-receiver-vs-hls.md)
 
 ## Marca e design
 
