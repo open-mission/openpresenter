@@ -508,13 +508,14 @@
 
         <!-- Grade/Lista de Músicas com Suporte a Sheet de Letra Lateral -->
         <div class="flex-1 flex overflow-hidden gap-3">
-          <div class="flex-1 overflow-y-auto pr-1">
+          <!-- Coluna do Catálogo de Músicas: compacta quando o preview está aberto, ampla quando fechado -->
+          <div class="{viewingSong ? 'w-80 sm:w-96 shrink-0 border-r border-border pr-2' : 'flex-1 pr-1'} overflow-y-auto flex flex-col">
             {#if songs.length === 0}
               <div class="h-32 flex flex-col items-center justify-center text-xs text-muted-foreground">
                 Nenhuma música encontrada no catálogo.
               </div>
             {:else}
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+              <div class="grid {viewingSong ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'} gap-2">
                 {#each songs as song (song.id)}
                   <!-- svelte-ignore a11y_no_static_element_interactions -->
                   <div
@@ -522,13 +523,13 @@
                     onkeydown={(e) => { if (e.key === 'Enter') handleViewSongLyrics(song.id); }}
                     role="button"
                     tabindex="0"
-                    class="p-2.5 rounded-lg border border-border bg-card/60 hover:bg-muted/40 transition-all flex flex-col justify-between group cursor-pointer {viewingSong?.id === song.id ? 'ring-1 ring-primary border-primary bg-primary/5' : ''}"
+                    class="p-2.5 rounded-lg border border-border bg-card/60 hover:bg-muted/40 transition-all flex flex-col justify-between group cursor-pointer {viewingSong?.id === song.id ? 'ring-1 ring-primary border-primary bg-primary/10' : ''}"
                   >
                     <div>
                       <div class="flex items-center justify-between gap-1 mb-1">
                         <h4 class="text-xs font-bold text-foreground truncate">{song.title}</h4>
                         {#if song.song_key}
-                          <Badge variant="outline" class="text-[9px] py-0 px-1 font-mono text-primary">
+                          <Badge variant="outline" class="text-[9px] py-0 px-1 font-mono text-primary shrink-0">
                             {song.song_key}
                           </Badge>
                         {/if}
@@ -544,18 +545,18 @@
                     </div>
 
                     <div class="flex items-center justify-between gap-1.5 mt-2 pt-2 border-t border-border">
-                      <span class="text-[10px] text-primary font-semibold flex items-center gap-1">
-                        <FileText size={11} /> Ver Letra
+                      <span class="text-[10px] {viewingSong?.id === song.id ? 'text-primary font-bold' : 'text-primary font-semibold'} flex items-center gap-1 shrink-0 truncate">
+                        <FileText size={11} /> {viewingSong?.id === song.id ? 'Visualizando' : 'Ver Letra'}
                       </span>
 
-                      <div class="flex items-center gap-1">
+                      <div class="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
                           onclick={(e) => {
                             e.stopPropagation();
                             onaddsongtosetlist?.(song.id);
                           }}
-                          class="px-2 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] text-foreground font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                          class="px-2 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] text-foreground font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
                           title="Adicionar à Setlist"
                         >
                           <ListPlus size={11} class="text-primary" />
@@ -568,7 +569,7 @@
                             e.stopPropagation();
                             onpresentsong?.(song.id);
                           }}
-                          class="px-2 py-0.5 rounded bg-primary/20 hover:bg-primary/30 text-[10px] text-primary font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                          class="px-2 py-0.5 rounded bg-primary/20 hover:bg-primary/30 text-[10px] text-primary font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
                           title="Apresentar Imediatamente"
                         >
                           <Play size={11} class="fill-current" />
@@ -582,9 +583,9 @@
             {/if}
           </div>
 
-          <!-- Sheet Ampliado de Visualização de Letra (2 Colunas de Slides Preview) -->
+          <!-- Sheet Ampliado de Visualização de Letra (Preenche o espaço restante confortavelmente) -->
           {#if viewingSong}
-            <div class="w-[540px] sm:w-[680px] md:w-[780px] lg:w-[860px] xl:w-[940px] max-w-[95vw] border-l border-border bg-card flex flex-col shrink-0 p-3.5 h-full overflow-hidden shadow-2xl animate-in slide-in-from-right duration-150">
+            <div class="flex-1 min-w-0 border border-border bg-card/60 rounded-xl flex flex-col p-3.5 h-full overflow-hidden shadow-md animate-in slide-in-from-right duration-150">
               <!-- Cabeçalho do Sheet -->
               <div class="flex items-center justify-between pb-2.5 border-b border-border shrink-0">
                 <div class="min-w-0 mr-3">

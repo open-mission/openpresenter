@@ -58,6 +58,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Removido o subtítulo "Projeção para igrejas e eventos" do cabeçalho superior para deixar a barra de ferramentas mais limpa e compacta.
 
 ### Corrigido
+- **Espremimento no Catálogo de Músicas com Prévia Aberta:**
+  - Corrigido o espremimento e quebra dos cards de música quando o painel de visualização/preview de letra está aberto.
+  - Implementado layout adaptativo mestre-detalhe: o catálogo de músicas à esquerda se ajusta em coluna única com largura estável (`w-80 sm:w-96`), botões protegidos contra quebra e destaque para a música ativa, enquanto o painel de prévia preenche fluentemente o espaço restante com slides em proporção 16:9.
 - **Monitor de Palco (/stage):**
   - Corrigido erro de execução JavaScript no modo Standby (`ReferenceError`) provocado por identificadores incorretos de timer e overtime, eliminando a tela preta e restaurando a exibição do relógio e cronômetro gigantes.
 - **Aplicação e Contenção de Margens na Projeção Pública:**

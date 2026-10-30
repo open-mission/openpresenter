@@ -123,6 +123,7 @@
 - [Spec — Borda Verde para Item ao Vivo na Barra de Setlist](specs/2026-10-30-setlist-bar-live-item-green-border.md)
 - [Spec — Apresentação Rápida da Bíblia sem Poluir a Setlist e Menu de Contexto](specs/2026-10-30-bible-double-click-quick-present-and-context-menu.md)
 - [Spec — Suporte a Sub-pastas na Aba de Imagens e Varredura Hierárquica de Mídias](specs/2026-10-30-media-images-subfolders-support.md)
+- [Spec — Layout Responsivo e Correção de Espremimento na Visualização de Músicas](specs/2026-10-30-music-preview-sheet-layout-responsive.md)
 
 ## Arquitetura e decisões
 
