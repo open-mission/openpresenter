@@ -79,11 +79,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Proporciona espaço ergonômico e amplo para consulta de livros, capítulos, versículos e buscas textuais, preservando a barra superior e o preview do slide ativo.
 
 ### Corrigido
+- **Resolução Absoluta de URLs de Mídia e Polling Resiliente do SDK no Google Cast:**
+  - Implementação da função canônica `resolveMediaUrl(url: string | null | undefined): string` no frontend (`cast.ts` e `backgrounds.ts`), garantindo que planos de fundo (imagens e vídeos), logotipos da igreja e slides de imagem direta recebam URLs absolutas apontando para o servidor local (`${window.location.origin}/...` ou parâmetro `?server=...`).
+  - Adição da função `resolveCssUrls(style: string)` em `backgrounds.ts`, normalizando referências `url(...)` relativas embutidas em gradientes e propriedades CSS inline para URLs absolutas antes da aplicação no DOM.
+  - Atualização dos componentes `PublicView.svelte` e `PublicPreviewBox.svelte` para utilizar consistentemente `resolveMediaUrl` em elementos `<video>`, `<img>` e em estilos `background-image`.
+  - Reformulação do carregador do SDK do Google Cast (`loadCastSdk` em `cast.ts`) com sondagem assíncrona periódica a cada 250ms (com limite de 7s) e limpeza de cache de promessa em caso de falha, eliminando o bloqueio permanente que gerava a mensagem de indisponibilidade indevida ("Google Cast SDK indisponível no momento").
 - **Estilização, CORS Irrestrito e Resolução de Mídia no Google Cast (Web Receiver):**
   - Configuração de cabeçalhos CORS explícitos (`Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: GET, HEAD, OPTIONS`, `Access-Control-Allow-Headers: *`) em todos os manipuladores de arquivos estáticos (`static_files.rs`), arquivos de mídia (`routes.rs`) e middleware global no Axum (`main.rs`), garantindo que requisições de CSS, fontes e mídias sem cabeçalho `Origin` (como em inspeções com `curl -I`) recebam liberação irrestrita de CORS.
   - Adição da rota unificada `/media/{*subpath}` com resolução sequencial resiliente em subpastas conhecidas (`media/`, `media/wallpapers/`, `media/images/`, `media/church_brand/`).
-  - Funções de normalização `getServerOrigin()` e `normalizeMediaUrl()` no módulo Cast (`cast.ts`) convertendo caminhos relativos em URLs absolutas com o IP de rede da máquina servidora (`http://${host}:${port}/...`).
-  - Aplicação de URLs normalizadas em `PublicView.svelte` para imagens/vídeos de plano de fundo (`resolvedBg.url`), logotipo institucional da igreja (`activeLogoUrl`), imagens de slide direto (`activeSlide.content`) e ícones de branding em tela de espera.
   - Tag canônica `<base href="/" />` no `<head>` de `index.html` e suporte direto a query params (`?view=public`, `?view=stage`, `?view=remote`) no roteador do `App.svelte` para compatibilidade total com webviews e iframes do Chromecast.
   - Estilos críticos inline de fallback no container raiz `<main>` de `PublicView.svelte` e no `body`/`#app` de `index.html`, prevenindo flashes de tela branca e garantindo fundo preto e centralização imediata durante o carregamento inicial no receptor.
 - **Sincronização de versículos bíblicos ao vivo no painel admin em múltiplas instâncias:**

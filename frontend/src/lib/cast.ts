@@ -85,15 +85,16 @@ export async function fetchServerOrigin(): Promise<string> {
 
 /**
  * Normaliza qualquer URL de mídia ou background para endereço HTTP absoluto.
- * Evita que o Web Receiver do Chromecast (que roda em sandbox ou chrome-extension://)
+ * Concatena a origem real do servidor local onde o backend está rodando,
+ * prevenindo que o Web Receiver do Chromecast (que roda em sandbox ou chrome-extension://)
  * tente resolver caminhos relativos como /media/... ou ./backgrounds/... em hosts incorretos.
  */
-export function normalizeMediaUrl(url: string | null | undefined): string {
+export function resolveMediaUrl(url: string | null | undefined): string {
   if (!url) return '';
   const trimmed = url.trim();
   if (!trimmed) return '';
 
-  // Já é absoluto ou data/blob inline
+  // Se já for absoluta ou inline data/blob, retorna inalterada
   if (
     trimmed.startsWith('http://') ||
     trimmed.startsWith('https://') ||
@@ -103,21 +104,22 @@ export function normalizeMediaUrl(url: string | null | undefined): string {
     return trimmed;
   }
 
-  const origin = getServerOrigin();
+  // Concatena a origem real do servidor local onde o backend está rodando
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const serverParam = params.get('server') || params.get('origin');
+    const base = serverParam && (serverParam.startsWith('http://') || serverParam.startsWith('https://'))
+      ? serverParam.replace(/\/+$/, '')
+      : window.location.origin;
 
-  // Caminho absoluto local (ex: /media/... ou /api/media/files/...)
-  if (trimmed.startsWith('/')) {
-    return origin ? `${origin}${trimmed}` : trimmed;
+    const cleanPath = trimmed.startsWith('./') ? trimmed.slice(2) : trimmed;
+    return `${base}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
   }
 
-  // Caminho relativo com ./ (ex: ./backgrounds/...)
-  if (trimmed.startsWith('./')) {
-    return origin ? `${origin}/${trimmed.slice(2)}` : `/${trimmed.slice(2)}`;
-  }
-
-  // Caminho relativo solto (ex: media/... ou backgrounds/...)
-  return origin ? `${origin}/${trimmed}` : `/${trimmed}`;
+  return trimmed;
 }
+
+export const normalizeMediaUrl = resolveMediaUrl;
 
 /**
  * Carrega a SDK do Google Cast Sender sob demanda de forma segura e não-bloqueante
@@ -127,15 +129,25 @@ export function loadCastSdk(): Promise<boolean> {
 
   // Já carregado e inicializado
   if ((window as any).cast?.framework) {
-    castStore.update((s) => ({ ...s, isSdkLoaded: true, isAvailable: true }));
+    initCastContext();
+    castStore.update((s) => ({ ...s, isSdkLoaded: true, isAvailable: true, error: null }));
     return Promise.resolve(true);
   }
 
   if (sdkLoadPromise) return sdkLoadPromise;
 
-  sdkLoadPromise = new Promise<boolean>((resolve) => {
+  const promise = new Promise<boolean>((resolve) => {
+    let checkInterval: any = null;
+    let timeoutId: any = null;
+
+    const cleanup = () => {
+      if (checkInterval) clearInterval(checkInterval);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+
     // Callback obrigatório disparado pelo cast_sender.js
     (window as any)['__onGCastApiAvailable'] = (isAvailable: boolean) => {
+      cleanup();
       if (isAvailable && (window as any).cast?.framework) {
         initCastContext();
         castStore.update((s) => ({
@@ -156,6 +168,32 @@ export function loadCastSdk(): Promise<boolean> {
       }
     };
 
+    // Sonda periódica a cada 250ms caso o callback global tenha disparado antes ou haja atraso
+    checkInterval = setInterval(() => {
+      if ((window as any).cast?.framework) {
+        cleanup();
+        initCastContext();
+        castStore.update((s) => ({
+          ...s,
+          isSdkLoaded: true,
+          isAvailable: true,
+          error: null,
+        }));
+        resolve(true);
+      }
+    }, 250);
+
+    // Timeout de 7 segundos para aguardar a biblioteca
+    timeoutId = setTimeout(() => {
+      cleanup();
+      if ((window as any).cast?.framework) {
+        initCastContext();
+        resolve(true);
+      } else {
+        resolve(false);
+      }
+    }, 7000);
+
     // Injeta o script se não existir no DOM
     const scriptId = 'google-cast-sender-sdk';
     if (!document.getElementById(scriptId)) {
@@ -164,6 +202,7 @@ export function loadCastSdk(): Promise<boolean> {
       script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
       script.async = true;
       script.onerror = () => {
+        cleanup();
         console.warn('[Cast] Falha ao carregar script do Google Cast SDK (modo offline ou sem conexão externa)');
         castStore.update((s) => ({
           ...s,
@@ -174,17 +213,18 @@ export function loadCastSdk(): Promise<boolean> {
         resolve(false);
       };
       document.head.appendChild(script);
-    } else {
-      // Script já inserido mas aguardando
-      setTimeout(() => {
-        if ((window as any).cast?.framework) {
-          initCastContext();
-          resolve(true);
-        } else {
-          resolve(false);
-        }
-      }, 1500);
     }
+  });
+
+  sdkLoadPromise = promise.then((ok) => {
+    if (!ok) {
+      // Se não carregou, limpa a promise para que o próximo clique do usuário possa tentar novamente
+      sdkLoadPromise = null;
+    }
+    return ok;
+  }).catch(() => {
+    sdkLoadPromise = null;
+    return false;
   });
 
   return sdkLoadPromise;

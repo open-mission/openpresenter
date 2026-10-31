@@ -7,7 +7,11 @@
     DisplayMode,
   } from '$lib/types';
   import { renderFormattedText } from '$lib/markdown';
-  import { resolveBackground, type ResolvedBackground } from '$lib/backgrounds';
+  import {
+    resolveBackground,
+    resolveMediaUrl,
+    type ResolvedBackground,
+  } from '$lib/backgrounds';
   import { backgroundStylesStore } from '$lib/displaySettings';
   import { autoScale } from '$lib/autoScale';
 
@@ -221,7 +225,7 @@
           style="{logoPositionStyles} opacity: {(churchBrand?.logo_opacity ?? 85) / 100};"
         >
           <img
-            src={activeLogoUrl}
+            src={resolveMediaUrl(activeLogoUrl)}
             alt={churchBrand?.name || 'Logo'}
             class="object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]"
             style="max-width: {churchBrand?.logo_size || 64}px; max-height: {churchBrand?.logo_size || 64}px;"
@@ -243,7 +247,7 @@
         {:else if activeSlide}
           {#if isImageMedia}
             <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden pointer-events-none">
-              <img src={activeSlide.content} alt={activeMedia?.title} class="{imageFitClass} animate-in fade-in duration-200" />
+              <img src={resolveMediaUrl(activeSlide.content)} alt={activeMedia?.title} class="{imageFitClass} animate-in fade-in duration-200" />
             </div>
           {:else}
             <!-- Slide de Texto / Música / Bíblia Fiel 1:1 com PublicView -->
@@ -320,7 +324,7 @@
           <!-- Sem mídia ao vivo e sem papel de parede -->
           <div class="flex flex-col items-center justify-center text-center text-neutral-500 gap-4">
             <img
-              src="/branding/open-presenter-app-icon.svg"
+              src={resolveMediaUrl('/branding/open-presenter-app-icon.svg')}
               alt="OpenPresenter"
               class="w-20 h-20 rounded-2xl shadow-xl opacity-80"
             />

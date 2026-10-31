@@ -24,12 +24,14 @@ Plano de implementação associado à spec [`docs/specs/2026-10-31-google-cast-w
 3. **Estilos Críticos Inline no `frontend/src/lib/views/PublicView.svelte`:**
    - Incluir estilos críticos no container raiz `<main>` de `PublicView.svelte` (`background-color: #000; color: #fff; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden;`).
 
-### Etapa 3: Normalização de URLs de Mídia e Background (`cast.ts` e `PublicView.svelte`)
-1. **Funções `getServerOrigin()` e `normalizeMediaUrl()` em `frontend/src/lib/cast.ts`:**
-   - Implementar e exportar `getServerOrigin` e `normalizeMediaUrl(url: string | null | undefined): string`.
-   - Atualizar `resolveOutputUrl(target)` para utilizar a origem correta do servidor e cache da rede local.
-2. **Aplicação de URLs Normalizadas em `PublicView.svelte`:**
-   - Importar `normalizeMediaUrl` e aplicar em planos de fundo (`resolvedBg.url` para imagens e vídeos), logotipo da igreja (`activeLogoUrl`), imagens de slide direto (`activeSlide.content`) e ícones de branding no estado de espera.
+### Etapa 3: Resolução Absoluta de URLs de Mídia, CSS e Polling do SDK (`cast.ts`, `backgrounds.ts`, `PublicView.svelte`)
+1. **Funções `getServerOrigin()`, `resolveMediaUrl()` e Polling Resiliente em `frontend/src/lib/cast.ts`:**
+   - Implementar e exportar `resolveMediaUrl(url: string | null | undefined): string` (com alias `normalizeMediaUrl`) concatenando `window.location.origin` ou parâmetro `?server=...`.
+   - Implementar `resolveCssUrls(style: string)` em `backgrounds.ts` para converter referências relativas `url(...)` em propriedades CSS em URLs absolutas.
+   - Refatorar `loadCastSdk()` com polling assíncrono contínuo (intervalo de 250ms e timeout de 7s) e limpeza de cache de promessa em caso de falha, permitindo retentativas do operador sem bloqueio permanente.
+2. **Aplicação de URLs Normalizadas em `PublicView.svelte` e `PublicPreviewBox.svelte`:**
+   - Importar `resolveMediaUrl` e aplicar em planos de fundo (`resolvedBg.url` para imagens e vídeos), logotipo da igreja (`activeLogoUrl`), imagens de slide direto (`activeSlide.content`) e ícones de branding no estado de espera.
+   - Garantir que `resolveBackground` retorne URLs absolutas em imagens e vídeos e normalize referências CSS.
 
 ### Etapa 4: Validação e Portões de Qualidade
 1. Executar `cargo fmt --all`.

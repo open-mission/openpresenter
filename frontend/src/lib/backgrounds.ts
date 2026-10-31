@@ -1,4 +1,6 @@
-import { normalizeMediaUrl } from './cast';
+import { resolveMediaUrl, normalizeMediaUrl } from './cast';
+
+export { resolveMediaUrl, normalizeMediaUrl };
 
 export interface BackgroundPreset {
   id: string;
@@ -217,6 +219,20 @@ export function getAllBackgrounds(stylesMap?: BackgroundStylesMap | null): Backg
 /**
  * Converte um preset em string serializável para persistência em wallpaper_path.
  */
+/**
+ * Substitui qualquer url('...') ou url(/...) relativa dentro de estilos CSS
+ * pela URL absoluta resolvida.
+ */
+export function resolveCssUrls(style: string): string {
+  if (!style || !style.includes('url(')) return style;
+  return style.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (_match, _quote, url) => {
+    return `url('${resolveMediaUrl(url)}')`;
+  });
+}
+
+/**
+ * Converte um preset em string serializável para persistência em wallpaper_path.
+ */
 export function encodeBackground(preset: BackgroundPreset): string {
   const anim = preset.animationClass || 'none';
   const textCol = preset.textColor || '#ffffff';
@@ -272,9 +288,11 @@ export function resolveBackground(
       }
     }
 
+    const resolvedStyle = resolveCssUrls(style);
+
     return {
       isCss: true,
-      style: `background: ${style};`,
+      style: `background: ${resolvedStyle};`,
       className: anim === 'none' ? '' : anim,
       isImage: false,
       isVideo: false,
@@ -300,7 +318,7 @@ export function resolveBackground(
 
     return {
       isCss: true,
-      style: `background: ${trimmed};`,
+      style: `background: ${resolveCssUrls(trimmed)};`,
       className: '',
       isImage: false,
       isVideo: false,
@@ -310,12 +328,16 @@ export function resolveBackground(
   }
 
   // Imagem ou Vídeo normal de arquivo ou URL
-  const lower = trimmed.toLowerCase();
+  const cleanPath = trimmed.split('?')[0].split('#')[0].toLowerCase();
   const isVideo =
-    lower.endsWith('.mp4') ||
-    lower.endsWith('.webm') ||
-    lower.endsWith('.mov') ||
-    lower.endsWith('.mkv');
+    cleanPath.endsWith('.mp4') ||
+    cleanPath.endsWith('.webm') ||
+    cleanPath.endsWith('.mov') ||
+    cleanPath.endsWith('.mkv') ||
+    cleanPath.endsWith('.m4v') ||
+    cleanPath.endsWith('.ogg');
+
+  const absoluteUrl = resolveMediaUrl(trimmed);
 
   return {
     isCss: false,
@@ -323,7 +345,7 @@ export function resolveBackground(
     className: '',
     isImage: !isVideo,
     isVideo,
-    url: normalizeMediaUrl(trimmed),
+    url: absoluteUrl,
     textColor: '#ffffff',
   };
 }
