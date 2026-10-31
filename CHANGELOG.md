@@ -24,6 +24,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Importação de Múltiplas Versões da Bíblia Simultaneamente ("Um a Um"):**
+  - Habilitação de seleção múltipla de arquivos (`multiple`) no diálogo nativo do sistema operacional com suporte às extensões `.sqlite`, `.db` e `.sqlite3`.
+  - Processamento em fila sequencial ("um a um") com leitura assíncrona em Base64, requisição individual à API e notificação toast Sonner para cada versão instalada.
+  - Card de progresso visual com indicador percentual, contagem de versões concluídas e nome do arquivo em processamento.
+  - Suporte a múltiplos caminhos de arquivo separados por vírgula ou nova linha na importação manual por caminho ("Por Caminho...").
+  - Adição de contador atômico sequencial no gerador de ID da versão (`BIBLE_IMPORT_COUNTER`) no backend `op-admin`, prevenindo colisões em uploads quase instantâneos.
 - **Destaque Visual com Fundo Vermelho no Botão de Parar Apresentação no Header do Remote:**
   - Aplicação de fundo vermelho de alta visibilidade (`bg-red-600 hover:bg-red-500 text-white`) no botão de parar apresentação no cabeçalho do Controle Remoto Mobile (`/remote`), com ícone de quadrado preenchido e rótulo adaptativo ("Parar"), tornando a interrupção da projeção imediata e intuitiva em telas touch.
 - **Layout de 3 Linhas no Monitor de Palco e Recálculo Automático de Proporções (Soma 100%):**

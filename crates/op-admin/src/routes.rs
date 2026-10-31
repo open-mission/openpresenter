@@ -1519,6 +1519,8 @@ async fn list_bibles(
     Ok(Json(bibles))
 }
 
+static BIBLE_IMPORT_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 async fn import_bible(
     State(state): State<AppState>,
     Json(payload): Json<ImportBiblePayload>,
@@ -1531,7 +1533,8 @@ async fn import_bible(
         "Banco de dados não disponível".into(),
     ))?;
 
-    let id = format!("bible-{}", chrono::Utc::now().timestamp_millis());
+    let counter = BIBLE_IMPORT_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let id = format!("bible-{}-{counter}", chrono::Utc::now().timestamp_millis());
     let target_filename = format!("{id}.sqlite");
     let target_path = bibles_dir.join(&target_filename);
 

@@ -98,6 +98,7 @@
     type BackgroundStylesMap,
   } from '../backgrounds';
   import { biblesStore, refreshBibles } from '../bibles';
+  import { notifySuccess, notifyError } from '../toast';
   import Badge from './ui/Badge.svelte';
   import Button from './ui/Button.svelte';
   import StagePreviewBox from './StagePreviewBox.svelte';
@@ -313,6 +314,13 @@
   let isLoadingBibles = $state(false);
   let bibleError = $state('');
   let isImportingBible = $state(false);
+  let importProgress = $state({
+    current: 0,
+    total: 0,
+    currentFileName: '',
+    successCount: 0,
+    failedCount: 0,
+  });
   let showPathImport = $state(false);
   let importPathInput = $state('');
   let bibleFileInput: HTMLInputElement | null = $state(null);
@@ -877,20 +885,49 @@
     }
   }
 
+  function readFileAsBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const commaIdx = result.indexOf(',');
+        resolve(commaIdx >= 0 ? result.slice(commaIdx + 1) : result);
+      };
+      reader.onerror = () => reject(new Error(`Falha ao ler o arquivo ${file.name}`));
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function handleBibleFileSelect(e: Event) {
     const input = e.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
+    const files = Array.from(input.files);
+
     isImportingBible = true;
     bibleError = '';
+    importProgress = {
+      current: 0,
+      total: files.length,
+      currentFileName: '',
+      successCount: 0,
+      failedCount: 0,
+    };
 
-    const reader = new FileReader();
-    reader.onload = async () => {
+    const failedFiles: { name: string; error: string }[] = [];
+    let successCount = 0;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      importProgress = {
+        current: i + 1,
+        total: files.length,
+        currentFileName: file.name,
+        successCount,
+        failedCount: failedFiles.length,
+      };
+
       try {
-        const result = reader.result as string;
-        const commaIdx = result.indexOf(',');
-        const base64 = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
-
+        const base64 = await readFileAsBase64(file);
         const res = await fetch('/api/bibles/import', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -903,53 +940,116 @@
         if (!res.ok) {
           const msg = await res.text();
           if (msg.includes('length limit exceeded') || res.status === 413) {
-            throw new Error('O arquivo excede o tamanho máximo suportado.');
+            throw new Error('O arquivo excede o limite máximo de tamanho.');
           }
           throw new Error(msg || 'Falha ao importar Bíblia SQLite');
         }
 
+        successCount++;
+        notifySuccess('Bíblia importada', `${file.name} (${i + 1}/${files.length})`);
         await loadBibles();
-        if (bibleFileInput) bibleFileInput.value = '';
+        refreshBibles();
       } catch (err: any) {
-        bibleError = err.message || 'Erro ao importar arquivo de Bíblia';
-      } finally {
-        isImportingBible = false;
+        console.error(`Erro ao importar ${file.name}:`, err);
+        const errorMsg = err.message || 'Erro ao importar arquivo de Bíblia';
+        failedFiles.push({ name: file.name, error: errorMsg });
+        notifyError('Falha na importação', `${file.name}: ${errorMsg}`);
       }
-    };
-    reader.onerror = () => {
-      bibleError = 'Erro ao ler arquivo local.';
-      isImportingBible = false;
-    };
-    reader.readAsDataURL(file);
+    }
+
+    if (bibleFileInput) {
+      bibleFileInput.value = '';
+    }
+    isImportingBible = false;
+
+    if (failedFiles.length === 0) {
+      notifySuccess(
+        'Importação concluída',
+        files.length === 1
+          ? 'Versão da Bíblia importada com sucesso.'
+          : `Todas as ${files.length} versões da Bíblia foram importadas com sucesso.`
+      );
+    } else {
+      bibleError = `${successCount} de ${files.length} versão(ões) importada(s) com sucesso. Falhas: ${failedFiles.map((f) => `${f.name} (${f.error})`).join('; ')}`;
+    }
   }
 
   async function handleImportBibleByPath() {
-    const p = importPathInput.trim();
-    if (!p) {
+    const raw = importPathInput.trim();
+    if (!raw) {
       bibleError = 'Informe o caminho absoluto do arquivo SQLite da Bíblia.';
       return;
     }
+    const paths = raw
+      .split(/[\n,;]+/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+
+    if (paths.length === 0) return;
+
     isImportingBible = true;
     bibleError = '';
-    try {
-      const res = await fetch('/api/bibles/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          file_path: p,
-        }),
-      });
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg || 'Falha ao importar Bíblia a partir do caminho');
+    importProgress = {
+      current: 0,
+      total: paths.length,
+      currentFileName: '',
+      successCount: 0,
+      failedCount: 0,
+    };
+
+    const failedPaths: { path: string; error: string }[] = [];
+    let successCount = 0;
+
+    for (let i = 0; i < paths.length; i++) {
+      const p = paths[i];
+      const filename = p.split(/[/\\]/).pop() || p;
+      importProgress = {
+        current: i + 1,
+        total: paths.length,
+        currentFileName: filename,
+        successCount,
+        failedCount: failedPaths.length,
+      };
+
+      try {
+        const res = await fetch('/api/bibles/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            source_path: p,
+          }),
+        });
+
+        if (!res.ok) {
+          const msg = await res.text();
+          throw new Error(msg || 'Falha ao importar Bíblia a partir do caminho');
+        }
+
+        successCount++;
+        notifySuccess('Bíblia importada', `${filename} (${i + 1}/${paths.length})`);
+        await loadBibles();
+        refreshBibles();
+      } catch (err: any) {
+        console.error(`Erro ao importar ${p}:`, err);
+        const errorMsg = err.message || 'Erro ao importar';
+        failedPaths.push({ path: p, error: errorMsg });
+        notifyError('Falha na importação', `${filename}: ${errorMsg}`);
       }
-      importPathInput = '';
-      showPathImport = false;
-      await loadBibles();
-    } catch (err: any) {
-      bibleError = err.message || 'Erro ao importar arquivo do caminho informado';
-    } finally {
-      isImportingBible = false;
+    }
+
+    importPathInput = '';
+    showPathImport = false;
+    isImportingBible = false;
+
+    if (failedPaths.length === 0) {
+      notifySuccess(
+        'Importação concluída',
+        paths.length === 1
+          ? 'Versão da Bíblia importada com sucesso.'
+          : `Todas as ${paths.length} versões da Bíblia foram importadas com sucesso.`
+      );
+    } else {
+      bibleError = `${successCount} de ${paths.length} versão(ões) importada(s) com sucesso. Falhas: ${failedPaths.map((f) => `${f.path} (${f.error})`).join('; ')}`;
     }
   }
 
@@ -3646,7 +3746,8 @@
                 <div class="flex items-center gap-2 shrink-0">
                   <input
                     type="file"
-                    accept=".sqlite,.db"
+                    multiple
+                    accept=".sqlite,.db,.sqlite3"
                     bind:this={bibleFileInput}
                     onchange={handleBibleFileSelect}
                     class="hidden"
@@ -3666,11 +3767,47 @@
                     disabled={isImportingBible}
                     onclick={() => bibleFileInput?.click()}
                   >
-                    <Upload size={13} />
-                    {isImportingBible ? 'Importando...' : 'Importar Bíblia (.sqlite)'}
+                    <Upload size={13} class={isImportingBible ? 'animate-bounce' : ''} />
+                    {isImportingBible
+                      ? `Importando (${importProgress.current}/${importProgress.total})...`
+                      : 'Importar Bíblias (.sqlite)'}
                   </Button>
                 </div>
               </div>
+
+              {#if isImportingBible}
+                <div class="p-3.5 rounded-xl border border-primary/30 bg-primary/10 flex flex-col gap-2.5 animate-in fade-in duration-200">
+                  <div class="flex items-center justify-between text-xs font-semibold text-primary">
+                    <span class="flex items-center gap-2">
+                      <RefreshCw size={14} class="animate-spin text-primary" />
+                      <span>
+                        Importando versões da Bíblia ({importProgress.current} de {importProgress.total})
+                      </span>
+                    </span>
+                    <span class="font-mono text-xs font-bold">
+                      {importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0}%
+                    </span>
+                  </div>
+
+                  <div class="w-full bg-neutral-800 rounded-full h-2 overflow-hidden">
+                    <div
+                      class="bg-primary h-full transition-all duration-300 rounded-full"
+                      style="width: {importProgress.total > 0 ? Math.max(8, Math.round((importProgress.current / importProgress.total) * 100)) : 0}%"
+                    ></div>
+                  </div>
+
+                  <div class="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span class="truncate max-w-[80%]">
+                      Arquivo atual: <strong class="text-foreground font-mono">{importProgress.currentFileName || 'Preparando...'}</strong>
+                    </span>
+                    {#if importProgress.successCount > 0}
+                      <span class="text-emerald-400 font-medium">
+                        ✓ {importProgress.successCount} concluída(s)
+                      </span>
+                    {/if}
+                  </div>
+                </div>
+              {/if}
 
               {#if bibleError}
                 <div class="p-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 text-xs flex items-center justify-between gap-2">
@@ -3705,7 +3842,7 @@
                     <input
                       type="text"
                       bind:value={importPathInput}
-                      placeholder="/caminho/completo/para/biblia.sqlite"
+                      placeholder="/caminho/para/biblia1.sqlite, /caminho/para/biblia2.sqlite"
                       class="flex-1 h-8 px-3 rounded-md bg-neutral-900 border border-neutral-700 text-xs text-foreground placeholder:text-neutral-500 focus:outline-none focus:border-primary"
                     />
                     <Button
@@ -3719,7 +3856,7 @@
                     </Button>
                   </div>
                   <p class="text-[11px] text-muted-foreground">
-                    O arquivo SQLite será validado e copiado diretamente para a pasta de dados do OpenPresenter (<code class="text-neutral-300">bibles/</code>).
+                    Separe múltiplos caminhos por vírgula ou nova linha. Os arquivos serão validados e copiados sequencialmente para a pasta de dados do OpenPresenter (<code class="text-neutral-300">bibles/</code>).
                   </p>
                 </div>
               {/if}
@@ -3753,7 +3890,7 @@
                       onclick={() => bibleFileInput?.click()}
                     >
                       <Upload size={13} />
-                      Selecionar Arquivo SQLite
+                      Selecionar Arquivo(s) SQLite
                     </Button>
                   </div>
                 {:else}
