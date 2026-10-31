@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Improve: Simplificação e agrupamento das saídas no cabeçalho do operador (`AdminView.svelte`): criação do menu dropdown "Saídas" reunindo telas de projeção locais (Pública, Palco, OBS) e conexões sem fio/compartilhamento (Google Cast, Remoto Mobile, QR Codes de rede), reduzindo o cabeçalho a um conjunto limpo e minimalista (Online, Saídas, Configurações) com indicador de conexão Cast. (commit 2c69ca1 - 2026-10-31 13:02:45 -03:00)
+
 - [x] Fix: Corrigir carregamento de imagens e vídeos de fundo no Google Cast (Web Receiver): função canônica `resolveMediaUrl(url)` garantindo URLs absolutas para `<img>`, `<video>` e `background-image: url(...)` no `PublicView.svelte`, `PublicPreviewBox.svelte` e `backgrounds.ts`, suporte a parsing de extensão limpa sem query strings em vídeos/imagens, normalização de referências `url(...)` em estilos CSS via `resolveCssUrls()`, e resiliência com polling assíncrono e expiração de falha no carregamento do SDK do Cast (`cast.ts`). (commit 6f0fa7a - 2026-10-31 12:46:41 -03:00)
 
 - [x] Feat/Improve: Expor e detectar IP na rede local (LAN) para servidor Axum e Vite: exibição clara das URLs locais e da rede no banner do terminal (`main.rs`), suporte à variável `HOST`, resolução multi-alvo em `get_local_ip()` para redes de igreja offline (`routes.rs`), configuração `server.host: true` e proxy `/media` em `vite.config.ts`, e dinamização da URL nos componentes do frontend. (commit 9014fa2 - 2026-10-31 12:29:47 -03:00)
