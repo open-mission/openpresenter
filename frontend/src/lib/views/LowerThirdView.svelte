@@ -13,6 +13,7 @@
   } from '$lib/displaySettings';
   import { resolveBackground } from '$lib/backgrounds';
   import { renderFormattedText } from '$lib/markdown';
+  import { resolveMediaUrl } from '$lib/cast';
   import type { Slide, MediaItem } from '$lib/types';
   import { Camera, Layers, CheckCircle2, Tv } from 'lucide-svelte';
 
@@ -123,6 +124,27 @@
   });
 
   const isScripture = $derived(activeMedia?.kind === 'scripture');
+
+  // Detecta se o slide atual é de mídia/imagem
+  const isImageMedia = $derived.by(() => {
+    if (activeMedia?.kind === 'image') return true;
+    if (!currentSlide?.content) return false;
+    const c = currentSlide.content;
+    if (c.startsWith('/media/') || c.startsWith('/api/media/')) return true;
+    if (/\.(jpg|jpeg|png|webp|gif|svg|bmp|tiff)$/i.test(c)) return true;
+    return false;
+  });
+
+  // URL efetiva da imagem (prioridade: lower_image_url > lower_content > content)
+  const effectiveImageUrl = $derived.by(() => {
+    if (!isImageMedia) return '';
+    const url = activeMedia?.lower_image_url || currentSlide?.lower_content || currentSlide?.content || '';
+    return resolveMediaUrl(url);
+  });
+
+  // Modo de exibição da imagem no Lower Third
+  const imageDisplayMode = $derived(lt.image_display_mode || 'fullscreen');
+  const imageFit = $derived(lt.image_fit || 'contain');
 
   // Informações de título e referência
   const mediaLabel = $derived.by(() => {
@@ -263,6 +285,24 @@
     </div>
   {/if}
 
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- RENDERIZAÇÃO DE IMAGEM EM TELA CHEIA NO LOWER THIRD (OBS)  -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  {#if isVisible && currentSlide && isImageMedia && imageDisplayMode === 'fullscreen'}
+    <div
+      class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 transition-opacity duration-300"
+      style="pointer-events: none;"
+    >
+      <img
+        src={effectiveImageUrl}
+        alt={activeMedia?.title || 'Imagem'}
+        class="w-full h-full drop-shadow-2xl"
+        style="object-fit: {imageFit};"
+        onerror={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      />
+    </div>
+  {/if}
+
   <!-- Caixa do Lower Third ancorada no terço inferior da tela -->
   <div
     class="w-full flex flex-col items-center justify-end transition-all duration-300"
@@ -273,6 +313,20 @@
       style="max-width: {lt.max_width_percent ?? 85}%;"
     >
       {#if isVisible && currentSlide}
+        {#if isImageMedia}
+          <!-- RENDERIZAÇÃO DE IMAGEM NO LOWER THIRD (MODO BANNER) -->
+          {#if imageDisplayMode === 'lower_third'}
+            <div class="max-h-44 overflow-hidden rounded-xl border border-white/20 shadow-2xl bg-black/60 backdrop-blur-md flex items-center justify-center">
+              <img
+                src={effectiveImageUrl}
+                alt={activeMedia?.title || 'Imagem'}
+                class="max-h-44 w-auto mx-auto drop-shadow-lg"
+                style="object-fit: {imageFit};"
+                onerror={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
+          {/if}
+        {:else}
         <!-- ESTILO 1: GRADIENTE CENTRAL (Padrão de Transmissão Profissional) -->
         {#if lt.theme === 'gradient'}
           <div
@@ -360,6 +414,8 @@
               {@html renderFormattedText(currentSlide.content)}
             </div>
           </div>
+        {/if}
+        <!-- Fim da condicional de imagem -->
         {/if}
       {/if}
     </div>

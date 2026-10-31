@@ -168,7 +168,7 @@
   let publicSection = $state<'lyrics' | 'scripture' | 'general'>('lyrics');
   let stageSection = $state<'lyrics' | 'scripture' | 'general'>('lyrics');
   let bgPreviewMode = $state<'lyrics' | 'scripture'>('lyrics');
-  let ltPreviewMode = $state<'lyrics' | 'scripture'>('lyrics');
+  let ltPreviewMode = $state<'lyrics' | 'scripture' | 'image'>('lyrics');
 
   // Configurações de Fundos de Letras e CSS
   let localBgStyles = $state<BackgroundStylesMap>({
@@ -3600,6 +3600,76 @@
                         ></span>
                       </button>
                     </div>
+
+                    <!-- ═══════════════════════════════════════ -->
+                    <!-- Exibição de Imagens no Lower Third     -->
+                    <!-- ═══════════════════════════════════════ -->
+                    <div class="pt-3 border-t border-neutral-800 space-y-3">
+                      <div>
+                        <span class="text-xs font-bold text-neutral-200 block">Exibição de Imagens no Lower Third</span>
+                        <span class="text-[11px] text-neutral-500">Define como imagens projetadas serão exibidas na saída de Lower Third (OBS).</span>
+                      </div>
+
+                      <!-- Modo de Exibição -->
+                      <div class="space-y-1.5">
+                        <span class="text-[11px] font-medium text-neutral-400">Modo de Exibição de Imagens:</span>
+                        <div class="grid grid-cols-3 gap-1.5">
+                          <button
+                            type="button"
+                            onclick={() => (localLowerThird.image_display_mode = 'fullscreen')}
+                            class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer {(localLowerThird.image_display_mode ?? 'fullscreen') === 'fullscreen' ? 'bg-primary text-primary-foreground border-primary' : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:border-neutral-700'}"
+                          >
+                            🖼️ Tela Cheia
+                          </button>
+                          <button
+                            type="button"
+                            onclick={() => (localLowerThird.image_display_mode = 'lower_third')}
+                            class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer {(localLowerThird.image_display_mode ?? 'fullscreen') === 'lower_third' ? 'bg-primary text-primary-foreground border-primary' : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:border-neutral-700'}"
+                          >
+                            📐 Banner
+                          </button>
+                          <button
+                            type="button"
+                            onclick={() => (localLowerThird.image_display_mode = 'hide')}
+                            class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer {(localLowerThird.image_display_mode ?? 'fullscreen') === 'hide' ? 'bg-red-600/80 text-white border-red-500' : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:border-neutral-700'}"
+                          >
+                            🚫 Ocultar
+                          </button>
+                        </div>
+                        <p class="text-[10px] text-neutral-500 leading-relaxed">
+                          {#if (localLowerThird.image_display_mode ?? 'fullscreen') === 'fullscreen'}
+                            A imagem projetada será exibida em tela cheia sobre a transmissão, ideal para avisos, cartazes e flyers.
+                          {:else if (localLowerThird.image_display_mode ?? 'fullscreen') === 'lower_third'}
+                            A imagem será exibida como banner no terço inferior da tela, ajustada dentro da barra do Lower Third.
+                          {:else}
+                            Imagens projetadas não serão exibidas na saída Lower Third.
+                          {/if}
+                        </p>
+                      </div>
+
+                      <!-- Ajuste da Imagem (contain / cover) -->
+                      {#if (localLowerThird.image_display_mode ?? 'fullscreen') !== 'hide'}
+                        <div class="space-y-1.5">
+                          <span class="text-[11px] font-medium text-neutral-400">Ajuste da Imagem:</span>
+                          <div class="inline-flex rounded-lg bg-neutral-900 border border-neutral-800 p-0.5">
+                            <button
+                              type="button"
+                              onclick={() => (localLowerThird.image_fit = 'contain')}
+                              class="px-3 py-1 text-[10px] font-bold rounded transition-colors cursor-pointer {(localLowerThird.image_fit ?? 'contain') === 'contain' ? 'bg-primary text-primary-foreground' : 'text-neutral-400 hover:text-neutral-200'}"
+                            >
+                              Conter (Contain)
+                            </button>
+                            <button
+                              type="button"
+                              onclick={() => (localLowerThird.image_fit = 'cover')}
+                              class="px-3 py-1 text-[10px] font-bold rounded transition-colors cursor-pointer {(localLowerThird.image_fit ?? 'contain') === 'cover' ? 'bg-primary text-primary-foreground' : 'text-neutral-400 hover:text-neutral-200'}"
+                            >
+                              Cobrir (Cover)
+                            </button>
+                          </div>
+                        </div>
+                      {/if}
+                    </div>
                   </div>
                 </div>
 
@@ -3622,6 +3692,13 @@
                         class="px-2 py-0.5 text-[10px] font-bold rounded {ltPreviewMode === 'scripture' ? 'bg-primary text-primary-foreground' : 'text-neutral-400'}"
                       >
                         📖 Bíblia
+                      </button>
+                      <button
+                        type="button"
+                        onclick={() => (ltPreviewMode = 'image')}
+                        class="px-2 py-0.5 text-[10px] font-bold rounded {ltPreviewMode === 'image' ? 'bg-primary text-primary-foreground' : 'text-neutral-400'}"
+                      >
+                        🖼️ Imagem
                       </button>
                     </div>
                   </div>
@@ -3647,6 +3724,24 @@
                         style="max-width: {localLowerThird.max_width_percent ?? 85}%;"
                       >
                         {#if localLowerThird.enabled}
+                          {#if ltPreviewMode === 'image'}
+                            <!-- Prévia de Imagem no Lower Third -->
+                            {#if (localLowerThird.image_display_mode ?? 'fullscreen') === 'hide'}
+                              <div class="p-3 text-center text-[10px] text-neutral-400 italic">
+                                Imagens ocultas no Lower Third.
+                              </div>
+                            {:else if (localLowerThird.image_display_mode ?? 'fullscreen') === 'fullscreen'}
+                              <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/30">
+                                <div class="w-3/4 h-3/4 bg-gradient-to-br from-blue-900/60 via-purple-900/60 to-pink-900/60 rounded-lg border border-white/20 flex items-center justify-center">
+                                  <span class="text-[10px] text-white/80 font-bold">🖼️ Imagem em Tela Cheia</span>
+                                </div>
+                              </div>
+                            {:else}
+                              <div class="max-h-10 overflow-hidden rounded-lg border border-white/20 bg-black/60 flex items-center justify-center mx-auto w-2/3">
+                                <span class="text-[9px] text-white/80 font-bold py-1">🖼️ Banner Imagem</span>
+                              </div>
+                            {/if}
+                          {:else}
                           <!-- Prévia Gradiente -->
                           {#if localLowerThird.theme === 'gradient'}
                             <div
@@ -3723,6 +3818,7 @@
                                   : 'Porque Ele vive, eu posso crer no amanhã'}
                               </p>
                             </div>
+                          {/if}
                           {/if}
                         {:else}
                           <div class="p-3 text-center text-[10px] text-neutral-400 italic">

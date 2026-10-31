@@ -1456,9 +1456,11 @@ mod tests {
                 content: "Quem é que pode impedir".into(),
                 align_h: None,
                 align_v: None,
+                lower_content: None,
             }],
             align_h: None,
             align_v: None,
+            lower_image_url: None,
         };
         state.add_media_item(item).await;
         assert_eq!(state.media_items.read().await.len(), initial_len + 1);

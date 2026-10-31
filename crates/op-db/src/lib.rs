@@ -2281,6 +2281,7 @@ mod tests {
                 slides: vec![],
                 align_h: None,
                 align_v: None,
+                lower_image_url: None,
             }],
             is_active: true,
             created_at: "".into(),

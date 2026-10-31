@@ -444,6 +444,7 @@ impl Song {
             slides,
             align_h: None,
             align_v: None,
+            lower_image_url: None,
         }
     }
 }
@@ -615,6 +616,8 @@ pub struct Slide {
     pub align_h: Option<String>,
     #[serde(default)]
     pub align_v: Option<String>,
+    #[serde(default)]
+    pub lower_content: Option<String>,
 }
 
 impl Slide {
@@ -629,6 +632,7 @@ impl Slide {
             content: content.into(),
             align_h: None,
             align_v: None,
+            lower_content: None,
         }
     }
 }
@@ -645,6 +649,8 @@ pub struct MediaItem {
     pub align_h: Option<String>,
     #[serde(default)]
     pub align_v: Option<String>,
+    #[serde(default)]
+    pub lower_image_url: Option<String>,
 }
 
 /// Sub-pasta descoberta no sistema de arquivos local.
@@ -1052,6 +1058,7 @@ mod tests {
             )],
             align_h: None,
             align_v: None,
+            lower_image_url: None,
         };
 
         let json = serde_json::to_string(&media).expect("serializes");
@@ -1077,12 +1084,49 @@ mod tests {
             )],
             align_h: None,
             align_v: None,
+            lower_image_url: None,
         };
         let sched_json = serde_json::to_string(&schedule).expect("serializes");
         assert!(sched_json.contains(r#""kind":"schedule""#));
         let sched_parsed: MediaItem = serde_json::from_str(&sched_json).expect("deserializes");
         assert_eq!(sched_parsed, schedule);
         assert_eq!(MediaKind::Schedule.label_pt_br(), "Agenda");
+    }
+
+    #[test]
+    fn lower_third_image_and_content_serialization() {
+        let mut slide = Slide::new("s1", "Aviso", "/media/cartaz.jpg");
+        slide.lower_content = Some("/media/cartaz-faixa.jpg".into());
+
+        let media = MediaItem {
+            id: "img-1".into(),
+            title: "Avisos Culto".into(),
+            artist_or_ref: None,
+            kind: MediaKind::Image,
+            slides: vec![slide],
+            align_h: None,
+            align_v: None,
+            lower_image_url: Some("/media/banner-lower.png".into()),
+        };
+
+        let json = serde_json::to_string(&media).expect("serializes");
+        assert!(json.contains(r#""lower_image_url":"/media/banner-lower.png""#));
+        assert!(json.contains(r#""lower_content":"/media/cartaz-faixa.jpg""#));
+
+        let parsed: MediaItem = serde_json::from_str(&json).expect("deserializes");
+        assert_eq!(parsed, media);
+
+        // Deserialização de JSON legado sem os novos campos opcionais
+        let legacy_json = r#"{
+            "id": "legacy-img",
+            "title": "Legado",
+            "kind": "image",
+            "slides": [{"id": "s1", "label": "Slide 1", "content": "teste.jpg"}]
+        }"#;
+        let legacy_parsed: MediaItem =
+            serde_json::from_str(legacy_json).expect("deserializes legacy");
+        assert_eq!(legacy_parsed.lower_image_url, None);
+        assert_eq!(legacy_parsed.slides[0].lower_content, None);
     }
 
     #[test]

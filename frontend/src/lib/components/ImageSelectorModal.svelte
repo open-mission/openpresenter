@@ -18,15 +18,23 @@
   interface Props {
     open: boolean;
     initialMode?: 'single' | 'folder';
+    title?: string;
+    subtitle?: string;
+    allowFolders?: boolean;
     onclose: () => void;
     onadditems?: (items: MediaItem[]) => void;
+    onselectimage?: (url: string) => void;
   }
 
   let {
     open = false,
     initialMode = 'single',
+    title,
+    subtitle,
+    allowFolders = true,
     onclose,
     onadditems,
+    onselectimage,
   }: Props = $props();
 
   let mode = $state<'single' | 'folder'>('single');
@@ -40,7 +48,7 @@
 
   $effect(() => {
     if (open) {
-      mode = initialMode;
+      mode = onselectimage || !allowFolders ? 'single' : initialMode;
       selectedImageIds = new Set();
       loadData();
     }
@@ -86,6 +94,10 @@
   const appImagesCount = $derived.by(() => images.filter((i) => !i.is_external).length);
 
   function toggleImageSelection(id: string) {
+    if (onselectimage) {
+      selectedImageIds = selectedImageIds.has(id) ? new Set() : new Set([id]);
+      return;
+    }
     const next = new Set(selectedImageIds);
     if (next.has(id)) {
       next.delete(id);
@@ -96,6 +108,7 @@
   }
 
   function handleSelectAll() {
+    if (onselectimage) return;
     if (selectedImageIds.size === filteredImages.length) {
       selectedImageIds = new Set();
     } else {
@@ -185,8 +198,12 @@
             <ImageIcon size={16} />
           </div>
           <div>
-            <h2 class="text-sm font-bold text-foreground">Adicionar Imagens à Setlist</h2>
-            <p class="text-[11px] text-muted-foreground">Selecione imagens avulsas ou importe uma pasta inteira</p>
+            <h2 class="text-sm font-bold text-foreground">
+              {title || (onselectimage ? 'Selecionar Imagem para Lower Third' : 'Adicionar Imagens à Setlist')}
+            </h2>
+            <p class="text-[11px] text-muted-foreground">
+              {subtitle || (onselectimage ? 'Escolha uma imagem dedicada para ser exibida na saída do OBS' : 'Selecione imagens avulsas ou importe uma pasta inteira')}
+            </p>
           </div>
         </div>
 
@@ -202,22 +219,28 @@
 
       <!-- Abas de Modo: Imagens Avulsas vs Pasta Completa -->
       <div class="px-5 pt-3 pb-2 border-b border-border bg-muted/20 flex items-center justify-between gap-4 shrink-0">
-        <div class="flex items-center gap-1.5 p-1 rounded-lg bg-muted/40 border border-border">
-          <button
-            type="button"
-            onclick={() => (mode = 'single')}
-            class="px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {mode === 'single' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}"
-          >
-            Imagens Individuais
-          </button>
-          <button
-            type="button"
-            onclick={() => (mode = 'folder')}
-            class="px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {mode === 'folder' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}"
-          >
-            Pasta Completa de Imagens
-          </button>
-        </div>
+        {#if allowFolders && !onselectimage}
+          <div class="flex items-center gap-1.5 p-1 rounded-lg bg-muted/40 border border-border">
+            <button
+              type="button"
+              onclick={() => (mode = 'single')}
+              class="px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {mode === 'single' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}"
+            >
+              Imagens Individuais
+            </button>
+            <button
+              type="button"
+              onclick={() => (mode = 'folder')}
+              class="px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer {mode === 'folder' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}"
+            >
+              Pasta Completa de Imagens
+            </button>
+          </div>
+        {:else}
+          <div class="text-xs font-medium text-muted-foreground">
+            {onselectimage ? 'Clique para selecionar a imagem alternativa' : 'Imagens'}
+          </div>
+        {/if}
 
         {#if mode === 'single'}
           <!-- Filtro de Busca -->
@@ -265,15 +288,17 @@
               </button>
             {/each}
 
-            <div class="ml-auto">
-              <button
-                type="button"
-                onclick={handleSelectAll}
-                class="text-[11px] text-primary hover:underline font-medium cursor-pointer"
-              >
-                {selectedImageIds.size === filteredImages.length && filteredImages.length > 0 ? 'Desmarcar Todas' : 'Selecionar Todas'}
-              </button>
-            </div>
+            {#if !onselectimage}
+              <div class="ml-auto">
+                <button
+                  type="button"
+                  onclick={handleSelectAll}
+                  class="text-[11px] text-primary hover:underline font-medium cursor-pointer"
+                >
+                  {selectedImageIds.size === filteredImages.length && filteredImages.length > 0 ? 'Desmarcar Todas' : 'Selecionar Todas'}
+                </button>
+              </div>
+            {/if}
           </div>
 
           <!-- Grade de Imagens Selecionáveis -->
@@ -285,8 +310,16 @@
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {#each filteredImages as img (img.id)}
                 {@const isSelected = selectedImageIds.has(img.id)}
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div
                   onclick={() => toggleImageSelection(img.id)}
+                  ondblclick={() => {
+                    if (onselectimage) {
+                      onselectimage(img.url);
+                      onclose();
+                    }
+                  }}
                   class="group relative aspect-video rounded-xl border transition-all cursor-pointer overflow-hidden shadow-sm {isSelected ? 'border-primary ring-2 ring-primary/50' : 'border-border bg-card/60 hover:border-primary/40'}"
                 >
                   <img src={img.url} alt={img.name} class="w-full h-full object-cover" loading="lazy" />
@@ -361,7 +394,9 @@
       <!-- Rodapé do Modal -->
       <div class="h-14 px-5 border-t border-border bg-card/60 flex items-center justify-between shrink-0">
         <div class="text-xs text-muted-foreground">
-          {#if mode === 'single'}
+          {#if onselectimage}
+            <span>{selectedImageIds.size > 0 ? '1 imagem selecionada (ou clique duplo)' : 'Selecione uma imagem'}</span>
+          {:else if mode === 'single'}
             <span>{selectedImageIds.size} imagem(ns) selecionada(s)</span>
           {:else}
             <span>Inserir pasta como apresentação de slides</span>
@@ -370,7 +405,25 @@
 
         <div class="flex items-center gap-2">
           <Button variant="secondary" size="sm" onclick={onclose}>Cancelar</Button>
-          {#if mode === 'single'}
+          {#if onselectimage}
+            <Button
+              variant="default"
+              size="sm"
+              onclick={() => {
+                const id = Array.from(selectedImageIds)[0];
+                const img = images.find((i) => i.id === id);
+                if (img) {
+                  onselectimage(img.url);
+                  onclose();
+                }
+              }}
+              disabled={selectedImageIds.size === 0}
+              class="gap-1.5"
+            >
+              <Check size={14} />
+              <span>Selecionar Imagem</span>
+            </Button>
+          {:else if mode === 'single'}
             <Button
               variant="default"
               size="sm"

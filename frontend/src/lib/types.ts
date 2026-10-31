@@ -14,6 +14,7 @@ export interface Slide {
   content: string;
   align_h?: 'left' | 'center' | 'right' | 'justify';
   align_v?: 'top' | 'center' | 'bottom';
+  lower_content?: string;
 }
 
 export interface MediaItem {
@@ -24,6 +25,7 @@ export interface MediaItem {
   slides: Slide[];
   align_h?: 'left' | 'center' | 'right' | 'justify';
   align_v?: 'top' | 'center' | 'bottom';
+  lower_image_url?: string;
 }
 
 export interface MediaSubfolder {
@@ -289,6 +291,8 @@ export interface PublicDisplaySettings {
   scripture_reference_font_size?: number;
 }
 
+export type ImageDisplayMode = 'fullscreen' | 'lower_third' | 'hide';
+
 export interface LowerThirdSettings {
   enabled: boolean;
   theme: 'gradient' | 'bar' | 'floating' | 'minimal';
@@ -304,6 +308,8 @@ export interface LowerThirdSettings {
   max_width_percent: number;
   animation: 'fade' | 'slide' | 'zoom' | 'none';
   show_reference: boolean;
+  image_display_mode?: ImageDisplayMode;
+  image_fit?: 'contain' | 'cover';
 }
 
 export interface NetworkInfoResponse {

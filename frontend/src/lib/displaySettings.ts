@@ -105,6 +105,8 @@ export const DEFAULT_LOWER_THIRD_SETTINGS: LowerThirdSettings = {
   max_width_percent: 85,
   animation: 'fade',
   show_reference: true,
+  image_display_mode: 'fullscreen',
+  image_fit: 'contain',
 };
 
 export const DEFAULT_BACKGROUND_STYLES: BackgroundStylesMap = {

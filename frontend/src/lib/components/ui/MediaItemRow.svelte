@@ -177,6 +177,15 @@
     </div>
 
     <div class="flex items-center gap-1.5 shrink-0">
+      {#if item.lower_image_url}
+        <Badge
+          variant="outline"
+          class="text-[9px] py-0 px-1 text-emerald-400 border-emerald-500/40 bg-emerald-950/40 gap-0.5"
+          title="Possui imagem alternativa para Lower Third"
+        >
+          Lower 🖼️
+        </Badge>
+      {/if}
       {#if isLive}
         <Badge variant="success" class="text-[10px] uppercase font-bold tracking-wider py-0 px-1.5 bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
           Ao Vivo

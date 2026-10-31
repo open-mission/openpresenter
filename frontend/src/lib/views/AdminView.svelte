@@ -141,6 +141,8 @@
   let isAddMenuOpen = $state(false);
   let isImageSelectorOpen = $state(false);
   let imageSelectorMode = $state<'single' | 'folder'>('single');
+  let isLowerThirdImageSelectorOpen = $state(false);
+  let targetLowerThirdItem = $state<MediaItem | null>(null);
   let isShareOutputsOpen = $state(false);
   let shareOutputsTab = $state<'stage' | 'public' | 'remote' | 'lower' | 'cast'>('stage');
   let isConnectionsDropdownOpen = $state(false);
@@ -707,6 +709,39 @@
         icon: Edit3,
         onclick: () => handleOpenRename(item),
       },
+    ];
+
+    if (item.kind === 'image') {
+      contextMenuItems.push({
+        id: 'div_lower_img',
+        divider: true,
+      });
+      contextMenuItems.push({
+        id: 'select_lower_image',
+        label: item.lower_image_url
+          ? 'Alterar Imagem do Lower Third...'
+          : 'Selecionar Imagem para Lower Third...',
+        icon: ImageIcon,
+        onclick: () => {
+          targetLowerThirdItem = item;
+          isLowerThirdImageSelectorOpen = true;
+        },
+      });
+      if (item.lower_image_url) {
+        contextMenuItems.push({
+          id: 'remove_lower_image',
+          label: 'Remover Imagem de Lower Third',
+          icon: Trash2,
+          onclick: async () => {
+            const updated = { ...item, lower_image_url: undefined };
+            const list = $mediaItemsList.map((m) => (m.id === item.id ? updated : m));
+            await reorderSetlistItems(list);
+          },
+        });
+      }
+    }
+
+    contextMenuItems.push(
       {
         id: 'div_1',
         divider: true,
@@ -717,8 +752,8 @@
         icon: Trash2,
         destructive: true,
         onclick: () => handleRemoveItem(item),
-      },
-    ];
+      }
+    );
 
     contextMenuOpen = true;
   }
@@ -937,6 +972,14 @@
         console.error('Erro ao adicionar imagem à setlist:', err);
       }
     }
+  }
+
+  async function handleSelectLowerThirdImage(url: string) {
+    if (!targetLowerThirdItem) return;
+    const updated = { ...targetLowerThirdItem, lower_image_url: url };
+    const list = $mediaItemsList.map((m) => (m.id === targetLowerThirdItem!.id ? updated : m));
+    await reorderSetlistItems(list);
+    targetLowerThirdItem = null;
   }
 
   function handlePresentScripture(item: MediaItem, slideIndex: number) {
@@ -1958,6 +2001,15 @@
                   NO AR
                 </Badge>
               {/if}
+              {#if selectedMedia.lower_image_url}
+                <Badge
+                  variant="outline"
+                  class="text-[10px] py-0 px-1.5 text-emerald-400 border-emerald-500/40 bg-emerald-950/40 gap-1"
+                  title="Possui imagem alternativa para Lower Third"
+                >
+                  Lower Third 🖼️
+                </Badge>
+              {/if}
             </div>
             {#if selectedMedia.artist_or_ref}
               <p class="text-xs text-muted-foreground truncate mt-0.5">
@@ -2496,6 +2548,19 @@
     initialMode={imageSelectorMode}
     onclose={() => (isImageSelectorOpen = false)}
     onadditems={handleAddImageItems}
+  />
+
+  <ImageSelectorModal
+    open={isLowerThirdImageSelectorOpen}
+    initialMode="single"
+    allowFolders={false}
+    title="Selecionar Imagem para Lower Third"
+    subtitle={`Escolha uma imagem dedicada para ser exibida na saída do OBS (${targetLowerThirdItem?.title || ''})`}
+    onclose={() => {
+      isLowerThirdImageSelectorOpen = false;
+      targetLowerThirdItem = null;
+    }}
+    onselectimage={handleSelectLowerThirdImage}
   />
 
   <ShareOutputsModal

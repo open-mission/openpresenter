@@ -7,6 +7,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Exibição e Seleção de Imagens no Lower Third para Transmissão OBS (`/lower-third`):**
+  - Renderização gráfica de imagens no terço inferior da transmissão (`LowerThirdView.svelte`), substituindo a exibição de texto bruto do caminho do arquivo.
+  - Opções configuráveis em `LowerThirdSettings` e na aba "Lower Third" do `SettingsModal.svelte`:
+    - `image_display_mode`: `'fullscreen'` (imagem em tela cheia cobrindo a transmissão), `'lower_third'` (banner ajustado dentro da tarja do terço inferior) ou `'hide'` (ocultar imagem na saída do OBS mantendo o vídeo limpo).
+    - `image_fit`: ajuste de preenchimento `'contain'` (preservar proporções sem corte) ou `'cover'` (preenchimento completo da área).
+    - Simulação visual interativa de imagem na prévia 16:9 das configurações.
+  - Suporte à imagem alternativa dedicada para o Lower Third via campo `lower_image_url` em `MediaItem` e `lower_content` em `Slide` no backend Rust (`op-core`, `op-db`, `op-admin`) e frontend Svelte.
+  - Ações no menu de contexto da setlist no painel principal (`AdminView.svelte`) para vincular/alterar e desvincular uma imagem específica para o Lower Third via seletor modal com prévia, e badges indicadores `Lower 🖼️` em `MediaItemRow.svelte` e no cabeçalho do slide.
 - **Tipo de Mídia Agenda (Schedule) para Programação de Cultos e Festividades:**
   - Novo tipo de mídia no backend (`MediaKind::Schedule`, `"schedule"`, rótulo `"Agenda"`) e frontend (`ScheduleEvent`), persistido nas setlists em memória e no banco SQLite.
   - Modal dedicado de criação e edição (`ScheduleEditorModal.svelte`) com atalhos de um clique para dias da semana (`+ Domingo`, `+ Quarta`, `+ Sábado`, etc.) e eventos festivos futuros com data livre, horários e locais/detalhes.
