@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Feat/Improve: Exibição e seleção de imagens no Lower Third (`/lower-third`): correção da renderização de imagem (em vez de texto bruto de caminho), opções configuráveis de modo de imagem (`fullscreen`, `lower_third`, `hide`) e ajuste (`contain`/`cover`), e suporte à seleção de imagem alternativa dedicada para o Lower Third em `MediaItem`. (commit e737f28 - 2026-10-31 20:35:23 -03:00)
+
 - [x] Feat: Tipo de Mídia Agenda (Schedule) para cadastro de programações de cultos semanais e festividades/eventos futuros: enum `MediaKind::Schedule` no `op-core`, editor dinâmico `ScheduleEditorModal.svelte` com atalhos de dias da semana, integração na setlist e menu de contexto em `AdminView.svelte`, renderização na Tela Pública (`/public`) com badges de dia/horário e autoScale sobre o papel de parede, e sincronização sequencial no Monitor de Palco (`/stage`) e preview (`StagePreviewBox.svelte`) exibindo dia atual e próximo da agenda. (2026-10-31 13:55:00 -03:00)
 
 - [x] Fix/Improve: Resiliência e diagnóstico do Google Cast Sender SDK: injeção de script e callback estáticos no `index.html`, diagnóstico inteligente de Contexto Seguro (LAN IP vs localhost) e navegadores em `cast.ts`, e atalhos rápidos de abertura de aba no banner de aviso em `CastControl.svelte`. (commit fd5510a - 2026-10-31 13:37:19 -03:00)
