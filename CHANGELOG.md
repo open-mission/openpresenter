@@ -35,6 +35,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Simplificação e Agrupamento das Saídas no Cabeçalho do Operador (`AdminView.svelte`):**
+  - Substituição da fileira de 5 botões individuais (`Iniciar Public`, `Iniciar Stage`, `Cast`, `QR Code`, `Remoto`) por uma Central de Saídas Única com o menu dropdown `Saídas`.
+  - Agrupamento semântico claro no menu suspenso em duas seções: "Telas do Computador" (Projeção Pública `/public`, Retorno de Palco `/stage` e Lower Third `/lower-third` para OBS) e "Sem Fio & Dispositivos" (Google Cast, Controle Remoto Mobile `/remote` e QR Codes de rede).
+  - Indicador visual animado de conexão ativa no botão `Saídas` quando houver transmissão Google Cast em andamento (`castStore.isConnected`).
+  - Redução drástica da densidade visual do cabeçalho, deixando apenas os controles essenciais no canto direito (`Online`, `Saídas`, `Configurações` e badge de atualização).
 - **Exibição e Descoberta de IP na Rede Local (LAN) para Servidor e Vite:**
   - Atualização do banner de inicialização no terminal (`main.rs`) exibindo tanto o acesso local (`http://localhost:<PORTA>`) quanto o endereço na rede local (`http://<IP_LOCAL>:<PORTA>`), além das URLs de todas as telas (Admin, Pública, Palco, Controle Remoto, Lower Third e WebSocket).
   - Suporte à variável de ambiente `HOST` no servidor Axum (padrão: `0.0.0.0`), permitindo especificar a interface de escuta.

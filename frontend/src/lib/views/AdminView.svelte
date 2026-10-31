@@ -117,6 +117,7 @@
     Smartphone,
     Laptop,
     ScrollText,
+    Video,
   } from 'lucide-svelte';
   import { castStore } from '$lib/cast';
 
@@ -139,6 +140,7 @@
   let isShareOutputsOpen = $state(false);
   let shareOutputsTab = $state<'stage' | 'public' | 'remote' | 'lower' | 'cast'>('stage');
   let isConnectionsDropdownOpen = $state(false);
+  let isOutputsMenuOpen = $state(false);
   let previewImage = $state<ImageMediaItem | null>(null);
   let isPreviewImageOpen = $state(false);
 
@@ -511,7 +513,8 @@
       isSetlistModalOpen ||
       isQuickItemModalOpen ||
       isRenameModalOpen ||
-      isConnectionsDropdownOpen
+      isConnectionsDropdownOpen ||
+      isOutputsMenuOpen
     ) {
       if (e.key === 'Escape') {
         isCommandPaletteOpen = false;
@@ -523,6 +526,7 @@
         isSetlistSelectorOpen = false;
         isAddMenuOpen = false;
         isConnectionsDropdownOpen = false;
+        isOutputsMenuOpen = false;
       }
       return;
     }
@@ -530,10 +534,11 @@
     // Tecla Escape: Para a apresentação
     if (e.key === 'Escape') {
       e.preventDefault();
-      if (isSetlistSelectorOpen || isAddMenuOpen || isConnectionsDropdownOpen) {
+      if (isSetlistSelectorOpen || isAddMenuOpen || isConnectionsDropdownOpen || isOutputsMenuOpen) {
         isSetlistSelectorOpen = false;
         isAddMenuOpen = false;
         isConnectionsDropdownOpen = false;
+        isOutputsMenuOpen = false;
         return;
       }
       if (numberBuffer) {
@@ -1065,6 +1070,10 @@
   function openStageWindow() {
     window.open('/stage', 'OpenPresenterStage', 'width=1280,height=720,menubar=no,toolbar=no,location=no');
   }
+
+  function openLowerThirdWindow() {
+    window.open('/lower-third', 'OpenPresenterLowerThird', 'width=1280,height=720,menubar=no,toolbar=no,location=no');
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -1155,7 +1164,10 @@
       <div class="relative">
         <button
           type="button"
-          onclick={() => (isConnectionsDropdownOpen = !isConnectionsDropdownOpen)}
+          onclick={() => {
+            isConnectionsDropdownOpen = !isConnectionsDropdownOpen;
+            if (isConnectionsDropdownOpen) isOutputsMenuOpen = false;
+          }}
           aria-label="Conexões ativas do WebSocket"
           aria-expanded={isConnectionsDropdownOpen}
           aria-haspopup="true"
@@ -1277,6 +1289,239 @@
         {/if}
       </div>
 
+      <!-- Menu Dropdown Central de Saídas & Transmissão -->
+      <div class="relative">
+        <Button
+          variant="outline"
+          size="sm"
+          onclick={() => {
+            isOutputsMenuOpen = !isOutputsMenuOpen;
+            if (isOutputsMenuOpen) isConnectionsDropdownOpen = false;
+          }}
+          class="gap-1.5 text-xs {$castStore.isConnected ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300' : ''}"
+          title="Telas de exibição e transmissão (Pública, Palco, OBS, Cast, Remoto)"
+          aria-expanded={isOutputsMenuOpen}
+          aria-haspopup="true"
+        >
+          {#if $castStore.isConnected}
+            <Cast size={14} class="text-emerald-400 animate-pulse" />
+          {:else}
+            <MonitorPlay size={14} class="text-primary" />
+          {/if}
+          <span>Saídas</span>
+          {#if $castStore.isConnected}
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          {/if}
+          <ChevronDown size={12} class="opacity-60 transition-transform {isOutputsMenuOpen ? 'rotate-180' : ''}" />
+        </Button>
+
+        {#if isOutputsMenuOpen}
+          <!-- Backdrop invisível para fechar ao clicar fora -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            class="fixed inset-0 z-40"
+            onclick={() => (isOutputsMenuOpen = false)}
+          ></div>
+
+          <!-- Dropdown com lista de saídas e transmissão -->
+          <div
+            class="absolute right-0 top-full mt-2 w-72 sm:w-80 rounded-xl border border-border bg-card/95 backdrop-blur-md p-2 shadow-2xl z-50 text-xs text-foreground select-none animate-in fade-in zoom-in-95 duration-100"
+          >
+            <!-- Cabeçalho do Dropdown -->
+            <div class="px-2.5 py-1.5 mb-1.5 border-b border-border/60 flex items-center justify-between">
+              <span class="font-bold text-foreground text-xs flex items-center gap-1.5">
+                <MonitorPlay size={13} class="text-primary" />
+                Telas & Transmissão
+              </span>
+              {#if $castStore.isConnected}
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-semibold flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Cast Ativo
+                </span>
+              {/if}
+            </div>
+
+            <!-- Seção 1: Telas de Projeção (Janelas Locais) -->
+            <div class="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Telas do Computador
+            </div>
+
+            <div class="space-y-0.5">
+              <!-- Tela Pública (Projetor) -->
+              <button
+                type="button"
+                onclick={() => {
+                  isOutputsMenuOpen = false;
+                  openPublicWindow();
+                }}
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group"
+              >
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="p-1.5 rounded-md bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                    <MonitorPlay size={15} />
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-medium text-xs text-foreground flex items-center gap-1.5">
+                      <span>Projeção Pública</span>
+                      <span class="text-[10px] text-muted-foreground font-mono">/public</span>
+                    </div>
+                    <div class="text-[11px] text-muted-foreground truncate">
+                      Telão principal ou projetor da igreja
+                    </div>
+                  </div>
+                </div>
+                <ExternalLink size={13} class="text-muted-foreground group-hover:text-foreground shrink-0 opacity-60" />
+              </button>
+
+              <!-- Retorno de Palco (Stage) -->
+              <button
+                type="button"
+                onclick={() => {
+                  isOutputsMenuOpen = false;
+                  openStageWindow();
+                }}
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group"
+              >
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="p-1.5 rounded-md bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                    <Tv size={15} />
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-medium text-xs text-foreground flex items-center gap-1.5">
+                      <span>Retorno de Palco</span>
+                      <span class="text-[10px] text-muted-foreground font-mono">/stage</span>
+                    </div>
+                    <div class="text-[11px] text-muted-foreground truncate">
+                      Monitor com timer, relógio e próximo slide
+                    </div>
+                  </div>
+                </div>
+                <ExternalLink size={13} class="text-muted-foreground group-hover:text-foreground shrink-0 opacity-60" />
+              </button>
+
+              <!-- Lower Third (OBS Studio) -->
+              <button
+                type="button"
+                onclick={() => {
+                  isOutputsMenuOpen = false;
+                  openLowerThirdWindow();
+                }}
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group"
+              >
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="p-1.5 rounded-md bg-purple-500/10 text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                    <Video size={15} />
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-medium text-xs text-foreground flex items-center gap-1.5">
+                      <span>Lower Third (OBS)</span>
+                      <span class="text-[10px] text-muted-foreground font-mono">/lower-third</span>
+                    </div>
+                    <div class="text-[11px] text-muted-foreground truncate">
+                      Transparência alfa para transmissão e lives
+                    </div>
+                  </div>
+                </div>
+                <ExternalLink size={13} class="text-muted-foreground group-hover:text-foreground shrink-0 opacity-60" />
+              </button>
+            </div>
+
+            <!-- Divisor -->
+            <div class="my-1.5 border-t border-border/60"></div>
+
+            <!-- Seção 2: Conexões Sem Fio & Compartilhamento -->
+            <div class="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Sem Fio & Dispositivos
+            </div>
+
+            <div class="space-y-0.5">
+              <!-- Google Cast / Chromecast -->
+              <button
+                type="button"
+                onclick={() => {
+                  isOutputsMenuOpen = false;
+                  shareOutputsTab = 'cast';
+                  isShareOutputsOpen = true;
+                }}
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group {$castStore.isConnected ? 'bg-emerald-500/10 border border-emerald-500/30' : ''}"
+              >
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                    <Cast size={15} class={$castStore.isConnected ? 'animate-pulse' : ''} />
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-medium text-xs text-foreground flex items-center gap-1.5">
+                      <span>Transmitir via Google Cast</span>
+                      {#if $castStore.isConnected}
+                        <span class="text-[10px] text-emerald-400 font-semibold">● Conectado</span>
+                      {/if}
+                    </div>
+                    <div class="text-[11px] text-muted-foreground truncate">
+                      {$castStore.isConnected ? 'Sessão ativa no Chromecast/TV' : 'Projeção sem fio para Smart TV'}
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight size={13} class="text-muted-foreground group-hover:text-foreground shrink-0 opacity-60" />
+              </button>
+
+              <!-- Controle Remoto Mobile -->
+              <button
+                type="button"
+                onclick={() => {
+                  isOutputsMenuOpen = false;
+                  shareOutputsTab = 'remote';
+                  isShareOutputsOpen = true;
+                }}
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group"
+              >
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                    <Smartphone size={15} />
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-medium text-xs text-foreground flex items-center gap-1.5">
+                      <span>Controle Remoto Mobile</span>
+                      <span class="text-[10px] text-muted-foreground font-mono">/remote</span>
+                    </div>
+                    <div class="text-[11px] text-muted-foreground truncate">
+                      QR Code para operar louvor e Bíblia no celular
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight size={13} class="text-muted-foreground group-hover:text-foreground shrink-0 opacity-60" />
+              </button>
+
+              <!-- Ver Todos os QR Codes & Links -->
+              <button
+                type="button"
+                onclick={() => {
+                  isOutputsMenuOpen = false;
+                  shareOutputsTab = 'stage';
+                  isShareOutputsOpen = true;
+                }}
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group"
+              >
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="p-1.5 rounded-md bg-neutral-500/10 text-neutral-400 group-hover:bg-neutral-600 group-hover:text-white transition-colors">
+                    <QrCode size={15} />
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-medium text-xs text-foreground">
+                      Compartilhar Saídas na Rede
+                    </div>
+                    <div class="text-[11px] text-muted-foreground truncate">
+                      Ver links e QR Codes para tablets e notebooks
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight size={13} class="text-muted-foreground group-hover:text-foreground shrink-0 opacity-60" />
+              </button>
+            </div>
+          </div>
+        {/if}
+      </div>
+
       <!-- Botão Configurações -->
       <Button
         variant="outline"
@@ -1309,88 +1554,6 @@
           v{updateInfo.latest_version}
         </button>
       {/if}
-
-      <!-- Botões de Abertura das Saídas -->
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={openPublicWindow}
-        class="gap-1.5 text-xs"
-        title="Iniciar Janela Pública (Projetor)"
-      >
-        <MonitorPlay size={14} class="text-primary" />
-        {#if $previewLabelsStore}
-          <span class="hidden md:inline">Iniciar</span> Public
-        {/if}
-        <ExternalLink size={12} class="opacity-60" />
-      </Button>
-
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={openStageWindow}
-        class="gap-1.5 text-xs"
-        title="Iniciar Janela do Stage (Palco)"
-      >
-        <Tv size={14} class="text-primary" />
-        {#if $previewLabelsStore}
-          <span class="hidden md:inline">Iniciar</span> Stage
-        {/if}
-        <ExternalLink size={12} class="opacity-60" />
-      </Button>
-
-      <!-- Botão Transmitir Chromecast (Google Cast) -->
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={() => {
-          shareOutputsTab = 'cast';
-          isShareOutputsOpen = true;
-        }}
-        class="gap-1.5 text-xs {$castStore.isConnected ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300' : ''}"
-        title="Transmitir sem fio para TV ou Chromecast (Google Cast)"
-      >
-        <Cast size={14} class={$castStore.isConnected ? 'text-emerald-400 animate-pulse' : 'text-primary'} />
-        {#if $previewLabelsStore}
-          <span class="hidden lg:inline">
-            {$castStore.isConnected ? 'Cast Conectado' : 'Cast'}
-          </span>
-        {/if}
-      </Button>
-
-      <!-- Botão Compartilhar Saídas (QR Code) -->
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={() => {
-          shareOutputsTab = 'stage';
-          isShareOutputsOpen = true;
-        }}
-        class="gap-1.5 text-xs"
-        title="Compartilhar Saídas com Celulares e Tablets via QR Code"
-      >
-        <QrCode size={14} class="text-primary" />
-        {#if $previewLabelsStore}
-          <span class="hidden lg:inline">QR Code</span>
-        {/if}
-      </Button>
-
-      <!-- Botão Controle Remoto Mobile -->
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={() => {
-          shareOutputsTab = 'remote';
-          isShareOutputsOpen = true;
-        }}
-        class="gap-1.5 text-xs border-emerald-500/30 hover:border-emerald-500/60"
-        title="Abrir QR Code do Controle Remoto para Celular (/remote)"
-      >
-        <Smartphone size={14} class="text-emerald-400" />
-        {#if $previewLabelsStore}
-          <span class="hidden lg:inline">Remoto</span>
-        {/if}
-      </Button>
     </div>
   </header>
 

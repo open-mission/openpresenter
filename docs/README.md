@@ -203,6 +203,8 @@
 - [Spec — Correção de Estilização, CORS e Resolução de Mídia no Google Cast (Web Receiver)](specs/2026-10-31-google-cast-web-receiver-cors-e-midia.md)
 - [Plano — Correção de Estilização, CORS e Resolução de Mídia no Google Cast (Web Receiver)](plans/2026-10-31-google-cast-web-receiver-cors-e-midia.md)
 - [Spec — Exposição e Detecção de IP na Rede Local (LAN) para Servidor e Vite](specs/2026-10-31-expor-ip-servidor-rede-local.md)
+- [Spec — Simplificação e Agrupamento das Saídas no Cabeçalho](specs/2026-10-31-simplificacao-e-agrupamento-saidas-header.md)
+- [Plano — Simplificação e Agrupamento das Saídas no Cabeçalho](plans/2026-10-31-simplificacao-e-agrupamento-saidas-header.md)
 
 ## Arquitetura e decisões
 
