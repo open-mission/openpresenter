@@ -8,6 +8,10 @@
 
 ## Backlog
 
+- [ ] Implementar a funcionadlidade de importar musica via JSON ou Text ou Markdwn. Mas também teremos uma secao nas configuracoes para importar a Harpa Cristã em /Users/claudio/Downloads/harpa-crista.json temos o arquivo, a ideia é que o usuario possa instalar ela, o json está no repo do github e quando ele pedir para instalar e baixa o json e importa no programa. Nas musicas add a opcao de termos o metadado de grupos e/ou tags para classificarmos e organizarmos as musicas. O padrão de letras é duas linhas por slide ajustar para ser o padrao podendo ser configurado nas config. Tanto para as musicas importadas como para as musicas salvas vindo da web.
+
+- [ ] Ajustar quando pesquisamos uma musica na web via command pallete, muitas vezes tem que clicar novamente no Online ou Web para ele realmente pesquisar.
+
 
 
 ## Doing
@@ -15,6 +19,8 @@
 
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Fix/Improve: Separação correta de slides e redimensionamento com Resizable Shadcn no catálogo de músicas (`BottomPanel.svelte`): decomposição fidedigna das letras de músicas com `parseRawLyrics(song.lyrics_raw)` gerando slides 16:9 individuais para cada estrofe delimitada por quebras duplas `\n\n`, grade flexível de pré-visualização responsiva com wrap em múltiplas colunas (`grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3`), e integração dos componentes nativos `ResizablePaneGroup`, `ResizablePane` e `ResizableHandle` para ajuste horizontal ergonômico entre catálogo e slides. (commit 055a4e2 - 2026-10-31 10:18:11 -03:00)
 
 - [x] Fix/Improve: Ajuste visual e espaçamento do resizer do painel de mídias (`BottomPanel.svelte`): posicionamento do separador no fluxo natural com margem inferior para não sobrepor os botões de abas, harmonização da cor de fundo com o painel (`bg-card`), indicador de arraste (*drag indicator*) em tom neutro contrastante (`bg-neutral-400 dark:bg-neutral-500`) com realce na cor primária ao interagir e ajuste da altura colapsada. (commit 10e9974 - 2026-10-31 10:02:44 -03:00)
 
@@ -32,7 +38,7 @@
 
 - [x] Improve: Opção de reiniciar a aplicação ou o servidor ao ser atualizado e no system tray menu: implementação de `restart_application()` multiplataforma com spawn desanexado, item "Reiniciar OpenPresenter" no System Tray (`TrayMenuIds::restart`), rotas `POST /api/system/restart` e `POST /api/updater/restart`, botão de ação "Reiniciar Aplicativo Agora" em `SettingsModal.svelte` ao atingir o estado `ReadyToRestart` e cartão de reinício na aba Sobre com feedback de progresso e reload automático. (commit a8a9619 - 2026-10-31 08:43:02 -03:00)
 
-- [x] Feat & Improve: Sistema de logs para manter salvas as ações do programa com identificação de instâncias e exibição de navegador/aparelho no dropdown Online do Header: criação da tabela SQLite action_logs (migração 0008), identificadores únicos persistentes de instância (instance_id) e device_info, endpoints /api/logs e /api/logs/clear com filtros por categoria, sincronização em tempo real via WsMessage::ActionLogged, aba dedicada de Histórico e Logs de Auditoria no SettingsModal e dropdown aprimorado de conexões ativas exibindo ícones de computador/smartphone/tablet, navegador/sistema, IP e rota. (commit b1025e1 - 2026-10-31 08:34:16 -03:00)
+- [x] Feat &amp; Improve: Sistema de logs para manter salvas as ações do programa com identificação de instâncias e exibição de navegador/aparelho no dropdown Online do Header: criação da tabela SQLite action_logs (migração 0008), identificadores únicos persistentes de instância (instance_id) e device_info, endpoints /api/logs e /api/logs/clear com filtros por categoria, sincronização em tempo real via WsMessage::ActionLogged, aba dedicada de Histórico e Logs de Auditoria no SettingsModal e dropdown aprimorado de conexões ativas exibindo ícones de computador/smartphone/tablet, navegador/sistema, IP e rota. (commit b1025e1 - 2026-10-31 08:34:16 -03:00)
 
 - [x] Fix: Sentido e sincronização de navegação de slides via teclado: cálculo de `nextSlide()` e `prevSlide()` em `AdminView.svelte` a partir do slide ao vivo em tempo real (`active_slide_index`), inicialização de foco ao disparar versículos bíblicos (`handlePresentScripture`), sincronização bidirecional do operador com outros aparelhos/remoto e auto-scroll do card de slide. (commit b729a8d - 2026-10-31 08:04:39 -03:00)
 
@@ -44,7 +50,7 @@
 
 - [x] Preparar a versão 0.3.0 para lançamento e ícone oficial no executável: unificação de versão em todo o workspace (Cargo.toml, package.json, workflows, componentes e testes), geração de ícone nativo .icns e PNG 1024x1024 a partir da marca oficial, script de empacotamento macOS (scripts/package-macos.sh) gerando OpenPresenter.app e atribuindo atributos de ícone do Finder ao executável Mach-O, injeção em runtime via Cocoa (Dock/App Switcher), fechamento da release 0.3.0 no CHANGELOG.md e spec docs/specs/2026-10-30-release-0-3-0.md. (commit 4bdf3bb - 2026-10-30 17:29:48 -03:00)
 
-- [x] Correções no Controle Remoto Mobile (/remote): busca bíblica funcional no endpoint /api/bibles/:id/search com suporte a referências rápidas ("Jo 3:16", "Sl 23") via parseBibleReference; divisão estrutural de estrofes de músicas respeitando quebras duplas \n\n com parseRawLyrics; navegação contínua de versículos na Bíblia projetando o capítulo com todos os versículos para habilitar botões Anterior/Próximo e contagem correta de slides; e botão de recarregar catálogo de músicas. (commit e61c7db - 2026-10-30 17:03:29 -03:00)
+- [x] Correções no Controle Remoto Mobile (/remote): busca bíblica funcional no endpoint /api/bibles/:id/search com suporte a referências rápidas ("Jo 3:16", "Sl 23") via parseBibleReference; divisão estrutural de estrofes de músicas respeitando quebras duplas \\n\\n com parseRawLyrics; navegação contínua de versículos na Bíblia projetando o capítulo com todos os versículos para habilitar botões Anterior/Próximo e contagem correta de slides; e botão de recarregar catálogo de músicas. (commit e61c7db - 2026-10-30 17:03:29 -03:00)
 
 - [x] Refinamento do Controle Remoto Mobile (/remote) e Suporte a PWA: navegação bíblica com sub-abas (Livros em grade, Capítulos em grade touch de 44px, Versículos com leitura integral), Input Group e Drawer Shadcn para seleção de versão bíblica, correção do carregamento da Setlist (/api/setlists/:id), card de controle ao vivo retrátil (collapsible), active states em músicas e versículos projetados ao vivo, safe-area no iOS e Android (top e bottom na navigation bar), header com logotipo oficial do OpenPresenter Minimal, e suporte completo a PWA (manifest.webmanifest, service worker, ícones 192 e 512, favicons e meta tags de app standalone instalável). (commit 8b4d8e6 - 2026-10-30 16:31:19 -03:00)
 
