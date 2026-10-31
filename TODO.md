@@ -8,8 +8,6 @@
 
 ## Backlog
 
-- [ ] Implementar a funcionadlidade de importar musica via JSON ou Text ou Markdwn. Mas também teremos uma secao nas configuracoes para importar a Harpa Cristã em /Users/claudio/Downloads/harpa-crista.json temos o arquivo, a ideia é que o usuario possa instalar ela, o json está no repo do github e quando ele pedir para instalar e baixa o json e importa no programa. Nas musicas add a opcao de termos o metadado de grupos e/ou tags para classificarmos e organizarmos as musicas. O padrão de letras é duas linhas por slide ajustar para ser o padrao podendo ser configurado nas config. Tanto para as musicas importadas como para as musicas salvas vindo da web.
-
 
 
 ## Doing
@@ -17,6 +15,8 @@
 
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Feat: Importação de músicas via JSON, Texto (.txt) e Markdown (.md), instalação oficial da Harpa Cristã (540 hinos), metadados de tags/grupos com filtragem relacional e padrão configurável de 2 linhas por slide (`op-core`, `op-db`, `op-admin`, `frontend`): migração SQLite `0009_song_tags.sql` para tags associadas com chave composta, rotas `/api/songs/import`, `/api/songs/harpa/install` e `/api/songs/tags`, empacotamento offline de `assets/songs/harpa-crista.json` com fallback para download resiliente via GitHub raw, chunker de estrofes `format_lyrics_lines_per_slide` aplicado automaticamente em importações e buscas online da web (Holyrics/Vagalume), botão de ação rápida "2 Linhas/Slide" no `SongEditorModal`, barra de chips de tags e botão de importação no `BottomPanel`, e aba dedicada "Músicas & Harpa" no `SettingsModal` para instalação e personalização de linhas por slide. (commit 068b055 - 2026-10-31 11:11:47 -03:00)
 
 - [x] Fix: Ajuste da pesquisa de músicas na web via Command Palette (`CommandPalette.svelte`): substituição do botão rotativo cíclico por controle segmentado com botões diretos de modo (`[🎵 Músicas]`, `[📖 Bíblia]`, `[🌐 Web]`), centralização da troca com `switchTab`, controle de cancelamento de buscas assíncronas com `AbortController` e identificador sequencial `searchId`, eliminação de corridas com o debounce reativo, pré-seleção automática da Ação 2 ("Buscar na internet") ao digitar título inédito no catálogo local e preservação do foco no campo de texto. (commit 24a830f - 2026-10-31 10:28:07 -03:00)
 
