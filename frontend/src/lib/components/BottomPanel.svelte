@@ -96,10 +96,22 @@
   let startY = 0;
   let startHeight = 290;
 
+  function selectTab(tab: 'songs' | 'images' | 'backgrounds' | 'bible') {
+    if (tab === 'bible') {
+      if (isCollapsed || activeTab !== 'bible') {
+        const h75 = typeof window !== 'undefined' ? Math.round(window.innerHeight * 0.75) : 550;
+        const maxH = typeof window !== 'undefined' ? window.innerHeight - 80 : 700;
+        const targetH = Math.min(Math.max(panelHeight, h75), maxH);
+        panelHeight = targetH;
+      }
+    }
+    activeTab = tab;
+    if (isCollapsed) isCollapsed = false;
+  }
+
   $effect(() => {
     if (requestedTab) {
-      activeTab = requestedTab;
-      isCollapsed = false;
+      selectTab(requestedTab);
     }
   });
 
@@ -377,6 +389,12 @@
   }
 
   function toggleCollapse() {
+    if (isCollapsed && activeTab === 'bible') {
+      const h75 = typeof window !== 'undefined' ? Math.round(window.innerHeight * 0.75) : 550;
+      const maxH = typeof window !== 'undefined' ? window.innerHeight - 80 : 700;
+      const targetH = Math.min(Math.max(panelHeight, h75), maxH);
+      panelHeight = targetH;
+    }
     isCollapsed = !isCollapsed;
   }
 
@@ -468,10 +486,7 @@
         id="tab-songs"
         aria-controls="panel-songs"
         aria-selected={activeTab === 'songs' && !isCollapsed}
-        onclick={() => {
-          activeTab = 'songs';
-          if (isCollapsed) isCollapsed = false;
-        }}
+        onclick={() => selectTab('songs')}
         class={cn(
           'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
           activeTab === 'songs' && !isCollapsed
@@ -493,10 +508,7 @@
         id="tab-images"
         aria-controls="panel-images"
         aria-selected={activeTab === 'images' && !isCollapsed}
-        onclick={() => {
-          activeTab = 'images';
-          if (isCollapsed) isCollapsed = false;
-        }}
+        onclick={() => selectTab('images')}
         class={cn(
           'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
           activeTab === 'images' && !isCollapsed
@@ -518,10 +530,7 @@
         id="tab-backgrounds"
         aria-controls="panel-backgrounds"
         aria-selected={activeTab === 'backgrounds' && !isCollapsed}
-        onclick={() => {
-          activeTab = 'backgrounds';
-          if (isCollapsed) isCollapsed = false;
-        }}
+        onclick={() => selectTab('backgrounds')}
         class={cn(
           'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
           activeTab === 'backgrounds' && !isCollapsed
@@ -543,10 +552,7 @@
         id="tab-bible"
         aria-controls="panel-bible"
         aria-selected={activeTab === 'bible' && !isCollapsed}
-        onclick={() => {
-          activeTab = 'bible';
-          if (isCollapsed) isCollapsed = false;
-        }}
+        onclick={() => selectTab('bible')}
         class={cn(
           'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
           activeTab === 'bible' && !isCollapsed

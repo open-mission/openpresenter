@@ -190,6 +190,7 @@
 - [Spec — Sistema de Logs de Atividades do Programa e Rastreamento por Instância](specs/2026-10-31-sistema-de-logs-de-auditoria-e-instancias.md)
 - [Spec — Reinício da Aplicação/Servidor após Atualização e no System Tray](specs/2026-10-31-reinicio-aplicacao-e-servidor-tray-menu.md)
 - [Spec — Sistema de Notificações Toast com Sonner](specs/2026-10-31-notificacoes-sonner-toasts.md)
+- [Spec — Altura de 75% na Abertura da Aba de Bíblia](specs/2026-10-31-altura-aba-biblia-75-porcento.md)
 
 ## Arquitetura e decisões
 

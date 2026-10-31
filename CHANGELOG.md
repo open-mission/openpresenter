@@ -23,6 +23,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Nova aba "Histórico e Logs de Auditoria" na modal de configurações com filtragem dinâmica por categoria, paginação, limpeza e sincronização em tempo real via evento WebSocket `action_logged`.
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
+### Melhorado
+- **Altura Otimizada ao Abrir a Aba de Bíblia:**
+  - Expansão automática do painel inferior para 75% da altura útil da janela (`Math.round(window.innerHeight * 0.75)`) ao selecionar a aba "Bíblia" com o painel fechado ou com altura padrão reduzida.
+  - Proporciona espaço ergonômico e amplo para consulta de livros, capítulos, versículos e buscas textuais, preservando a barra superior e o preview do slide ativo.
+
 ### Corrigido
 - **Sincronização de versículos bíblicos ao vivo no painel admin em múltiplas instâncias:**
   - Correção na validação de passagem ativa em `BiblePanel.svelte`, assegurando que a marcação em verde e o selo "Ao Vivo" sejam exibidos estritamente quando o livro e capítulo atualmente abertos corresponderem à passagem em projeção.
