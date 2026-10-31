@@ -7,7 +7,6 @@
 
 
 ## Backlog
-- [ ] Improve: Add a opcao de reiniciar a aplicacao ou o servidor ao ser atualizado. e add isso no trail menu.
 - [ ] Feat: Add suport ao Sonner/toast para avisar quando as cores acontece: Apresentacao é iniciada, parada. Nova Musica Salva. Editada, Novo Aparelho Conectado entre outros.
 - [ ] Improve: Quando clicamos na aba de Biblia e ela está fechada, aumentar a altura que ela está abrindo, talvez podemos colocar 75% da altura.
 - [ ] Improve/fix: Quando redmensionamos o painel de midias ele parece que tem um delay, veja se dá para usar o nativo do shadnui para ficar mais fluido (https://www.shadcn-svelte.com/docs/components/resizable)
@@ -21,6 +20,8 @@
 
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Improve: Opção de reiniciar a aplicação ou o servidor ao ser atualizado e no system tray menu: implementação de `restart_application()` multiplataforma com spawn desanexado, item "Reiniciar OpenPresenter" no System Tray (`TrayMenuIds::restart`), rotas `POST /api/system/restart` e `POST /api/updater/restart`, botão de ação "Reiniciar Aplicativo Agora" em `SettingsModal.svelte` ao atingir o estado `ReadyToRestart` e cartão de reinício na aba Sobre com feedback de progresso e reload automático. (commit a8a9619 - 2026-10-31 08:43:02 -03:00)
 
 - [x] Feat & Improve: Sistema de logs para manter salvas as ações do programa com identificação de instâncias e exibição de navegador/aparelho no dropdown Online do Header: criação da tabela SQLite action_logs (migração 0008), identificadores únicos persistentes de instância (instance_id) e device_info, endpoints /api/logs e /api/logs/clear com filtros por categoria, sincronização em tempo real via WsMessage::ActionLogged, aba dedicada de Histórico e Logs de Auditoria no SettingsModal e dropdown aprimorado de conexões ativas exibindo ícones de computador/smartphone/tablet, navegador/sistema, IP e rota. (commit b1025e1 - 2026-10-31 08:34:16 -03:00)
 
