@@ -326,6 +326,7 @@ export type StagePreset = 'split-50-50' | 'modern-grid' | 'video-focus' | 'horiz
 
 export interface StageDisplaySettings {
   preset: StagePreset;
+  stage_layout?: 'stacked-rows' | 'side-column';
   current_text_color: string;
   next_text_color: string;
   current_border_color: string;

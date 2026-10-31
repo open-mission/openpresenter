@@ -192,6 +192,7 @@
 - [Spec — Sistema de Notificações Toast com Sonner](specs/2026-10-31-notificacoes-sonner-toasts.md)
 - [Spec — Altura de 75% na Abertura da Aba de Bíblia](specs/2026-10-31-altura-aba-biblia-75-porcento.md)
 - [Spec — Redimensionamento Fluido do Painel de Mídias e Suíte Resizable Shadcn](specs/2026-10-31-painel-midias-redimensionamento-fluido-resizable.md)
+- [Spec — Layout em 3 Linhas no Stage e Recálculo Dinâmico de Proporções (Soma 100%)](specs/2026-10-31-stage-layout-tres-linhas-e-proporcoes-dinamicas.md)
 
 ## Arquitetura e decisões
 

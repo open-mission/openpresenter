@@ -24,6 +24,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Layout de 3 Linhas no Monitor de Palco e Recálculo Automático de Proporções (Soma 100%):**
+  - Implementação do layout de 3 linhas horizontais empilhadas (`stacked-rows`) no Monitor de Palco (`/stage`), posicionando Aviso para o Palco, Relógio e Cronômetro em uma barra horizontal inferior abaixo do Próximo Slide, garantindo 100% da largura útil da tela para os textos do slide atual e do próximo slide.
+  - Seletor de layout ("3 Linhas Horizontais" vs "Coluna Lateral Direita") nas configurações com persistência local e no backend.
+  - Algoritmo de rebalanceamento proporcional automático nos controles deslizantes de altura (`current_slide_percent`, `next_slide_percent` e `footer_time_percent`), mantendo a soma das três áreas invariavelmente em 100% com indicador visual em tempo real.
+  - Atualização completa do componente de preview (`StagePreviewBox.svelte`) para refletir com paridade visual o modo de layout selecionado e suas respectivas proporções.
 - **Redimensionamento Fluido do Painel de Mídias e Suíte Resizable Shadcn:**
   - Eliminação da latência e atraso perceptível no redimensionamento manual do painel inferior de mídias (`BottomPanel.svelte`) através da desativação condicional da transição CSS (`transition-[height]`) durante o arrasto, captura global do cursor `row-resize` e bloqueio de seleção acidental de texto.
   - Adição de indicador visual centralizado de grip bar estilizado no separador superior do painel inferior.

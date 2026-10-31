@@ -228,215 +228,254 @@
   <!-- PRESET ÚNICO: GRID MODERNO PRO (Auto-scale, sem gaps, sem border-radius) -->
   <!-- ========================================================================= -->
   {:else}
-    <div class="flex-1 flex flex-col md:flex-row gap-0 min-h-0 w-full h-full">
-      <!-- Coluna Principal (Slides: Atual em cima, Próximo embaixo) -->
+    {#snippet currentSlideBlock()}
+      <!-- Slide Atual Grande -->
       <div
-        class="flex flex-col gap-0 min-h-0 transition-all border-b md:border-b-0 md:border-r border-zinc-800"
-        style="flex: {100 - (footerRatio * 2.2)}; min-width: 0;"
+        class="flex flex-col rounded-none bg-zinc-950/80 p-3 sm:p-5 overflow-hidden border-b transition-all min-h-0"
+        style="flex: {currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
       >
-        <!-- Slide Atual Grande -->
-        <div
-          class="flex flex-col rounded-none bg-zinc-950/80 p-3 sm:p-5 overflow-hidden border-b transition-all min-h-0"
-          style="flex: {currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
-        >
-          <div class="flex items-center justify-between pb-2 border-b border-zinc-800 shrink-0">
-            <span
-              class="text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+        <div class="flex items-center justify-between pb-2 border-b border-zinc-800 shrink-0">
+          <span
+            class="text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+            style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};"
+          >
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Slide Atual
+          </span>
+          {#if isScripture && activeSlide}
+            {@const refLabel = activeSlide.label || activeMedia?.title || 'Bíblia'}
+            {@const version = activeMedia?.artist_or_ref || ''}
+            {@const cleanRef = version && refLabel.endsWith(version) ? refLabel.slice(0, -version.length).trim() : refLabel}
+            <span class="text-xs font-bold bg-zinc-800 text-zinc-200 border border-zinc-700 px-2.5 py-0.5 rounded flex items-center gap-1.5">
+              <span>{cleanRef}</span>
+              {#if version}
+                <span class="text-[10px] opacity-75 uppercase font-mono">({version})</span>
+              {/if}
+            </span>
+          {:else if activeSlide}
+            <span class="text-xs font-semibold bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded">
+              {activeSlide.label}
+            </span>
+          {/if}
+        </div>
+
+        <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden p-2">
+          {#if isCurrentImage && activeSlide}
+            <div class="w-full h-full flex flex-col items-center justify-center p-2 min-h-0">
+              <img
+                src={activeSlide.content}
+                alt={activeMedia?.title || 'Imagem'}
+                class="max-w-full max-h-[50vh] object-contain rounded shadow-2xl border border-zinc-800"
+              />
+              <span class="text-xs text-zinc-400 font-mono mt-1.5 truncate max-w-sm">{activeMedia?.title || 'Imagem'}</span>
+            </div>
+          {:else if activeSlide}
+            <div
+              use:autoScale={{
+                minSize: isScripture
+                  ? (stageSettings.scripture_min_font_size || stageSettings.min_font_size || 24)
+                  : (stageSettings.lyrics_min_font_size || stageSettings.min_font_size || 24),
+                maxSize: 240
+              }}
+              class="w-full font-black leading-tight text-center break-words select-none"
               style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};"
             >
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Slide Atual
-            </span>
-            {#if isScripture && activeSlide}
-              {@const refLabel = activeSlide.label || activeMedia?.title || 'Bíblia'}
-              {@const version = activeMedia?.artist_or_ref || ''}
-              {@const cleanRef = version && refLabel.endsWith(version) ? refLabel.slice(0, -version.length).trim() : refLabel}
-              <span class="text-xs font-bold bg-zinc-800 text-zinc-200 border border-zinc-700 px-2.5 py-0.5 rounded flex items-center gap-1.5">
-                <span>{cleanRef}</span>
-                {#if version}
-                  <span class="text-[10px] opacity-75 uppercase font-mono">({version})</span>
-                {/if}
-              </span>
-            {:else if activeSlide}
-              <span class="text-xs font-semibold bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded">
-                {activeSlide.label}
-              </span>
-            {/if}
-          </div>
-
-          <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden p-2">
-            {#if isCurrentImage && activeSlide}
-              <div class="w-full h-full flex flex-col items-center justify-center p-2 min-h-0">
-                <img
-                  src={activeSlide.content}
-                  alt={activeMedia?.title || 'Imagem'}
-                  class="max-w-full max-h-[50vh] object-contain rounded shadow-2xl border border-zinc-800"
-                />
-                <span class="text-xs text-zinc-400 font-mono mt-1.5 truncate max-w-sm">{activeMedia?.title || 'Imagem'}</span>
-              </div>
-            {:else if activeSlide}
-              <div
-                use:autoScale={{
-                  minSize: isScripture
-                    ? (stageSettings.scripture_min_font_size || stageSettings.min_font_size || 24)
-                    : (stageSettings.lyrics_min_font_size || stageSettings.min_font_size || 24),
-                  maxSize: 240
-                }}
-                class="w-full font-black leading-tight text-center break-words select-none"
-                style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};"
-              >
-                {@html renderFormattedText(activeSlide.content)}
-              </div>
-            {:else}
-              <p class="text-zinc-600 text-xl font-medium text-center">
-                Aguardando seleção de slide
-              </p>
-            {/if}
-          </div>
-        </div>
-
-        <!-- Próximo Slide Compacto Abaixo -->
-        <div
-          class="rounded-none bg-zinc-900/40 p-2 sm:p-3 overflow-hidden border-t flex flex-col shrink-0 transition-all min-h-0"
-          style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
-        >
-          <div class="flex items-center justify-between pb-1 border-b border-zinc-800/80 shrink-0">
-            <span
-              class="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5"
-              style="color: {stageSettings.next_text_color || '#facc15'};"
-            >
-              <ArrowRight size={13} />
-              A Seguir (Próximo)
-            </span>
-            {#if isScripture && nextSlide}
-              <span class="text-[10px] font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 px-1.5 py-0.5 rounded flex items-center gap-1">
-                <span>{nextSlide.label}</span>
-              </span>
-            {:else if nextSlide}
-              <span class="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">
-                {nextSlide.label}
-              </span>
-            {/if}
-          </div>
-
-          <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden p-2">
-            {#if isNextImage && nextSlide}
-              <div class="w-full h-full flex items-center justify-center p-1 min-h-0">
-                <img
-                  src={nextSlide.content}
-                  alt="Próxima imagem"
-                  class="max-w-full max-h-[22vh] object-contain rounded opacity-85 shadow border border-zinc-800"
-                />
-              </div>
-            {:else if nextSlide}
-              <div
-                use:autoScale={{
-                  minSize: Math.max(14, Math.round((isScripture ? (stageSettings.scripture_min_font_size || 24) : (stageSettings.lyrics_min_font_size || stageSettings.min_font_size || 24)) * 0.75)),
-                  maxSize: 180
-                }}
-                class="w-full font-black leading-tight opacity-95 text-center break-words select-none"
-                style="color: {stageSettings.next_text_color || '#facc15'};"
-              >
-                {@html renderFormattedText(nextSlide.content)}
-              </div>
-            {:else}
-              <p class="text-zinc-600 text-xs text-center py-2">Fim da mídia</p>
-            {/if}
-          </div>
-        </div>
-      </div>
-
-      <!-- Coluna Lateral Direita (Aviso, Relógio e Timer - Sem gaps, sem border-radius) -->
-      <div
-        class="flex flex-col gap-0 min-h-0 transition-all border-l border-zinc-800"
-        style="flex: {footerRatio * 2.2}; min-width: 280px; max-width: 440px;"
-      >
-        <!-- Caixa de Mensagem / Aviso para o Palco: SEMPRE VISÍVEL -->
-        <div
-          class="p-4 sm:p-5 rounded-none border-b border-zinc-800 flex flex-col justify-between overflow-hidden transition-all {stageMessage ? 'bg-emerald-950/40 text-emerald-300' : 'bg-zinc-950/40 text-zinc-500'}"
-          style="flex: 40; min-height: 0;"
-        >
-          <div class="flex items-center justify-between text-xs font-bold uppercase tracking-wider shrink-0 {stageMessage ? 'text-emerald-400' : 'text-zinc-500'}">
-            <span class="flex items-center gap-1.5">
-              <MessageSquare size={15} />
-              <span>Aviso para o Palco</span>
-            </span>
-            {#if stageMessage}
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            {/if}
-          </div>
-
-          <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden py-1">
-            {#if stageMessage}
-              <p class="text-xl sm:text-2xl md:text-3xl font-black leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] break-words text-center">
-                {stageMessage}
-              </p>
-            {:else}
-              <div class="flex flex-col items-center justify-center text-center text-zinc-600 space-y-1">
-                <span class="text-xs font-medium italic">Nenhum aviso ativo</span>
-              </div>
-            {/if}
-          </div>
-
-          <div class="text-[10px] font-mono uppercase tracking-wider shrink-0 text-right {stageMessage ? 'text-emerald-400/80' : 'text-zinc-600'}">
-            {stageMessage ? 'Mensagem do Operador' : 'Canal do Operador'}
-          </div>
-        </div>
-
-        <!-- Relógio de Parede -->
-        <div
-          class="p-4 rounded-none bg-zinc-900/60 border-b border-zinc-800 flex flex-col justify-center items-center text-center transition-all overflow-hidden"
-          style="flex: 30; min-height: 0;"
-        >
-          <div class="text-[11px] text-zinc-400 uppercase tracking-widest font-semibold mb-1 flex items-center gap-1.5 shrink-0">
-            <Clock size={14} />
-            Horário
-          </div>
-          <div
-            class="text-3xl sm:text-4xl md:text-5xl font-mono font-bold tracking-tight my-auto"
-            style="color: {stageSettings.clock_color || '#ffffff'};"
-          >
-            {currentTime}
-          </div>
-          <div class="text-xs text-zinc-500 capitalize mt-1 truncate shrink-0">{currentDate}</div>
-        </div>
-
-        <!-- Timer Dedicado com Overtime -->
-        <div
-          class="p-4 rounded-none bg-zinc-900/60 flex flex-col justify-center items-center text-center relative overflow-hidden transition-all min-h-0"
-          style="flex: 30;"
-        >
-          <div class="text-xs text-zinc-400 uppercase tracking-widest font-semibold mb-1 flex items-center gap-1.5 shrink-0">
-            <Hourglass size={14} />
-            {timer?.label || 'Cronômetro'}
-          </div>
-
-          {#if timer && timer.duration_seconds > 0}
-            <div
-              class="text-4xl sm:text-5xl md:text-6xl font-mono font-black tracking-tighter my-auto {timerIsOvertime ? 'text-red-500 animate-pulse' : timerIsNearEnd ? 'text-amber-400' : ''}"
-              style="color: {timerIsOvertime ? '#ef4444' : timerIsNearEnd ? '#f59e0b' : stageSettings.timer_color || '#ef4444'};"
-            >
-              {formatTime(timer.remaining_seconds, timerIsOvertime)}
+              {@html renderFormattedText(activeSlide.content)}
             </div>
-
-            {#if timerIsOvertime}
-              <div class="mt-1 text-xs font-bold uppercase tracking-wider text-red-400 flex items-center gap-1 bg-red-500/20 px-2 py-0.5 rounded-full shrink-0">
-                <AlertTriangle size={12} />
-                Tempo Excedido
-              </div>
-            {:else if timerIsNearEnd}
-              <div class="mt-1 text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded-full shrink-0">
-                Último Minuto
-              </div>
-            {/if}
           {:else}
-            <div class="text-3xl sm:text-4xl font-mono font-bold text-zinc-600 my-auto">
-              00:00
-            </div>
+            <p class="text-zinc-600 text-xl font-medium text-center">
+              Aguardando seleção de slide
+            </p>
           {/if}
         </div>
       </div>
-    </div>
+    {/snippet}
+
+    {#snippet nextSlideBlock()}
+      <!-- Próximo Slide Compacto Abaixo -->
+      <div
+        class="rounded-none bg-zinc-900/40 p-2 sm:p-3 overflow-hidden border-b md:border-b-0 flex flex-col shrink-0 transition-all min-h-0"
+        style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
+      >
+        <div class="flex items-center justify-between pb-1 border-b border-zinc-800/80 shrink-0">
+          <span
+            class="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5"
+            style="color: {stageSettings.next_text_color || '#facc15'};"
+          >
+            <ArrowRight size={13} />
+            A Seguir (Próximo)
+          </span>
+          {#if isScripture && nextSlide}
+            <span class="text-[10px] font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 px-1.5 py-0.5 rounded flex items-center gap-1">
+              <span>{nextSlide.label}</span>
+            </span>
+          {:else if nextSlide}
+            <span class="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">
+              {nextSlide.label}
+            </span>
+          {/if}
+        </div>
+
+        <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden p-2">
+          {#if isNextImage && nextSlide}
+            <div class="w-full h-full flex items-center justify-center p-1 min-h-0">
+              <img
+                src={nextSlide.content}
+                alt="Próxima imagem"
+                class="max-w-full max-h-[22vh] object-contain rounded opacity-85 shadow border border-zinc-800"
+              />
+            </div>
+          {:else if nextSlide}
+            <div
+              use:autoScale={{
+                minSize: Math.max(14, Math.round((isScripture ? (stageSettings.scripture_min_font_size || 24) : (stageSettings.lyrics_min_font_size || stageSettings.min_font_size || 24)) * 0.75)),
+                maxSize: 180
+              }}
+              class="w-full font-black leading-tight opacity-95 text-center break-words select-none"
+              style="color: {stageSettings.next_text_color || '#facc15'};"
+            >
+              {@html renderFormattedText(nextSlide.content)}
+            </div>
+          {:else}
+            <p class="text-zinc-600 text-xs text-center py-2">Fim da mídia</p>
+          {/if}
+        </div>
+      </div>
+    {/snippet}
+
+    {#snippet messageBox(isHorizontal: boolean)}
+      <!-- Caixa de Mensagem / Aviso para o Palco: SEMPRE VISÍVEL -->
+      <div
+        class="p-3 sm:p-5 rounded-none {isHorizontal ? 'border-r' : 'border-b'} border-zinc-800 flex flex-col justify-between overflow-hidden transition-all {stageMessage ? 'bg-emerald-950/40 text-emerald-300' : 'bg-zinc-950/40 text-zinc-500'}"
+        style="flex: 40; min-height: 0; min-width: 0;"
+      >
+        <div class="flex items-center justify-between text-xs font-bold uppercase tracking-wider shrink-0 {stageMessage ? 'text-emerald-400' : 'text-zinc-500'}">
+          <span class="flex items-center gap-1.5 truncate">
+            <MessageSquare size={15} class="shrink-0" />
+            <span>Aviso para o Palco</span>
+          </span>
+          {#if stageMessage}
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+          {/if}
+        </div>
+
+        <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden py-1">
+          {#if stageMessage}
+            <p class="{isHorizontal ? 'text-lg sm:text-xl md:text-2xl line-clamp-2' : 'text-xl sm:text-2xl md:text-3xl'} font-black leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] break-words text-center">
+              {stageMessage}
+            </p>
+          {:else}
+            <div class="flex flex-col items-center justify-center text-center text-zinc-600 space-y-1">
+              <span class="text-xs font-medium italic">Nenhum aviso ativo</span>
+            </div>
+          {/if}
+        </div>
+
+        <div class="text-[10px] font-mono uppercase tracking-wider shrink-0 text-right truncate {stageMessage ? 'text-emerald-400/80' : 'text-zinc-600'}">
+          {stageMessage ? 'Mensagem do Operador' : 'Canal do Operador'}
+        </div>
+      </div>
+    {/snippet}
+
+    {#snippet clockBox(isHorizontal: boolean)}
+      <!-- Relógio de Parede -->
+      <div
+        class="p-3 sm:p-4 rounded-none bg-zinc-900/60 {isHorizontal ? 'border-r' : 'border-b'} border-zinc-800 flex flex-col justify-center items-center text-center transition-all overflow-hidden"
+        style="flex: 30; min-height: 0; min-width: 0;"
+      >
+        <div class="text-[11px] text-zinc-400 uppercase tracking-widest font-semibold mb-1 flex items-center gap-1.5 shrink-0">
+          <Clock size={14} class="shrink-0" />
+          Horário
+        </div>
+        <div
+          class="{isHorizontal ? 'text-2xl sm:text-3xl md:text-4xl' : 'text-3xl sm:text-4xl md:text-5xl'} font-mono font-bold tracking-tight my-auto truncate"
+          style="color: {stageSettings.clock_color || '#ffffff'};"
+        >
+          {currentTime}
+        </div>
+        <div class="text-xs text-zinc-500 capitalize mt-1 truncate shrink-0">{currentDate}</div>
+      </div>
+    {/snippet}
+
+    {#snippet timerBox(isHorizontal: boolean)}
+      <!-- Timer Dedicado com Overtime -->
+      <div
+        class="p-3 sm:p-4 rounded-none bg-zinc-900/60 flex flex-col justify-center items-center text-center relative overflow-hidden transition-all min-h-0 min-w-0"
+        style="flex: 30;"
+      >
+        <div class="text-xs text-zinc-400 uppercase tracking-widest font-semibold mb-1 flex items-center gap-1.5 shrink-0 truncate">
+          <Hourglass size={14} class="shrink-0" />
+          {timer?.label || 'Cronômetro'}
+        </div>
+
+        {#if timer && timer.duration_seconds > 0}
+          <div
+            class="{isHorizontal ? 'text-3xl sm:text-4xl md:text-5xl' : 'text-4xl sm:text-5xl md:text-6xl'} font-mono font-black tracking-tighter my-auto truncate {timerIsOvertime ? 'text-red-500 animate-pulse' : timerIsNearEnd ? 'text-amber-400' : ''}"
+            style="color: {timerIsOvertime ? '#ef4444' : timerIsNearEnd ? '#f59e0b' : stageSettings.timer_color || '#ef4444'};"
+          >
+            {formatTime(timer.remaining_seconds, timerIsOvertime)}
+          </div>
+
+          {#if timerIsOvertime}
+            <div class="mt-1 text-xs font-bold uppercase tracking-wider text-red-400 flex items-center gap-1 bg-red-500/20 px-2 py-0.5 rounded-full shrink-0">
+              <AlertTriangle size={12} class="shrink-0" />
+              Tempo Excedido
+            </div>
+          {:else if timerIsNearEnd}
+            <div class="mt-1 text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded-full shrink-0">
+              Último Minuto
+            </div>
+          {/if}
+        {:else}
+          <div class="{isHorizontal ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'} font-mono font-bold text-zinc-600 my-auto">
+            00:00
+          </div>
+        {/if}
+      </div>
+    {/snippet}
+
+    {#if stageSettings.stage_layout === 'side-column'}
+      <!-- MODO DE DUAS COLUNAS: SLIDES NA ESQUERDA, INFORMAÇÕES NA DIREITA -->
+      <div class="flex-1 flex flex-col md:flex-row gap-0 min-h-0 w-full h-full">
+        <!-- Coluna Principal (Slides: Atual em cima, Próximo embaixo) -->
+        <div
+          class="flex flex-col gap-0 min-h-0 transition-all border-b md:border-b-0 md:border-r border-zinc-800"
+          style="flex: {100 - (footerRatio * 2.2)}; min-width: 0;"
+        >
+          {@render currentSlideBlock()}
+          {@render nextSlideBlock()}
+        </div>
+
+        <!-- Coluna Lateral Direita (Aviso, Relógio e Timer) -->
+        <div
+          class="flex flex-col gap-0 min-h-0 transition-all border-l border-zinc-800"
+          style="flex: {footerRatio * 2.2}; min-width: 280px; max-width: 440px;"
+        >
+          {@render messageBox(false)}
+          {@render clockBox(false)}
+          {@render timerBox(false)}
+        </div>
+      </div>
+    {:else}
+      <!-- MODO NOVO PADRÃO: 3 LINHAS EMPILHADAS DE LARGURA TOTAL (100% DA TELA) -->
+      <div class="flex-1 flex flex-col gap-0 min-h-0 w-full h-full">
+        <!-- Linha 1: Slide Atual -->
+        {@render currentSlideBlock()}
+
+        <!-- Linha 2: Próximo Slide -->
+        {@render nextSlideBlock()}
+
+        <!-- Linha 3: Barra de Informações Horizontal (Aviso, Relógio e Timer) -->
+        <div
+          class="flex flex-row gap-0 min-h-0 transition-all border-t border-zinc-800 bg-zinc-950"
+          style="flex: {footerRatio}; min-height: 0;"
+        >
+          {@render messageBox(true)}
+          {@render clockBox(true)}
+          {@render timerBox(true)}
+        </div>
+      </div>
+    {/if}
   {/if}
 
   <!-- Botão sutil de tela cheia no canto inferior direito -->

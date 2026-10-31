@@ -58,6 +58,7 @@ export const DEFAULT_CHURCH_BRAND: ChurchBrandSettings = {
 
 export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
   preset: 'modern-grid',
+  stage_layout: 'stacked-rows',
   current_text_color: '#FFFFFF',
   next_text_color: '#FACC15',
   current_border_color: '#3B82F6',
@@ -66,9 +67,9 @@ export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
   clock_color: '#E5E7EB',
   font_size_scale: 1.0,
   min_font_size: 24,
-  current_slide_percent: 60,
+  current_slide_percent: 50,
   next_slide_percent: 30,
-  footer_time_percent: 10,
+  footer_time_percent: 20,
 
   // Letras de Músicas no Palco
   lyrics_min_font_size: 24,

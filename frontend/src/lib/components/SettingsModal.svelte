@@ -636,6 +636,57 @@
     saveStageDisplaySettings(localStage);
   }
 
+  function updateStageRatio(
+    field: 'current_slide_percent' | 'next_slide_percent' | 'footer_time_percent',
+    newVal: number
+  ) {
+    const cur = localStage.current_slide_percent ?? 50;
+    const next = localStage.next_slide_percent ?? 30;
+    const foot = localStage.footer_time_percent ?? 20;
+
+    if (field === 'current_slide_percent') {
+      const a = Math.max(20, Math.min(80, newVal));
+      const rem = 100 - a;
+      const otherTotal = (next + foot) || 1;
+      let b = Math.round(rem * (next / otherTotal));
+      b = Math.max(10, Math.min(rem - 10, b));
+      const c = 100 - a - b;
+      localStage = {
+        ...localStage,
+        current_slide_percent: a,
+        next_slide_percent: b,
+        footer_time_percent: c,
+      };
+    } else if (field === 'next_slide_percent') {
+      const b = Math.max(10, Math.min(60, newVal));
+      const rem = 100 - b;
+      const otherTotal = (cur + foot) || 1;
+      let a = Math.round(rem * (cur / otherTotal));
+      a = Math.max(20, Math.min(rem - 10, a));
+      const c = 100 - b - a;
+      localStage = {
+        ...localStage,
+        current_slide_percent: a,
+        next_slide_percent: b,
+        footer_time_percent: c,
+      };
+    } else if (field === 'footer_time_percent') {
+      const c = Math.max(10, Math.min(50, newVal));
+      const rem = 100 - c;
+      const otherTotal = (cur + next) || 1;
+      let a = Math.round(rem * (cur / otherTotal));
+      a = Math.max(20, Math.min(rem - 10, a));
+      const b = 100 - c - a;
+      localStage = {
+        ...localStage,
+        current_slide_percent: a,
+        next_slide_percent: b,
+        footer_time_percent: c,
+      };
+    }
+    saveStageDisplaySettings(localStage);
+  }
+
   function handleResetStageColors() {
     localStage = {
       ...localStage,
@@ -2708,13 +2759,68 @@
                     </div>
                   </div>
 
-                  <!-- Proporções de Preenchimento dos Blocos na Tela -->
+                  <!-- Modo de Layout do Stage -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <div>
+                      <h4 class="text-xs font-semibold text-white">Modo de Layout do Monitor de Palco</h4>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Escolha a disposição visual dos slides e das informações de tempo no retorno.
+                      </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <!-- 3 Linhas Horizontais -->
+                      <button
+                        type="button"
+                        onclick={() => updateStageField('stage_layout', 'stacked-rows')}
+                        class="p-3 rounded-lg border text-left transition-all cursor-pointer flex flex-col justify-between {(!localStage.stage_layout || localStage.stage_layout === 'stacked-rows') ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-950/60 hover:bg-neutral-900'}"
+                      >
+                        <div class="space-y-1">
+                          <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-white">3 Linhas Horizontais (Recomendado)</span>
+                            {#if !localStage.stage_layout || localStage.stage_layout === 'stacked-rows'}
+                              <span class="w-2 h-2 rounded-full bg-primary"></span>
+                            {/if}
+                          </div>
+                          <p class="text-[11px] text-neutral-400">
+                            Aviso, relógio e timer ficam alinhados embaixo do próximo slide, aproveitando 100% da largura útil da tela para os textos.
+                          </p>
+                        </div>
+                      </button>
+
+                      <!-- Coluna Lateral Direita -->
+                      <button
+                        type="button"
+                        onclick={() => updateStageField('stage_layout', 'side-column')}
+                        class="p-3 rounded-lg border text-left transition-all cursor-pointer flex flex-col justify-between {localStage.stage_layout === 'side-column' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-950/60 hover:bg-neutral-900'}"
+                      >
+                        <div class="space-y-1">
+                          <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-white">Coluna Lateral Direita (Clássico)</span>
+                            {#if localStage.stage_layout === 'side-column'}
+                              <span class="w-2 h-2 rounded-full bg-primary"></span>
+                            {/if}
+                          </div>
+                          <p class="text-[11px] text-neutral-400">
+                            Slides na coluna esquerda e uma coluna lateral dedicada à direita para aviso, relógio e timer.
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Proporções de Preenchimento das Linhas na Tela -->
                   <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
                     <div class="flex items-center justify-between">
                       <div>
-                        <h4 class="text-xs font-semibold text-white">Distribuição de Espaço na Tela (Proporções dos Blocos)</h4>
+                        <div class="flex items-center gap-2">
+                          <h4 class="text-xs font-semibold text-white">Distribuição de Altura na Tela</h4>
+                          <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-600/40">
+                            Soma: 100%
+                          </span>
+                        </div>
                         <p class="text-[11px] text-neutral-400 mt-0.5">
-                          Defina a porcentagem de área dedicada ao slide atual, próximo slide e barra de tempo no retorno.
+                          Defina a porcentagem de altura dedicada a cada linha. Ao ajustar qualquer linha, as demais recalculam automaticamente para totalizar 100%.
                         </p>
                       </div>
                       <Button
@@ -2731,23 +2837,23 @@
                           saveStageDisplaySettings(localStage);
                         }}
                       >
-                        Restaurar Proporções
+                        Restaurar Padrão (50/30/20)
                       </Button>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between text-xs">
-                          <span class="text-neutral-400">Slide Atual</span>
-                          <span class="font-mono text-white font-semibold">{localStage.current_slide_percent ?? 60}%</span>
+                          <span class="text-neutral-400">1. Slide Atual</span>
+                          <span class="font-mono text-white font-semibold">{localStage.current_slide_percent ?? 50}%</span>
                         </div>
                         <input
                           type="range"
-                          min="30"
+                          min="20"
                           max="80"
-                          step="5"
-                          value={localStage.current_slide_percent ?? 60}
-                          oninput={(e) => updateStageField('current_slide_percent', Number((e.target as HTMLInputElement).value))}
+                          step="1"
+                          value={localStage.current_slide_percent ?? 50}
+                          oninput={(e) => updateStageRatio('current_slide_percent', Number((e.target as HTMLInputElement).value))}
                           class="w-full accent-primary"
                         />
                         <div class="text-[9px] text-neutral-500">Área principal do texto ao vivo</div>
@@ -2755,16 +2861,16 @@
 
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between text-xs">
-                          <span class="text-neutral-400">Próximo Slide</span>
+                          <span class="text-neutral-400">2. Próximo Slide</span>
                           <span class="font-mono text-white font-semibold">{localStage.next_slide_percent ?? 30}%</span>
                         </div>
                         <input
                           type="range"
                           min="10"
-                          max="50"
-                          step="5"
+                          max="60"
+                          step="1"
                           value={localStage.next_slide_percent ?? 30}
-                          oninput={(e) => updateStageField('next_slide_percent', Number((e.target as HTMLInputElement).value))}
+                          oninput={(e) => updateStageRatio('next_slide_percent', Number((e.target as HTMLInputElement).value))}
                           class="w-full accent-primary"
                         />
                         <div class="text-[9px] text-neutral-500">Prévia do próximo trecho</div>
@@ -2772,19 +2878,19 @@
 
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between text-xs">
-                          <span class="text-neutral-400">Relógio & Timer</span>
-                          <span class="font-mono text-white font-semibold">{localStage.footer_time_percent ?? 10}%</span>
+                          <span class="text-neutral-400">3. Aviso, Relógio & Timer</span>
+                          <span class="font-mono text-white font-semibold">{localStage.footer_time_percent ?? 20}%</span>
                         </div>
                         <input
                           type="range"
-                          min="8"
-                          max="25"
+                          min="10"
+                          max="50"
                           step="1"
-                          value={localStage.footer_time_percent ?? 10}
-                          oninput={(e) => updateStageField('footer_time_percent', Number((e.target as HTMLInputElement).value))}
+                          value={localStage.footer_time_percent ?? 20}
+                          oninput={(e) => updateStageRatio('footer_time_percent', Number((e.target as HTMLInputElement).value))}
                           class="w-full accent-primary"
                         />
-                        <div class="text-[9px] text-neutral-500">Altura da barra lateral</div>
+                        <div class="text-[9px] text-neutral-500">Barra de informações auxiliar</div>
                       </div>
                     </div>
 
