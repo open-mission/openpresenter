@@ -7,7 +7,6 @@
 
 
 ## Backlog
-- [ ] Improve/fix: Quando redmensionamos o painel de midias ele parece que tem um delay, veja se dá para usar o nativo do shadnui para ficar mais fluido (https://www.shadcn-svelte.com/docs/components/resizable)
 - [ ] Improve: Add a opcao de mostrar no Stage os itens (aviso,  clock e timer) embaixo do Proximo Slide, ficando tres linhas assim podemos aproveitar melhor o espaço. Ajustar para podermos controlar a altura dessas linhas, e as porcentagens serem atualizadas, por exemplo se temos 3 linhas uma preenche 30%, outra 30% entao a ultima só pode preencer até 40%, ou seja as alturas da linha precisa ser somadas até 100% para recalcular as alturas.
 - [ ] No Remote Add a Fundo Vermelho para o botão de parar apresentação que fica no Header. Para ficar mais intuitivo.
 - [ ] Improve: Add a opcao de importar mais de uma versao da biblia de uma vez, a ideia de poder selecionar varias biblias e ele importar um a um.
@@ -18,6 +17,8 @@
 
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Improve/fix: Redimensionamento fluido e sem delay do painel inferior de mídias (`BottomPanel.svelte`) com desativação de transição CSS durante o arrasto, captura global de cursor, prevenção de seleção acidental, grip visual no divisor e integração dos componentes nativos `Resizable` do shadcn-svelte (`ResizablePaneGroup`, `ResizablePane`, `ResizableHandle`) baseados em `paneforge`. (commit cb707a3 - 2026-10-31 08:59:33 -03:00)
 
 - [x] Improve: Aumento automático da altura do painel inferior para 75% da janela útil (`window.innerHeight * 0.75`) ao selecionar ou abrir a aba de Bíblia colapsada ou com altura reduzida, garantindo ampla área de leitura para livros, capítulos e versículos com preservação de redimensionamento manual pelo operador. (commit 3c23aa2 - 2026-10-31 08:54:36 -03:00)
 
