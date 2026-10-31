@@ -7,6 +7,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Aviso para o Palco em Tela Cheia Temporária (Flash Pop-in):**
+  - Ao receber uma nova mensagem do operador, o Monitor de Palco (`/stage`) exibe o aviso em tela cheia com fundo translúcido escuro (`bg-black/95 backdrop-blur-xl`), tipografia ampliada de alto impacto e badge de alerta pulsante.
+  - Temporizador automático configurável (`alert_flash_duration_seconds`, padrão: 5 segundos) com transição suave e recolhimento para a miniatura/caixa de aviso do rodapé ou coluna lateral.
+  - Opção nas configurações para ativar/desativar o pop-in em tela cheia (`alert_fullscreen_flash`) e fechar imediatamente por clique ou tecla `Escape`.
 - **Seletor de Quantidade de Músicas no Painel de Catálogo (50, 100, 150, 200, Todas):**
   - Controle integrado na barra de ações da aba de Músicas (`BottomPanel.svelte`) permitindo filtrar e paginar dinamicamente a quantidade de músicas exibidas com opções de `50`, `100`, `150`, `200` ou `Todas`.
   - Parâmetro `limit` suportado na API backend `GET /api/songs?limit=...`, truncando resultados com segurança após aplicação de filtros de busca e tags.
@@ -35,6 +39,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Fontes Maiores e Controles de Tamanho no Monitor de Palco (`/stage` e `SettingsModal.svelte`):**
+  - Aumento significativo dos tamanhos de fonte do Relógio, Timer/Cronômetro e Aviso para o Palco, garantindo que preencham melhor o espaço útil da tela e sejam perfeitamente legíveis a 10–30 metros de distância.
+  - Novos controles deslizantes na aba "Palco" das configurações com ajustes numéricos em tempo real para Relógio (`clock_font_size`: 24px a 96px, padrão 48px), Timer (`timer_font_size`: 28px a 120px, padrão 56px) e Aviso (`alert_font_size`: 16px a 64px, padrão 28px).
+  - Paridade visual proporcional no preview do operador (`StagePreviewBox.svelte`).
 - **Simplificação e Agrupamento das Saídas no Cabeçalho do Operador (`AdminView.svelte`):**
   - Substituição da fileira de 5 botões individuais (`Iniciar Public`, `Iniciar Stage`, `Cast`, `QR Code`, `Remoto`) por uma Central de Saídas Única com o menu dropdown `Saídas`.
   - Agrupamento semântico claro no menu suspenso em duas seções: "Telas do Computador" (Projeção Pública `/public`, Retorno de Palco `/stage` e Lower Third `/lower-third` para OBS) e "Sem Fio & Dispositivos" (Google Cast, Controle Remoto Mobile `/remote` e QR Codes de rede).

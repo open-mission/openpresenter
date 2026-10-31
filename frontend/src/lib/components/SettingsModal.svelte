@@ -2976,6 +2976,138 @@
                     </div>
                   </div>
 
+                  <!-- Tamanhos das Fontes do Palco (Timer, Relógio e Aviso) -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                          <Sliders size={14} class="text-primary" />
+                          Tamanhos das Fontes de Palco (Relógio, Timer & Aviso)
+                        </h4>
+                        <p class="text-[11px] text-neutral-400 mt-0.5">
+                          Ajuste o tamanho dos números e textos para máxima visibilidade e leitura à distância no retorno.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-[11px] h-7"
+                        onclick={() => {
+                          localStage = {
+                            ...localStage,
+                            clock_font_size: DEFAULT_STAGE_SETTINGS.clock_font_size,
+                            timer_font_size: DEFAULT_STAGE_SETTINGS.timer_font_size,
+                            alert_font_size: DEFAULT_STAGE_SETTINGS.alert_font_size,
+                          };
+                          saveStageDisplaySettings(localStage);
+                        }}
+                      >
+                        Restaurar Padrão
+                      </Button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                      <!-- Tamanho do Timer -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between text-xs">
+                          <span class="text-neutral-400">Timer / Cronômetro</span>
+                          <span class="font-mono text-white font-semibold">{localStage.timer_font_size ?? 56}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="28"
+                          max="120"
+                          step="2"
+                          value={localStage.timer_font_size ?? 56}
+                          oninput={(e) => updateStageField('timer_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary"
+                        />
+                        <div class="text-[9px] text-neutral-500">Contagem regressiva e tempo em palco</div>
+                      </div>
+
+                      <!-- Tamanho do Relógio -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between text-xs">
+                          <span class="text-neutral-400">Relógio Oficial</span>
+                          <span class="font-mono text-white font-semibold">{localStage.clock_font_size ?? 48}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="24"
+                          max="96"
+                          step="2"
+                          value={localStage.clock_font_size ?? 48}
+                          oninput={(e) => updateStageField('clock_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary"
+                        />
+                        <div class="text-[9px] text-neutral-500">Horário atual de parede</div>
+                      </div>
+
+                      <!-- Tamanho do Aviso -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between text-xs">
+                          <span class="text-neutral-400">Aviso para o Palco</span>
+                          <span class="font-mono text-white font-semibold">{localStage.alert_font_size ?? 28}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="16"
+                          max="64"
+                          step="2"
+                          value={localStage.alert_font_size ?? 28}
+                          oninput={(e) => updateStageField('alert_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary"
+                        />
+                        <div class="text-[9px] text-neutral-500">Mensagens enviadas pela equipe</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Aviso para o Palco em Tela Cheia Temporária -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <div class="flex items-center justify-between">
+                      <div class="space-y-0.5">
+                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                          <MessageSquare size={14} class="text-primary" />
+                          Aviso para o Palco em Tela Cheia Temporária
+                        </h4>
+                        <p class="text-[11px] text-neutral-400">
+                          Ao disparar uma nova mensagem, exibe o texto em tela cheia com destaque gigante antes de recolher para o rodapé.
+                        </p>
+                      </div>
+                      <label class="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={localStage.alert_fullscreen_flash !== false}
+                          onchange={(e) => updateStageField('alert_fullscreen_flash', (e.target as HTMLInputElement).checked)}
+                          class="sr-only peer"
+                        />
+                        <div class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                      </label>
+                    </div>
+
+                    {#if localStage.alert_fullscreen_flash !== false}
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between text-xs">
+                          <span class="text-neutral-300">Tempo de exibição em tela cheia</span>
+                          <span class="font-mono text-white font-semibold">{localStage.alert_flash_duration_seconds ?? 5}s</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="2"
+                          max="20"
+                          step="1"
+                          value={localStage.alert_flash_duration_seconds ?? 5}
+                          oninput={(e) => updateStageField('alert_flash_duration_seconds', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary"
+                        />
+                        <p class="text-[10px] text-neutral-500">
+                          Após {localStage.alert_flash_duration_seconds ?? 5} segundos (ou com um clique na tela), o aviso volta à caixa do rodapé.
+                        </p>
+                      </div>
+                    {/if}
+                  </div>
+
                   <!-- Modo de Layout do Stage -->
                   <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
                     <div>

@@ -205,6 +205,8 @@
 - [Spec — Exposição e Detecção de IP na Rede Local (LAN) para Servidor e Vite](specs/2026-10-31-expor-ip-servidor-rede-local.md)
 - [Spec — Simplificação e Agrupamento das Saídas no Cabeçalho](specs/2026-10-31-simplificacao-e-agrupamento-saidas-header.md)
 - [Plano — Simplificação e Agrupamento das Saídas no Cabeçalho](plans/2026-10-31-simplificacao-e-agrupamento-saidas-header.md)
+- [Spec — Fontes Maiores no Monitor de Palco e Alerta em Tela Cheia Temporária](specs/2026-10-31-stage-fontes-e-aviso-tela-cheia.md)
+- [Plano — Fontes Maiores no Monitor de Palco e Alerta em Tela Cheia Temporária](plans/2026-10-31-stage-fontes-e-aviso-tela-cheia.md)
 
 ## Arquitetura e decisões
 

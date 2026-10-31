@@ -22,6 +22,10 @@
   let currentDate = $state('');
   let isFullscreen = $state(false);
 
+  let lastAlertMessage = $state('');
+  let isAlertFullscreen = $state(false);
+  let alertFullscreenTimer: ReturnType<typeof setTimeout> | null = null;
+
   onMount(() => {
     initWebSocket('stage');
     syncDisplaySettingsFromBackend();
@@ -47,7 +51,30 @@
     return () => {
       clearInterval(interval);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      if (alertFullscreenTimer) clearTimeout(alertFullscreenTimer);
     };
+  });
+
+  $effect(() => {
+    const msg = stageMessage?.trim() || '';
+    if (msg && msg !== lastAlertMessage) {
+      lastAlertMessage = msg;
+      if (stageSettings.alert_fullscreen_flash !== false) {
+        isAlertFullscreen = true;
+        if (alertFullscreenTimer) clearTimeout(alertFullscreenTimer);
+        const duration = (stageSettings.alert_flash_duration_seconds ?? 5) * 1000;
+        alertFullscreenTimer = setTimeout(() => {
+          isAlertFullscreen = false;
+        }, duration);
+      }
+    } else if (!msg) {
+      lastAlertMessage = '';
+      isAlertFullscreen = false;
+      if (alertFullscreenTimer) {
+        clearTimeout(alertFullscreenTimer);
+        alertFullscreenTimer = null;
+      }
+    }
   });
 
   function toggleFullscreen() {
@@ -144,7 +171,14 @@
   }
 </script>
 
-<svelte:window onkeydown={(e) => { if (e.key.toLowerCase() === 'f') toggleFullscreen(); }} />
+<svelte:window onkeydown={(e) => {
+  if (e.key === 'Escape' && isAlertFullscreen) {
+    isAlertFullscreen = false;
+    if (alertFullscreenTimer) clearTimeout(alertFullscreenTimer);
+    return;
+  }
+  if (e.key.toLowerCase() === 'f') toggleFullscreen();
+}} />
 
 <!-- Monitor de Palco / Retorno do Apresentador -->
 <main
@@ -361,7 +395,10 @@
 
         <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden py-1">
           {#if stageMessage}
-            <p class="{isHorizontal ? 'text-lg sm:text-xl md:text-2xl line-clamp-2' : 'text-xl sm:text-2xl md:text-3xl'} font-black leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] break-words text-center">
+            <p
+              class="{isHorizontal ? 'line-clamp-2' : ''} font-black leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] break-words text-center"
+              style="font-size: {stageSettings.alert_font_size || 28}px; line-height: 1.15;"
+            >
               {stageMessage}
             </p>
           {:else}
@@ -388,8 +425,8 @@
           Horário
         </div>
         <div
-          class="{isHorizontal ? 'text-2xl sm:text-3xl md:text-4xl' : 'text-3xl sm:text-4xl md:text-5xl'} font-mono font-bold tracking-tight my-auto truncate"
-          style="color: {stageSettings.clock_color || '#ffffff'};"
+          class="font-mono font-bold tracking-tight my-auto truncate"
+          style="color: {stageSettings.clock_color || '#ffffff'}; font-size: {stageSettings.clock_font_size || 48}px; line-height: 1.05;"
         >
           {currentTime}
         </div>
@@ -410,8 +447,8 @@
 
         {#if timer && timer.duration_seconds > 0}
           <div
-            class="{isHorizontal ? 'text-3xl sm:text-4xl md:text-5xl' : 'text-4xl sm:text-5xl md:text-6xl'} font-mono font-black tracking-tighter my-auto truncate {timerIsOvertime ? 'text-red-500 animate-pulse' : timerIsNearEnd ? 'text-amber-400' : ''}"
-            style="color: {timerIsOvertime ? '#ef4444' : timerIsNearEnd ? '#f59e0b' : stageSettings.timer_color || '#ef4444'};"
+            class="font-mono font-black tracking-tighter my-auto truncate {timerIsOvertime ? 'text-red-500 animate-pulse' : timerIsNearEnd ? 'text-amber-400' : ''}"
+            style="color: {timerIsOvertime ? '#ef4444' : timerIsNearEnd ? '#f59e0b' : stageSettings.timer_color || '#ef4444'}; font-size: {stageSettings.timer_font_size || 56}px; line-height: 1.05;"
           >
             {formatTime(timer.remaining_seconds, timerIsOvertime)}
           </div>
@@ -427,7 +464,10 @@
             </div>
           {/if}
         {:else}
-          <div class="{isHorizontal ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'} font-mono font-bold text-zinc-600 my-auto">
+          <div
+            class="font-mono font-bold text-zinc-600 my-auto truncate"
+            style="font-size: {Math.round((stageSettings.timer_font_size || 56) * 0.75)}px; line-height: 1.05;"
+          >
             00:00
           </div>
         {/if}
@@ -476,6 +516,40 @@
         </div>
       </div>
     {/if}
+  {/if}
+
+  <!-- Overlay de Mensagem / Aviso em Tela Cheia Temporária (Flash Pop-in) -->
+  {#if isAlertFullscreen && stageMessage}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div
+      class="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 sm:p-12 md:p-16 text-center animate-in fade-in zoom-in-95 duration-200 select-none cursor-pointer"
+      onclick={() => {
+        isAlertFullscreen = false;
+        if (alertFullscreenTimer) clearTimeout(alertFullscreenTimer);
+      }}
+      role="alert"
+      aria-live="assertive"
+    >
+      <div class="flex items-center gap-2 px-5 py-2 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold text-sm sm:text-base uppercase tracking-widest mb-6 sm:mb-8 animate-pulse shadow-lg">
+        <AlertTriangle size={20} class="text-amber-400" />
+        <span>Aviso da Equipe para o Palco</span>
+      </div>
+
+      <div class="max-w-5xl my-auto w-full px-4">
+        <p
+          class="font-black text-white leading-tight drop-shadow-[0_4px_30px_rgba(0,0,0,1)] break-words text-center"
+          style="font-size: {Math.max(38, Math.min(100, (stageSettings.alert_font_size || 28) * 2.2))}px; line-height: 1.15;"
+        >
+          {stageMessage}
+        </p>
+      </div>
+
+      <div class="mt-8 text-xs font-mono text-neutral-400 bg-neutral-900/90 px-4 py-1.5 rounded-full border border-neutral-800 flex items-center gap-2.5 shadow-xl">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span>Exibindo em destaque • Voltará ao rodapé em instantes (clique para fechar)</span>
+      </div>
+    </div>
   {/if}
 
   <!-- Botão sutil de tela cheia no canto inferior direito -->

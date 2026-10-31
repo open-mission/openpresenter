@@ -346,6 +346,15 @@ export interface StageDisplaySettings {
   scripture_min_font_size?: number;
   scripture_text_color?: string;
   scripture_border_color?: string;
+
+  // Tamanhos de Fonte das Informações de Palco
+  clock_font_size?: number;
+  timer_font_size?: number;
+  alert_font_size?: number;
+
+  // Aviso para o Palco em Tela Cheia Temporária
+  alert_fullscreen_flash?: boolean;
+  alert_flash_duration_seconds?: number;
 }
 
 export type SectionType =

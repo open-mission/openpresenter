@@ -79,6 +79,15 @@ export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
   scripture_min_font_size: 24,
   scripture_text_color: '#FFFFFF',
   scripture_border_color: '#3B82F6',
+
+  // Tamanhos de Fonte das Informações de Palco
+  clock_font_size: 48,
+  timer_font_size: 56,
+  alert_font_size: 28,
+
+  // Aviso para o Palco em Tela Cheia Temporária
+  alert_fullscreen_flash: true,
+  alert_flash_duration_seconds: 5,
 };
 
 export const DEFAULT_LOWER_THIRD_SETTINGS: LowerThirdSettings = {

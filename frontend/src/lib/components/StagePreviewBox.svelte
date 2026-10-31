@@ -33,6 +33,17 @@
   const nextRatio = $derived(stageSettings.next_slide_percent ?? 30);
   const footerRatio = $derived(stageSettings.footer_time_percent ?? 10);
 
+  // Escala dinâmica de fontes para preview proporcional
+  const previewClockSize = $derived(
+    Math.max(6, Math.min(14, Math.round(8 * ((stageSettings.clock_font_size || 48) / 48))))
+  );
+  const previewTimerSize = $derived(
+    Math.max(7, Math.min(16, Math.round(9 * ((stageSettings.timer_font_size || 56) / 56))))
+  );
+  const previewAlertSize = $derived(
+    Math.max(6, Math.min(13, Math.round(7.5 * ((stageSettings.alert_font_size || 28) / 28))))
+  );
+
   function formatTime(sec: number): string {
     const isNeg = sec < 0;
     const abs = Math.abs(sec);
@@ -121,7 +132,7 @@
               Aviso
             </span>
             {#if timer.stage_message}
-              <p class="text-[8px] font-black leading-tight text-white line-clamp-2 my-auto">
+              <p class="font-black leading-tight text-white line-clamp-2 my-auto" style="font-size: {previewAlertSize}px;">
                 {timer.stage_message}
               </p>
             {:else}
@@ -135,7 +146,7 @@
             style="flex: 30; min-height: 0;"
           >
             <span class="text-[6px] text-zinc-500 uppercase block font-sans">Hora</span>
-            <span class="text-[8px] font-bold block my-auto" style="color: {stageSettings.clock_color || '#ffffff'};">
+            <span class="font-bold block my-auto" style="color: {stageSettings.clock_color || '#ffffff'}; font-size: {previewClockSize}px;">
               {stageClock?.substring(0, 5) || '00:00'}
             </span>
           </div>
@@ -147,8 +158,8 @@
           >
             <span class="text-[6px] text-zinc-500 uppercase block font-sans truncate">{timer?.label || 'Timer'}</span>
             <span
-              class="text-[9px] font-black block tracking-tight my-auto"
-              style="color: {timer.remaining_seconds <= 0 && timer.running ? '#ef4444' : stageSettings.timer_color || '#ef4444'};"
+              class="font-black block tracking-tight my-auto"
+              style="color: {timer.remaining_seconds <= 0 && timer.running ? '#ef4444' : stageSettings.timer_color || '#ef4444'}; font-size: {previewTimerSize}px;"
             >
               {formatTime(timer.remaining_seconds)}
             </span>
@@ -216,7 +227,7 @@
               Aviso
             </span>
             {#if timer.stage_message}
-              <p class="text-[7px] font-black leading-tight text-white line-clamp-1 my-auto">
+              <p class="font-black leading-tight text-white line-clamp-1 my-auto" style="font-size: {previewAlertSize}px;">
                 {timer.stage_message}
               </p>
             {:else}
@@ -230,7 +241,7 @@
             style="flex: 30; min-height: 0; min-width: 0;"
           >
             <span class="text-[6px] text-zinc-500 uppercase block font-sans">Hora</span>
-            <span class="text-[8px] font-bold block my-auto truncate" style="color: {stageSettings.clock_color || '#ffffff'};">
+            <span class="font-bold block my-auto truncate" style="color: {stageSettings.clock_color || '#ffffff'}; font-size: {previewClockSize}px;">
               {stageClock?.substring(0, 5) || '00:00'}
             </span>
           </div>
@@ -242,8 +253,8 @@
           >
             <span class="text-[6px] text-zinc-500 uppercase block font-sans truncate">{timer?.label || 'Timer'}</span>
             <span
-              class="text-[9px] font-black block tracking-tight my-auto truncate"
-              style="color: {timer.remaining_seconds <= 0 && timer.running ? '#ef4444' : stageSettings.timer_color || '#ef4444'};"
+              class="font-black block tracking-tight my-auto truncate"
+              style="color: {timer.remaining_seconds <= 0 && timer.running ? '#ef4444' : stageSettings.timer_color || '#ef4444'}; font-size: {previewTimerSize}px;"
             >
               {formatTime(timer.remaining_seconds)}
             </span>
