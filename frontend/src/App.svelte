@@ -33,6 +33,18 @@
   });
 
   const viewMode = $derived.by<'admin' | 'public' | 'stage' | 'remote' | 'lower-third'>(() => {
+    // Suporte prioritário a query params (ex: ?view=public para Web Receivers do Cast/iframes)
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const queryView = searchParams.get('view');
+      if (queryView === 'public') return 'public';
+      if (queryView === 'stage') return 'stage';
+      if (queryView === 'remote') return 'remote';
+      if (queryView === 'lower-third' || queryView === 'lower' || queryView === 'obs') {
+        return 'lower-third';
+      }
+    }
+
     if (currentPath.startsWith('/public')) {
       return 'public';
     }

@@ -257,6 +257,7 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/media/upload", post(upload_media))
         .route("/api/media/external-file", get(serve_external_file))
         .route("/api/media/files/{*subpath}", get(serve_media_file))
+        .route("/media/{*subpath}", get(serve_media_file))
         .route("/api/bibles", get(list_bibles))
         .route("/api/bibles/import", post(import_bible))
         .route(
@@ -278,8 +279,37 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/updater/status", get(get_updater_status))
         .route("/api/updater/install", post(install_updater))
         .route("/api/updater/restart", post(restart_system))
+        .layer(axum::middleware::from_fn(cors_header_middleware))
         .layer(DefaultBodyLimit::max(128 * 1024 * 1024))
         .with_state(state)
+}
+
+/// Middleware que injeta cabeçalhos CORS irrestritos para Web Receivers do Google Cast e clientes HTTP locais.
+pub async fn cors_header_middleware(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let mut resp = next.run(req).await;
+    let headers = resp.headers_mut();
+    if !headers.contains_key(axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN) {
+        headers.insert(
+            axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+            axum::http::HeaderValue::from_static("*"),
+        );
+    }
+    if !headers.contains_key(axum::http::header::ACCESS_CONTROL_ALLOW_METHODS) {
+        headers.insert(
+            axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+            axum::http::HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, HEAD"),
+        );
+    }
+    if !headers.contains_key(axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS) {
+        headers.insert(
+            axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS,
+            axum::http::HeaderValue::from_static("*"),
+        );
+    }
+    resp
 }
 
 async fn get_status(State(state): State<AppState>) -> Json<StatusResponse> {
@@ -1516,7 +1546,19 @@ async fn upload_media(
 
 async fn serve_media_file(Path(subpath): Path<String>) -> impl IntoResponse {
     if subpath.contains("..") || subpath.starts_with('/') {
-        return (StatusCode::BAD_REQUEST, "Caminho inválido").into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            [
+                (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+                (
+                    axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                    "GET, HEAD, OPTIONS",
+                ),
+                (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*"),
+            ],
+            "Caminho inválido",
+        )
+            .into_response();
     }
 
     let media_dir = match crate::session::resolve_media_dir() {
@@ -1524,16 +1566,48 @@ async fn serve_media_file(Path(subpath): Path<String>) -> impl IntoResponse {
         Err(_) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
+                [
+                    (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+                    (
+                        axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                        "GET, HEAD, OPTIONS",
+                    ),
+                    (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*"),
+                ],
                 "Erro ao resolver pasta de mídias",
             )
                 .into_response();
         }
     };
 
-    let file_path = media_dir.join(&subpath);
-    if !file_path.exists() || !file_path.is_file() {
-        return (StatusCode::NOT_FOUND, "Arquivo não encontrado").into_response();
-    }
+    // Suporta resolução direta ou sob subpastas conhecidas (wallpapers, images, church_brand)
+    let candidates = [
+        media_dir.join(&subpath),
+        media_dir.join("wallpapers").join(&subpath),
+        media_dir.join("images").join(&subpath),
+        media_dir.join("church_brand").join(&subpath),
+    ];
+
+    let found_path = candidates.into_iter().find(|p| p.is_file());
+
+    let file_path = match found_path {
+        Some(p) => p,
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                [
+                    (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+                    (
+                        axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                        "GET, HEAD, OPTIONS",
+                    ),
+                    (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*"),
+                ],
+                "Arquivo não encontrado",
+            )
+                .into_response();
+        }
+    };
 
     let content_type = mime_guess::from_path(&file_path)
         .first_or_octet_stream()
@@ -1548,11 +1622,29 @@ async fn serve_media_file(Path(subpath): Path<String>) -> impl IntoResponse {
                     axum::http::header::CACHE_CONTROL,
                     "public, max-age=3600".into(),
                 ),
+                (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*".into()),
+                (
+                    axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                    "GET, HEAD, OPTIONS".into(),
+                ),
+                (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*".into()),
             ],
             bytes,
         )
             .into_response(),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Erro ao ler arquivo").into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [
+                (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+                (
+                    axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                    "GET, HEAD, OPTIONS",
+                ),
+                (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*"),
+            ],
+            "Erro ao ler arquivo",
+        )
+            .into_response(),
     }
 }
 
@@ -2009,7 +2101,19 @@ async fn serve_external_file(
 ) -> impl IntoResponse {
     let clean_file = query.file.replace('\\', "/");
     if clean_file.contains("..") || clean_file.starts_with('/') {
-        return (StatusCode::BAD_REQUEST, "Arquivo inválido").into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            [
+                (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+                (
+                    axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                    "GET, HEAD, OPTIONS",
+                ),
+                (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*"),
+            ],
+            "Arquivo inválido",
+        )
+            .into_response();
     }
 
     let db = match state.db.as_ref() {
@@ -2017,6 +2121,14 @@ async fn serve_external_file(
         None => {
             return (
                 StatusCode::SERVICE_UNAVAILABLE,
+                [
+                    (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+                    (
+                        axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                        "GET, HEAD, OPTIONS",
+                    ),
+                    (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*"),
+                ],
                 "Banco de dados indisponível",
             )
                 .into_response();
@@ -2028,13 +2140,39 @@ async fn serve_external_file(
         let folders = db_guard.list_media_folders().unwrap_or_default();
         match folders.into_iter().find(|f| f.id == query.folder_id) {
             Some(f) => std::path::PathBuf::from(f.path),
-            None => return (StatusCode::NOT_FOUND, "Pasta não cadastrada").into_response(),
+            None => {
+                return (
+                    StatusCode::NOT_FOUND,
+                    [
+                        (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+                        (
+                            axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                            "GET, HEAD, OPTIONS",
+                        ),
+                        (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*"),
+                    ],
+                    "Pasta não cadastrada",
+                )
+                    .into_response();
+            }
         }
     };
 
     let file_path = folder_path.join(&clean_file);
     if !file_path.exists() || !file_path.is_file() {
-        return (StatusCode::NOT_FOUND, "Arquivo não encontrado").into_response();
+        return (
+            StatusCode::NOT_FOUND,
+            [
+                (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+                (
+                    axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                    "GET, HEAD, OPTIONS",
+                ),
+                (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*"),
+            ],
+            "Arquivo não encontrado",
+        )
+            .into_response();
     }
 
     let content_type = mime_guess::from_path(&file_path)
@@ -2050,11 +2188,29 @@ async fn serve_external_file(
                     axum::http::header::CACHE_CONTROL,
                     "public, max-age=3600".into(),
                 ),
+                (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*".into()),
+                (
+                    axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                    "GET, HEAD, OPTIONS".into(),
+                ),
+                (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*".into()),
             ],
             bytes,
         )
             .into_response(),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Erro ao ler arquivo").into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [
+                (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+                (
+                    axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                    "GET, HEAD, OPTIONS",
+                ),
+                (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*"),
+            ],
+            "Erro ao ler arquivo",
+        )
+            .into_response(),
     }
 }
 

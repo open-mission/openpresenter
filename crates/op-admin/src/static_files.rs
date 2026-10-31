@@ -87,6 +87,9 @@ fn serve_embedded_file(path: &str) -> Option<Response<Body>> {
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, mime.as_ref())
         .header(header::CACHE_CONTROL, cache_control)
+        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+        .header(header::ACCESS_CONTROL_ALLOW_METHODS, "GET, HEAD, OPTIONS")
+        .header(header::ACCESS_CONTROL_ALLOW_HEADERS, "*")
         .body(Body::from(file.data))
         .ok()?;
 
@@ -100,6 +103,9 @@ async fn serve_local_file(path: &Path) -> Result<Response<Body>, std::io::Error>
     let response = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, mime.as_ref())
+        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+        .header(header::ACCESS_CONTROL_ALLOW_METHODS, "GET, HEAD, OPTIONS")
+        .header(header::ACCESS_CONTROL_ALLOW_HEADERS, "*")
         .body(Body::from(content))
         .map_err(std::io::Error::other)?;
 
@@ -140,6 +146,9 @@ fn fallback_html_response() -> Response<Body> {
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+        .header(header::ACCESS_CONTROL_ALLOW_METHODS, "GET, HEAD, OPTIONS")
+        .header(header::ACCESS_CONTROL_ALLOW_HEADERS, "*")
         .body(Body::from(html))
         .unwrap()
 }

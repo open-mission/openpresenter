@@ -1,3 +1,5 @@
+import { normalizeMediaUrl } from './cast';
+
 export interface BackgroundPreset {
   id: string;
   name: string;
@@ -321,7 +323,7 @@ export function resolveBackground(
     className: '',
     isImage: !isVideo,
     isVideo,
-    url: trimmed,
+    url: normalizeMediaUrl(trimmed),
     textColor: '#ffffff',
   };
 }

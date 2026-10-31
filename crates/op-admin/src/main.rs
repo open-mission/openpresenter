@@ -25,7 +25,7 @@ use tracing::{info, warn};
 use tray_icon::TrayIconEvent;
 
 use crate::{
-    routes::create_routes,
+    routes::{cors_header_middleware, create_routes},
     session::load_session,
     state::AppState,
     static_files::static_fallback_handler,
@@ -111,6 +111,7 @@ fn main() -> anyhow::Result<()> {
             .merge(create_routes(state_for_server.clone()))
             .merge(create_ws_router(state_for_server.clone()))
             .fallback(static_fallback_handler)
+            .layer(axum::middleware::from_fn(cors_header_middleware))
             .layer(cors)
             .layer(DefaultBodyLimit::max(128 * 1024 * 1024))
             .layer(TraceLayer::new_for_http());
@@ -426,6 +427,91 @@ mod tests {
         let uri: axum::http::Uri = "/public".parse().unwrap();
         let resp = static_fallback_handler(uri).await;
         assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(
+            resp.headers()
+                .get(axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .map(|v| v.to_str().unwrap()),
+            Some("*")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_headers_on_static_and_media_routes() {
+        let (state, _dir) = mock_state_with_db();
+        let app = create_routes(state.clone());
+
+        // 1. Testa rota de mídia /media/dark-ambient.svg sem header Origin (ex: curl -I)
+        let media_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/media/dark-ambient.svg")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(media_resp.status(), StatusCode::OK);
+        assert_eq!(
+            media_resp
+                .headers()
+                .get(axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .map(|v| v.to_str().unwrap()),
+            Some("*")
+        );
+
+        // 2. Testa rota de status da API com header CORS
+        let status_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/status")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(status_resp.status(), StatusCode::OK);
+        assert_eq!(
+            status_resp
+                .headers()
+                .get(axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .map(|v| v.to_str().unwrap()),
+            Some("*")
+        );
+
+        // 3. Testa static_fallback_handler servindo assets estáticos e rotas SPA com cabeçalhos CORS
+        let asset_uri: axum::http::Uri = "/assets/sample.css".parse().unwrap();
+        let asset_resp = static_fallback_handler(asset_uri).await;
+        assert_eq!(
+            asset_resp
+                .headers()
+                .get(axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .map(|v| v.to_str().unwrap()),
+            Some("*")
+        );
+        assert_eq!(
+            asset_resp
+                .headers()
+                .get(axum::http::header::ACCESS_CONTROL_ALLOW_METHODS)
+                .map(|v| v.to_str().unwrap()),
+            Some("GET, HEAD, OPTIONS")
+        );
+
+        // 4. Testa rota com query string ?view=public
+        let view_uri: axum::http::Uri = "/?view=public".parse().unwrap();
+        let view_resp = static_fallback_handler(view_uri).await;
+        assert_eq!(view_resp.status(), StatusCode::OK);
+        assert_eq!(
+            view_resp
+                .headers()
+                .get(axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .map(|v| v.to_str().unwrap()),
+            Some("*")
+        );
     }
 
     fn mock_state_with_db() -> (AppState, tempfile::TempDir) {

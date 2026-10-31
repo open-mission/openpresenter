@@ -74,6 +74,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Proporciona espaço ergonômico e amplo para consulta de livros, capítulos, versículos e buscas textuais, preservando a barra superior e o preview do slide ativo.
 
 ### Corrigido
+- **Estilização, CORS Irrestrito e Resolução de Mídia no Google Cast (Web Receiver):**
+  - Configuração de cabeçalhos CORS explícitos (`Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: GET, HEAD, OPTIONS`, `Access-Control-Allow-Headers: *`) em todos os manipuladores de arquivos estáticos (`static_files.rs`), arquivos de mídia (`routes.rs`) e middleware global no Axum (`main.rs`), garantindo que requisições de CSS, fontes e mídias sem cabeçalho `Origin` (como em inspeções com `curl -I`) recebam liberação irrestrita de CORS.
+  - Adição da rota unificada `/media/{*subpath}` com resolução sequencial resiliente em subpastas conhecidas (`media/`, `media/wallpapers/`, `media/images/`, `media/church_brand/`).
+  - Funções de normalização `getServerOrigin()` e `normalizeMediaUrl()` no módulo Cast (`cast.ts`) convertendo caminhos relativos em URLs absolutas com o IP de rede da máquina servidora (`http://${host}:${port}/...`).
+  - Aplicação de URLs normalizadas em `PublicView.svelte` para imagens/vídeos de plano de fundo (`resolvedBg.url`), logotipo institucional da igreja (`activeLogoUrl`), imagens de slide direto (`activeSlide.content`) e ícones de branding em tela de espera.
+  - Tag canônica `<base href="/" />` no `<head>` de `index.html` e suporte direto a query params (`?view=public`, `?view=stage`, `?view=remote`) no roteador do `App.svelte` para compatibilidade total com webviews e iframes do Chromecast.
+  - Estilos críticos inline de fallback no container raiz `<main>` de `PublicView.svelte` e no `body`/`#app` de `index.html`, prevenindo flashes de tela branca e garantindo fundo preto e centralização imediata durante o carregamento inicial no receptor.
 - **Sincronização de versículos bíblicos ao vivo no painel admin em múltiplas instâncias:**
   - Correção na validação de passagem ativa em `BiblePanel.svelte`, assegurando que a marcação em verde e o selo "Ao Vivo" sejam exibidos estritamente quando o livro e capítulo atualmente abertos corresponderem à passagem em projeção.
   - Eliminação de falso-positivo onde instâncias secundárias exibiam o mesmo número de versículo em verde em capítulos não relacionados (ex: 1Ts 1:7 aparecendo verde quando 1Ts 5:7 estava sendo apresentado).

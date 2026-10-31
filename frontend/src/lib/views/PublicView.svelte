@@ -11,6 +11,7 @@
     backgroundStylesStore,
     syncDisplaySettingsFromBackend,
   } from '$lib/displaySettings';
+  import { normalizeMediaUrl } from '$lib/cast';
   import { Maximize, Minimize } from 'lucide-svelte';
 
   let isFullscreen = $state(false);
@@ -154,9 +155,10 @@
 
 <svelte:window onkeydown={(e) => { if (e.key.toLowerCase() === 'f') toggleFullscreen(); }} />
 
-<!-- Container fullscreen de projeção pública -->
+<!-- Container fullscreen de projeção pública com estilos críticos inline anti-flicker -->
 <main
   class="relative w-full h-full min-w-full min-h-full bg-black text-white flex items-center justify-center overflow-hidden select-none"
+  style="background-color: #000; color: #fff; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden;"
   ondblclick={toggleFullscreen}
 >
   {#if $presentationState.display_mode === 'blackout'}
@@ -178,7 +180,7 @@
           ></div>
         {:else if resolvedBg.isVideo}
           <video
-            src={resolvedBg.url}
+            src={normalizeMediaUrl(resolvedBg.url)}
             class="w-full h-full {wallpaperFit === 'contain' ? 'object-contain' : wallpaperFit === 'fill' ? 'object-fill' : 'object-cover'} {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl' : ''}"
             autoplay
             loop
@@ -188,30 +190,30 @@
         {:else if wallpaperFit === 'repeat'}
           <div
             class="w-full h-full {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl overflow-hidden' : ''}"
-            style="background-image: url('{resolvedBg.url}'); background-repeat: repeat;"
+            style="background-image: url('{normalizeMediaUrl(resolvedBg.url)}'); background-repeat: repeat;"
           ></div>
         {:else if wallpaperFit === 'contain'}
           <img
-            src={resolvedBg.url}
+            src={normalizeMediaUrl(resolvedBg.url)}
             alt="Plano de Fundo"
             class="w-full h-full object-contain {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl' : ''}"
           />
         {:else if wallpaperFit === 'fill'}
           <img
-            src={resolvedBg.url}
+            src={normalizeMediaUrl(resolvedBg.url)}
             alt="Plano de Fundo"
             class="w-full h-full object-fill {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl' : ''}"
           />
         {:else if wallpaperFit === 'center'}
           <img
-            src={resolvedBg.url}
+            src={normalizeMediaUrl(resolvedBg.url)}
             alt="Plano de Fundo"
             class="max-w-full max-h-full object-none {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl' : ''}"
           />
         {:else}
           <!-- cover (padrão) -->
           <img
-            src={resolvedBg.url}
+            src={normalizeMediaUrl(resolvedBg.url)}
             alt="Plano de Fundo"
             class="w-full h-full object-cover {publicSettings?.wallpaper_safe_margins ? 'rounded-2xl' : ''}"
           />
@@ -231,7 +233,7 @@
         style="{logoPositionStyles} opacity: {churchBrand.logo_opacity / 100};"
       >
         <img
-          src={activeLogoUrl}
+          src={normalizeMediaUrl(activeLogoUrl)}
           alt={churchBrand.name || 'Logotipo da Igreja'}
           class="object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]"
           style="max-width: {churchBrand.logo_size}px; max-height: {churchBrand.logo_size}px;"
@@ -258,7 +260,7 @@
         {#if activeMedia?.kind === 'image'}
           <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden pointer-events-none">
             <img
-              src={activeSlide.content}
+              src={normalizeMediaUrl(activeSlide.content)}
               alt={activeMedia.title}
               class="{imageFitClass} animate-in fade-in duration-200"
             />
@@ -338,12 +340,12 @@
         <!-- Estado de espera padrão sem mídia ativa nem wallpaper -->
         <div class="flex flex-col items-center justify-center text-center text-neutral-500 gap-3">
           <img
-            src="/branding/open-presenter-app-icon.svg"
+            src={normalizeMediaUrl('/branding/open-presenter-app-icon.svg')}
             alt="OpenPresenter"
             class="w-16 h-16 rounded-2xl shadow-xl opacity-80"
           />
           <img
-            src="/branding/open-presenter-wordmark-dark.svg"
+            src={normalizeMediaUrl('/branding/open-presenter-wordmark-dark.svg')}
             alt="OpenPresenter"
             class="h-6 opacity-75 mt-1"
           />

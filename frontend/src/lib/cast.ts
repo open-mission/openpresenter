@@ -28,6 +28,96 @@ export const CAST_NAMESPACE_URL = 'urn:x-cast:com.url.cast';
 
 let sdkLoadPromise: Promise<boolean> | null = null;
 let currentAppId = DEFAULT_URL_CAST_APP_ID;
+let cachedServerOrigin: string | null = null;
+
+/**
+ * Obtém a origem HTTP do servidor (ex: "http://192.168.1.100:18080")
+ * priorizando parâmetros de URL (?server= ou ?origin=), IP em cache de network-info
+ * ou a origem do navegador atual (caso não seja sandboxed chrome-extension / gstatic).
+ */
+export function getServerOrigin(): string {
+  if (cachedServerOrigin) return cachedServerOrigin;
+
+  if (typeof window === 'undefined') return '';
+
+  // 1. Prioriza parâmetro explícito na URL
+  const params = new URLSearchParams(window.location.search);
+  const serverParam = params.get('server') || params.get('origin');
+  if (serverParam && (serverParam.startsWith('http://') || serverParam.startsWith('https://'))) {
+    return serverParam.replace(/\/+$/, '');
+  }
+
+  // 2. Se a origem atual for HTTP/HTTPS válida (e não for chrome-extension ou sandbox externa do Cast)
+  const origin = window.location.origin;
+  if (
+    origin &&
+    (origin.startsWith('http://') || origin.startsWith('https://')) &&
+    !origin.startsWith('chrome-extension://') &&
+    !origin.includes('gstatic.com')
+  ) {
+    return origin.replace(/\/+$/, '');
+  }
+
+  // 3. Fallback com hostname e porta
+  const hostname = window.location.hostname || '127.0.0.1';
+  const port = window.location.port ? `:${window.location.port}` : '';
+  const protocol = window.location.protocol.startsWith('http') ? window.location.protocol : 'http:';
+  return `${protocol}//${hostname}${port}`.replace(/\/+$/, '');
+}
+
+/**
+ * Consulta a API de rede para obter o IP de LAN do servidor e armazenar em cache
+ */
+export async function fetchServerOrigin(): Promise<string> {
+  if (cachedServerOrigin) return cachedServerOrigin;
+  try {
+    const res = await fetch('/api/system/network-info');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.local_ip && data.port && data.local_ip !== '127.0.0.1' && data.local_ip !== '0.0.0.0') {
+        cachedServerOrigin = `http://${data.local_ip}:${data.port}`;
+        return cachedServerOrigin;
+      }
+    }
+  } catch {}
+  return getServerOrigin();
+}
+
+/**
+ * Normaliza qualquer URL de mídia ou background para endereço HTTP absoluto.
+ * Evita que o Web Receiver do Chromecast (que roda em sandbox ou chrome-extension://)
+ * tente resolver caminhos relativos como /media/... ou ./backgrounds/... em hosts incorretos.
+ */
+export function normalizeMediaUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  // Já é absoluto ou data/blob inline
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('blob:')
+  ) {
+    return trimmed;
+  }
+
+  const origin = getServerOrigin();
+
+  // Caminho absoluto local (ex: /media/... ou /api/media/files/...)
+  if (trimmed.startsWith('/')) {
+    return origin ? `${origin}${trimmed}` : trimmed;
+  }
+
+  // Caminho relativo com ./ (ex: ./backgrounds/...)
+  if (trimmed.startsWith('./')) {
+    return origin ? `${origin}/${trimmed.slice(2)}` : `/${trimmed.slice(2)}`;
+  }
+
+  // Caminho relativo solto (ex: media/... ou backgrounds/...)
+  return origin ? `${origin}/${trimmed}` : `/${trimmed}`;
+}
 
 /**
  * Carrega a SDK do Google Cast Sender sob demanda de forma segura e não-bloqueante
@@ -172,21 +262,9 @@ function initCastContext() {
 /**
  * Obtém a URL da tela na rede local (usando o IP do servidor em vez de localhost)
  */
-async function resolveOutputUrl(target: 'public' | 'stage'): Promise<string> {
-  try {
-    const res = await fetch('/api/system/network-info');
-    if (res.ok) {
-      const data = await res.json();
-      return target === 'stage' ? data.stage_url : data.public_url;
-    }
-  } catch {
-    // fallback se o endpoint falhar
-  }
-
-  const hostname = window.location.hostname;
-  const port = window.location.port ? `:${window.location.port}` : '';
-  const protocol = window.location.protocol;
-  return `${protocol}//${hostname}${port}/${target}`;
+export async function resolveOutputUrl(target: 'public' | 'stage'): Promise<string> {
+  const origin = await fetchServerOrigin();
+  return `${origin}/${target}?server=${encodeURIComponent(origin)}&view=${target}`;
 }
 
 /**
