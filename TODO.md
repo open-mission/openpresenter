@@ -7,7 +7,6 @@
 
 
 ## Backlog
-- [ ] No Remote Add a Fundo Vermelho para o botão de parar apresentação que fica no Header. Para ficar mais intuitivo.
 - [ ] Improve: Add a opcao de importar mais de uma versao da biblia de uma vez, a ideia de poder selecionar varias biblias e ele importar um a um.
 
 
@@ -16,6 +15,8 @@
 
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Improve: Destaque visual com fundo vermelho no botão de parar apresentação no Header do Remote (`/remote`): aplicação de estilo de ação de parada com fundo `bg-red-600 hover:bg-red-500`, ícone preenchido e rótulo adaptativo para facilitar a interrupção imediata da projeção em smartphones e tablets. (commit 3cda7f5 - 2026-10-31 09:11:47 -03:00)
 
 - [x] Improve: Layout de 3 linhas no Stage (aviso, clock e timer embaixo do Próximo Slide) aproveitando melhor o espaço horizontal da tela para letras e versículos, seletor de layout (3 linhas empilhadas vs coluna lateral), recálculo proporcional automático dos sliders de altura mantendo soma exata de 100% e paridade visual no preview do operador (`StagePreviewBox.svelte`). (commit 983d3fd - 2026-10-31 09:08:50 -03:00)
 
