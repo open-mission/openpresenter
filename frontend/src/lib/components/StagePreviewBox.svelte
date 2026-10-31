@@ -27,6 +27,37 @@
   );
 
   const isScripture = $derived(activeMedia?.kind === 'scripture');
+  const isSchedule = $derived(activeMedia?.kind === 'schedule');
+
+  function parseScheduleContent(label: string, content: string) {
+    const lines = (content || '').split('\n').map((l) => l.trim()).filter(Boolean);
+    let time = '';
+    let title = '';
+    let details = '';
+
+    if (lines.length >= 3) {
+      time = lines[0];
+      title = lines[1];
+      details = lines.slice(2).join(' • ');
+    } else if (lines.length === 2) {
+      if (/\d+[:hH]/.test(lines[0])) {
+        time = lines[0];
+        title = lines[1];
+      } else {
+        title = lines[0];
+        details = lines[1];
+      }
+    } else if (lines.length === 1) {
+      title = lines[0];
+    }
+
+    return {
+      day: label || 'Programação',
+      time,
+      title: title || label,
+      details,
+    };
+  }
 
   // Proporções
   const currentRatio = $derived(stageSettings.current_slide_percent ?? 60);
@@ -85,6 +116,12 @@
               <div class="w-full h-10 flex items-center justify-center my-auto">
                 <img src={activeSlide.content} alt="Atual" class="max-w-full max-h-full object-contain rounded" />
               </div>
+            {:else if isSchedule && activeSlide}
+              {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
+              <div class="flex flex-col items-center justify-center my-auto px-1 text-center">
+                <span class="text-[7px] text-amber-300 font-bold uppercase truncate">{ev.day} {ev.time ? `• ${ev.time}` : ''}</span>
+                <p class="text-[9px] font-black text-white leading-tight line-clamp-1 truncate">{ev.title}</p>
+              </div>
             {:else if activeSlide}
               <p class="text-[10px] font-extrabold leading-tight line-clamp-2 my-auto" style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};">
                 {activeSlide.content.split('\n')[0]}
@@ -106,6 +143,12 @@
             {#if isNextMediaImage && nextSlide}
               <div class="w-full h-8 flex items-center justify-center my-auto opacity-85">
                 <img src={nextSlide.content} alt="Próximo" class="max-w-full max-h-full object-contain rounded" />
+              </div>
+            {:else if isSchedule && nextSlide}
+              {@const nextEv = parseScheduleContent(nextSlide.label, nextSlide.content)}
+              <div class="flex flex-col items-center justify-center my-auto px-1 text-center opacity-90">
+                <span class="text-[6.5px] text-yellow-300 font-bold uppercase truncate">{nextEv.day} {nextEv.time ? `• ${nextEv.time}` : ''}</span>
+                <p class="text-[8.5px] font-extrabold text-white leading-tight line-clamp-1 truncate">{nextEv.title}</p>
               </div>
             {:else if nextSlide}
               <p class="text-[10px] font-extrabold leading-tight line-clamp-1 my-auto opacity-95" style="color: {stageSettings.next_text_color || '#facc15'};">
@@ -181,6 +224,12 @@
             <div class="w-full h-10 flex items-center justify-center my-auto">
               <img src={activeSlide.content} alt="Atual" class="max-w-full max-h-full object-contain rounded" />
             </div>
+          {:else if isSchedule && activeSlide}
+            {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
+            <div class="flex flex-col items-center justify-center my-auto px-1 text-center">
+              <span class="text-[7px] text-amber-300 font-bold uppercase truncate">{ev.day} {ev.time ? `• ${ev.time}` : ''}</span>
+              <p class="text-[9px] font-black text-white leading-tight line-clamp-1 truncate">{ev.title}</p>
+            </div>
           {:else if activeSlide}
             <p class="text-[10px] font-extrabold leading-tight line-clamp-2 my-auto" style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};">
               {activeSlide.content.split('\n')[0]}
@@ -202,6 +251,12 @@
           {#if isNextMediaImage && nextSlide}
             <div class="w-full h-8 flex items-center justify-center my-auto opacity-85">
               <img src={nextSlide.content} alt="Próximo" class="max-w-full max-h-full object-contain rounded" />
+            </div>
+          {:else if isSchedule && nextSlide}
+            {@const nextEv = parseScheduleContent(nextSlide.label, nextSlide.content)}
+            <div class="flex flex-col items-center justify-center my-auto px-1 text-center opacity-90">
+              <span class="text-[6.5px] text-yellow-300 font-bold uppercase truncate">{nextEv.day} {nextEv.time ? `• ${nextEv.time}` : ''}</span>
+              <p class="text-[8.5px] font-extrabold text-white leading-tight line-clamp-1 truncate">{nextEv.title}</p>
             </div>
           {:else if nextSlide}
             <p class="text-[10px] font-extrabold leading-tight line-clamp-1 my-auto opacity-95" style="color: {stageSettings.next_text_color || '#facc15'};">

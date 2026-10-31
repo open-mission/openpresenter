@@ -45,6 +45,7 @@
   import SettingsModal, { type SettingsTab } from '$lib/components/SettingsModal.svelte';
   import SetlistModal from '$lib/components/SetlistModal.svelte';
   import QuickItemModal from '$lib/components/QuickItemModal.svelte';
+  import ScheduleEditorModal from '$lib/components/ScheduleEditorModal.svelte';
   import BottomPanel from '$lib/components/BottomPanel.svelte';
   import ImageSelectorModal from '$lib/components/ImageSelectorModal.svelte';
   import ImagePreviewModal from '$lib/components/ImagePreviewModal.svelte';
@@ -118,6 +119,7 @@
     Laptop,
     ScrollText,
     Video,
+    CalendarDays,
   } from 'lucide-svelte';
   import { castStore } from '$lib/cast';
 
@@ -131,6 +133,8 @@
   let isSettingsOpen = $state(false);
   let isSetlistModalOpen = $state(false);
   let isQuickItemModalOpen = $state(false);
+  let isScheduleEditorOpen = $state(false);
+  let editingScheduleItem = $state<MediaItem | null>(null);
   let quickItemMode = $state<'header' | 'announcement'>('header');
   let isRenameModalOpen = $state(false);
   let isSetlistSelectorOpen = $state(false);
@@ -512,6 +516,7 @@
       isSettingsOpen ||
       isSetlistModalOpen ||
       isQuickItemModalOpen ||
+      isScheduleEditorOpen ||
       isRenameModalOpen ||
       isConnectionsDropdownOpen ||
       isOutputsMenuOpen
@@ -522,6 +527,7 @@
         isSettingsOpen = false;
         isSetlistModalOpen = false;
         isQuickItemModalOpen = false;
+        isScheduleEditorOpen = false;
         isRenameModalOpen = false;
         isSetlistSelectorOpen = false;
         isAddMenuOpen = false;
@@ -686,7 +692,12 @@
       },
       {
         id: 'edit',
-        label: item.kind === 'song' ? 'Editar Música' : 'Editar',
+        label:
+          item.kind === 'song'
+            ? 'Editar Música'
+            : item.kind === 'schedule'
+              ? 'Editar Agenda'
+              : 'Editar',
         icon: Pencil,
         onclick: () => handleEditItem(item),
       },
@@ -733,6 +744,15 @@
           quickItemMode = 'header';
           editingQuickItem = null;
           isQuickItemModalOpen = true;
+        },
+      },
+      {
+        id: 'add_schedule',
+        label: 'Adicionar Agenda / Programação...',
+        icon: CalendarDays,
+        onclick: () => {
+          editingScheduleItem = null;
+          isScheduleEditorOpen = true;
         },
       },
       {
@@ -814,6 +834,9 @@
       quickItemMode = 'header';
       editingQuickItem = item;
       isQuickItemModalOpen = true;
+    } else if (item.kind === 'schedule') {
+      editingScheduleItem = item;
+      isScheduleEditorOpen = true;
     } else {
       // Apresentação de Texto Livre / Aviso
       songEditorMode = 'text';
@@ -1041,6 +1064,19 @@
       selectedMediaId = item.id;
     } catch (err) {
       console.error('Erro ao adicionar item:', err);
+    }
+  }
+
+  async function handleSaveSchedule(item: MediaItem) {
+    try {
+      await fetch('/api/setlist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item }),
+      });
+      selectedMediaId = item.id;
+    } catch (err) {
+      console.error('Erro ao salvar agenda na setlist:', err);
     }
   }
 
@@ -1730,6 +1766,20 @@
                     type="button"
                     onclick={() => {
                       isAddMenuOpen = false;
+                      editingScheduleItem = null;
+                      isScheduleEditorOpen = true;
+                    }}
+                    aria-label="Adicionar Agenda ou Programação dos Cultos"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
+                  >
+                    <CalendarDays size={14} class="text-amber-400" />
+                    <span>Agenda / Programação...</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => {
+                      isAddMenuOpen = false;
                       songEditorMode = 'text';
                       editingItem = null;
                       editingSong = null;
@@ -1820,6 +1870,7 @@
                 { id: 'all', label: 'Todos' },
                 { id: 'song', label: 'Louvores' },
                 { id: 'scripture', label: 'Bíblia' },
+                { id: 'schedule', label: 'Agenda' },
                 { id: 'announcement', label: 'Avisos' },
               ] as tab}
                 <button
@@ -2413,6 +2464,16 @@
       editingQuickItem = null;
     }}
     onsave={handleSaveQuickItem}
+  />
+
+  <ScheduleEditorModal
+    open={isScheduleEditorOpen}
+    initialItem={editingScheduleItem}
+    onclose={() => {
+      isScheduleEditorOpen = false;
+      editingScheduleItem = null;
+    }}
+    onsave={handleSaveSchedule}
   />
 
   <SettingsModal

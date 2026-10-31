@@ -14,6 +14,7 @@
   } from '$lib/backgrounds';
   import { backgroundStylesStore } from '$lib/displaySettings';
   import { autoScale } from '$lib/autoScale';
+  import { Clock } from 'lucide-svelte';
 
   let {
     publicSettings,
@@ -40,6 +41,37 @@
 
   const isScripture = $derived(activeMedia?.kind === 'scripture');
   const isImageMedia = $derived(activeMedia?.kind === 'image');
+  const isSchedule = $derived(activeMedia?.kind === 'schedule');
+
+  function parseScheduleContent(label: string, content: string) {
+    const lines = (content || '').split('\n').map((l) => l.trim()).filter(Boolean);
+    let time = '';
+    let title = '';
+    let details = '';
+
+    if (lines.length >= 3) {
+      time = lines[0];
+      title = lines[1];
+      details = lines.slice(2).join(' • ');
+    } else if (lines.length === 2) {
+      if (/\d+[:hH]/.test(lines[0])) {
+        time = lines[0];
+        title = lines[1];
+      } else {
+        title = lines[0];
+        details = lines[1];
+      }
+    } else if (lines.length === 1) {
+      title = lines[0];
+    }
+
+    return {
+      day: label || 'Programação',
+      time,
+      title: title || label,
+      details,
+    };
+  }
 
   const alignH = $derived.by<'left' | 'center' | 'right' | 'justify'>(() => {
     if (isScripture) {
@@ -248,6 +280,53 @@
           {#if isImageMedia}
             <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden pointer-events-none">
               <img src={resolveMediaUrl(activeSlide.content)} alt={activeMedia?.title} class="{imageFitClass} animate-in fade-in duration-200" />
+            </div>
+          {:else if isSchedule}
+            <!-- Agenda / Programação de Cultos e Festividades -->
+            {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
+            <div class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col items-center justify-center overflow-hidden select-none">
+              <div class="w-full max-w-5xl rounded-3xl bg-black/65 backdrop-blur-xl border border-white/15 shadow-2xl p-8 sm:p-12 md:p-16 flex flex-col items-center justify-center text-center gap-6">
+                <!-- Badges de Topo: Dia da Semana e Horário -->
+                <div class="flex items-center justify-center gap-3 flex-wrap">
+                  <span class="px-5 py-1.5 rounded-full bg-amber-500/25 text-amber-300 border border-amber-500/50 text-base sm:text-lg md:text-xl font-black uppercase tracking-wider shadow-lg">
+                    {ev.day}
+                  </span>
+                  {#if ev.time}
+                    <span class="px-4 py-1.5 rounded-full bg-white/10 text-white border border-white/20 text-sm sm:text-base md:text-lg font-mono font-bold flex items-center gap-2 shadow-lg">
+                      <Clock size={18} class="text-amber-400" />
+                      <span>{ev.time}</span>
+                    </span>
+                  {/if}
+                </div>
+
+                <!-- Título do Evento com Auto-Scale -->
+                <div class="w-full flex-1 min-h-[120px] max-h-[360px] flex items-center justify-center overflow-hidden">
+                  <div
+                    use:autoScale={{
+                      minSize: 32,
+                      maxSize: 110,
+                    }}
+                    style="color: {activeTextColor};"
+                    class="w-full font-black tracking-tight leading-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]"
+                  >
+                    {ev.title}
+                  </div>
+                </div>
+
+                <!-- Detalhes do Evento -->
+                {#if ev.details}
+                  <div class="text-neutral-300 text-base sm:text-lg md:text-xl font-medium tracking-wide opacity-90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] max-w-3xl">
+                    {ev.details}
+                  </div>
+                {/if}
+
+                <!-- Identificador da Agenda no Rodapé -->
+                {#if activeMedia?.title}
+                  <div class="pt-4 border-t border-white/10 text-xs sm:text-sm text-neutral-400 uppercase tracking-widest font-semibold opacity-75">
+                    {activeMedia.title}
+                  </div>
+                {/if}
+              </div>
             </div>
           {:else}
             <!-- Slide de Texto / Música / Bíblia Fiel 1:1 com PublicView -->

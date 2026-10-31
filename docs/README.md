@@ -207,6 +207,8 @@
 - [Plano — Simplificação e Agrupamento das Saídas no Cabeçalho](plans/2026-10-31-simplificacao-e-agrupamento-saidas-header.md)
 - [Spec — Fontes Maiores no Monitor de Palco e Alerta em Tela Cheia Temporária](specs/2026-10-31-stage-fontes-e-aviso-tela-cheia.md)
 - [Plano — Fontes Maiores no Monitor de Palco e Alerta em Tela Cheia Temporária](plans/2026-10-31-stage-fontes-e-aviso-tela-cheia.md)
+- [Spec — Tipo de Mídia: Agenda (Schedule)](specs/2026-10-31-tipo-de-midia-agenda-schedule.md)
+- [Plano — Tipo de Mídia: Agenda (Schedule)](plans/2026-10-31-tipo-de-midia-agenda-schedule.md)
 
 ## Arquitetura e decisões
 

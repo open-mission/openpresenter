@@ -7,6 +7,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Tipo de Mídia Agenda (Schedule) para Programação de Cultos e Festividades:**
+  - Novo tipo de mídia no backend (`MediaKind::Schedule`, `"schedule"`, rótulo `"Agenda"`) e frontend (`ScheduleEvent`), persistido nas setlists em memória e no banco SQLite.
+  - Modal dedicado de criação e edição (`ScheduleEditorModal.svelte`) com atalhos de um clique para dias da semana (`+ Domingo`, `+ Quarta`, `+ Sábado`, etc.) e eventos festivos futuros com data livre, horários e locais/detalhes.
+  - Opção "Agenda / Programação..." adicionada ao menu `+` da setlist no painel principal e ao menu de contexto de área vazia e reedição de itens.
+  - Renderização imersiva na Tela Pública (`PublicView.svelte`) e no preview do operador (`PublicPreviewBox.svelte`) com card translúcido sobre o papel de parede selecionado, badges destacados para dia e horário com ícone e auto-scaling inteligente no título do evento.
+  - Sincronização sequencial com o Monitor de Palco (`StageView.svelte`) e preview (`StagePreviewBox.svelte`): cada evento compõe um slide da agenda, exibindo o dia e culto atual no bloco Slide Atual e antecipando o dia e horário seguintes no bloco A Seguir.
 - **Aviso para o Palco em Tela Cheia Temporária (Flash Pop-in):**
   - Ao receber uma nova mensagem do operador, o Monitor de Palco (`/stage`) exibe o aviso em tela cheia com fundo translúcido escuro (`bg-black/95 backdrop-blur-xl`), tipografia ampliada de alto impacto e badge de alerta pulsante.
   - Temporizador automático configurável (`alert_flash_duration_seconds`, padrão: 5 segundos) com transição suave e recolhimento para a miniatura/caixa de aviso do rodapé ou coluna lateral.

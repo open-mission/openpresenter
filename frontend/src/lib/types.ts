@@ -1,4 +1,12 @@
-export type MediaKind = 'song' | 'scripture' | 'announcement' | 'media' | 'header' | 'image' | 'text';
+export type MediaKind = 'song' | 'scripture' | 'announcement' | 'media' | 'header' | 'image' | 'text' | 'schedule';
+
+export interface ScheduleEvent {
+  id: string;
+  dayOrDate: string;
+  time: string;
+  title: string;
+  details?: string;
+}
 
 export interface Slide {
   id: string;

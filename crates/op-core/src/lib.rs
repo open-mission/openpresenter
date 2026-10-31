@@ -298,6 +298,7 @@ pub enum MediaKind {
     Header,
     Image,
     Text,
+    Schedule,
 }
 
 impl MediaKind {
@@ -310,6 +311,7 @@ impl MediaKind {
             Self::Header => "Seção",
             Self::Image => "Imagem",
             Self::Text => "Texto",
+            Self::Schedule => "Agenda",
         }
     }
 }
@@ -1062,6 +1064,25 @@ mod tests {
         };
         let ws_json = serde_json::to_string(&ws_msg).expect("serializes");
         assert!(ws_json.contains("select_slide"));
+
+        let schedule = MediaItem {
+            id: "schedule-1".into(),
+            title: "Agenda Semanal".into(),
+            artist_or_ref: Some("Programação".into()),
+            kind: MediaKind::Schedule,
+            slides: vec![Slide::new(
+                "s1",
+                "Domingo",
+                "19h00\nCulto da Família\nTemplo Central",
+            )],
+            align_h: None,
+            align_v: None,
+        };
+        let sched_json = serde_json::to_string(&schedule).expect("serializes");
+        assert!(sched_json.contains(r#""kind":"schedule""#));
+        let sched_parsed: MediaItem = serde_json::from_str(&sched_json).expect("deserializes");
+        assert_eq!(sched_parsed, schedule);
+        assert_eq!(MediaKind::Schedule.label_pt_br(), "Agenda");
     }
 
     #[test]

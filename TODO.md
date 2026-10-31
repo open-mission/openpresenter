@@ -16,6 +16,10 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Feat: Tipo de Mídia Agenda (Schedule) para cadastro de programações de cultos semanais e festividades/eventos futuros: enum `MediaKind::Schedule` no `op-core`, editor dinâmico `ScheduleEditorModal.svelte` com atalhos de dias da semana, integração na setlist e menu de contexto em `AdminView.svelte`, renderização na Tela Pública (`/public`) com badges de dia/horário e autoScale sobre o papel de parede, e sincronização sequencial no Monitor de Palco (`/stage`) e preview (`StagePreviewBox.svelte`) exibindo dia atual e próximo da agenda. (2026-10-31 13:55:00 -03:00)
+
+- [x] Fix/Improve: Resiliência e diagnóstico do Google Cast Sender SDK: injeção de script e callback estáticos no `index.html`, diagnóstico inteligente de Contexto Seguro (LAN IP vs localhost) e navegadores em `cast.ts`, e atalhos rápidos de abertura de aba no banner de aviso em `CastControl.svelte`. (commit fd5510a - 2026-10-31 13:37:19 -03:00)
+
 - [x] Improve: Rótulos flutuantes em absolute para "Slide Atual" e "A Seguir" no StageView (`/stage`), eliminando o consumo vertical de barras rígidas de cabeçalho e liberando 100% da área útil para o autoScale de letras e versículos bíblicos. (commit b75cbbc - 2026-10-31 13:25:33 -03:00)
 
 - [x] Feat/Improve: Aumento das fontes no monitor de palco (`/stage`) para relógio, timer e aviso, controles de tamanho de fonte nas configurações e alerta de palco em tela cheia temporária (flash pop-in com duração configurável e recolhimento para miniatura). (commit 36169a6 - 2026-10-31 13:19:07 -03:00)

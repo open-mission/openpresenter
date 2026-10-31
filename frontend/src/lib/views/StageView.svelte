@@ -126,6 +126,37 @@
   );
 
   const isScripture = $derived(activeMedia?.kind === 'scripture');
+  const isSchedule = $derived(activeMedia?.kind === 'schedule');
+
+  function parseScheduleContent(label: string, content: string) {
+    const lines = (content || '').split('\n').map((l) => l.trim()).filter(Boolean);
+    let time = '';
+    let title = '';
+    let details = '';
+
+    if (lines.length >= 3) {
+      time = lines[0];
+      title = lines[1];
+      details = lines.slice(2).join(' • ');
+    } else if (lines.length === 2) {
+      if (/\d+[:hH]/.test(lines[0])) {
+        time = lines[0];
+        title = lines[1];
+      } else {
+        title = lines[0];
+        details = lines[1];
+      }
+    } else if (lines.length === 1) {
+      title = lines[0];
+    }
+
+    return {
+      day: label || 'Programação',
+      time,
+      title: title || label,
+      details,
+    };
+  }
 
   const stageSettings = $derived($stageSettingsStore);
   const timer = $derived($presentationState.timer);
@@ -287,6 +318,10 @@
                 <span class="text-[10px] opacity-75 uppercase font-mono">({version})</span>
               {/if}
             </span>
+          {:else if isSchedule && activeSlide}
+            <span class="text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded flex items-center gap-1.5">
+              <span>{activeSlide.label}</span>
+            </span>
           {:else if activeSlide}
             <span class="text-xs font-semibold bg-zinc-900/80 backdrop-blur-sm text-zinc-300 border border-zinc-800 px-2 py-0.5 rounded">
               {activeSlide.label}
@@ -303,6 +338,39 @@
                 class="max-w-full max-h-[50vh] object-contain rounded shadow-2xl border border-zinc-800"
               />
               <span class="text-xs text-zinc-400 font-mono mt-1.5 truncate max-w-sm">{activeMedia?.title || 'Imagem'}</span>
+            </div>
+          {:else if isSchedule && activeSlide}
+            {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
+            <div class="w-full h-full flex flex-col items-center justify-center text-center gap-3 p-3 select-none">
+              <div class="flex items-center gap-2.5 flex-wrap justify-center">
+                <span class="px-4 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-base md:text-xl font-black uppercase tracking-wider">
+                  {ev.day}
+                </span>
+                {#if ev.time}
+                  <span class="px-3.5 py-1 rounded-full bg-zinc-800 text-zinc-100 border border-zinc-700 text-sm md:text-base font-mono font-bold flex items-center gap-1.5">
+                    <Clock size={16} class="text-amber-400" />
+                    <span>{ev.time}</span>
+                  </span>
+                {/if}
+              </div>
+
+              <div class="w-full flex-1 min-h-0 flex items-center justify-center">
+                <div
+                  use:autoScale={{
+                    minSize: 28,
+                    maxSize: 180,
+                  }}
+                  class="w-full font-black leading-tight text-white drop-shadow-md text-center break-words"
+                >
+                  {ev.title}
+                </div>
+              </div>
+
+              {#if ev.details}
+                <p class="text-sm md:text-lg text-zinc-400 font-medium max-w-2xl">
+                  {ev.details}
+                </p>
+              {/if}
             </div>
           {:else if activeSlide}
             <div
@@ -345,6 +413,10 @@
             <span class="text-[10px] font-bold bg-zinc-900/80 backdrop-blur-sm text-zinc-300 border border-zinc-700/80 px-1.5 py-0.5 rounded flex items-center gap-1">
               <span>{nextSlide.label}</span>
             </span>
+          {:else if isSchedule && nextSlide}
+            <span class="text-[10px] font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 px-2 py-0.5 rounded flex items-center gap-1">
+              <span>{nextSlide.label}</span>
+            </span>
           {:else if nextSlide}
             <span class="text-[10px] bg-zinc-900/80 backdrop-blur-sm text-zinc-400 border border-zinc-800 px-1.5 py-0.5 rounded">
               {nextSlide.label}
@@ -360,6 +432,39 @@
                 alt="Próxima imagem"
                 class="max-w-full max-h-[22vh] object-contain rounded opacity-85 shadow border border-zinc-800"
               />
+            </div>
+          {:else if isSchedule && nextSlide}
+            {@const nextEv = parseScheduleContent(nextSlide.label, nextSlide.content)}
+            <div class="w-full h-full flex flex-col items-center justify-center text-center gap-1.5 p-2 select-none">
+              <div class="flex items-center gap-2 flex-wrap justify-center">
+                <span class="px-3 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 text-xs md:text-sm font-black uppercase tracking-wider">
+                  {nextEv.day}
+                </span>
+                {#if nextEv.time}
+                  <span class="px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs font-mono font-bold flex items-center gap-1">
+                    <Clock size={12} class="text-yellow-400" />
+                    <span>{nextEv.time}</span>
+                  </span>
+                {/if}
+              </div>
+
+              <div class="w-full flex-1 min-h-0 flex items-center justify-center">
+                <div
+                  use:autoScale={{
+                    minSize: 18,
+                    maxSize: 120,
+                  }}
+                  class="w-full font-black leading-tight text-white text-center break-words opacity-95"
+                >
+                  {nextEv.title}
+                </div>
+              </div>
+
+              {#if nextEv.details}
+                <p class="text-xs text-zinc-400 font-medium truncate max-w-md">
+                  {nextEv.details}
+                </p>
+              {/if}
             </div>
           {:else if nextSlide}
             <div

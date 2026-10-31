@@ -11,6 +11,7 @@
     GripVertical,
     ImageIcon,
     FileText,
+    CalendarDays,
   } from 'lucide-svelte';
   import type { MediaItem } from '$lib/types';
 
@@ -48,6 +49,7 @@
     header: Bookmark,
     image: ImageIcon,
     text: FileText,
+    schedule: CalendarDays,
   };
 
   const Icon = $derived(kindIcons[item.kind] ?? Presentation);
