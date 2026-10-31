@@ -12,6 +12,7 @@ pub struct TrayMenuIds {
     pub open_remote: muda::MenuId,
     pub open_lower_third: muda::MenuId,
     pub change_port: muda::MenuId,
+    pub restart: muda::MenuId,
     pub quit: muda::MenuId,
 }
 
@@ -48,6 +49,7 @@ pub fn build_tray_menu(port: u16) -> Result<(Menu, TrayMenuIds), Box<dyn std::er
     let status_item = MenuItem::new(status_label, false, None);
 
     let change_port = MenuItem::new("Configurar Porta do Servidor...", true, None);
+    let restart = MenuItem::new("Reiniciar OpenPresenter", true, None);
     let quit = MenuItem::new("Sair do OpenPresenter", true, None);
 
     let sep1 = PredefinedMenuItem::separator();
@@ -61,6 +63,7 @@ pub fn build_tray_menu(port: u16) -> Result<(Menu, TrayMenuIds), Box<dyn std::er
     menu.append(&sep1)?;
     menu.append(&status_item)?;
     menu.append(&change_port)?;
+    menu.append(&restart)?;
     menu.append(&sep2)?;
     menu.append(&quit)?;
 
@@ -71,6 +74,7 @@ pub fn build_tray_menu(port: u16) -> Result<(Menu, TrayMenuIds), Box<dyn std::er
         open_remote: open_remote.id().clone(),
         open_lower_third: open_lower_third.id().clone(),
         change_port: change_port.id().clone(),
+        restart: restart.id().clone(),
         quit: quit.id().clone(),
     };
 
@@ -229,9 +233,40 @@ pub fn show_native_alert(title: &str, message: &str) {
     }
 }
 
+/// Reinicia a aplicação spawando um novo processo independente do executável atual
+/// com os mesmos argumentos de linha de comando.
+pub fn restart_application() -> Result<(), Box<dyn std::error::Error>> {
+    let current_exe = std::env::current_exe()?;
+    let args: Vec<String> = std::env::args().skip(1).collect();
+
+    let mut cmd = std::process::Command::new(current_exe);
+    cmd.args(args);
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        cmd.creation_flags(CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS);
+    }
+
+    cmd.spawn()?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[cfg(not(target_os = "macos"))]
+    fn test_build_tray_menu_includes_restart() {
+        let (menu, ids) = build_tray_menu(18080).expect("Menu deve ser construído com sucesso");
+        assert!(!ids.restart.as_ref().is_empty());
+        assert!(!ids.quit.as_ref().is_empty());
+        assert!(!ids.open_admin.as_ref().is_empty());
+        let _ = menu;
+    }
 
     #[test]
     fn test_create_tray_icon_loads_official_branding() {

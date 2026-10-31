@@ -56,3 +56,13 @@ export async function triggerInstallUpdate(payload?: {
     throw new Error(errorText || 'Falha ao iniciar atualização');
   }
 }
+
+export async function triggerSystemRestart(): Promise<void> {
+  const resp = await fetch('/api/system/restart', {
+    method: 'POST'
+  });
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    throw new Error(errorText || 'Falha ao solicitar reinicialização do sistema');
+  }
+}

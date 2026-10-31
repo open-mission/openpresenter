@@ -47,6 +47,7 @@
     fetchUpdateCheck,
     fetchUpdaterStatus,
     triggerInstallUpdate,
+    triggerSystemRestart,
     type UpdateCheckResponse,
     type UpdaterStatusPayload,
   } from '../updater';
@@ -379,6 +380,38 @@
       }
     } catch (err: any) {
       updaterError = err.message || 'Falha ao iniciar atualização.';
+    }
+  }
+
+  let isRestarting = $state(false);
+
+  async function handleRestartApplication() {
+    if (isRestarting) return;
+    isRestarting = true;
+    updaterError = '';
+    try {
+      await triggerSystemRestart();
+      // Polling para aguardar o servidor reiniciar e voltar online
+      let attempts = 0;
+      const pollServer = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await fetch('/api/status');
+          if (res.ok) {
+            clearInterval(pollServer);
+            window.location.reload();
+          }
+        } catch {
+          if (attempts > 40) {
+            clearInterval(pollServer);
+            isRestarting = false;
+            updaterError = 'O servidor demorou para responder. Tente recarregar a página manualmente.';
+          }
+        }
+      }, 1000);
+    } catch (err: any) {
+      isRestarting = false;
+      updaterError = err.message || 'Falha ao solicitar reinicialização do sistema.';
     }
   }
 
@@ -4455,7 +4488,7 @@
                 {/if}
 
                 {#if updaterStatus?.stage?.type === 'ReadyToRestart'}
-                  <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-600/60 text-emerald-200 text-xs space-y-2">
+                  <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-600/60 text-emerald-200 text-xs space-y-3">
                     <div class="flex items-center gap-2 font-semibold text-emerald-300">
                       <CheckCircle2 size={16} class="text-emerald-400" />
                       <span>Atualização Instalada com Sucesso!</span>
@@ -4463,6 +4496,18 @@
                     <p class="text-[11px] text-emerald-300/80">
                       A nova versão foi gravada no executável. Reinicie o aplicativo OpenPresenter para aplicar todas as novidades.
                     </p>
+                    <div class="pt-1">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs h-8 gap-2 shadow-sm"
+                        onclick={handleRestartApplication}
+                        disabled={isRestarting}
+                      >
+                        <RotateCcw size={14} class={isRestarting ? 'animate-spin' : ''} />
+                        <span>{isRestarting ? 'Reiniciando Servidor...' : 'Reiniciar Aplicativo Agora'}</span>
+                      </Button>
+                    </div>
                   </div>
                 {:else if updaterStatus?.stage?.type === 'Downloading'}
                   <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/60 space-y-3">
@@ -4563,6 +4608,28 @@
                 {/if}
               </div>
 
+              <!-- Reinicialização do Servidor -->
+              <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/40 space-y-2">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="text-xs font-semibold text-neutral-200">Reiniciar Servidor e Aplicação</h4>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">
+                      Recarrega o executável do OpenPresenter e reinicia os serviços sem perder dados ou configurações.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="h-7 text-xs gap-1.5 border-neutral-700 hover:bg-neutral-800"
+                    onclick={handleRestartApplication}
+                    disabled={isRestarting}
+                  >
+                    <RotateCcw size={12} class={isRestarting ? 'animate-spin' : ''} />
+                    <span>{isRestarting ? 'Reiniciando...' : 'Reiniciar Servidor'}</span>
+                  </Button>
+                </div>
+              </div>
+
               <!-- Informações adicionais -->
               <div class="text-[11px] text-neutral-500 space-y-1.5 text-center">
                 <p>Repositório de código aberto: <a href="https://github.com/open-mission/openpresenter" target="_blank" rel="noreferrer" class="text-primary hover:underline">github.com/open-mission/openpresenter</a></p>
@@ -4599,6 +4666,18 @@
           </Button>
         </div>
       </div>
+    </div>
+  </div>
+{/if}
+
+{#if isRestarting}
+  <div class="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex flex-col items-center justify-center gap-4 text-center p-6 animate-in fade-in">
+    <div class="w-12 h-12 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
+    <div class="space-y-1">
+      <h3 class="text-base font-semibold text-white">Reiniciando o OpenPresenter...</h3>
+      <p class="text-xs text-neutral-400 max-w-sm">
+        O servidor está reiniciando e aplicando as alterações. Esta tela será atualizada automaticamente assim que os serviços estiverem online.
+      </p>
     </div>
   </div>
 {/if}

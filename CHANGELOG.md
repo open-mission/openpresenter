@@ -7,6 +7,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Opção de Reiniciar a Aplicação e o Servidor (Interface Web e System Tray):**
+  - Implementação de função multiplataforma segura para spawn desanexado do novo executável mantendo argumentos da linha de comando original (`restart_application`).
+  - Adição da opção "Reiniciar OpenPresenter" no menu nativo da bandeja do sistema operacional (System Tray), permitindo reinicialização ágil pelo operador na barra de tarefas / menu bar.
+  - Endpoints HTTP `POST /api/system/restart` e `POST /api/updater/restart` com agendamento desacoplado, rastreabilidade nos logs auditáveis e entrega limpa da resposta HTTP antes da finalização graciosa do processo anterior.
+  - Botão de ação "Reiniciar Aplicativo Agora" no modal de configurações ao concluir a instalação de uma nova versão via Auto-Updater (`ReadyToRestart`) e cartão "Reiniciar Servidor e Aplicação" na aba Sobre com overlay de transição e polling automático para recarregar a página assim que o servidor voltar a responder.
 - **Sistema de Logs de Auditoria e Identificação de Dispositivos Conectados:**
   - Criação da tabela persistente `action_logs` via migração SQLite `0008_action_logs.sql` registrando ações de apresentação, setlists, catálogo de músicas, cronômetros, configurações e auditoria de conexões.
   - Identificador único persistente de instância (`instance_id`) e extração automática de metadados do navegador/dispositivo (`device_info`), permitindo rastreabilidade precisa de qual operador realizou cada ação em rede local.

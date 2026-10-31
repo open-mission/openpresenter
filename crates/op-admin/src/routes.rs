@@ -143,6 +143,7 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/system/paths", get(get_system_paths))
         .route("/api/system/pick-folder", post(pick_folder))
         .route("/api/system/open-path", post(open_system_path))
+        .route("/api/system/restart", post(restart_system))
         .route("/api/media", get(get_media))
         .route("/api/presentation/live", post(select_live_slide))
         .route("/api/presentation/mode", post(set_display_mode))
@@ -220,6 +221,7 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/updater/check", get(check_updater))
         .route("/api/updater/status", get(get_updater_status))
         .route("/api/updater/install", post(install_updater))
+        .route("/api/updater/restart", post(restart_system))
         .layer(DefaultBodyLimit::max(128 * 1024 * 1024))
         .with_state(state)
 }
@@ -1975,4 +1977,33 @@ async fn install_updater(
         "status": "started",
         "message": "Download e atualização iniciados em segundo plano"
     })))
+}
+
+async fn restart_system(State(state): State<AppState>) -> Json<serde_json::Value> {
+    state
+        .log_action(
+            "restart_requested",
+            "system",
+            "Solicitação de reinicialização da aplicação / servidor recebida",
+            None,
+        )
+        .await;
+
+    // Spawna uma tarefa assíncrona para não bloquear a resposta HTTP
+    tokio::spawn(async move {
+        #[cfg(not(test))]
+        {
+            // Breve delay de 500ms para permitir a transmissão completa do HTTP 200 ao cliente
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            if let Err(e) = crate::tray::restart_application() {
+                tracing::error!("Falha ao spawnar novo processo para reinicialização: {}", e);
+            }
+            std::process::exit(0);
+        }
+    });
+
+    Json(serde_json::json!({
+        "status": "restarting",
+        "message": "Reinicialização da aplicação e servidor agendada com sucesso"
+    }))
 }

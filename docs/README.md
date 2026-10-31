@@ -188,6 +188,7 @@
 - [Spec — Correção de Destaque Ativo de Versículos em Múltiplas Instâncias do Painel Admin](specs/2026-10-31-fix-bible-panel-multi-instance-active-verse-highlight.md)
 - [Spec — Correção de Sentido na Navegação por Teclas de Seta e Sincronização de Slides em Tempo Real](specs/2026-10-31-fix-slide-navigation-arrow-keys-direction.md)
 - [Spec — Sistema de Logs de Atividades do Programa e Rastreamento por Instância](specs/2026-10-31-sistema-de-logs-de-auditoria-e-instancias.md)
+- [Spec — Reinício da Aplicação/Servidor após Atualização e no System Tray](specs/2026-10-31-reinicio-aplicacao-e-servidor-tray-menu.md)
 
 ## Arquitetura e decisões
 

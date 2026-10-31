@@ -249,6 +249,15 @@ fn main() -> anyhow::Result<()> {
                                 ),
                             );
                         }
+                    } else if menu_event.id == ids.restart {
+                        info!("Reiniciando OpenPresenter via menu do System Tray.");
+                        if let Err(e) = tray::restart_application() {
+                            warn!("Falha ao spawnar novo processo para reinicialização: {}", e);
+                        }
+                        if let Some(tx) = shutdown_tx_opt.take() {
+                            let _ = tx.send(());
+                        }
+                        *control_flow = ControlFlow::Exit;
                     } else if menu_event.id == ids.quit {
                         info!("Encerrando OpenPresenter via menu do System Tray.");
                         if let Some(tx) = shutdown_tx_opt.take() {
@@ -1456,5 +1465,34 @@ mod tests {
         // Depois de limpar, o próprio clear registra uma ação de 'logs_cleared'
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].action, "logs_cleared");
+    }
+
+    #[tokio::test]
+    async fn test_system_restart_endpoints_work() {
+        let (state, _dir) = mock_state_with_db();
+        let app = create_routes(state.clone());
+
+        let resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/system/restart")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), axum::http::StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["status"], "restarting");
+
+        // Verifica que gerou log
+        let logs = state.get_action_logs(10, 0, Some("system")).await;
+        assert_eq!(logs.len(), 1);
+        assert_eq!(logs[0].action, "restart_requested");
     }
 }
