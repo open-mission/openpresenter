@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Improve: Rótulos flutuantes em absolute para "Slide Atual" e "A Seguir" no StageView (`/stage`), eliminando o consumo vertical de barras rígidas de cabeçalho e liberando 100% da área útil para o autoScale de letras e versículos bíblicos. (commit b75cbbc - 2026-10-31 13:25:33 -03:00)
+
 - [x] Feat/Improve: Aumento das fontes no monitor de palco (`/stage`) para relógio, timer e aviso, controles de tamanho de fonte nas configurações e alerta de palco em tela cheia temporária (flash pop-in com duração configurável e recolhimento para miniatura). (commit 36169a6 - 2026-10-31 13:19:07 -03:00)
 
 - [x] Improve: Simplificação e agrupamento das saídas no cabeçalho do operador (`AdminView.svelte`): criação do menu dropdown "Saídas" reunindo telas de projeção locais (Pública, Palco, OBS) e conexões sem fio/compartilhamento (Google Cast, Remoto Mobile, QR Codes de rede), reduzindo o cabeçalho a um conjunto limpo e minimalista (Online, Saídas, Configurações) com indicador de conexão Cast. (commit 2c69ca1 - 2026-10-31 13:02:45 -03:00)
