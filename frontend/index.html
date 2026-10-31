@@ -18,6 +18,21 @@
     <meta name="theme-color" content="#0a0a0a" />
 
     <title>OpenPresenter — Projeção para igrejas e eventos</title>
+
+    <!-- Google Cast Sender SDK: callback global deve ser registrado antes do script carregar -->
+    <script>
+      window['__onGCastApiAvailable'] = function (isAvailable) {
+        window.__gcastApiAvailable = isAvailable;
+        window.dispatchEvent(
+          new CustomEvent('gcast-api-available', { detail: { isAvailable: isAvailable } })
+        );
+      };
+    </script>
+    <script
+      id="google-cast-sender-sdk"
+      src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"
+      async
+    ></script>
   </head>
   <body style="margin: 0; padding: 0; background-color: #000; color: #fff; width: 100vw; height: 100vh; overflow: hidden;">
     <div id="app" style="width: 100%; height: 100%; background-color: #000;"></div>

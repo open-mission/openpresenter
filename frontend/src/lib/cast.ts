@@ -121,8 +121,60 @@ export function resolveMediaUrl(url: string | null | undefined): string {
 
 export const normalizeMediaUrl = resolveMediaUrl;
 
+export interface CastDiagnostic {
+  supported: boolean;
+  isInsecureContext: boolean;
+  isChromium: boolean;
+  message?: string;
+}
+
 /**
- * Carrega a SDK do Google Cast Sender sob demanda de forma segura e não-bloqueante
+ * Diagnóstico rápido do ambiente para verificar se o Google Cast SDK pode funcionar
+ */
+export function getCastDiagnostic(): CastDiagnostic {
+  if (typeof window === 'undefined') {
+    return {
+      supported: false,
+      isInsecureContext: false,
+      isChromium: true,
+      message: 'Ambiente sem janela de navegador.',
+    };
+  }
+
+  // 1. Verifica se é navegador baseado em Chromium (Chrome, Edge, Brave, Opera, Vivaldi)
+  const isChromium = /Chrome|Chromium|Edg|Brave|OPR/.test(navigator.userAgent);
+  if (!isChromium) {
+    return {
+      supported: false,
+      isInsecureContext: false,
+      isChromium: false,
+      message:
+        'O Google Cast SDK é suportado nativamente apenas em navegadores Chromium (Google Chrome ou Microsoft Edge). No Safari ou Firefox, utilize o espelhamento do sistema ou cabo HDMI.',
+    };
+  }
+
+  // 2. Contexto de Segurança (HTTPS ou localhost)
+  // O Google Chrome bloqueia as APIs do Cast SDK quando acessado via IP simples (ex: http://192.168.1.50:18080)
+  const isLocalhost =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '[::1]';
+
+  const isInsecureContext = !window.isSecureContext && !isLocalhost;
+  if (isInsecureContext) {
+    return {
+      supported: false,
+      isInsecureContext: true,
+      isChromium: true,
+      message: `Você está acessando pelo IP de rede (http://${window.location.host}). O Google Chrome desativa o botão direto do Cast em conexões HTTP por IP. Acesse pelo computador principal em "http://localhost:${window.location.port}" ou use o menu do Chrome (três pontinhos → Transmitir...).`,
+    };
+  }
+
+  return { supported: true, isInsecureContext: false, isChromium: true };
+}
+
+/**
+ * Carrega a SDK do Google Cast Sender de forma segura, não-bloqueante e resiliente
  */
 export function loadCastSdk(): Promise<boolean> {
   if (typeof window === 'undefined') return Promise.resolve(false);
@@ -134,6 +186,18 @@ export function loadCastSdk(): Promise<boolean> {
     return Promise.resolve(true);
   }
 
+  // Diagnóstico prévio do navegador e protocolo
+  const diag = getCastDiagnostic();
+  if (!diag.supported) {
+    castStore.update((s) => ({
+      ...s,
+      isSdkLoaded: false,
+      isAvailable: false,
+      error: diag.message || 'Google Cast SDK indisponível neste navegador.',
+    }));
+    return Promise.resolve(false);
+  }
+
   if (sdkLoadPromise) return sdkLoadPromise;
 
   const promise = new Promise<boolean>((resolve) => {
@@ -143,89 +207,101 @@ export function loadCastSdk(): Promise<boolean> {
     const cleanup = () => {
       if (checkInterval) clearInterval(checkInterval);
       if (timeoutId) clearTimeout(timeoutId);
+      window.removeEventListener('gcast-api-available', onCustomAvailable as any);
     };
 
-    // Callback obrigatório disparado pelo cast_sender.js
-    (window as any)['__onGCastApiAvailable'] = (isAvailable: boolean) => {
+    const handleSuccess = () => {
       cleanup();
-      if (isAvailable && (window as any).cast?.framework) {
-        initCastContext();
-        castStore.update((s) => ({
-          ...s,
-          isSdkLoaded: true,
-          isAvailable: true,
-          error: null,
-        }));
-        resolve(true);
+      initCastContext();
+      castStore.update((s) => ({
+        ...s,
+        isSdkLoaded: true,
+        isAvailable: true,
+        error: null,
+      }));
+      resolve(true);
+    };
+
+    const handleFailure = (msg?: string) => {
+      cleanup();
+      const existing = document.getElementById('google-cast-sender-sdk');
+      if (existing && !(window as any).cast?.framework) {
+        existing.remove();
+      }
+      castStore.update((s) => ({
+        ...s,
+        isSdkLoaded: true,
+        isAvailable: false,
+        error:
+          msg ||
+          'Google Cast SDK indisponível no momento. Use o menu Transmitir do navegador Chrome.',
+      }));
+      resolve(false);
+    };
+
+    const onCustomAvailable = (e: CustomEvent<{ isAvailable: boolean }>) => {
+      if (e.detail?.isAvailable && (window as any).cast?.framework) {
+        handleSuccess();
       } else {
-        castStore.update((s) => ({
-          ...s,
-          isSdkLoaded: true,
-          isAvailable: false,
-          error: 'Nenhum dispositivo Google Cast detectado ou API indisponível.',
-        }));
-        resolve(false);
+        handleFailure('Nenhum dispositivo Google Cast detectado ou API indisponível.');
       }
     };
 
-    // Sonda periódica a cada 250ms caso o callback global tenha disparado antes ou haja atraso
+    window.addEventListener('gcast-api-available', onCustomAvailable as any);
+
+    // Se o index.html já carregou antes do Svelte montar
+    if ((window as any).__gcastApiAvailable !== undefined) {
+      if ((window as any).__gcastApiAvailable && (window as any).cast?.framework) {
+        handleSuccess();
+        return;
+      }
+    }
+
+    // Sonda periódica a cada 200ms caso o callback tenha chegado antes do listener
     checkInterval = setInterval(() => {
       if ((window as any).cast?.framework) {
-        cleanup();
-        initCastContext();
-        castStore.update((s) => ({
-          ...s,
-          isSdkLoaded: true,
-          isAvailable: true,
-          error: null,
-        }));
-        resolve(true);
+        handleSuccess();
       }
-    }, 250);
+    }, 200);
 
-    // Timeout de 7 segundos para aguardar a biblioteca
+    // Timeout de 5 segundos para aguardar a biblioteca
     timeoutId = setTimeout(() => {
-      cleanup();
       if ((window as any).cast?.framework) {
-        initCastContext();
-        resolve(true);
+        handleSuccess();
       } else {
-        resolve(false);
+        handleFailure(
+          'Google Cast SDK não respondeu a tempo. Se o templo estiver sem internet, use o menu Transmitir do Chrome.'
+        );
       }
-    }, 7000);
+    }, 5000);
 
-    // Injeta o script se não existir no DOM
+    // Injeção de contingência caso o index.html não tenha injetado
     const scriptId = 'google-cast-sender-sdk';
-    if (!document.getElementById(scriptId)) {
+    if (!document.getElementById(scriptId) && !(window as any).cast?.framework) {
       const script = document.createElement('script');
       script.id = scriptId;
       script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
       script.async = true;
       script.onerror = () => {
-        cleanup();
-        console.warn('[Cast] Falha ao carregar script do Google Cast SDK (modo offline ou sem conexão externa)');
-        castStore.update((s) => ({
-          ...s,
-          isSdkLoaded: false,
-          isAvailable: false,
-          error: 'Não foi possível carregar a biblioteca Google Cast (verifique a conexão com a internet).',
-        }));
-        resolve(false);
+        handleFailure(
+          'Falha ao carregar script do Google Cast (verifique a conexão com a internet ou bloqueador de anúncios).'
+        );
       };
       document.head.appendChild(script);
     }
   });
 
-  sdkLoadPromise = promise.then((ok) => {
-    if (!ok) {
-      // Se não carregou, limpa a promise para que o próximo clique do usuário possa tentar novamente
+  sdkLoadPromise = promise
+    .then((ok) => {
+      if (!ok) {
+        sdkLoadPromise = null;
+      }
+      return ok;
+    })
+    .catch(() => {
       sdkLoadPromise = null;
-    }
-    return ok;
-  }).catch(() => {
-    sdkLoadPromise = null;
-    return false;
-  });
+      return false;
+    });
 
   return sdkLoadPromise;
 }
@@ -318,7 +394,9 @@ export async function startCasting(target: 'public' | 'stage'): Promise<boolean>
     castStore.update((s) => ({
       ...s,
       isConnecting: false,
-      error: 'Google Cast SDK indisponível no momento. Use o menu Transmitir do navegador Chrome.',
+      error:
+        s.error ||
+        'Google Cast SDK indisponível no momento. Use o menu Transmitir do navegador Chrome.',
     }));
     return false;
   }

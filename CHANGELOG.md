@@ -39,6 +39,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Resiliência e Diagnóstico do Google Cast Sender SDK (`index.html`, `cast.ts`, `CastControl.svelte`):**
+  - Registro precoce de `window.__onGCastApiAvailable` e injeção assíncrona do SDK no `<head>` de `index.html`, eliminando a race condition de injeção dinâmica sob demanda e permitindo inicialização imediata do Cast Framework.
+  - Implementação do diagnóstico de ambiente (`getCastDiagnostic`) para detectar acessos via IP de rede local (`http://192.168.x.x`), em que o Google Chrome desativa o Cast Sender por política de Contexto Seguro (que exige `localhost` ou HTTPS), além de orientar usuários em navegadores incompatíveis (Safari/Firefox).
+  - Preservação de mensagens de erro detalhadas em `startCasting`, evitando sobrescrever causas específicas com a mensagem genérica de indisponibilidade.
+  - Aprimoramento do banner de aviso do Cast com atalhos rápidos de 1 clique para abrir `/public` e `/stage` em nova aba e instruções claras para transmissão nativa de aba via menu do Google Chrome.
 - **Rótulos Flutuantes em Posicionamento Absoluto no Monitor de Palco (`StageView.svelte`):**
   - Reposicionamento dos cabeçalhos dos blocos "Slide Atual" e "A Seguir (Próximo)" com estilo flutuante em posicionamento absoluto (`absolute top-2 left-3 right-3`) e fundo translúcido sutil.
   - Eliminação do consumo vertical rígido de 30px–50px causado por barras estáticas de cabeçalho, liberando 100% da altura e largura útil dos blocos para o algoritmo de `autoScale`, permitindo que as letras de louvor e versículos bíblicos alcancem tamanhos muito maiores e mais legíveis.

@@ -22,14 +22,18 @@
     startCasting,
     stopCasting,
     loadCastSdk,
+    getCastDiagnostic,
+    type CastDiagnostic,
   } from '$lib/cast';
 
   let showOfflineHelp = $state(false);
   let isCheckingSdk = $state(false);
+  let diagnostic = $state<CastDiagnostic | null>(null);
 
   const cast = $derived($castStore);
 
   onMount(() => {
+    diagnostic = getCastDiagnostic();
     isCheckingSdk = true;
     loadCastSdk().finally(() => {
       isCheckingSdk = false;
@@ -42,6 +46,12 @@
 
   function handleStopCast() {
     stopCasting();
+  }
+
+  function openTab(path: string) {
+    if (typeof window !== 'undefined') {
+      window.open(path, '_blank');
+    }
   }
 </script>
 
@@ -191,12 +201,39 @@
 
   <!-- Banner de Erro caso ocorra falha -->
   {#if cast.error}
-    <div class="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 flex items-start gap-2 text-xs">
-      <AlertCircle size={15} class="text-amber-400 shrink-0 mt-0.5" />
-      <div class="flex-1">
-        <span class="font-semibold text-amber-300">Aviso do Cast:</span>
-        <span class="text-amber-200/90 ml-1">{cast.error}</span>
+    <div class="p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs space-y-2.5">
+      <div class="flex items-start gap-2">
+        <AlertCircle size={16} class="text-amber-400 shrink-0 mt-0.5" />
+        <div class="flex-1">
+          <span class="font-semibold text-amber-300">Aviso do Cast:</span>
+          <span class="text-amber-200/90 ml-1">{cast.error}</span>
+        </div>
       </div>
+
+      <!-- Solução rápida alternativa via aba -->
+      <div class="pt-2 border-t border-amber-500/20 flex flex-wrap items-center gap-2">
+        <span class="text-[11px] text-amber-300/80 font-medium">Solução rápida via aba:</span>
+        <button
+          type="button"
+          onclick={() => openTab('/public')}
+          class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 text-[11px] font-semibold transition-colors cursor-pointer"
+        >
+          <ExternalLink size={12} />
+          <span>Abrir /public</span>
+        </button>
+        <button
+          type="button"
+          onclick={() => openTab('/stage')}
+          class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 text-[11px] font-semibold transition-colors cursor-pointer"
+        >
+          <ExternalLink size={12} />
+          <span>Abrir /stage</span>
+        </button>
+      </div>
+
+      <p class="text-[11px] text-amber-300/70 leading-relaxed">
+        <strong>Como transmitir a aba para a TV:</strong> Na aba que abrir, clique com o botão direito &rarr; <em class="text-amber-200">Transmitir...</em> (ou no menu do Chrome nos 3 pontinhos &rarr; <em class="text-amber-200">Transmitir...</em>) e selecione seu Chromecast.
+      </p>
     </div>
   {/if}
 
