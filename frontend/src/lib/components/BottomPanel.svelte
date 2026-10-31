@@ -455,7 +455,7 @@
     !isDragging && 'transition-[height] duration-200 ease-out'
   )}
   style={isCollapsed
-    ? 'height: 40px;'
+    ? 'height: 48px;'
     : isMaximized
       ? 'height: calc(100vh - 56px);'
       : `height: ${panelHeight}px;`}
@@ -469,8 +469,8 @@
     aria-orientation="horizontal"
     aria-label="Ajustar altura do painel de mídias (setas para cima ou para baixo)"
     class={cn(
-      'group h-2.5 w-full cursor-row-resize bg-border/40 hover:bg-primary/50 focus-visible:bg-primary focus-visible:outline-none transition-colors absolute top-0 left-0 right-0 z-40 flex items-center justify-center',
-      isDragging && 'bg-primary'
+      'group h-2 w-full cursor-row-resize bg-card hover:bg-card focus-visible:bg-muted focus-visible:outline-none transition-colors flex items-center justify-center shrink-0 select-none mb-0.5',
+      isDragging && 'bg-card'
     )}
     onmousedown={startResize}
     onkeydown={(e) => {
@@ -485,8 +485,8 @@
   >
     <div
       class={cn(
-        'h-1 w-8 rounded-full bg-border/80 group-hover:bg-primary-foreground/90 transition-colors',
-        isDragging && 'bg-primary-foreground'
+        'h-1 w-9 rounded-full bg-neutral-400 dark:bg-neutral-500 group-hover:bg-primary group-focus-visible:bg-primary transition-colors',
+        isDragging && 'bg-primary'
       )}
     ></div>
   </div>
@@ -495,7 +495,7 @@
   <div
     role="tablist"
     aria-label="Mídias e recursos do painel inferior"
-    class="h-10 px-3 border-b border-border flex items-center justify-between shrink-0 bg-card/60"
+    class="h-10 px-3 border-b border-border flex items-center justify-between shrink-0 bg-card"
   >
     <!-- Abas Disponíveis -->
     <div class="flex items-center gap-1">

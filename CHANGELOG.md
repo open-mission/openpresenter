@@ -24,6 +24,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Ajuste Visual e Espaçamento do Resizer do Painel de Mídias:**
+  - Desacoplamento do separador de redimensionamento do painel inferior de mídias (`BottomPanel.svelte`), posicionando-o no fluxo superior com margem dedicada para não sobrepor os botões de seleção de abas ("Músicas", "Imagens", etc.).
+  - Unificação da cor de fundo do separador com o fundo do painel (`bg-card`), eliminando contraste indevido de faixa cinza.
+  - Atualização da cor do indicador de arraste (*drag indicator*) para tom neutro com maior visibilidade (`bg-neutral-400 dark:bg-neutral-500`) e realce na cor primária durante interações e arraste ativo.
 - **Importação de Múltiplas Versões da Bíblia Simultaneamente ("Um a Um"):**
   - Habilitação de seleção múltipla de arquivos (`multiple`) no diálogo nativo do sistema operacional com suporte às extensões `.sqlite`, `.db` e `.sqlite3`.
   - Processamento em fila sequencial ("um a um") com leitura assíncrona em Base64, requisição individual à API e notificação toast Sonner para cada versão instalada.
