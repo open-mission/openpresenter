@@ -7,7 +7,6 @@
 
 
 ## Backlog
-- [ ] QUando estamos em versículo por exemplo e uso as setas de navegação left e right do teclado, ele nao está avançando, mas sim voltando ou algo do tipo, em meu teste eu apertava a tecla right e ele ia para trás ao invés de ir para o proximo. Revise isso por favor, isso pode acontecer quando tem mais de aparelho conectado no painel.
 - [ ] Feat: Desenvolver sistema de logs para manter salvos as acoes do programa e quem vez isso no sentido de instancia
 - [ ] Improve: no componente que mostra "Online" e vemos os clientes conectados, ele fica no Header. Add a opção de visualizar o Navegador ou Aparelho que está conectado.
 - [ ] Improve: Add a opcao de reiniciar a aplicacao ou o servidor ao ser atualizado. e add isso no trail menu.
@@ -24,6 +23,8 @@
 
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Fix: Sentido e sincronização de navegação de slides via teclado: cálculo de `nextSlide()` e `prevSlide()` em `AdminView.svelte` a partir do slide ao vivo em tempo real (`active_slide_index`), inicialização de foco ao disparar versículos bíblicos (`handlePresentScripture`), sincronização bidirecional do operador com outros aparelhos/remoto e auto-scroll do card de slide. (commit b729a8d - 2026-10-31 08:04:39 -03:00)
 
 - [x] Fix: Correção de falso-positivo no destaque verde de versículos na Bíblia em múltiplas instâncias: validação estrita de livro e capítulo em `isScriptureLive` em `BiblePanel.svelte`, impedindo que versículos de mesmo número fiquem verdes em capítulos diferentes (ex: 1Ts 1:7 vs 1Ts 5:7). (commit cc5913a - 2026-10-31 08:00:01 -03:00)
 
