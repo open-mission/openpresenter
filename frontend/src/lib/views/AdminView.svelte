@@ -2258,6 +2258,9 @@
     onclose={() => {
       isSettingsOpen = false;
       refreshBibles();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('openpresenter:songs-changed'));
+      }
     }}
     onbibleschanged={() => {
       refreshBibles();

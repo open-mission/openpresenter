@@ -576,7 +576,7 @@ impl Database {
                 .prepare(
                     "SELECT s.id, s.title, s.artist, s.song_key, s.bpm, s.composer, s.album,
                             (SELECT GROUP_CONCAT(tag, '|||') FROM song_tags WHERE song_id = s.id)
-                     FROM songs s ORDER BY s.title COLLATE NOCASE ASC LIMIT 50",
+                     FROM songs s ORDER BY s.title COLLATE NOCASE ASC",
                 )
                 .map_err(DbError::Read)?;
             let summaries = stmt
@@ -609,7 +609,7 @@ impl Database {
                        JOIN songs s ON s.id = f.song_id
                        WHERE songs_fts MATCH ?1
                        ORDER BY rank
-                       LIMIT 50";
+                       LIMIT 1000";
 
         if let Ok(mut stmt) = self.conn.prepare(fts_sql)
             && let Ok(summaries) = stmt.query_map(rusqlite::params![fts_query], |r| {
@@ -650,7 +650,7 @@ impl Database {
                  WHERE s.title LIKE ?1 ESCAPE '\\'
                     OR s.artist LIKE ?1 ESCAPE '\\'
                     OR s.lyrics_raw LIKE ?1 ESCAPE '\\'
-                 ORDER BY s.title COLLATE NOCASE ASC LIMIT 50",
+                 ORDER BY s.title COLLATE NOCASE ASC LIMIT 1000",
             )
             .map_err(DbError::Read)?;
 

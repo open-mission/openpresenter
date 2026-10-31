@@ -253,6 +253,9 @@ Traga sua família e convidados!`;
 
         const saved: Song = await resp.json();
         toast.success(id ? 'Música atualizada com sucesso!' : 'Música salva com sucesso no catálogo!');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('openpresenter:songs-changed'));
+        }
         onsave?.(saved);
         onclose();
       } catch (err: any) {

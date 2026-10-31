@@ -31,6 +31,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Remoção do Limite Fixo de 50 Músicas e Sincronização Dinâmica do Catálogo:**
+  - Remoção do teto hardcoded de `LIMIT 50` em `search_songs` (`op-db`), permitindo exibir o catálogo integral com todos os louvores e os 540 hinos da Harpa Cristã tanto na listagem geral quanto em filtros por tag (`#harpa`).
+  - Elevação do limite de busca FTS5 e LIKE para até 1.000 resultados, viabilizando pesquisas abrangentes em grandes acervos musicais.
+  - Sincronização reativa instantânea através do evento `openpresenter:songs-changed` e no retorno à aba de músicas (`activeTab === 'songs'`), recarregando o catálogo automaticamente após salvar, editar ou instalar hinos nas configurações.
 - **Resiliência e Agilidade na Busca de Músicas Online no Command Palette:**
   - Substituição do botão rotativo cíclico no cabeçalho do Command Palette por um controle segmentado direto com 3 modos dedicados (`[🎵 Músicas]`, `[📖 Bíblia]`, `[🌐 Web]`), permitindo alternar e pesquisar online com um único clique sem requerer cliques sucessivos.
   - Implementação de cancelamento atômico de buscas assíncronas com `AbortController` e identificador sequencial `searchId`, eliminando conflitos de concorrência e requisições duplicadas entre cliques diretos e o temporizador de debounce reativo.

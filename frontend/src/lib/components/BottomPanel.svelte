@@ -127,6 +127,22 @@
   $effect(() => {
     if (activeTab === 'bible') {
       refreshBibles();
+    } else if (activeTab === 'songs') {
+      loadSongs();
+      loadSongTags();
+    }
+  });
+
+  $effect(() => {
+    const handleSongsChanged = () => {
+      loadSongs();
+      loadSongTags();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('openpresenter:songs-changed', handleSongsChanged);
+      return () => {
+        window.removeEventListener('openpresenter:songs-changed', handleSongsChanged);
+      };
     }
   });
 

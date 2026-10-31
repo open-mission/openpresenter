@@ -1147,6 +1147,9 @@
         harpaInstallSuccess = true;
         harpaInstallMessage = data.message || '540 hinos da Harpa Cristã instalados com sucesso!';
         notifySuccess('Harpa Cristã Instalada!', harpaInstallMessage ?? undefined);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('openpresenter:songs-changed'));
+        }
       } else {
         harpaInstallSuccess = false;
         harpaInstallMessage = data.message || 'Falha ao instalar a Harpa Cristã.';
@@ -1206,6 +1209,9 @@
       }
       settingsImportResult = `${totalImported} música(s) importada(s) com sucesso!`;
       notifySuccess(settingsImportResult);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('openpresenter:songs-changed'));
+      }
     } catch (err) {
       console.error('Erro na importação:', err);
       settingsImportResult = `Erro ao importar: ${err}`;
