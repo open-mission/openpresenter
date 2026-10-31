@@ -257,7 +257,7 @@
           </p>
         </div>
         <div class="pt-2 border-t border-neutral-800 text-[11px] text-neutral-400 font-mono">
-          URL no OBS: http://localhost:18080/lower-third
+          URL no OBS: {typeof window !== 'undefined' ? `${window.location.origin}/lower-third` : 'http://localhost:18080/lower-third'}
         </div>
       </div>
     </div>

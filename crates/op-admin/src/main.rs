@@ -116,47 +116,73 @@ fn main() -> anyhow::Result<()> {
             .layer(DefaultBodyLimit::max(128 * 1024 * 1024))
             .layer(TraceLayer::new_for_http());
 
-        let addr = SocketAddr::from(([0, 0, 0, 0], port));
+        let host_ip: std::net::IpAddr = std::env::var("HOST")
+            .ok()
+            .and_then(|h| h.parse().ok())
+            .unwrap_or_else(|| std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)));
+        let addr = SocketAddr::new(host_ip, port);
         match tokio::net::TcpListener::bind(addr).await {
             Ok(listener) => {
+                let local_ip = routes::get_local_ip();
+                let display_host = if local_ip != "127.0.0.1" {
+                    local_ip.as_str()
+                } else {
+                    "localhost"
+                };
+
                 println!(
-                    "\n╔════════════════════════════════════════════════════════════════════╗"
+                    "\n╔═════════════════════════════════════════════════════════════════════╗"
                 );
                 println!(
                     "║       OpenPresenter Minimal v{:<5} — Servidor Web Ativo             ║",
                     op_core::VERSION
                 );
-                println!("╠════════════════════════════════════════════════════════════════════╣");
+                println!("╠═════════════════════════════════════════════════════════════════════╣");
                 println!(
-                    "║  • Painel Admin:   http://localhost:{port:<5}                          ║",
-                    port = port
+                    "║  • {:<16} {:<45} ║",
+                    "Acesso Local:",
+                    format!("http://localhost:{port}")
+                );
+                if local_ip != "127.0.0.1" {
+                    println!(
+                        "║  • {:<16} {:<45} ║",
+                        "Rede Local (LAN):",
+                        format!("http://{local_ip}:{port}")
+                    );
+                }
+                println!("╠─────────────────────────────────────────────────────────────────────╣");
+                println!(
+                    "║  • {:<16} {:<45} ║",
+                    "Painel Admin:",
+                    format!("http://{display_host}:{port}")
                 );
                 println!(
-                    "║  • Tela Pública:   http://localhost:{port:<5}/public                   ║",
-                    port = port
+                    "║  • {:<16} {:<45} ║",
+                    "Tela Pública:",
+                    format!("http://{display_host}:{port}/public")
                 );
                 println!(
-                    "║  • Tela do Palco:  http://localhost:{port:<5}/stage                    ║",
-                    port = port
+                    "║  • {:<16} {:<45} ║",
+                    "Tela do Palco:",
+                    format!("http://{display_host}:{port}/stage")
                 );
                 println!(
-                    "║  • Controle Remoto:http://localhost:{port:<5}/remote                   ║",
-                    port = port
+                    "║  • {:<16} {:<45} ║",
+                    "Controle Remoto:",
+                    format!("http://{display_host}:{port}/remote")
                 );
                 println!(
-                    "║  • Lower Third:    http://localhost:{port:<5}/lower-third               ║",
-                    port = port
+                    "║  • {:<16} {:<45} ║",
+                    "Lower Third OBS:",
+                    format!("http://{display_host}:{port}/lower-third")
                 );
                 println!(
-                    "║  • API Status:     http://localhost:{port:<5}/api/status               ║",
-                    port = port
+                    "║  • {:<16} {:<45} ║",
+                    "WebSocket:",
+                    format!("ws://{display_host}:{port}/ws")
                 );
                 println!(
-                    "║  • WebSocket:      ws://localhost:{port:<5}/ws                         ║",
-                    port = port
-                );
-                println!(
-                    "╚════════════════════════════════════════════════════════════════════╝\n"
+                    "╚═════════════════════════════════════════════════════════════════════╝\n"
                 );
 
                 let _ = axum::serve(

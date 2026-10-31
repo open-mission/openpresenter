@@ -448,15 +448,29 @@ pub struct NetworkInfoResponse {
 
 pub fn get_local_ip() -> String {
     let try_get_ip = || -> Option<String> {
-        let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
-        socket.connect("8.8.8.8:80").ok()?;
-        let addr = socket.local_addr().ok()?;
-        let ip = addr.ip().to_string();
-        if ip.starts_with("127.") {
-            None
-        } else {
-            Some(ip)
+        // Tenta múltiplos alvos de sonda na tabela de rotas do SO sem emitir tráfego real.
+        // Cobre conexões ativas com internet (8.8.8.8, 1.1.1.1), sub-redes comuns de roteadores (192.168.x, 10.x, 172.x) e multicast (224.0.0.1)
+        let targets = [
+            "8.8.8.8:80",
+            "1.1.1.1:80",
+            "192.168.1.1:80",
+            "192.168.0.1:80",
+            "10.0.0.1:80",
+            "172.16.0.1:80",
+            "224.0.0.1:80",
+        ];
+        for target in targets {
+            if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0")
+                && socket.connect(target).is_ok()
+                && let Ok(addr) = socket.local_addr()
+            {
+                let ip = addr.ip().to_string();
+                if !ip.starts_with("127.") && ip != "0.0.0.0" {
+                    return Some(ip);
+                }
+            }
         }
+        None
     };
     try_get_ip().unwrap_or_else(|| "127.0.0.1".to_string())
 }

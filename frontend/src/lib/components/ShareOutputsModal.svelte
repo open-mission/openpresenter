@@ -52,6 +52,19 @@
       const res = await fetch('/api/system/network-info');
       if (res.ok) {
         networkInfo = await res.json();
+        // Se a API retornou localhost/127.0.0.1 mas o operador está acessando por IP de rede
+        if (
+          (networkInfo.local_ip === '127.0.0.1' || networkInfo.local_ip === '0.0.0.0') &&
+          window.location.hostname !== 'localhost' &&
+          window.location.hostname !== '127.0.0.1'
+        ) {
+          networkInfo.local_ip = window.location.hostname;
+          const p = networkInfo.port || 18080;
+          networkInfo.public_url = `http://${networkInfo.local_ip}:${p}/public`;
+          networkInfo.stage_url = `http://${networkInfo.local_ip}:${p}/stage`;
+          networkInfo.remote_url = `http://${networkInfo.local_ip}:${p}/remote`;
+          networkInfo.lower_third_url = `http://${networkInfo.local_ip}:${p}/lower-third`;
+        }
       } else {
         const origin = window.location.origin;
         networkInfo = {

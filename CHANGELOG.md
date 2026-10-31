@@ -35,6 +35,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Exibição e Descoberta de IP na Rede Local (LAN) para Servidor e Vite:**
+  - Atualização do banner de inicialização no terminal (`main.rs`) exibindo tanto o acesso local (`http://localhost:<PORTA>`) quanto o endereço na rede local (`http://<IP_LOCAL>:<PORTA>`), além das URLs de todas as telas (Admin, Pública, Palco, Controle Remoto, Lower Third e WebSocket).
+  - Suporte à variável de ambiente `HOST` no servidor Axum (padrão: `0.0.0.0`), permitindo especificar a interface de escuta.
+  - Sonda multi-alvo em `get_local_ip()` (`routes.rs`) cobrindo conexões sem internet externa (roteadores offline com sub-redes `192.168.x`, `10.x`, `172.x` e multicast `224.0.0.1`).
+  - Configuração `server.host: true` e proxy para `/media` no `vite.config.ts`, permitindo expor o frontend em desenvolvimento na rede local para testes em smartphones, tablets e Chromecasts.
 - **Remoção do Limite Fixo de 50 Músicas e Sincronização Dinâmica do Catálogo:**
   - Remoção do teto hardcoded de `LIMIT 50` em `search_songs` (`op-db`), permitindo exibir o catálogo integral com todos os louvores e os 540 hinos da Harpa Cristã tanto na listagem geral quanto em filtros por tag (`#harpa`).
   - Elevação do limite de busca FTS5 e LIKE para até 1.000 resultados, viabilizando pesquisas abrangentes em grandes acervos musicais.

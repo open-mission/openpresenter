@@ -202,6 +202,7 @@
 - [Plano — Importação de Músicas, Harpa Cristã, Tags e Padrão de 2 Linhas por Slide](plans/2026-10-31-importacao-musicas-harpa-tags-e-padrao-duas-linhas.md)
 - [Spec — Correção de Estilização, CORS e Resolução de Mídia no Google Cast (Web Receiver)](specs/2026-10-31-google-cast-web-receiver-cors-e-midia.md)
 - [Plano — Correção de Estilização, CORS e Resolução de Mídia no Google Cast (Web Receiver)](plans/2026-10-31-google-cast-web-receiver-cors-e-midia.md)
+- [Spec — Exposição e Detecção de IP na Rede Local (LAN) para Servidor e Vite](specs/2026-10-31-expor-ip-servidor-rede-local.md)
 
 ## Arquitetura e decisões
 
