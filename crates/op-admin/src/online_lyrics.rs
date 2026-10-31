@@ -94,6 +94,7 @@ impl FetchedOnlineSong {
             bpm: self.bpm,
             sections,
             lyrics_raw: self.lyrics_raw,
+            tags: Vec::new(),
         }
     }
 }
@@ -406,7 +407,7 @@ fn md5_digest(initial_msg: &[u8]) -> [u8; 16] {
     result
 }
 
-fn uuid_simple() -> String {
+pub(crate) fn uuid_simple() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)

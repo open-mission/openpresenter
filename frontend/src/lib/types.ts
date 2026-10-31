@@ -376,6 +376,7 @@ export interface Song {
   bpm?: number;
   sections: SongSection[];
   lyrics_raw: string;
+  tags?: string[];
 }
 
 export interface SongSummary {
@@ -387,6 +388,11 @@ export interface SongSummary {
   composer?: string;
   album?: string;
   preview_snippet?: string;
+  tags?: string[];
+}
+
+export interface SongSettings {
+  lines_per_slide: number;
 }
 
 export interface OnlineLyricHit {

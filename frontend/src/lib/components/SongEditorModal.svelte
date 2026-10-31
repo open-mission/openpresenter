@@ -20,10 +20,11 @@
     AlignVerticalJustifyCenter,
     AlignVerticalJustifyEnd,
     FileText,
+    Rows2,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
-  import { parseRawLyrics, getSectionColor } from '../songParser';
+  import { parseRawLyrics, getSectionColor, formatLyricsLinesPerSlide } from '../songParser';
   import { renderFormattedText } from '../markdown';
   import type { Song, Slide, MediaItem } from '../types';
   import { toast } from '$lib/toast';
@@ -55,6 +56,8 @@
   let songKey = $state('');
   let bpm = $state<number | undefined>(undefined);
   let lyricsRaw = $state('');
+  let tags = $state<string[]>([]);
+  let tagInput = $state('');
   let addToSetlist = $state(true);
   let isSaving = $state(false);
   let errorMessage = $state('');
@@ -66,6 +69,32 @@
 
   // Referência ao textarea para inserção de formatação
   let textareaEl: HTMLTextAreaElement | null = $state(null);
+
+  function addTag(tagText: string) {
+    const clean = tagText.trim();
+    if (clean && !tags.some((t) => t.toLowerCase() === clean.toLowerCase())) {
+      tags = [...tags, clean];
+    }
+    tagInput = '';
+  }
+
+  function removeTag(tagToRemove: string) {
+    tags = tags.filter((t) => t !== tagToRemove);
+  }
+
+  function handleTagKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(tagInput);
+    } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+      tags = tags.slice(0, -1);
+    }
+  }
+
+  function applyLinesPerSlide() {
+    lyricsRaw = formatLyricsLinesPerSlide(lyricsRaw, 2);
+    toast.success('Letra reorganizada no padrão de 2 linhas por slide!');
+  }
 
   // Sincroniza estado apenas na abertura do modal
   $effect(() => {
@@ -79,6 +108,7 @@
           songKey = initialSong.song_key || '';
           bpm = initialSong.bpm;
           lyricsRaw = initialSong.lyrics_raw || '';
+          tags = initialSong.tags ? [...initialSong.tags] : [];
         } else {
           id = `song-${Date.now()}`;
           title = '';
@@ -86,6 +116,7 @@
           composer = '';
           songKey = '';
           bpm = undefined;
+          tags = [];
           lyricsRaw = `## Verso 1
 Primeira estrofe da canção
 Segunda linha aqui
@@ -202,6 +233,7 @@ Traga sua família e convidados!`;
         bpm: bpm ? Number(bpm) : undefined,
         sections: parsed.sections,
         lyrics_raw: lyricsRaw,
+        tags,
       };
 
       try {
@@ -427,6 +459,36 @@ Traga sua família e convidados!`;
                   />
                 </div>
               </div>
+
+              <!-- Tags / Grupos de Classificação -->
+              <div>
+                <label for="song-tags-input" class="block text-[11px] font-medium text-neutral-400 mb-1">
+                  Grupos e Tags (Ex: Louvor, Harpa Cristã, Comunhão, Celebração)
+                </label>
+                <div class="flex flex-wrap items-center gap-1.5 p-1.5 bg-neutral-900 border border-neutral-700/80 rounded-md min-h-[34px]">
+                  {#each tags as tag}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-medium">
+                      <span>{tag}</span>
+                      <button
+                        type="button"
+                        onclick={() => removeTag(tag)}
+                        class="hover:text-red-400 text-emerald-400/80 transition-colors cursor-pointer"
+                        title="Remover tag"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  {/each}
+                  <input
+                    id="song-tags-input"
+                    type="text"
+                    bind:value={tagInput}
+                    onkeydown={handleTagKeydown}
+                    placeholder={tags.length === 0 ? "Digite tags separadas por Enter ou vírgula..." : "Adicionar tag..."}
+                    class="flex-1 min-w-[120px] bg-transparent border-0 text-xs text-white placeholder-neutral-500 focus:outline-none focus:ring-0 p-0.5"
+                  />
+                </div>
+              </div>
             {:else}
               <!-- Metadados do Modo Texto -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -565,6 +627,19 @@ Traga sua família e convidados!`;
                   <AlignVerticalJustifyEnd size={12} />
                 </button>
               </div>
+
+              {#if mode === 'song'}
+                <div class="h-4 w-[1px] bg-neutral-800 shrink-0 mx-1"></div>
+                <button
+                  type="button"
+                  onclick={applyLinesPerSlide}
+                  title="Formatar em 2 linhas por slide preservando seções"
+                  class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white text-[11px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                >
+                  <Rows2 size={13} class="text-emerald-400" />
+                  <span>2 Linhas/Slide</span>
+                </button>
+              {/if}
             </div>
           </div>
 

@@ -27,12 +27,14 @@
     BookOpen,
     Film,
     ShieldCheck,
+    Tag,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
   import { cn } from '../utils';
   import BiblePanel from './BiblePanel.svelte';
   import { renderFormattedText } from '../markdown';
+  import { notifySuccess, notifyError } from '../toast';
   import {
     BACKGROUND_PRESETS,
     getAllBackgrounds,
@@ -131,7 +133,11 @@
   // --- CATÁLOGO DE MÚSICAS ---
   let songSearch = $state('');
   let songs = $state<SongSummary[]>([]);
+  let songTags = $state<string[]>([]);
+  let selectedSongTag = $state<string | null>(null);
   let isLoadingSongs = $state(false);
+  let isImportingSongs = $state(false);
+  let songFileInputEl: HTMLInputElement | null = $state(null);
   let viewingSong = $state<Song | null>(null);
   let isLoadingLyrics = $state(false);
 
@@ -223,16 +229,31 @@
 
   onMount(() => {
     loadSongs();
+    loadSongTags();
     loadImages();
     loadFolders();
     loadWallpapers();
   });
 
+  async function loadSongTags() {
+    try {
+      const res = await fetch('/api/songs/tags');
+      if (res.ok) {
+        songTags = await res.json();
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar tags de músicas:', err);
+    }
+  }
+
   async function loadSongs() {
     isLoadingSongs = true;
     try {
+      const params = new URLSearchParams();
       const q = songSearch.trim();
-      const url = q ? `/api/songs?q=${encodeURIComponent(q)}` : '/api/songs';
+      if (q) params.set('q', q);
+      if (selectedSongTag) params.set('tag', selectedSongTag);
+      const url = params.toString() ? `/api/songs?${params.toString()}` : '/api/songs';
       const res = await fetch(url);
       if (res.ok) {
         songs = await res.json();
@@ -241,6 +262,52 @@
       console.error('Erro ao buscar músicas:', err);
     } finally {
       isLoadingSongs = false;
+    }
+  }
+
+  function selectSongTag(tag: string | null) {
+    selectedSongTag = tag;
+    loadSongs();
+  }
+
+  function triggerSongImport() {
+    songFileInputEl?.click();
+  }
+
+  async function handleSongFilesSelected(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const files = input.files;
+    if (!files || files.length === 0) return;
+
+    isImportingSongs = true;
+    let totalImported = 0;
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const content = await file.text();
+        const res = await fetch('/api/songs/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            content,
+            tags: selectedSongTag ? [selectedSongTag] : [],
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          totalImported += data.imported_count || 1;
+        }
+      }
+      notifySuccess(`${totalImported} música(s) importada(s) com sucesso!`);
+      await loadSongs();
+      await loadSongTags();
+    } catch (err) {
+      console.error('Erro ao importar arquivos de música:', err);
+      notifyError('Erro ao importar músicas', String(err));
+    } finally {
+      isImportingSongs = false;
+      input.value = '';
     }
   }
 
@@ -688,12 +755,31 @@
             <Button
               variant="outline"
               size="sm"
-              onclick={loadSongs}
+              onclick={() => { loadSongs(); loadSongTags(); }}
               title="Recarregar catálogo"
               class="h-7 text-xs px-2"
             >
               <RefreshCw size={12} class={isLoadingSongs ? 'animate-spin' : ''} />
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={triggerSongImport}
+              disabled={isImportingSongs}
+              title="Importar músicas (.json, .txt, .md)"
+              class="h-7 text-xs gap-1 cursor-pointer"
+            >
+              <Upload size={12} class={isImportingSongs ? 'animate-spin text-primary' : 'text-primary'} />
+              <span>{isImportingSongs ? 'Importando...' : 'Importar'}</span>
+            </Button>
+            <input
+              type="file"
+              bind:this={songFileInputEl}
+              onchange={handleSongFilesSelected}
+              accept=".json,.txt,.md,text/plain,application/json,text/markdown"
+              multiple
+              class="hidden"
+            />
             <Button
               variant="default"
               size="sm"
@@ -705,6 +791,31 @@
             </Button>
           </div>
         </div>
+
+        <!-- Barra de Filtros de Tags e Grupos -->
+        {#if songTags.length > 0}
+          <div class="flex items-center gap-1.5 mb-2.5 overflow-x-auto pb-1 text-xs shrink-0 select-none">
+            <span class="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mr-1 flex items-center gap-1">
+              <Tag size={11} /> Tags:
+            </span>
+            <button
+              type="button"
+              onclick={() => selectSongTag(null)}
+              class="px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer {selectedSongTag === null ? 'bg-primary text-primary-foreground font-bold shadow-xs' : 'bg-muted hover:bg-muted/80 text-muted-foreground'}"
+            >
+              Todas
+            </button>
+            {#each songTags as tag}
+              <button
+                type="button"
+                onclick={() => selectSongTag(tag)}
+                class="px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-0.5 {selectedSongTag === tag ? 'bg-primary text-primary-foreground font-bold shadow-xs' : 'bg-muted hover:bg-muted/80 text-muted-foreground'}"
+              >
+                <span>#{tag}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
 
         {#snippet songCard(song: SongSummary)}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -731,6 +842,18 @@
                 <p class="text-[10px] text-muted-foreground line-clamp-2 mt-1 italic">
                   "{song.preview_snippet}"
                 </p>
+              {/if}
+              {#if song.tags && song.tags.length > 0}
+                <div class="flex flex-wrap gap-1 mt-1.5">
+                  {#each song.tags.slice(0, 3) as tag}
+                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground border border-border/70">
+                      #{tag}
+                    </span>
+                  {/each}
+                  {#if song.tags.length > 3}
+                    <span class="text-[9px] text-muted-foreground self-center">+{song.tags.length - 3}</span>
+                  {/if}
+                </div>
               {/if}
             </div>
 
@@ -794,8 +917,21 @@
                       </span>
                     {/if}
                   </div>
-                  {#if viewingSong.artist}
-                    <p class="text-xs text-muted-foreground truncate mt-0.5">{viewingSong.artist}</p>
+                  {#if viewingSong.artist || (viewingSong.tags && viewingSong.tags.length > 0)}
+                    <div class="flex items-center gap-2 mt-0.5">
+                      {#if viewingSong.artist}
+                        <p class="text-xs text-muted-foreground truncate">{viewingSong.artist}</p>
+                      {/if}
+                      {#if viewingSong.tags && viewingSong.tags.length > 0}
+                        <div class="flex items-center gap-1 overflow-x-auto">
+                          {#each viewingSong.tags as tag}
+                            <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] bg-secondary text-secondary-foreground font-mono">
+                              #{tag}
+                            </span>
+                          {/each}
+                        </div>
+                      {/if}
+                    </div>
                   {/if}
                 </div>
 

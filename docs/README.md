@@ -198,6 +198,8 @@
 - [Spec — Ajuste Visual e Espaçamento do Resizer do Painel de Mídias](specs/2026-10-31-ajuste-visual-resizer-painel-midias.md)
 - [Spec — Separação Correta de Slides e Redimensionamento com Resizable Shadcn no Catálogo de Músicas](specs/2026-10-31-separacao-slides-catalogo-e-painel-songs-resizable.md)
 - [Spec — Resiliência e Agilidade na Busca de Músicas Online no Command Palette](specs/2026-10-31-command-palette-busca-online-resiliencia.md)
+- [Spec — Importação de Músicas (JSON/TXT/MD), Instalação da Harpa Cristã, Tags/Grupos e Padrão de 2 Linhas por Slide](specs/2026-10-31-importacao-musicas-harpa-tags-e-padrao-duas-linhas.md)
+- [Plano — Importação de Músicas, Harpa Cristã, Tags e Padrão de 2 Linhas por Slide](plans/2026-10-31-importacao-musicas-harpa-tags-e-padrao-duas-linhas.md)
 
 ## Arquitetura e decisões
 

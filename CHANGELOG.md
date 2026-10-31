@@ -7,6 +7,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Importação de Músicas (JSON, TXT, MD), Instalação da Harpa Cristã, Tags e Padrão de 2 Linhas por Slide:**
+  - Importação flexível de arquivos de músicas nos formatos JSON (estruturado ou Harpa Cristã), texto puro (.txt) e Markdown (.md), preservando seções ou dividindo estrofes no padrão configurado.
+  - Instalação oficial com 1 clique da Harpa Cristã completa (540 hinos tradicionais) a partir do arquivo embutido `assets/songs/harpa-crista.json` com fallback para download resiliente via GitHub raw, formatada no padrão configurado e categorizada automaticamente com tags `#harpa`, `#hinos`, `#tradicional`.
+  - Sistema de tags e grupos para músicas com persistência relacional SQLite (migração `0009_song_tags.sql`), agregação de tags, listagem e barra de filtros interativa no catálogo (`Todas`, `#tag`).
+  - Configuração de padrão de linhas por slide (padrão: 2 linhas por slide) customizável nas configurações (`song_settings`), aplicado automaticamente a músicas importadas e capturadas online na web (Holyrics/Vagalume).
+  - Botão dedicado "2 Linhas/Slide" no editor de músicas (`SongEditorModal.svelte`) para reformatar letras instantaneamente mantendo partes estruturais (Verso, Refrão, etc.).
+  - Nova aba "Músicas & Harpa" no modal de configurações com cartões informativos para instalação da Harpa Cristã, seletor de linhas por slide e importador de arquivos com atribuição de tags.
 - **Sistema de Notificações Toast com Sonner para Ações e Eventos em Tempo Real:**
   - Integração do componente Sonner via `svelte-sonner` adaptado com estilização Shadcn/Tailwind UI, posicionado no canto superior direito no painel administrativo e topo central no controle remoto mobile.
   - Notificações instantâneas e não invasivas para início e parada de apresentações, salvamento e atualização de músicas no catálogo, alteração de modos de exibição (blackout/ocultar texto) e conexões de novos aparelhos na rede local.

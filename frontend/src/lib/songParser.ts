@@ -158,3 +158,46 @@ export function parseRawLyrics(raw: string): { sections: SongSection[]; slides: 
 
   return { sections, slides };
 }
+
+/**
+ * Formata o texto bruto da letra respeitando um número máximo de linhas por slide (padrão 2).
+ * Estrofes ou parágrafos com mais de `linesPerSlide` linhas são divididos por quebras duplas \n\n.
+ */
+export function formatLyricsLinesPerSlide(raw: string, linesPerSlide = 2): string {
+  if (linesPerSlide <= 0) {
+    return raw;
+  }
+
+  const lines = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const resultBlocks: string[] = [];
+  let currentBlockLines: string[] = [];
+
+  const flushBlock = () => {
+    if (currentBlockLines.length === 0) return;
+    for (let i = 0; i < currentBlockLines.length; i += linesPerSlide) {
+      const chunk = currentBlockLines.slice(i, i + linesPerSlide);
+      resultBlocks.push(chunk.join('\n'));
+    }
+    currentBlockLines = [];
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('##') || trimmed.startsWith('# ')) {
+      flushBlock();
+      resultBlocks.push(trimmed);
+      continue;
+    }
+
+    if (trimmed === '') {
+      flushBlock();
+      continue;
+    }
+
+    currentBlockLines.push(trimmed);
+  }
+
+  flushBlock();
+  return resultBlocks.join('\n\n');
+}

@@ -67,6 +67,7 @@ impl Database {
             M::up(include_str!("../migrations/0006_app_settings.sql")),
             M::up(include_str!("../migrations/0007_bibles.sql")),
             M::up(include_str!("../migrations/0008_action_logs.sql")),
+            M::up(include_str!("../migrations/0009_song_tags.sql")),
         ]);
         migrations
             .to_latest(&mut conn)
@@ -288,6 +289,22 @@ impl Database {
             rusqlite::params![song.id],
         )
         .map_err(DbError::Write)?;
+        tx.execute(
+            "DELETE FROM song_tags WHERE song_id = ?1",
+            rusqlite::params![song.id],
+        )
+        .map_err(DbError::Write)?;
+
+        for tag in &song.tags {
+            let clean_tag = tag.trim();
+            if !clean_tag.is_empty() {
+                tx.execute(
+                    "INSERT OR IGNORE INTO song_tags (song_id, tag) VALUES (?1, ?2)",
+                    rusqlite::params![song.id, clean_tag],
+                )
+                .map_err(DbError::Write)?;
+            }
+        }
 
         // Insere seções e linhas
         let mut full_lyrics = String::new();
@@ -328,6 +345,108 @@ impl Database {
             rusqlite::params![song.id, song.title, song.artist, full_lyrics],
         )
         .map_err(DbError::Write)?;
+
+        tx.commit().map_err(DbError::Write)?;
+        Ok(())
+    }
+
+    /// Salva um lote de músicas em uma única transação atômica.
+    pub fn save_songs_batch(&self, songs: &[Song], now: DateTime<Utc>) -> Result<(), DbError> {
+        let tx = self.conn.unchecked_transaction().map_err(DbError::Write)?;
+        let now_str = format_timestamp(now);
+
+        for song in songs {
+            tx.execute(
+                "INSERT INTO songs (id, title, artist, album, composer, song_key, bpm, lyrics_raw, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+                 ON CONFLICT(id) DO UPDATE SET
+                     title = excluded.title,
+                     artist = excluded.artist,
+                     album = excluded.album,
+                     composer = excluded.composer,
+                     song_key = excluded.song_key,
+                     bpm = excluded.bpm,
+                     lyrics_raw = excluded.lyrics_raw,
+                     updated_at = excluded.updated_at",
+                rusqlite::params![
+                    song.id,
+                    song.title,
+                    song.artist,
+                    song.album.as_deref().unwrap_or(""),
+                    song.composer.as_deref().unwrap_or(""),
+                    song.song_key.as_deref().unwrap_or(""),
+                    song.bpm,
+                    song.lyrics_raw,
+                    now_str,
+                ],
+            )
+            .map_err(DbError::Write)?;
+
+            tx.execute(
+                "DELETE FROM song_sections WHERE song_id = ?1",
+                rusqlite::params![song.id],
+            )
+            .map_err(DbError::Write)?;
+            tx.execute(
+                "DELETE FROM song_lyrics WHERE song_id = ?1",
+                rusqlite::params![song.id],
+            )
+            .map_err(DbError::Write)?;
+            tx.execute(
+                "DELETE FROM song_tags WHERE song_id = ?1",
+                rusqlite::params![song.id],
+            )
+            .map_err(DbError::Write)?;
+
+            for tag in &song.tags {
+                let clean_tag = tag.trim();
+                if !clean_tag.is_empty() {
+                    tx.execute(
+                        "INSERT OR IGNORE INTO song_tags (song_id, tag) VALUES (?1, ?2)",
+                        rusqlite::params![song.id, clean_tag],
+                    )
+                    .map_err(DbError::Write)?;
+                }
+            }
+
+            let mut full_lyrics = String::new();
+            for (sec_pos, section) in song.sections.iter().enumerate() {
+                let sec_type_str = section.section_type.map(|t| t.as_str());
+                tx.execute(
+                    "INSERT INTO song_sections (song_id, position, section_type, label) VALUES (?1, ?2, ?3, ?4)",
+                    rusqlite::params![song.id, sec_pos as i64, sec_type_str, section.label],
+                )
+                .map_err(DbError::Write)?;
+
+                for (line_pos, line) in section.lines.iter().enumerate() {
+                    tx.execute(
+                        "INSERT INTO song_lyrics (song_id, section_position, line_position, line) VALUES (?1, ?2, ?3, ?4)",
+                        rusqlite::params![song.id, sec_pos as i64, line_pos as i64, line],
+                    )
+                    .map_err(DbError::Write)?;
+
+                    if !full_lyrics.is_empty() {
+                        full_lyrics.push(' ');
+                    }
+                    full_lyrics.push_str(line);
+                }
+            }
+
+            if full_lyrics.is_empty() && !song.lyrics_raw.is_empty() {
+                full_lyrics = song.lyrics_raw.clone();
+            }
+
+            tx.execute(
+                "DELETE FROM songs_fts WHERE song_id = ?1",
+                rusqlite::params![song.id],
+            )
+            .map_err(DbError::Write)?;
+            tx.execute(
+                "INSERT INTO songs_fts (song_id, title, artist, lyrics) VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![song.id, song.title, song.artist, full_lyrics],
+            )
+            .map_err(DbError::Write)?;
+        }
 
         tx.commit().map_err(DbError::Write)?;
         Ok(())
@@ -400,6 +519,16 @@ impl Database {
             });
         }
 
+        let mut tag_stmt = self
+            .conn
+            .prepare("SELECT tag FROM song_tags WHERE song_id = ?1 ORDER BY tag ASC")
+            .map_err(DbError::Read)?;
+        let tags = tag_stmt
+            .query_map(rusqlite::params![id], |r| r.get::<_, String>(0))
+            .map_err(DbError::Read)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(DbError::Read)?;
+
         Ok(Some(Song {
             id: id.to_string(),
             title,
@@ -410,22 +539,49 @@ impl Database {
             bpm,
             sections,
             lyrics_raw,
+            tags,
         }))
+    }
+
+    /// Retorna todas as tags distintas cadastradas no catálogo de músicas.
+    pub fn list_all_song_tags(&self) -> Result<Vec<String>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT DISTINCT tag FROM song_tags ORDER BY tag COLLATE NOCASE ASC")
+            .map_err(DbError::Read)?;
+        let tags = stmt
+            .query_map([], |r| r.get::<_, String>(0))
+            .map_err(DbError::Read)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(DbError::Read)?;
+        Ok(tags)
     }
 
     /// Pesquisa músicas usando SQLite FTS5 por título, artista e trechos de letra.
     pub fn search_songs(&self, query: &str) -> Result<Vec<SongSummary>, DbError> {
         let clean = query.trim();
+        let parse_tags = |raw: Option<String>| -> Vec<String> {
+            raw.map(|s| {
+                s.split("|||")
+                    .filter(|t| !t.is_empty())
+                    .map(|t| t.to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
+        };
+
         if clean.is_empty() {
             let mut stmt = self
                 .conn
                 .prepare(
-                    "SELECT id, title, artist, song_key, bpm, composer, album
-                     FROM songs ORDER BY title COLLATE NOCASE ASC LIMIT 50",
+                    "SELECT s.id, s.title, s.artist, s.song_key, s.bpm, s.composer, s.album,
+                            (SELECT GROUP_CONCAT(tag, '|||') FROM song_tags WHERE song_id = s.id)
+                     FROM songs s ORDER BY s.title COLLATE NOCASE ASC LIMIT 50",
                 )
                 .map_err(DbError::Read)?;
             let summaries = stmt
                 .query_map([], |r| {
+                    let tags_raw: Option<String> = r.get(7)?;
                     Ok(SongSummary {
                         id: r.get(0)?,
                         title: r.get(1)?,
@@ -435,6 +591,7 @@ impl Database {
                         composer: r.get(5)?,
                         album: r.get(6)?,
                         preview_snippet: None,
+                        tags: parse_tags(tags_raw),
                     })
                 })
                 .map_err(DbError::Read)?
@@ -446,7 +603,8 @@ impl Database {
         // Tenta buscar via FTS5 MATCH
         let fts_query = format!("\"{}\"*", clean.replace('"', "\"\""));
         let fts_sql = "SELECT s.id, s.title, s.artist, s.song_key, s.bpm, s.composer, s.album,
-                              snippet(songs_fts, 3, '<b>', '</b>', '...', 8)
+                              snippet(songs_fts, 3, '<b>', '</b>', '...', 8),
+                              (SELECT GROUP_CONCAT(tag, '|||') FROM song_tags WHERE song_id = s.id)
                        FROM songs_fts f
                        JOIN songs s ON s.id = f.song_id
                        WHERE songs_fts MATCH ?1
@@ -455,6 +613,7 @@ impl Database {
 
         if let Ok(mut stmt) = self.conn.prepare(fts_sql)
             && let Ok(summaries) = stmt.query_map(rusqlite::params![fts_query], |r| {
+                let tags_raw: Option<String> = r.get(8)?;
                 Ok(SongSummary {
                     id: r.get(0)?,
                     title: r.get(1)?,
@@ -464,6 +623,7 @@ impl Database {
                     composer: r.get(5)?,
                     album: r.get(6)?,
                     preview_snippet: r.get(7)?,
+                    tags: parse_tags(tags_raw),
                 })
             })
         {
@@ -484,17 +644,19 @@ impl Database {
         let mut fallback_stmt = self
             .conn
             .prepare(
-                "SELECT id, title, artist, song_key, bpm, composer, album
-                 FROM songs
-                 WHERE title LIKE ?1 ESCAPE '\\'
-                    OR artist LIKE ?1 ESCAPE '\\'
-                    OR lyrics_raw LIKE ?1 ESCAPE '\\'
-                 ORDER BY title COLLATE NOCASE ASC LIMIT 50",
+                "SELECT s.id, s.title, s.artist, s.song_key, s.bpm, s.composer, s.album,
+                        (SELECT GROUP_CONCAT(tag, '|||') FROM song_tags WHERE song_id = s.id)
+                 FROM songs s
+                 WHERE s.title LIKE ?1 ESCAPE '\\'
+                    OR s.artist LIKE ?1 ESCAPE '\\'
+                    OR s.lyrics_raw LIKE ?1 ESCAPE '\\'
+                 ORDER BY s.title COLLATE NOCASE ASC LIMIT 50",
             )
             .map_err(DbError::Read)?;
 
         let list = fallback_stmt
             .query_map(rusqlite::params![pattern], |r| {
+                let tags_raw: Option<String> = r.get(7)?;
                 Ok(SongSummary {
                     id: r.get(0)?,
                     title: r.get(1)?,
@@ -504,6 +666,7 @@ impl Database {
                     composer: r.get(5)?,
                     album: r.get(6)?,
                     preview_snippet: None,
+                    tags: parse_tags(tags_raw),
                 })
             })
             .map_err(DbError::Read)?
@@ -1519,7 +1682,7 @@ mod tests {
         let path = dir.path().join("open-presenter.db");
         let db = Database::open(&path).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 8);
+        assert_eq!(db.schema_version().unwrap(), 9);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -1552,20 +1715,20 @@ mod tests {
     }
 
     #[test]
-    fn open_creates_schema_v8_with_action_logs() {
+    fn open_creates_schema_v9_with_song_tags() {
         let dir = tempfile::tempdir().unwrap();
         let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 8);
+        assert_eq!(db.schema_version().unwrap(), 9);
         let table_count: i64 = db
             .conn
             .query_row(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists', 'media_folders', 'app_settings', 'bibles', 'action_logs')",
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists', 'media_folders', 'app_settings', 'bibles', 'action_logs', 'song_tags')",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(table_count, 8);
+        assert_eq!(table_count, 9);
     }
 
     #[test]
@@ -1776,7 +1939,7 @@ mod tests {
     }
 
     #[test]
-    fn migrates_v1_database_to_v8_preserving_app_meta() {
+    fn migrates_v1_database_to_v9_preserving_app_meta() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("open-presenter.db");
         {
@@ -1793,7 +1956,7 @@ mod tests {
         }
 
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.schema_version().unwrap(), 8);
+        assert_eq!(db.schema_version().unwrap(), 9);
         let meta = db.load_meta().unwrap().unwrap();
         assert_eq!(meta.first_run_at, ts(2026, 10, 28, 10, 0));
         let count: i64 = db
@@ -2040,20 +2203,49 @@ mod tests {
                 },
             ],
             lyrics_raw: "## Verso 1\nDeus enviou Seu Filho amado\nPara morrer em meu lugar\n\n## Refrão\nPorque Ele vive, posso crer no amanhã\nPorque Ele vive, temor não há".into(),
+            tags: vec!["Harpa Cristã".into(), "Louvor".into()],
         };
 
         db.save_song(&song, ts(2026, 10, 28, 20, 0)).unwrap();
 
-        // 1. Busca por ID
+        // 1. Busca por ID e verificação de tags
         let loaded = db.get_song("song-123").unwrap().expect("encontra música");
         assert_eq!(loaded.title, "Porque Ele Vive");
         assert_eq!(loaded.sections.len(), 2);
         assert_eq!(loaded.sections[0].lines.len(), 2);
+        assert_eq!(loaded.tags, vec!["Harpa Cristã", "Louvor"]);
 
         // 2. Busca por termo no título
         let by_title = db.search_songs("porque").unwrap();
         assert_eq!(by_title.len(), 1);
         assert_eq!(by_title[0].id, "song-123");
+        assert_eq!(by_title[0].tags, vec!["Harpa Cristã", "Louvor"]);
+
+        // 2.1 Lista todas as tags
+        let all_tags = db.list_all_song_tags().unwrap();
+        assert_eq!(all_tags, vec!["Harpa Cristã", "Louvor"]);
+
+        // 2.2 Teste de salvamento em lote (batch)
+        let song2 = Song {
+            id: "song-456".into(),
+            title: "Grandioso És Tu".into(),
+            artist: "Harpa Cristã".into(),
+            album: None,
+            composer: None,
+            song_key: Some("A".into()),
+            bpm: None,
+            sections: vec![],
+            lyrics_raw: "Senhor meu Deus".into(),
+            tags: vec!["Harpa Cristã".into(), "Adoração".into()],
+        };
+        db.save_songs_batch(&[song2], ts(2026, 10, 28, 21, 0))
+            .unwrap();
+        let loaded_batch = db
+            .get_song("song-456")
+            .unwrap()
+            .expect("encontra música em lote");
+        assert_eq!(loaded_batch.title, "Grandioso És Tu");
+        assert_eq!(loaded_batch.tags, vec!["Adoração", "Harpa Cristã"]);
 
         // 3. Busca FTS5 por termo que só existe no meio da letra ("sepulcro" não existe aqui, mas "morrer" existe)
         let by_lyrics = db.search_songs("morrer").unwrap();
@@ -2062,7 +2254,7 @@ mod tests {
 
         // 4. Busca por artista
         let by_artist = db.search_songs("Harpa").unwrap();
-        assert_eq!(by_artist.len(), 1);
+        assert_eq!(by_artist.len(), 2);
 
         // 5. Exclusão
         assert!(db.delete_song("song-123").unwrap());

@@ -4,6 +4,7 @@ import type {
   ChurchBrandSettings,
   StageDisplaySettings,
   LowerThirdSettings,
+  SongSettings,
 } from './types';
 import type { BackgroundStylesMap } from './backgrounds';
 
@@ -103,6 +104,10 @@ export const DEFAULT_BACKGROUND_STYLES: BackgroundStylesMap = {
   overrides: {},
 };
 
+export const DEFAULT_SONG_SETTINGS: SongSettings = {
+  lines_per_slide: 2,
+};
+
 // Funções utilitárias de carregamento inicial do localStorage
 function loadLocal<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
@@ -143,6 +148,10 @@ export const backgroundStylesStore = writable<BackgroundStylesMap>(
 
 export const lowerThirdSettingsStore = writable<LowerThirdSettings>(
   loadLocal('lower_third_settings', DEFAULT_LOWER_THIRD_SETTINGS)
+);
+
+export const songSettingsStore = writable<SongSettings>(
+  loadLocal('song_settings', DEFAULT_SONG_SETTINGS)
 );
 
 // Sincronização com o Backend
@@ -202,6 +211,17 @@ export async function syncDisplaySettingsFromBackend() {
         const parsed = JSON.parse(data.value);
         lowerThirdSettingsStore.set({ ...DEFAULT_LOWER_THIRD_SETTINGS, ...parsed });
         saveLocal('lower_third_settings', parsed);
+      }
+    }
+
+    // 6. Song Settings
+    const songRes = await fetch('/api/settings/song_settings');
+    if (songRes.ok) {
+      const data = await songRes.json();
+      if (data.value) {
+        const parsed = JSON.parse(data.value);
+        songSettingsStore.set({ ...DEFAULT_SONG_SETTINGS, ...parsed });
+        saveLocal('song_settings', parsed);
       }
     }
   } catch (err) {
@@ -265,6 +285,17 @@ export async function saveLowerThirdSettings(settings: LowerThirdSettings) {
   }).catch(() => {});
 }
 
+export async function saveSongSettings(settings: SongSettings) {
+  songSettingsStore.set(settings);
+  saveLocal('song_settings', settings);
+
+  fetch('/api/settings/song_settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: JSON.stringify(settings) }),
+  }).catch(() => {});
+}
+
 // Aplica atualizações de configuração recebidas via WebSocket em tempo real
 export function handleSettingBroadcast(key: string, value: string | null) {
   if (!value) return;
@@ -285,6 +316,9 @@ export function handleSettingBroadcast(key: string, value: string | null) {
     } else if (key === 'lower_third_display') {
       lowerThirdSettingsStore.set({ ...DEFAULT_LOWER_THIRD_SETTINGS, ...parsed });
       saveLocal('lower_third_settings', parsed);
+    } else if (key === 'song_settings') {
+      songSettingsStore.set({ ...DEFAULT_SONG_SETTINGS, ...parsed });
+      saveLocal('song_settings', parsed);
     }
   } catch (e) {
     console.error('Falha ao aplicar configuração recebida via WebSocket:', e);

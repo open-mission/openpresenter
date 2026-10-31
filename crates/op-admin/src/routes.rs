@@ -37,6 +37,58 @@ pub struct SetModeRequest {
 #[derive(Deserialize)]
 pub struct SongQuery {
     pub q: Option<String>,
+    pub tag: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[allow(dead_code)]
+pub struct HarpaItemRaw {
+    pub id: Option<serde_json::Value>,
+    pub title: String,
+    pub artist: Option<String>,
+    pub author: Option<String>,
+    pub key: Option<String>,
+    pub bpm: Option<f64>,
+    pub lyrics: Option<HarpaLyricsRaw>,
+}
+
+#[derive(Deserialize)]
+pub struct HarpaLyricsRaw {
+    pub full_text: Option<String>,
+    pub paragraphs: Option<Vec<HarpaParagraphRaw>>,
+}
+
+#[derive(Deserialize)]
+pub struct HarpaParagraphRaw {
+    pub number: Option<i32>,
+    pub description: Option<String>,
+    pub text: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct HarpaInstallResponse {
+    pub success: bool,
+    pub installed_count: usize,
+    pub message: String,
+}
+
+#[derive(Deserialize)]
+pub struct ImportSongsPayload {
+    #[serde(default)]
+    pub format: Option<String>,
+    pub content: Option<String>,
+    pub filename: Option<String>,
+    pub songs: Option<Vec<Song>>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    pub lines_per_slide: Option<usize>,
+}
+
+#[derive(Serialize)]
+pub struct ImportSongsResponse {
+    pub success: bool,
+    pub imported_count: usize,
+    pub message: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -174,6 +226,9 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/outputs/{kind}/toggle", post(toggle_output))
         .route("/api/songs", get(get_songs).post(save_song))
         .route("/api/songs/{id}", get(get_song))
+        .route("/api/songs/tags", get(get_song_tags))
+        .route("/api/songs/import", post(import_songs))
+        .route("/api/songs/harpa/install", post(install_harpa_crista))
         .route("/api/songs/online/search", get(search_online_lyrics))
         .route("/api/songs/online/fetch", get(fetch_online_lyrics))
         .route("/api/setlist/add", post(add_to_setlist))
@@ -592,17 +647,44 @@ async fn toggle_output(
     Ok(Json(updated))
 }
 
+async fn get_configured_lines_per_slide(state: &AppState) -> usize {
+    if let Some(ref db) = state.db {
+        let db_guard = db.lock().await;
+        if let Ok(Some(val)) = db_guard.get_setting("song_settings")
+            && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&val)
+            && let Some(lines) = parsed.get("lines_per_slide").and_then(|v| v.as_u64())
+        {
+            return lines as usize;
+        }
+    }
+    2
+}
+
+async fn get_song_tags(State(state): State<AppState>) -> Json<Vec<String>> {
+    let tags = if let Some(ref db) = state.db {
+        let db_guard = db.lock().await;
+        db_guard.list_all_song_tags().unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    Json(tags)
+}
+
 async fn get_songs(
     State(state): State<AppState>,
     Query(query): Query<SongQuery>,
 ) -> Json<Vec<SongSummary>> {
     let q = query.q.unwrap_or_default();
-    let songs = if let Some(ref db) = state.db {
+    let tag_filter = query.tag.filter(|t| !t.trim().is_empty());
+    let mut songs = if let Some(ref db) = state.db {
         let db_guard = db.lock().await;
         db_guard.search_songs(&q).unwrap_or_default()
     } else {
         Vec::new()
     };
+    if let Some(target_tag) = tag_filter {
+        songs.retain(|s| s.tags.iter().any(|t| t.eq_ignore_ascii_case(&target_tag)));
+    }
     Json(songs)
 }
 
@@ -652,6 +734,507 @@ async fn save_song(
     Ok((StatusCode::CREATED, Json(payload.song)))
 }
 
+fn parse_imported_text_song(
+    filename: &str,
+    content: &str,
+    lines_per_slide: usize,
+    default_tags: &[String],
+) -> Song {
+    let clean = content.replace("\r\n", "\n").replace('\r', "\n");
+    let mut title = String::new();
+    let mut artist = String::new();
+    let mut composer: Option<String> = None;
+    let mut song_key: Option<String> = None;
+    let mut tags: Vec<String> = default_tags.to_vec();
+    let mut lyrics_lines = Vec::new();
+
+    let mut in_header = true;
+    for line in clean.lines() {
+        let trimmed = line.trim();
+
+        if in_header {
+            if let Some(rest) = trimmed.strip_prefix("# ") {
+                title = rest.trim().to_string();
+                continue;
+            }
+            if let Some(rest) = trimmed.strip_prefix("Title:") {
+                title = rest.trim().to_string();
+                continue;
+            }
+            if let Some(rest) = trimmed.strip_prefix("Título:") {
+                title = rest.trim().to_string();
+                continue;
+            }
+            if let Some(rest) = trimmed.strip_prefix("Artist:") {
+                artist = rest.trim().to_string();
+                continue;
+            }
+            if let Some(rest) = trimmed.strip_prefix("Artista:") {
+                artist = rest.trim().to_string();
+                continue;
+            }
+            if let Some(rest) = trimmed.strip_prefix("Author:") {
+                composer = Some(rest.trim().to_string());
+                continue;
+            }
+            if let Some(rest) = trimmed.strip_prefix("Autor:") {
+                composer = Some(rest.trim().to_string());
+                continue;
+            }
+            if let Some(rest) = trimmed.strip_prefix("Tom:") {
+                song_key = Some(rest.trim().to_string());
+                continue;
+            }
+            if let Some(rest) = trimmed.strip_prefix("Key:") {
+                song_key = Some(rest.trim().to_string());
+                continue;
+            }
+            if let Some(rest) = trimmed.strip_prefix("Tags:") {
+                for t in rest.split(',') {
+                    let ct = t.trim();
+                    if !ct.is_empty()
+                        && !tags
+                            .iter()
+                            .any(|existing| existing.eq_ignore_ascii_case(ct))
+                    {
+                        tags.push(ct.to_string());
+                    }
+                }
+                continue;
+            }
+
+            if trimmed.is_empty() {
+                if !title.is_empty() {
+                    in_header = false;
+                }
+                continue;
+            }
+
+            if title.is_empty() {
+                title = trimmed.to_string();
+                continue;
+            }
+
+            in_header = false;
+        }
+
+        lyrics_lines.push(line);
+    }
+
+    if title.is_empty() {
+        title = filename
+            .trim_end_matches(".txt")
+            .trim_end_matches(".md")
+            .replace(['_', '-'], " ")
+            .trim()
+            .to_string();
+    }
+    if title.is_empty() {
+        title = "Música Sem Título".to_string();
+    }
+
+    let mut lyrics_raw = lyrics_lines.join("\n").trim().to_string();
+    if lines_per_slide > 0 {
+        lyrics_raw = op_core::format_lyrics_lines_per_slide(&lyrics_raw, lines_per_slide);
+    }
+
+    let (sections, _) = op_core::parse_raw_lyrics(&lyrics_raw);
+    let id = format!("song-{}", crate::online_lyrics::uuid_simple());
+
+    Song {
+        id,
+        title,
+        artist,
+        album: None,
+        composer,
+        song_key,
+        bpm: None,
+        sections,
+        lyrics_raw,
+        tags,
+    }
+}
+
+async fn install_harpa_crista(
+    State(state): State<AppState>,
+) -> Result<Json<HarpaInstallResponse>, (StatusCode, String)> {
+    let lines_per_slide = get_configured_lines_per_slide(&state).await;
+
+    // 1. Tenta carregar do disco local (Downloads ou assets/songs)
+    let possible_paths = [
+        "/Users/claudio/Downloads/harpa-crista.json",
+        "assets/songs/harpa-crista.json",
+        "../assets/songs/harpa-crista.json",
+    ];
+
+    let mut json_content: Option<String> = None;
+    for path in possible_paths {
+        if let Ok(content) = tokio::fs::read_to_string(path).await {
+            json_content = Some(content);
+            break;
+        }
+    }
+
+    // 2. Se não estiver no disco, tenta baixar da URL pública do GitHub
+    if json_content.is_none() {
+        let github_url = "https://raw.githubusercontent.com/open-mission/openpresenter/main/assets/songs/harpa-crista.json";
+        if let Ok(resp) = state.http_client.get(github_url).send().await
+            && resp.status().is_success()
+            && let Ok(text) = resp.text().await
+        {
+            json_content = Some(text);
+        }
+    }
+
+    let json_text = json_content.ok_or((
+        StatusCode::NOT_FOUND,
+        "Arquivo harpa-crista.json não encontrado no sistema local nem no GitHub".into(),
+    ))?;
+
+    let items: Vec<HarpaItemRaw> = serde_json::from_str(&json_text).map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            format!("Falha ao ler JSON da Harpa: {e}"),
+        )
+    })?;
+
+    let mut songs_to_save: Vec<Song> = Vec::with_capacity(items.len());
+
+    for (idx, item) in items.into_iter().enumerate() {
+        let raw_title = item.title.trim().to_string();
+        if raw_title.is_empty() {
+            continue;
+        }
+
+        let artist = item
+            .artist
+            .unwrap_or_else(|| format!("Harpa Cristã - {}", idx + 1));
+        let composer = item.author.filter(|a| !a.trim().is_empty());
+        let song_key = item.key.filter(|k| !k.trim().is_empty());
+        let bpm = item.bpm.map(|b| b as i32);
+
+        let mut raw_lyrics = String::new();
+        if let Some(lyrics) = item.lyrics {
+            if let Some(paragraphs) = lyrics.paragraphs
+                && !paragraphs.is_empty()
+            {
+                let mut blocks = Vec::new();
+                for p in paragraphs {
+                    let mut block = String::new();
+                    if let Some(ref desc) = p.description
+                        && !desc.trim().is_empty()
+                    {
+                        block.push_str(&format!("## {}\n", desc.trim()));
+                    } else if let Some(num) = p.number
+                        && num > 0
+                    {
+                        block.push_str(&format!("## Verso {}\n", num));
+                    }
+                    if let Some(t) = p.text {
+                        let clean_t = t.trim().trim_end_matches('.').trim();
+                        block.push_str(clean_t);
+                    }
+                    if !block.trim().is_empty() {
+                        blocks.push(block);
+                    }
+                }
+                raw_lyrics = blocks.join("\n\n");
+            } else if let Some(full) = lyrics.full_text {
+                raw_lyrics = full.trim().trim_end_matches('.').trim().to_string();
+            }
+        }
+
+        if lines_per_slide > 0 {
+            raw_lyrics = op_core::format_lyrics_lines_per_slide(&raw_lyrics, lines_per_slide);
+        }
+
+        let (sections, _) = op_core::parse_raw_lyrics(&raw_lyrics);
+        let song_id = format!("harpa-{}", idx + 1);
+
+        songs_to_save.push(Song {
+            id: song_id,
+            title: raw_title,
+            artist,
+            album: Some("Harpa Cristã".into()),
+            composer,
+            song_key,
+            bpm,
+            sections,
+            lyrics_raw: raw_lyrics,
+            tags: vec!["Harpa Cristã".into()],
+        });
+    }
+
+    let installed_count = songs_to_save.len();
+
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let db_guard = db.lock().await;
+    db_guard
+        .save_songs_batch(&songs_to_save, chrono::Utc::now())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    drop(db_guard);
+
+    let details =
+        format!("Instalação da Harpa Cristã concluída ({installed_count} hinos importados)");
+    state
+        .log_action("harpa_installed", "songs", &details, None)
+        .await;
+
+    Ok(Json(HarpaInstallResponse {
+        success: true,
+        installed_count,
+        message: format!("{installed_count} hinos da Harpa Cristã importados com sucesso!"),
+    }))
+}
+
+async fn import_songs(
+    State(state): State<AppState>,
+    Json(payload): Json<ImportSongsPayload>,
+) -> Result<Json<ImportSongsResponse>, (StatusCode, String)> {
+    let default_lines = get_configured_lines_per_slide(&state).await;
+    let lines_per_slide = payload.lines_per_slide.unwrap_or(default_lines);
+
+    let mut songs_to_save: Vec<Song> = Vec::new();
+
+    // Caso 1: Lista direta de músicas estruturadas
+    if let Some(list) = payload.songs {
+        for mut s in list {
+            for t in &payload.tags {
+                if !s.tags.contains(t) {
+                    s.tags.push(t.clone());
+                }
+            }
+            if lines_per_slide > 0 {
+                s.lyrics_raw =
+                    op_core::format_lyrics_lines_per_slide(&s.lyrics_raw, lines_per_slide);
+                let (sections, _) = op_core::parse_raw_lyrics(&s.lyrics_raw);
+                s.sections = sections;
+            }
+            if s.id.is_empty() {
+                s.id = format!("song-{}", crate::online_lyrics::uuid_simple());
+            }
+            songs_to_save.push(s);
+        }
+    }
+
+    // Caso 2: Conteúdo bruto textual (JSON, Text ou Markdown)
+    if let Some(content) = payload.content {
+        let filename = payload.filename.as_deref().unwrap_or("import.txt");
+        let format_hint = payload.format.as_deref().unwrap_or("");
+
+        let trimmed_content = content.trim();
+        let is_json = format_hint == "json"
+            || filename.ends_with(".json")
+            || trimmed_content.starts_with('[')
+            || trimmed_content.starts_with('{');
+
+        if is_json {
+            if let Ok(list) = serde_json::from_str::<Vec<Song>>(trimmed_content) {
+                for mut s in list {
+                    for t in &payload.tags {
+                        if !s.tags.contains(t) {
+                            s.tags.push(t.clone());
+                        }
+                    }
+                    if lines_per_slide > 0 {
+                        s.lyrics_raw =
+                            op_core::format_lyrics_lines_per_slide(&s.lyrics_raw, lines_per_slide);
+                        let (sections, _) = op_core::parse_raw_lyrics(&s.lyrics_raw);
+                        s.sections = sections;
+                    }
+                    if s.id.is_empty() {
+                        s.id = format!("song-{}", crate::online_lyrics::uuid_simple());
+                    }
+                    songs_to_save.push(s);
+                }
+            } else if let Ok(single) = serde_json::from_str::<Song>(trimmed_content) {
+                let mut s = single;
+                for t in &payload.tags {
+                    if !s.tags.contains(t) {
+                        s.tags.push(t.clone());
+                    }
+                }
+                if lines_per_slide > 0 {
+                    s.lyrics_raw =
+                        op_core::format_lyrics_lines_per_slide(&s.lyrics_raw, lines_per_slide);
+                    let (sections, _) = op_core::parse_raw_lyrics(&s.lyrics_raw);
+                    s.sections = sections;
+                }
+                if s.id.is_empty() {
+                    s.id = format!("song-{}", crate::online_lyrics::uuid_simple());
+                }
+                songs_to_save.push(s);
+            } else if let Ok(harpa_list) =
+                serde_json::from_str::<Vec<HarpaItemRaw>>(trimmed_content)
+            {
+                for (idx, item) in harpa_list.into_iter().enumerate() {
+                    let title = item.title.trim().to_string();
+                    if title.is_empty() {
+                        continue;
+                    }
+                    let artist = item
+                        .artist
+                        .unwrap_or_else(|| format!("Harpa Cristã - {}", idx + 1));
+                    let mut raw_lyrics = String::new();
+                    if let Some(lyrics) = item.lyrics {
+                        if let Some(paras) = lyrics.paragraphs
+                            && !paras.is_empty()
+                        {
+                            let mut blocks = Vec::new();
+                            for p in paras {
+                                let mut b = String::new();
+                                if let Some(d) = p.description
+                                    && !d.trim().is_empty()
+                                {
+                                    b.push_str(&format!("## {}\n", d.trim()));
+                                } else if let Some(n) = p.number
+                                    && n > 0
+                                {
+                                    b.push_str(&format!("## Verso {}\n", n));
+                                }
+                                if let Some(t) = p.text {
+                                    b.push_str(t.trim().trim_end_matches('.').trim());
+                                }
+                                if !b.trim().is_empty() {
+                                    blocks.push(b);
+                                }
+                            }
+                            raw_lyrics = blocks.join("\n\n");
+                        } else if let Some(f) = lyrics.full_text {
+                            raw_lyrics = f.trim().trim_end_matches('.').trim().to_string();
+                        }
+                    }
+                    if lines_per_slide > 0 {
+                        raw_lyrics =
+                            op_core::format_lyrics_lines_per_slide(&raw_lyrics, lines_per_slide);
+                    }
+                    let (sections, _) = op_core::parse_raw_lyrics(&raw_lyrics);
+                    let mut tags = payload.tags.clone();
+                    if !tags.iter().any(|t| t.eq_ignore_ascii_case("Harpa Cristã")) {
+                        tags.push("Harpa Cristã".into());
+                    }
+                    songs_to_save.push(Song {
+                        id: format!("harpa-{}", idx + 1),
+                        title,
+                        artist,
+                        album: Some("Harpa Cristã".into()),
+                        composer: item.author.filter(|a| !a.trim().is_empty()),
+                        song_key: item.key.filter(|k| !k.trim().is_empty()),
+                        bpm: item.bpm.map(|b| b as i32),
+                        sections,
+                        lyrics_raw: raw_lyrics,
+                        tags,
+                    });
+                }
+            } else if let Ok(generic_list) =
+                serde_json::from_str::<Vec<serde_json::Value>>(trimmed_content)
+            {
+                for item in generic_list {
+                    let title = item
+                        .get("title")
+                        .or_else(|| item.get("nome"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
+                    if title.is_empty() {
+                        continue;
+                    }
+                    let artist = item
+                        .get("artist")
+                        .or_else(|| item.get("artista"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
+                    let lyrics = item
+                        .get("lyrics_raw")
+                        .or_else(|| item.get("lyrics"))
+                        .or_else(|| item.get("letra"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
+                    let mut lyrics_raw = lyrics;
+                    if lines_per_slide > 0 {
+                        lyrics_raw =
+                            op_core::format_lyrics_lines_per_slide(&lyrics_raw, lines_per_slide);
+                    }
+                    let (sections, _) = op_core::parse_raw_lyrics(&lyrics_raw);
+                    let mut tags = payload.tags.clone();
+                    if let Some(t_arr) = item.get("tags").and_then(|t| t.as_array()) {
+                        for t in t_arr {
+                            if let Some(ts) = t.as_str()
+                                && !tags
+                                    .iter()
+                                    .any(|existing| existing.eq_ignore_ascii_case(ts))
+                            {
+                                tags.push(ts.to_string());
+                            }
+                        }
+                    }
+                    songs_to_save.push(Song {
+                        id: format!("song-{}", crate::online_lyrics::uuid_simple()),
+                        title,
+                        artist,
+                        album: None,
+                        composer: None,
+                        song_key: None,
+                        bpm: None,
+                        sections,
+                        lyrics_raw,
+                        tags,
+                    });
+                }
+            } else {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    "Formato JSON não reconhecido para importação".into(),
+                ));
+            }
+        } else {
+            // Text ou Markdown
+            let song =
+                parse_imported_text_song(filename, trimmed_content, lines_per_slide, &payload.tags);
+            songs_to_save.push(song);
+        }
+    }
+
+    if songs_to_save.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Nenhuma música válida encontrada para importar".into(),
+        ));
+    }
+
+    let imported_count = songs_to_save.len();
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let db_guard = db.lock().await;
+    db_guard
+        .save_songs_batch(&songs_to_save, chrono::Utc::now())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    drop(db_guard);
+
+    let details = format!("Importação de músicas concluída ({imported_count} importadas)");
+    state
+        .log_action("songs_imported", "songs", &details, None)
+        .await;
+
+    Ok(Json(ImportSongsResponse {
+        success: true,
+        imported_count,
+        message: format!("{imported_count} música(s) importada(s) com sucesso!"),
+    }))
+}
+
 async fn search_online_lyrics(
     State(state): State<AppState>,
     Query(query): Query<OnlineSearchQuery>,
@@ -664,10 +1247,21 @@ async fn fetch_online_lyrics(
     State(state): State<AppState>,
     Query(query): Query<OnlineFetchQuery>,
 ) -> Result<Json<Song>, (StatusCode, String)> {
+    let lines_per_slide = get_configured_lines_per_slide(&state).await;
     match crate::online_lyrics::fetch_online_song(&state.http_client, &query.provider, &query.id)
         .await
     {
-        Ok(fetched) => Ok(Json(fetched.into_song())),
+        Ok(fetched) => {
+            let mut song = fetched.into_song();
+            if lines_per_slide > 0 {
+                let formatted =
+                    op_core::format_lyrics_lines_per_slide(&song.lyrics_raw, lines_per_slide);
+                let (sections, _) = op_core::parse_raw_lyrics(&formatted);
+                song.lyrics_raw = formatted;
+                song.sections = sections;
+            }
+            Ok(Json(song))
+        }
         Err(e) => Err((StatusCode::BAD_GATEWAY, e.to_string())),
     }
 }

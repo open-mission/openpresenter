@@ -423,6 +423,8 @@ pub struct Song {
     #[serde(default)]
     pub sections: Vec<SongSection>,
     pub lyrics_raw: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 impl Song {
@@ -455,6 +457,8 @@ pub struct SongSummary {
     pub composer: Option<String>,
     pub album: Option<String>,
     pub preview_snippet: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 /// Resultado de busca de letra em provedores online (Holyrics, Vagalume).
@@ -553,6 +557,50 @@ pub fn parse_raw_lyrics(raw: &str) -> (Vec<SongSection>, Vec<Slide>) {
     }
 
     (sections, slides)
+}
+
+/// Formata o texto bruto da letra respeitando um número máximo de linhas por slide (padrão 2).
+/// Parágrafos e estrofes com mais de `lines_per_slide` linhas são divididos com quebras duplas `\n\n`.
+pub fn format_lyrics_lines_per_slide(raw: &str, lines_per_slide: usize) -> String {
+    if lines_per_slide == 0 {
+        return raw.to_string();
+    }
+
+    let normalized = raw.replace("\r\n", "\n").replace('\r', "\n");
+    let mut result_blocks: Vec<String> = Vec::new();
+    let mut current_block_lines: Vec<String> = Vec::new();
+
+    let flush_block = |lines: &mut Vec<String>, blocks: &mut Vec<String>| {
+        if lines.is_empty() {
+            return;
+        }
+
+        // Divide as linhas em pedaços de tamanho lines_per_slide
+        for chunk in lines.chunks(lines_per_slide) {
+            blocks.push(chunk.join("\n"));
+        }
+        lines.clear();
+    };
+
+    for line in normalized.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.starts_with("##") {
+            flush_block(&mut current_block_lines, &mut result_blocks);
+            result_blocks.push(trimmed.to_string());
+            continue;
+        }
+
+        if trimmed.is_empty() {
+            flush_block(&mut current_block_lines, &mut result_blocks);
+            continue;
+        }
+
+        current_block_lines.push(trimmed.to_string());
+    }
+
+    flush_block(&mut current_block_lines, &mut result_blocks);
+    result_blocks.join("\n\n")
 }
 
 /// Slide individual de um item de mídia.
@@ -1088,5 +1136,25 @@ Porque Ele vive, temor não há
         let song: Song = serde_json::from_str(song_json).expect("deserializes song");
         assert_eq!(song.sections.len(), 1);
         assert_eq!(song.sections[0].section_type, Some(SectionType::Verse));
+        assert!(song.tags.is_empty());
+    }
+
+    #[test]
+    fn test_format_lyrics_lines_per_slide_chunks_properly() {
+        let raw = "Linha 1\nLinha 2\nLinha 3\nLinha 4";
+        let formatted = format_lyrics_lines_per_slide(raw, 2);
+        assert_eq!(formatted, "Linha 1\nLinha 2\n\nLinha 3\nLinha 4");
+
+        let raw_with_sections =
+            "## Verso 1\nLinha 1\nLinha 2\nLinha 3\nLinha 4\nLinha 5\n\n## Refrão\nRef 1\nRef 2";
+        let formatted_sections = format_lyrics_lines_per_slide(raw_with_sections, 2);
+        assert_eq!(
+            formatted_sections,
+            "## Verso 1\n\nLinha 1\nLinha 2\n\nLinha 3\nLinha 4\n\nLinha 5\n\n## Refrão\n\nRef 1\nRef 2"
+        );
+
+        // Se lines_per_slide == 0, mantém o original
+        let kept = format_lyrics_lines_per_slide(raw, 0);
+        assert_eq!(kept, raw);
     }
 }

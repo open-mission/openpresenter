@@ -474,6 +474,7 @@ mod tests {
             sections: vec![],
             lyrics_raw: "## Verso 1\nManso e suave Jesus tá chamando\n\n## Refrão\nVem já, vem já"
                 .into(),
+            tags: vec!["Hinos".into()],
         };
 
         let payload = serde_json::to_string(&routes::SaveSongPayload {
@@ -504,6 +505,7 @@ mod tests {
 
         // Busca via FTS5
         let search_resp = app
+            .clone()
             .oneshot(
                 axum::http::Request::builder()
                     .method("GET")
@@ -521,6 +523,102 @@ mod tests {
         let results: Vec<op_core::SongSummary> = serde_json::from_slice(&body).unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].title, "Manso e Suave");
+        assert_eq!(results[0].tags, vec!["Hinos"]);
+
+        // Busca por tag
+        let tag_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/songs?tag=Hinos")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(tag_resp.status(), StatusCode::OK);
+        let tag_body = axum::body::to_bytes(tag_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let tag_results: Vec<op_core::SongSummary> = serde_json::from_slice(&tag_body).unwrap();
+        assert_eq!(tag_results.len(), 1);
+
+        // Lista tags
+        let tags_list_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/songs/tags")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(tags_list_resp.status(), StatusCode::OK);
+        let tags_body = axum::body::to_bytes(tags_list_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let all_tags: Vec<String> = serde_json::from_slice(&tags_body).unwrap();
+        assert_eq!(all_tags, vec!["Hinos"]);
+    }
+
+    #[tokio::test]
+    async fn song_import_and_harpa_installation_endpoints_work() {
+        let (state, _dir) = mock_state_with_db();
+        let app = create_routes(state);
+
+        // 1. Testa importação de música via texto/markdown
+        let text_content = "# Graça Sublime\nArtist: Chris Tomlin\nTom: G\nTags: Louvor, Adoração\n\nGraça sublime, quão doce o som\nQue salvou um pecador como eu\n\nEu cego estava, mas agora vejo\nPerdido fui, mas me achou";
+        let import_payload = serde_json::json!({
+            "content": text_content,
+            "filename": "graca.md",
+            "lines_per_slide": 2
+        });
+
+        let import_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/api/songs/import")
+                    .body(axum::body::Body::from(
+                        serde_json::to_string(&import_payload).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(import_resp.status(), StatusCode::OK);
+        let import_body = axum::body::to_bytes(import_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let import_data: serde_json::Value = serde_json::from_slice(&import_body).unwrap();
+        assert_eq!(import_data["success"], true);
+        assert_eq!(import_data["imported_count"], 1);
+
+        // 2. Testa instalação da Harpa Cristã (usa assets/songs/harpa-crista.json se presente)
+        let harpa_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/api/songs/harpa/install")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(harpa_resp.status(), StatusCode::OK);
+        let harpa_body = axum::body::to_bytes(harpa_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let harpa_data: serde_json::Value = serde_json::from_slice(&harpa_body).unwrap();
+        assert_eq!(harpa_data["success"], true);
+        assert!(harpa_data["installed_count"].as_u64().unwrap() >= 540);
     }
 
     #[tokio::test]
@@ -931,8 +1029,11 @@ mod tests {
         assert!(!pres.timer.running); // Parou no zero!
     }
 
+    static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
     #[tokio::test]
     async fn bibles_endpoints_and_parse_work() {
+        let _env_guard = ENV_LOCK.lock().await;
         let dir = tempfile::tempdir().unwrap();
         let db_path = dir.path().join("open-presenter.db");
         let db = op_db::Database::open(&db_path).unwrap();
@@ -1111,6 +1212,7 @@ mod tests {
 
     #[tokio::test]
     async fn large_bible_base64_import_works_exceeding_default_2mb_limit() {
+        let _env_guard = ENV_LOCK.lock().await;
         let dir = tempfile::tempdir().unwrap();
         let db_path = dir.path().join("test_large_bible.db");
         let db = op_db::Database::open(&db_path).unwrap();

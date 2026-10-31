@@ -80,16 +80,19 @@
     stageSettingsStore,
     backgroundStylesStore,
     lowerThirdSettingsStore,
+    songSettingsStore,
     savePublicDisplaySettings,
     saveChurchBrandSettings,
     saveStageDisplaySettings,
     saveBackgroundStyles,
     saveLowerThirdSettings,
+    saveSongSettings,
     DEFAULT_PUBLIC_SETTINGS,
     DEFAULT_CHURCH_BRAND,
     DEFAULT_STAGE_SETTINGS,
     DEFAULT_BACKGROUND_STYLES,
     DEFAULT_LOWER_THIRD_SETTINGS,
+    DEFAULT_SONG_SETTINGS,
   } from '../displaySettings';
   import {
     getAllBackgrounds,
@@ -110,6 +113,7 @@
     ChurchBrandSettings,
     StageDisplaySettings,
     LowerThirdSettings,
+    SongSettings,
     StagePreset,
     BibleVersionSummary,
     ActionLog,
@@ -123,6 +127,7 @@
     | 'lower_third'
     | 'church'
     | 'bibles'
+    | 'songs'
     | 'files'
     | 'sections'
     | 'outputs'
@@ -147,7 +152,17 @@
   let localBrand = $state<ChurchBrandSettings>({ ...DEFAULT_CHURCH_BRAND });
   let localStage = $state<StageDisplaySettings>({ ...DEFAULT_STAGE_SETTINGS });
   let localLowerThird = $state<LowerThirdSettings>({ ...DEFAULT_LOWER_THIRD_SETTINGS });
+  let localSongSettings = $state<SongSettings>({ ...DEFAULT_SONG_SETTINGS });
   let uploadStatus = $state<{ [key: string]: string }>({});
+
+  // Harpa Cristã e Importação de Músicas
+  let isInstallingHarpa = $state(false);
+  let harpaInstallMessage = $state<string | null>(null);
+  let harpaInstallSuccess = $state<boolean | null>(null);
+  let settingsImportTags = $state('');
+  let isSettingsImporting = $state(false);
+  let settingsImportResult = $state<string | null>(null);
+  let settingsSongFileInputEl: HTMLInputElement | null = $state(null);
 
   // Sub-seções internas
   let publicSection = $state<'lyrics' | 'scripture' | 'general'>('lyrics');
@@ -547,6 +562,7 @@
       localStage = JSON.parse(JSON.stringify(get(stageSettingsStore)));
       localBgStyles = JSON.parse(JSON.stringify(get(backgroundStylesStore)));
       localLowerThird = JSON.parse(JSON.stringify(get(lowerThirdSettingsStore)));
+      localSongSettings = JSON.parse(JSON.stringify(get(songSettingsStore)));
       loadSystemPaths();
       loadMediaFolders();
       loadBibles();
@@ -1114,6 +1130,92 @@
     }
   }
 
+  async function handleInstallHarpa() {
+    isInstallingHarpa = true;
+    harpaInstallMessage = null;
+    harpaInstallSuccess = null;
+    try {
+      const res = await fetch('/api/songs/harpa/install', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lines_per_slide: localSongSettings.lines_per_slide,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        harpaInstallSuccess = true;
+        harpaInstallMessage = data.message || '540 hinos da Harpa Cristã instalados com sucesso!';
+        notifySuccess('Harpa Cristã Instalada!', harpaInstallMessage ?? undefined);
+      } else {
+        harpaInstallSuccess = false;
+        harpaInstallMessage = data.message || 'Falha ao instalar a Harpa Cristã.';
+        notifyError('Erro ao instalar Harpa Cristã', harpaInstallMessage ?? undefined);
+      }
+    } catch (err) {
+      console.error('Erro ao instalar Harpa Cristã:', err);
+      harpaInstallSuccess = false;
+      harpaInstallMessage = `Erro de conexão: ${err}`;
+      notifyError('Erro de conexão', String(err));
+    } finally {
+      isInstallingHarpa = false;
+    }
+  }
+
+  function handleSaveSongLines(lines: number) {
+    localSongSettings.lines_per_slide = lines;
+    saveSongSettings(localSongSettings);
+    notifySuccess('Padrão de linhas salvo', `${lines === 0 ? 'Preservar original' : `${lines} linhas por slide`} como padrão`);
+  }
+
+  function triggerSettingsSongImport() {
+    settingsSongFileInputEl?.click();
+  }
+
+  async function handleSettingsSongFilesSelected(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const files = input.files;
+    if (!files || files.length === 0) return;
+
+    isSettingsImporting = true;
+    settingsImportResult = null;
+    let totalImported = 0;
+    const tags = settingsImportTags
+      .split(/[,;\s]+/)
+      .map((t) => t.trim().toLowerCase().replace(/^#/, ''))
+      .filter(Boolean);
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const content = await file.text();
+        const res = await fetch('/api/songs/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            content,
+            tags,
+            lines_per_slide: localSongSettings.lines_per_slide,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          totalImported += data.imported_count || 1;
+        }
+      }
+      settingsImportResult = `${totalImported} música(s) importada(s) com sucesso!`;
+      notifySuccess(settingsImportResult);
+    } catch (err) {
+      console.error('Erro na importação:', err);
+      settingsImportResult = `Erro ao importar: ${err}`;
+      notifyError('Erro na importação', String(err));
+    } finally {
+      isSettingsImporting = false;
+      input.value = '';
+    }
+  }
+
   const currentBaseColorPreset = $derived(
     BASE_COLOR_PRESETS.find((p) => p.id === $baseColorStore) || BASE_COLOR_PRESETS[0]
   );
@@ -1228,6 +1330,15 @@
           >
             <BookOpen size={15} class={activeTab === 'bibles' ? 'text-primary' : 'text-neutral-500'} />
             <span>Bíblias Sagradas</span>
+          </button>
+
+          <button
+            type="button"
+            onclick={() => (activeTab = 'songs')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'songs' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+          >
+            <Music size={15} class={activeTab === 'songs' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Músicas & Harpa</span>
           </button>
 
           <button
@@ -4041,6 +4152,174 @@
                 </div>
               </div>
             {/if}
+
+          <!-- ABA: MÚSICAS, HARPA CRISTÃ E REPERTÓRIO -->
+          {:else if activeTab === 'songs'}
+            <div class="space-y-6 w-full max-w-3xl">
+              <div>
+                <h3 class="text-sm font-semibold text-foreground">Catálogo de Músicas e Harpa Cristã</h3>
+                <p class="text-xs text-muted-foreground mt-0.5">
+                  Gerencie o acervo de louvores, instale a Harpa Cristã completa (540 hinos) e defina o padrão de divisão de slides.
+                </p>
+              </div>
+
+              <!-- CARD 1: HARPA CRISTÃ -->
+              <div class="p-4 rounded-xl border border-border bg-card/60 shadow-xs space-y-4">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
+                      <BookOpen size={20} />
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <h4 class="text-sm font-bold text-foreground">Harpa Cristã Completa</h4>
+                        <Badge variant="outline" class="text-[10px] text-emerald-400 border-emerald-500/30 font-mono">
+                          540 Hinos
+                        </Badge>
+                        <Badge variant="secondary" class="text-[10px]">
+                          Oficial
+                        </Badge>
+                      </div>
+                      <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Instale todos os 540 hinos tradicionais da Harpa Cristã com numeração, estrofes, refrãos e classificação automática de tags (<code class="text-primary font-mono text-[11px]">#harpa</code>, <code class="text-primary font-mono text-[11px]">#hinos</code>, <code class="text-primary font-mono text-[11px]">#tradicional</code>).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-border/60">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onclick={handleInstallHarpa}
+                    disabled={isInstallingHarpa}
+                    class="text-xs gap-1.5 font-bold cursor-pointer"
+                  >
+                    {#if isInstallingHarpa}
+                      <RefreshCw size={13} class="animate-spin text-primary-foreground" />
+                      <span>Instalando 540 Hinos...</span>
+                    {:else}
+                      <Download size={13} />
+                      <span>Instalar Harpa Cristã (540 Hinos)</span>
+                    {/if}
+                  </Button>
+
+                  {#if harpaInstallMessage}
+                    <div class="flex items-center gap-1.5 text-xs {harpaInstallSuccess ? 'text-emerald-400 font-semibold' : 'text-red-400'}">
+                      {#if harpaInstallSuccess}
+                        <Check size={14} class="text-emerald-400 shrink-0" />
+                      {:else}
+                        <AlertCircle size={14} class="text-red-400 shrink-0" />
+                      {/if}
+                      <span>{harpaInstallMessage}</span>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+
+              <!-- CARD 2: PADRÃO DE LINHAS POR SLIDE -->
+              <div class="p-4 rounded-xl border border-border bg-card/60 shadow-xs space-y-4">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h4 class="text-sm font-bold text-foreground">Padrão de Linhas por Slide</h4>
+                    <Badge variant="outline" class="text-[10px] text-primary border-primary/30">
+                      Recomendado: 2 linhas
+                    </Badge>
+                  </div>
+                  <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Define o número ideal de linhas de letra em cada slide ao pesquisar músicas na internet (Holyrics/Vagalume), ao importar arquivos e no botão "2 Linhas/Slide" do editor de músicas.
+                  </p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {#each [
+                    { lines: 2, label: '2 Linhas / Slide', desc: 'Padrão da indústria (Holyrics / ProPresenter). Ideal para projeção e retorno de palco.' },
+                    { lines: 1, label: '1 Linha / Slide', desc: 'Minimalista e de leitura rápida. Ótimo para transmissões ao vivo e lower thirds.' },
+                    { lines: 3, label: '3 Linhas / Slide', desc: 'Estrofes médias em telas grandes com mais espaço vertical.' },
+                    { lines: 4, label: '4 Linhas / Slide', desc: 'Estrofes completas de 4 versos por slide.' },
+                    { lines: 0, label: 'Sem divisão automática', desc: 'Preserva estritamente as quebras originais sem reformatar.' },
+                  ] as opt}
+                    <button
+                      type="button"
+                      onclick={() => handleSaveSongLines(opt.lines)}
+                      class="p-3 rounded-lg border text-left transition-all cursor-pointer flex flex-col justify-between {localSongSettings.lines_per_slide === opt.lines ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-background/50 hover:bg-muted/40 text-muted-foreground'}"
+                    >
+                      <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold {localSongSettings.lines_per_slide === opt.lines ? 'text-primary' : 'text-foreground'}">
+                          {opt.label}
+                        </span>
+                        {#if localSongSettings.lines_per_slide === opt.lines}
+                          <Check size={14} class="text-primary shrink-0" />
+                        {/if}
+                      </div>
+                      <p class="text-[11px] text-muted-foreground leading-snug">
+                        {opt.desc}
+                      </p>
+                    </button>
+                  {/each}
+                </div>
+              </div>
+
+              <!-- CARD 3: IMPORTAÇÃO DE ARQUIVOS (JSON, TEXT, MARKDOWN) -->
+              <div class="p-4 rounded-xl border border-border bg-card/60 shadow-xs space-y-4">
+                <div>
+                  <h4 class="text-sm font-bold text-foreground">Importar Arquivos de Músicas</h4>
+                  <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Importe músicas individuais ou coletâneas em lote a partir de arquivos JSON, texto puro (.txt) ou Markdown (.md).
+                  </p>
+                </div>
+
+                <div class="space-y-3">
+                  <div>
+                    <label for="settings-import-tags-input" class="block text-xs font-medium text-foreground mb-1">
+                      Tags automáticas para as músicas importadas (opcional):
+                    </label>
+                    <input
+                      id="settings-import-tags-input"
+                      type="text"
+                      bind:value={settingsImportTags}
+                      placeholder="Ex: louvor, jovens, especial, culto"
+                      class="w-full h-8 px-3 bg-neutral-900 border border-neutral-800 rounded-md text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-primary"
+                    />
+                    <p class="text-[11px] text-muted-foreground mt-1">
+                      Separe as tags por vírgula. Serão adicionadas ao catálogo para facilitar busca e filtragem.
+                    </p>
+                  </div>
+
+                  <div class="flex items-center gap-3 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onclick={triggerSettingsSongImport}
+                      disabled={isSettingsImporting}
+                      class="text-xs gap-1.5 cursor-pointer"
+                    >
+                      {#if isSettingsImporting}
+                        <RefreshCw size={13} class="animate-spin text-primary" />
+                        <span>Processando arquivos...</span>
+                      {:else}
+                        <Upload size={13} class="text-primary" />
+                        <span>Selecionar Arquivos (.json, .txt, .md)</span>
+                      {/if}
+                    </Button>
+                    <input
+                      type="file"
+                      bind:this={settingsSongFileInputEl}
+                      onchange={handleSettingsSongFilesSelected}
+                      accept=".json,.txt,.md,text/plain,application/json,text/markdown"
+                      multiple
+                      class="hidden"
+                    />
+
+                    {#if settingsImportResult}
+                      <span class="text-xs text-emerald-400 font-medium">
+                        {settingsImportResult}
+                      </span>
+                    {/if}
+                  </div>
+                </div>
+              </div>
+            </div>
 
           <!-- ABA 2: ARQUIVOS E PASTAS (Mapeamento Zero-Copy e Pastas do Sistema) -->
           {:else if activeTab === 'files'}
