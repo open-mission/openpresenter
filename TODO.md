@@ -7,7 +7,6 @@
 
 
 ## Backlog
-- [ ] Feat: Add suport ao Sonner/toast para avisar quando as cores acontece: Apresentacao é iniciada, parada. Nova Musica Salva. Editada, Novo Aparelho Conectado entre outros.
 - [ ] Improve: Quando clicamos na aba de Biblia e ela está fechada, aumentar a altura que ela está abrindo, talvez podemos colocar 75% da altura.
 - [ ] Improve/fix: Quando redmensionamos o painel de midias ele parece que tem um delay, veja se dá para usar o nativo do shadnui para ficar mais fluido (https://www.shadcn-svelte.com/docs/components/resizable)
 - [ ] Improve: Add a opcao de mostrar no Stage os itens (aviso,  clock e timer) embaixo do Proximo Slide, ficando tres linhas assim podemos aproveitar melhor o espaço. Ajustar para podermos controlar a altura dessas linhas, e as porcentagens serem atualizadas, por exemplo se temos 3 linhas uma preenche 30%, outra 30% entao a ultima só pode preencer até 40%, ou seja as alturas da linha precisa ser somadas até 100% para recalcular as alturas.
@@ -20,6 +19,8 @@
 
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Feat: Suporte a notificações toast com Sonner (`svelte-sonner`) para feedback em tempo real no AdminView (desktop) e RemoteView (mobile) alertando quando apresentações são iniciadas/paradas, novas músicas salvas/editadas no catálogo, modos de exibição alternados e novos aparelhos conectados na rede, preservando telas de projeção (`/public`, `/stage` e `/lower-third`) 100% limpas. (commit 8eef399 - 2026-10-31 08:49:13 -03:00)
 
 - [x] Improve: Opção de reiniciar a aplicação ou o servidor ao ser atualizado e no system tray menu: implementação de `restart_application()` multiplataforma com spawn desanexado, item "Reiniciar OpenPresenter" no System Tray (`TrayMenuIds::restart`), rotas `POST /api/system/restart` e `POST /api/updater/restart`, botão de ação "Reiniciar Aplicativo Agora" em `SettingsModal.svelte` ao atingir o estado `ReadyToRestart` e cartão de reinício na aba Sobre com feedback de progresso e reload automático. (commit a8a9619 - 2026-10-31 08:43:02 -03:00)
 
