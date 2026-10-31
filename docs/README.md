@@ -186,6 +186,7 @@
 ## Sincronização Multi-Instância e Navegação (v0.3.2)
 
 - [Spec — Correção de Destaque Ativo de Versículos em Múltiplas Instâncias do Painel Admin](specs/2026-10-31-fix-bible-panel-multi-instance-active-verse-highlight.md)
+- [Spec — Correção de Sentido na Navegação por Teclas de Seta e Sincronização de Slides em Tempo Real](specs/2026-10-31-fix-slide-navigation-arrow-keys-direction.md)
 
 ## Arquitetura e decisões
 

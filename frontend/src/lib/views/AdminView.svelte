@@ -162,6 +162,7 @@
   let numberBuffer = $state<string>('');
   let numberBufferTimer: ReturnType<typeof setTimeout> | null = null;
   let prevMediaId = $state<string>('');
+  let prevActiveMediaId = $state<string>('');
   let updateInfo = $state<UpdateCheckResponse | null>(null);
 
   // Menu de Contexto
@@ -311,25 +312,51 @@
 
   const formattedHeaderTimer = $derived(formatHeaderTimer(timer?.remaining_seconds ?? 0));
 
-  // Sincroniza o slide focado quando a mídia selecionada muda
+  // Sincroniza o slide focado e a mídia ativa com atualizações em tempo real e trocas de seleção
   $effect(() => {
-    if (selectedMediaId !== prevMediaId) {
+    const liveMediaId = $presentationState.active_media_id;
+    const liveSlideIdx = $presentationState.active_slide_index;
+
+    // Se uma nova mídia entrar ao vivo no sistema (por este cliente, por outro operador ou pelo celular/remoto)
+    if (liveMediaId && liveMediaId !== prevActiveMediaId) {
+      prevActiveMediaId = liveMediaId;
+      selectedMediaId = liveMediaId;
+      if (liveSlideIdx !== null && liveSlideIdx !== undefined) {
+        focusedSlideIndex = liveSlideIdx;
+      }
+    } else if (selectedMediaId !== prevMediaId) {
       prevMediaId = selectedMediaId;
       if (
-        $presentationState.active_media_id === selectedMediaId &&
-        $presentationState.active_slide_index !== null &&
-        $presentationState.active_slide_index !== undefined
+        liveMediaId === selectedMediaId &&
+        liveSlideIdx !== null &&
+        liveSlideIdx !== undefined
       ) {
-        focusedSlideIndex = $presentationState.active_slide_index;
+        focusedSlideIndex = liveSlideIdx;
       } else {
         focusedSlideIndex = 0;
       }
+    } else if (
+      liveMediaId === selectedMediaId &&
+      liveSlideIdx !== null &&
+      liveSlideIdx !== undefined &&
+      focusedSlideIndex !== liveSlideIdx
+    ) {
+      // Quando o slide ao vivo muda em qualquer outro aparelho conectado, sincroniza o índice local imediatamente
+      focusedSlideIndex = liveSlideIdx;
     }
   });
+
+  function scrollToSlideCard(idx: number) {
+    if (typeof document !== 'undefined') {
+      const el = document.getElementById(`slide-card-${idx}`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
 
   // Disparo e controle de apresentação
   function selectSlideForFocus(idx: number) {
     focusedSlideIndex = idx;
+    scrollToSlideCard(idx);
   }
 
   function presentSlide(idx: number = focusedSlideIndex) {
@@ -337,6 +364,7 @@
     const clamped = Math.max(0, Math.min(idx, selectedMedia.slides.length - 1));
     focusedSlideIndex = clamped;
     selectSlide(selectedMedia.id, clamped);
+    scrollToSlideCard(clamped);
   }
 
   function stopPresentation() {
@@ -346,21 +374,39 @@
   // Navegação de slides
   function nextSlide() {
     if (!selectedMedia || selectedMedia.slides.length === 0) return;
-    if (focusedSlideIndex < selectedMedia.slides.length - 1) {
-      focusedSlideIndex++;
+    const currentIdx =
+      isSelectedMediaLive &&
+      $presentationState.active_slide_index !== null &&
+      $presentationState.active_slide_index !== undefined
+        ? $presentationState.active_slide_index
+        : focusedSlideIndex;
+
+    if (currentIdx < selectedMedia.slides.length - 1) {
+      const nextIdx = currentIdx + 1;
+      focusedSlideIndex = nextIdx;
       if (isSelectedMediaLive) {
-        selectSlide(selectedMedia.id, focusedSlideIndex);
+        selectSlide(selectedMedia.id, nextIdx);
       }
+      scrollToSlideCard(nextIdx);
     }
   }
 
   function prevSlide() {
     if (!selectedMedia || selectedMedia.slides.length === 0) return;
-    if (focusedSlideIndex > 0) {
-      focusedSlideIndex--;
+    const currentIdx =
+      isSelectedMediaLive &&
+      $presentationState.active_slide_index !== null &&
+      $presentationState.active_slide_index !== undefined
+        ? $presentationState.active_slide_index
+        : focusedSlideIndex;
+
+    if (currentIdx > 0) {
+      const prevIdx = currentIdx - 1;
+      focusedSlideIndex = prevIdx;
       if (isSelectedMediaLive) {
-        selectSlide(selectedMedia.id, focusedSlideIndex);
+        selectSlide(selectedMedia.id, prevIdx);
       }
+      scrollToSlideCard(prevIdx);
     }
   }
 
@@ -395,11 +441,19 @@
 
     if (matchingIndices.length === 0) return false;
 
-    const nextIdx = matchingIndices.find((idx) => idx > focusedSlideIndex) ?? matchingIndices[0];
+    const currentIdx =
+      isSelectedMediaLive &&
+      $presentationState.active_slide_index !== null &&
+      $presentationState.active_slide_index !== undefined
+        ? $presentationState.active_slide_index
+        : focusedSlideIndex;
+
+    const nextIdx = matchingIndices.find((idx) => idx > currentIdx) ?? matchingIndices[0];
     focusedSlideIndex = nextIdx;
     if (isSelectedMediaLive) {
       selectSlide(selectedMedia.id, nextIdx);
     }
+    scrollToSlideCard(nextIdx);
     return true;
   }
 
@@ -786,6 +840,7 @@
 
   async function handlePresentSong(songId: string) {
     await handleAddSongToSetlist(songId);
+    focusedSlideIndex = 0;
     selectSlide(songId, 0);
   }
 
@@ -804,7 +859,8 @@
       ],
     };
     selectedMediaId = item.id;
-    quickPresentMedia(item);
+    focusedSlideIndex = 0;
+    quickPresentMedia(item, 0);
   }
 
   function handleOpenPreviewImage(image: ImageMediaItem) {
@@ -855,6 +911,7 @@
 
   function handlePresentScripture(item: MediaItem, slideIndex: number) {
     selectedMediaId = item.id;
+    focusedSlideIndex = slideIndex;
     quickPresentMedia(item, slideIndex);
   }
 
@@ -936,6 +993,7 @@
       const slideIdx = targetIndex >= 0 ? targetIndex : 0;
 
       selectedMediaId = scriptureItem.id;
+      focusedSlideIndex = slideIdx;
       quickPresentMedia(scriptureItem, slideIdx);
     } catch (err) {
       console.error('Erro ao projetar passagem bíblica:', err);
@@ -1734,6 +1792,7 @@
               {@const sectionStyle = getSectionStyle(slide.label, $sectionsStore)}
 
               <div
+                id={`slide-card-${idx}`}
                 class={cn(
                   'group flex flex-col rounded-lg border transition-all duration-150 overflow-hidden cursor-pointer select-none relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                   isLive

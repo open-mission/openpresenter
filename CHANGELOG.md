@@ -10,6 +10,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 - **Sincronização de versículos bíblicos ao vivo no painel admin em múltiplas instâncias:**
   - Correção na validação de passagem ativa em `BiblePanel.svelte`, assegurando que a marcação em verde e o selo "Ao Vivo" sejam exibidos estritamente quando o livro e capítulo atualmente abertos corresponderem à passagem em projeção.
   - Eliminação de falso-positivo onde instâncias secundárias exibiam o mesmo número de versículo em verde em capítulos não relacionados (ex: 1Ts 1:7 aparecendo verde quando 1Ts 5:7 estava sendo apresentado).
+- **Sentido na navegação de slides via teclado e sincronização em tempo real:**
+  - Correção nas funções `nextSlide()` e `prevSlide()` em `AdminView.svelte`, assegurando que o cálculo do próximo slide utilize o índice ativo em tempo real (`active_slide_index`) quando a mídia estiver ao vivo, evitando retrocessos involuntários ao pressionar `ArrowRight`, `PageDown` ou `Espaço`.
+  - Inicialização explícita de `focusedSlideIndex` ao disparar versículos bíblicos (`handlePresentScripture`), músicas e imagens.
+  - Sincronização contínua do foco do operador quando outro aparelho conectado (ou controle remoto mobile) alterar o slide ativo.
 
 ## [0.3.1] - 2026-10-30
 
