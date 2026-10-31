@@ -7,7 +7,6 @@
 
 
 ## Backlog
-- [ ] Improve: Add a opcao de mostrar no Stage os itens (aviso,  clock e timer) embaixo do Proximo Slide, ficando tres linhas assim podemos aproveitar melhor o espaço. Ajustar para podermos controlar a altura dessas linhas, e as porcentagens serem atualizadas, por exemplo se temos 3 linhas uma preenche 30%, outra 30% entao a ultima só pode preencer até 40%, ou seja as alturas da linha precisa ser somadas até 100% para recalcular as alturas.
 - [ ] No Remote Add a Fundo Vermelho para o botão de parar apresentação que fica no Header. Para ficar mais intuitivo.
 - [ ] Improve: Add a opcao de importar mais de uma versao da biblia de uma vez, a ideia de poder selecionar varias biblias e ele importar um a um.
 
@@ -17,6 +16,8 @@
 
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Improve: Layout de 3 linhas no Stage (aviso, clock e timer embaixo do Próximo Slide) aproveitando melhor o espaço horizontal da tela para letras e versículos, seletor de layout (3 linhas empilhadas vs coluna lateral), recálculo proporcional automático dos sliders de altura mantendo soma exata de 100% e paridade visual no preview do operador (`StagePreviewBox.svelte`). (commit 983d3fd - 2026-10-31 09:08:50 -03:00)
 
 - [x] Improve/fix: Redimensionamento fluido e sem delay do painel inferior de mídias (`BottomPanel.svelte`) com desativação de transição CSS durante o arrasto, captura global de cursor, prevenção de seleção acidental, grip visual no divisor e integração dos componentes nativos `Resizable` do shadcn-svelte (`ResizablePaneGroup`, `ResizablePane`, `ResizableHandle`) baseados em `paneforge`. (commit cb707a3 - 2026-10-31 08:59:33 -03:00)
 
