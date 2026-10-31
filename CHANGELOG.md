@@ -6,6 +6,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Corrigido
+- **Sincronização de versículos bíblicos ao vivo no painel admin em múltiplas instâncias:**
+  - Correção na validação de passagem ativa em `BiblePanel.svelte`, assegurando que a marcação em verde e o selo "Ao Vivo" sejam exibidos estritamente quando o livro e capítulo atualmente abertos corresponderem à passagem em projeção.
+  - Eliminação de falso-positivo onde instâncias secundárias exibiam o mesmo número de versículo em verde em capítulos não relacionados (ex: 1Ts 1:7 aparecendo verde quando 1Ts 5:7 estava sendo apresentado).
+
 ## [0.3.1] - 2026-10-30
 
 ### Corrigido

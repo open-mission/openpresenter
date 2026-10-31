@@ -183,6 +183,10 @@
 - [Spec — Preparação e Lançamento da Versão 0.3.1](specs/2026-10-30-release-0-3-1.md)
 - [Plano — Preparação e Lançamento da Versão 0.3.1](plans/2026-10-30-release-0-3-1.md)
 
+## Sincronização Multi-Instância e Navegação (v0.3.2)
+
+- [Spec — Correção de Destaque Ativo de Versículos em Múltiplas Instâncias do Painel Admin](specs/2026-10-31-fix-bible-panel-multi-instance-active-verse-highlight.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

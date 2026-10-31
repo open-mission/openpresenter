@@ -29,7 +29,7 @@
     ParsedReference,
   } from '../types';
   import { parseBibleReference } from '../bibleParser';
-  import { presentationState, quickPresentMedia } from '../ws';
+  import { presentationState, quickPresentMedia, mediaItemsList } from '../ws';
   import { biblesStore, refreshBibles } from '../bibles';
 
   interface Props {
@@ -112,10 +112,75 @@
     })
   );
 
-  // Verifica se o slide projetado é deste livro e capítulo
-  const isScriptureLive = $derived(
-    $presentationState.active_media_id?.startsWith('scripture-')
-  );
+  // Mídia atualmente ao vivo no sistema (seja por quick_media avulsa ou item da Setlist)
+  const activeMedia = $derived.by<MediaItem | undefined>(() => {
+    const p = $presentationState;
+    if (!p.active_media_id) return undefined;
+    if (p.quick_media && p.quick_media.id === p.active_media_id) {
+      return p.quick_media;
+    }
+    return $mediaItemsList.find((m) => m.id === p.active_media_id);
+  });
+
+  // Slide atualmente ao vivo
+  const activeSlide = $derived.by<Slide | undefined>(() => {
+    const p = $presentationState;
+    if (!activeMedia || p.active_slide_index === null || p.active_slide_index === undefined) {
+      return undefined;
+    }
+    return activeMedia.slides[p.active_slide_index];
+  });
+
+  // Verifica se o slide projetado é DESTE livro e DESTE capítulo especificamente
+  const isScriptureLive = $derived.by<boolean>(() => {
+    const p = $presentationState;
+    if (!p.active_media_id || p.display_mode !== 'live') return false;
+
+    // 1. Verificação por ID canônico de passagem rápida (ex: scripture-ARA-52-5 ou scripture-52-5)
+    const expectedQuickId = `scripture-${selectedBibleId}-${selectedBookId}-${selectedChapter}`;
+    if (p.active_media_id === expectedQuickId) return true;
+    if (p.active_media_id === `scripture-${selectedBookId}-${selectedChapter}`) return true;
+    if (p.active_media_id.startsWith(`scripture-${selectedBookId}-${selectedChapter}-`)) return true;
+
+    // 2. Verificação por mídia ativa (título da mídia ou rótulo do slide ativo)
+    if (activeMedia && (activeMedia.kind === 'scripture' || activeMedia.id.startsWith('scripture-'))) {
+      const bookName = currentBook.name.toLowerCase();
+      const bookAbbr = currentBook.abbreviation.toLowerCase();
+      const mediaTitle = (activeMedia.title || '').toLowerCase();
+
+      // Checa título da mídia (ex: "1 Tessalonicenses 5" ou "1Ts 5")
+      if (
+        mediaTitle.startsWith(`${bookName} ${selectedChapter}`) ||
+        mediaTitle.startsWith(`${bookAbbr} ${selectedChapter}`)
+      ) {
+        return true;
+      }
+
+      // Checa rótulo do slide ativo (ex: "1 Tessalonicenses 5:7")
+      if (activeSlide) {
+        const slideLabel = (activeSlide.label || '').toLowerCase();
+        if (
+          slideLabel.startsWith(`${bookName} ${selectedChapter}:`) ||
+          slideLabel.startsWith(`${bookAbbr} ${selectedChapter}:`)
+        ) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  });
+
+  // Mantém o versículo ao vivo em vista se o capítulo estiver aberto
+  $effect(() => {
+    if (isScriptureLive && $presentationState.active_slide_index !== null) {
+      const liveVerse = verses[$presentationState.active_slide_index];
+      if (liveVerse) {
+        const el = document.getElementById(`verse-slide-${liveVerse.verse}`);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  });
 
   onMount(() => {
     refreshBibles();
@@ -929,7 +994,13 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 pb-3">
             {#each verses as v (v.id)}
               {@const isSelected = selectedVerseNumbers.includes(v.verse)}
-              {@const isLive = isScriptureLive && $presentationState.active_slide_index !== null && verses[$presentationState.active_slide_index]?.verse === v.verse}
+              {@const isLive =
+                isScriptureLive &&
+                ((activeSlide &&
+                  ((activeSlide.label && activeSlide.label.toLowerCase().endsWith(`:${v.verse}`)) ||
+                    activeSlide.id === `v-${v.verse}`)) ||
+                  ($presentationState.active_slide_index !== null &&
+                    verses[$presentationState.active_slide_index]?.verse === v.verse))}
 
               <!-- Cartão de Slide de Versículo -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
