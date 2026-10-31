@@ -7,7 +7,15 @@
 
 
 ## Backlog
-
+- [ ] Fix: Eu percebi que quando temos duas instancias conectadas no painel admin, ele se perde um pouco, por exemplo: Se em uma maquina eu estou com a aba da biblia aberta em 1Ts 5.7 (apresentando), se abro outra instancia em outra maquina e for por exemplo 1Ts 1.7 ele fica verde como se estivesse sendo apresentado o versiculo, mas na verdade é 1ts 5.7 acredito que isso aconteça pelo fato do numero de versículo for o mesmo.
+- [ ] QUando estamos em versículo por exemplo e uso as setas de navegação left e right do teclado, ele nao está avançando, mas sim voltando ou algo do tipo, em meu teste eu apertava a tecla right e ele ia para trás ao invés de ir para o proximo. Revise isso por favor, isso pode acontecer quando tem mais de aparelho conectado no painel.
+- [ ] Feat: Desenvolver sistema de logs para manter salvos as acoes do programa e quem vez isso no sentido de instancia
+- [ ] Improve: no componente que mostra "Online" e vemos os clientes conectados, ele fica no Header. Add a opção de visualizar o Navegador ou Aparelho que está conectado.
+- [ ] Improve: Add a opcao de reiniciar a aplicacao ou o servidor ao ser atualizado. e add isso no trail menu.
+- [ ] Feat: Add suport ao Sonner/toast para avisar quando as cores acontece: Apresentacao é iniciada, parada. Nova Musica Salva. Editada, Novo Aparelho Conectado entre outros.
+- [ ] Improve: Quando clicamos na aba de Biblia e ela está fechada, aumentar a altura que ela está abrindo, talvez podemos colocar 75% da altura.
+- [ ] Improve/fix: Quando redmensionamos o painel de midias ele parece que tem um delay, veja se dá para usar o nativo do shadnui para ficar mais fluido (https://www.shadcn-svelte.com/docs/components/resizable)
+- [ ] Improve: Add a opcao de mostrar no Stage os itens (aviso,  clock e timer) embaixo do Proximo Slide, ficando tres linhas assim podemos aproveitar melhor o espaço. Ajustar para podermos controlar a altura dessas linhas, e as porcentagens serem atualizadas, por exemplo se temos 3 linhas uma preenche 30%, outra 30% entao a ultima só pode preencer até 40%, ou seja as alturas da linha precisa ser somadas até 100% para recalcular as alturas.
 
 
 ## Doing
