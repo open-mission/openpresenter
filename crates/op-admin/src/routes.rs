@@ -38,6 +38,7 @@ pub struct SetModeRequest {
 pub struct SongQuery {
     pub q: Option<String>,
     pub tag: Option<String>,
+    pub limit: Option<usize>,
 }
 
 #[derive(Deserialize)]
@@ -684,6 +685,12 @@ async fn get_songs(
     };
     if let Some(target_tag) = tag_filter {
         songs.retain(|s| s.tags.iter().any(|t| t.eq_ignore_ascii_case(&target_tag)));
+    }
+    if let Some(lim) = query.limit
+        && lim > 0
+        && lim < songs.len()
+    {
+        songs.truncate(lim);
     }
     Json(songs)
 }

@@ -151,6 +151,11 @@
   let songs = $state<SongSummary[]>([]);
   let songTags = $state<string[]>([]);
   let selectedSongTag = $state<string | null>(null);
+  let songLimit = $state<number>(
+    typeof window !== 'undefined'
+      ? Number(localStorage.getItem('open_presenter_song_limit') || '50')
+      : 50
+  );
   let isLoadingSongs = $state(false);
   let isImportingSongs = $state(false);
   let songFileInputEl: HTMLInputElement | null = $state(null);
@@ -269,6 +274,7 @@
       const q = songSearch.trim();
       if (q) params.set('q', q);
       if (selectedSongTag) params.set('tag', selectedSongTag);
+      if (songLimit > 0) params.set('limit', String(songLimit));
       const url = params.toString() ? `/api/songs?${params.toString()}` : '/api/songs';
       const res = await fetch(url);
       if (res.ok) {
@@ -279,6 +285,14 @@
     } finally {
       isLoadingSongs = false;
     }
+  }
+
+  function handleSongLimitChange(newLimit: number) {
+    songLimit = newLimit;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('open_presenter_song_limit', String(newLimit));
+    }
+    loadSongs();
   }
 
   function selectSongTag(tag: string | null) {
@@ -768,6 +782,23 @@
           </div>
 
           <div class="flex items-center gap-2">
+            <!-- Seletor de limite de exibição: 50, 100, 150, 200 ou todas -->
+            <div class="flex items-center gap-1.5 bg-neutral-900 border border-neutral-800 rounded-md px-2 h-7 text-xs text-neutral-300">
+              <span class="text-[11px] text-neutral-400 font-medium hidden sm:inline">Exibir:</span>
+              <select
+                value={songLimit}
+                onchange={(e) => handleSongLimitChange(Number((e.target as HTMLSelectElement).value))}
+                aria-label="Filtrar quantidade de músicas exibidas"
+                class="bg-transparent border-none text-xs text-foreground font-medium focus:outline-none cursor-pointer p-0"
+              >
+                <option value={50} class="bg-neutral-900 text-foreground">50</option>
+                <option value={100} class="bg-neutral-900 text-foreground">100</option>
+                <option value={150} class="bg-neutral-900 text-foreground">150</option>
+                <option value={200} class="bg-neutral-900 text-foreground">200</option>
+                <option value={0} class="bg-neutral-900 text-foreground">Todas</option>
+              </select>
+            </div>
+
             <Button
               variant="outline"
               size="sm"

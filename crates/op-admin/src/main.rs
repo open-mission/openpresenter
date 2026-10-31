@@ -544,6 +544,25 @@ mod tests {
         let tag_results: Vec<op_core::SongSummary> = serde_json::from_slice(&tag_body).unwrap();
         assert_eq!(tag_results.len(), 1);
 
+        // Busca com limite
+        let limit_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/songs?limit=1")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(limit_resp.status(), StatusCode::OK);
+        let limit_body = axum::body::to_bytes(limit_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let limit_results: Vec<op_core::SongSummary> = serde_json::from_slice(&limit_body).unwrap();
+        assert_eq!(limit_results.len(), 1);
+
         // Lista tags
         let tags_list_resp = app
             .oneshot(

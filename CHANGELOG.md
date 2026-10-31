@@ -7,6 +7,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Seletor de Quantidade de Músicas no Painel de Catálogo (50, 100, 150, 200, Todas):**
+  - Controle integrado na barra de ações da aba de Músicas (`BottomPanel.svelte`) permitindo filtrar e paginar dinamicamente a quantidade de músicas exibidas com opções de `50`, `100`, `150`, `200` ou `Todas`.
+  - Parâmetro `limit` suportado na API backend `GET /api/songs?limit=...`, truncando resultados com segurança após aplicação de filtros de busca e tags.
+  - Persistência automática da preferência do operador no `localStorage` (`open_presenter_song_limit`).
 - **Importação de Músicas (JSON, TXT, MD), Instalação da Harpa Cristã, Tags e Padrão de 2 Linhas por Slide:**
   - Importação flexível de arquivos de músicas nos formatos JSON (estruturado ou Harpa Cristã), texto puro (.txt) e Markdown (.md), preservando seções ou dividindo estrofes no padrão configurado.
   - Instalação oficial com 1 clique da Harpa Cristã completa (540 hinos tradicionais) a partir do arquivo embutido `assets/songs/harpa-crista.json` com fallback para download resiliente via GitHub raw, formatada no padrão configurado e categorizada automaticamente com tags `#harpa`, `#hinos`, `#tradicional`.
