@@ -24,6 +24,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Redimensionamento Fluido do Painel de Mídias e Suíte Resizable Shadcn:**
+  - Eliminação da latência e atraso perceptível no redimensionamento manual do painel inferior de mídias (`BottomPanel.svelte`) através da desativação condicional da transição CSS (`transition-[height]`) durante o arrasto, captura global do cursor `row-resize` e bloqueio de seleção acidental de texto.
+  - Adição de indicador visual centralizado de grip bar estilizado no separador superior do painel inferior.
+  - Introdução da biblioteca de componentes `ui/resizable` no padrão shadcn-svelte (`ResizablePaneGroup`, `ResizablePane`, `ResizableHandle`) baseada em `paneforge`.
 - **Altura Otimizada ao Abrir a Aba de Bíblia:**
   - Expansão automática do painel inferior para 75% da altura útil da janela (`Math.round(window.innerHeight * 0.75)`) ao selecionar a aba "Bíblia" com o painel fechado ou com altura padrão reduzida.
   - Proporciona espaço ergonômico e amplo para consulta de livros, capítulos, versículos e buscas textuais, preservando a barra superior e o preview do slide ativo.

@@ -363,27 +363,34 @@
     setPresentationWallpaper(encodedOrUrl, fit);
   }
 
-  // Arraste para redimensionamento de altura
+  // Arraste fluido para redimensionamento de altura sem delay
   function startResize(e: MouseEvent) {
     if (isMaximized) return;
+    e.preventDefault();
     isDragging = true;
     startY = e.clientY;
     startHeight = panelHeight;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
 
-    window.addEventListener('mousemove', handleResizeMove);
+    window.addEventListener('mousemove', handleResizeMove, { passive: false });
     window.addEventListener('mouseup', stopResize);
   }
 
   function handleResizeMove(e: MouseEvent) {
     if (!isDragging) return;
     const delta = startY - e.clientY;
-    const newHeight = Math.min(Math.max(180, startHeight + delta), window.innerHeight - 80);
+    const minH = 140;
+    const maxH = window.innerHeight - 80;
+    const newHeight = Math.max(minH, Math.min(maxH, startHeight + delta));
     panelHeight = newHeight;
     if (isCollapsed) isCollapsed = false;
   }
 
   function stopResize() {
     isDragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
     window.removeEventListener('mousemove', handleResizeMove);
     window.removeEventListener('mouseup', stopResize);
   }
@@ -443,14 +450,17 @@
 />
 
 <div
-  class="border-t border-border bg-card/95 backdrop-blur-md flex flex-col shrink-0 select-none transition-[height] duration-150 relative z-30"
+  class={cn(
+    'border-t border-border bg-card/95 backdrop-blur-md flex flex-col shrink-0 select-none relative z-30',
+    !isDragging && 'transition-[height] duration-200 ease-out'
+  )}
   style={isCollapsed
     ? 'height: 40px;'
     : isMaximized
       ? 'height: calc(100vh - 56px);'
       : `height: ${panelHeight}px;`}
 >
-  <!-- Handle de Redimensionamento Superior Acessível -->
+  <!-- Handle de Redimensionamento Superior Acessível com Grip do Shadcn -->
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div
@@ -458,18 +468,28 @@
     tabindex="0"
     aria-orientation="horizontal"
     aria-label="Ajustar altura do painel de mídias (setas para cima ou para baixo)"
-    class="h-2 w-full cursor-row-resize bg-border/40 hover:bg-primary/50 focus-visible:bg-primary focus-visible:outline-none transition-colors absolute top-0 left-0 right-0 z-40"
+    class={cn(
+      'group h-2.5 w-full cursor-row-resize bg-border/40 hover:bg-primary/50 focus-visible:bg-primary focus-visible:outline-none transition-colors absolute top-0 left-0 right-0 z-40 flex items-center justify-center',
+      isDragging && 'bg-primary'
+    )}
     onmousedown={startResize}
     onkeydown={(e) => {
       if (e.key === 'ArrowUp') {
         panelHeight = Math.min(panelHeight + 20, window.innerHeight - 80);
         isCollapsed = false;
       } else if (e.key === 'ArrowDown') {
-        panelHeight = Math.max(180, panelHeight - 20);
+        panelHeight = Math.max(140, panelHeight - 20);
       }
     }}
     title="Arrastar ou usar setas para ajustar altura"
-  ></div>
+  >
+    <div
+      class={cn(
+        'h-1 w-8 rounded-full bg-border/80 group-hover:bg-primary-foreground/90 transition-colors',
+        isDragging && 'bg-primary-foreground'
+      )}
+    ></div>
+  </div>
 
   <!-- Barra de Abas e Controles -->
   <div
