@@ -99,7 +99,12 @@ async fn handle_socket(socket: WebSocket, state: AppState, client_ip: String) {
             Ok(Message::Text(text)) => {
                 debug!("Mensagem WebSocket recebida: {text}");
                 match serde_json::from_str::<WsMessage>(&text) {
-                    Ok(WsMessage::Identify { client_type, route }) => {
+                    Ok(WsMessage::Identify {
+                        client_type,
+                        route,
+                        instance_id,
+                        device_info,
+                    }) => {
                         let active_route = route.unwrap_or_else(|| match client_type.as_str() {
                             "public" => "/public".to_string(),
                             "stage" => "/stage".to_string(),
@@ -108,7 +113,8 @@ async fn handle_socket(socket: WebSocket, state: AppState, client_ip: String) {
                             _ => "/".to_string(),
                         });
                         info!(
-                            "Cliente WebSocket identificado como '{client_type}' rota '{active_route}' ip '{client_ip}'"
+                            "Cliente WebSocket identificado como '{client_type}' rota '{active_route}' ip '{client_ip}' aparelho '{:?}'",
+                            device_info
                         );
                         state.set_connection(&client_type, true).await;
                         state
@@ -117,6 +123,8 @@ async fn handle_socket(socket: WebSocket, state: AppState, client_ip: String) {
                                 &client_ip,
                                 &active_route,
                                 &client_type,
+                                instance_id,
+                                device_info,
                             )
                             .await;
                         client_identity = Some(client_type);
@@ -125,24 +133,89 @@ async fn handle_socket(socket: WebSocket, state: AppState, client_ip: String) {
                         media_id,
                         slide_index,
                     }) => {
+                        let conn_info = state.get_connection_info(&conn_id).await;
+                        let details = format!(
+                            "Slide {} selecionado na mídia '{}'",
+                            slide_index + 1,
+                            media_id
+                        );
+                        state
+                            .log_action(
+                                "slide_change",
+                                "presentation",
+                                &details,
+                                conn_info.as_ref(),
+                            )
+                            .await;
                         state.select_slide(media_id, slide_index).await;
                     }
                     Ok(WsMessage::SetDisplayMode { mode }) => {
+                        let conn_info = state.get_connection_info(&conn_id).await;
+                        let mode_label = match mode {
+                            op_core::DisplayMode::Live => "Ao Vivo",
+                            op_core::DisplayMode::Blackout => "Blackout (Tela Preta)",
+                            op_core::DisplayMode::ClearText => "Texto Oculto (Papel de Parede)",
+                        };
+                        let details = format!("Modo de exibição alterado para {}", mode_label);
+                        state
+                            .log_action(
+                                "display_mode_change",
+                                "presentation",
+                                &details,
+                                conn_info.as_ref(),
+                            )
+                            .await;
                         state.set_display_mode(mode).await;
                     }
                     Ok(WsMessage::StopPresentation) => {
+                        let conn_info = state.get_connection_info(&conn_id).await;
+                        state
+                            .log_action(
+                                "presentation_stop",
+                                "presentation",
+                                "Apresentação parada",
+                                conn_info.as_ref(),
+                            )
+                            .await;
                         state.stop_presentation().await;
                     }
                     Ok(WsMessage::SetWallpaper { path, mode }) => {
                         state.set_wallpaper(path, mode).await;
                     }
                     Ok(WsMessage::StartTimer) => {
+                        let conn_info = state.get_connection_info(&conn_id).await;
+                        state
+                            .log_action(
+                                "timer_start",
+                                "timer",
+                                "Cronômetro iniciado",
+                                conn_info.as_ref(),
+                            )
+                            .await;
                         state.start_timer().await;
                     }
                     Ok(WsMessage::PauseTimer) => {
+                        let conn_info = state.get_connection_info(&conn_id).await;
+                        state
+                            .log_action(
+                                "timer_pause",
+                                "timer",
+                                "Cronômetro pausado",
+                                conn_info.as_ref(),
+                            )
+                            .await;
                         state.pause_timer().await;
                     }
                     Ok(WsMessage::ResetTimer) => {
+                        let conn_info = state.get_connection_info(&conn_id).await;
+                        state
+                            .log_action(
+                                "timer_reset",
+                                "timer",
+                                "Cronômetro reiniciado",
+                                conn_info.as_ref(),
+                            )
+                            .await;
                         state.reset_timer().await;
                     }
                     Ok(WsMessage::SetTimer {
@@ -158,11 +231,44 @@ async fn handle_socket(socket: WebSocket, state: AppState, client_ip: String) {
                         state.set_timer_overtime(allow_overtime).await;
                     }
                     Ok(WsMessage::QuickPresentMedia { item, slide_index }) => {
+                        let conn_info = state.get_connection_info(&conn_id).await;
+                        let category = match item.kind {
+                            op_core::MediaKind::Scripture => "bibles",
+                            _ => "presentation",
+                        };
+                        let details = format!(
+                            "Apresentação rápida de '{}' (slide {})",
+                            item.title,
+                            slide_index.unwrap_or(0) + 1
+                        );
+                        state
+                            .log_action(
+                                "quick_present_start",
+                                category,
+                                &details,
+                                conn_info.as_ref(),
+                            )
+                            .await;
                         state
                             .quick_present_media_with_slide(item, slide_index.unwrap_or(0))
                             .await;
                     }
                     Ok(WsMessage::SetStageMessage { message }) => {
+                        let conn_info = state.get_connection_info(&conn_id).await;
+                        let details = match &message {
+                            Some(m) if !m.trim().is_empty() => {
+                                format!("Mensagem para o palco definida: '{}'", m)
+                            }
+                            _ => "Mensagem para o palco removida".to_string(),
+                        };
+                        state
+                            .log_action(
+                                "stage_message_change",
+                                "presentation",
+                                &details,
+                                conn_info.as_ref(),
+                            )
+                            .await;
                         state.set_stage_message(message).await;
                     }
                     Ok(WsMessage::ReloadClients { target }) => {

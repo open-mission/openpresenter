@@ -1368,10 +1368,10 @@ mod tests {
 
         // Adiciona conexões
         state
-            .add_or_update_connection("c1", "192.168.1.50", "/public", "public")
+            .add_or_update_connection("c1", "192.168.1.50", "/public", "public", None, None)
             .await;
         state
-            .add_or_update_connection("c2", "192.168.1.55", "/stage", "stage")
+            .add_or_update_connection("c2", "192.168.1.55", "/stage", "stage", None, None)
             .await;
 
         let resp2 = create_routes(state.clone())
@@ -1398,5 +1398,63 @@ mod tests {
         let remaining = state.get_connections().await;
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].id, "c2");
+    }
+
+    #[tokio::test]
+    async fn test_action_logs_endpoints_and_history_work() {
+        let (state, _dir) = mock_state_with_db();
+
+        // Dispara uma ação
+        state
+            .log_action_custom(op_core::CreateActionLog {
+                action: "presentation_start".to_string(),
+                category: "presentation".to_string(),
+                details: "Iniciou apresentação de 'Graça Sublime'".to_string(),
+                instance_id: Some("inst-admin-test".to_string()),
+                client_type: Some("admin".to_string()),
+                device_info: Some("Chrome / macOS".to_string()),
+                ip_address: Some("127.0.0.1".to_string()),
+            })
+            .await;
+
+        let app = create_routes(state.clone());
+        let resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/logs")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), axum::http::StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let logs: Vec<op_core::ActionLog> = serde_json::from_slice(&body).unwrap();
+        assert_eq!(logs.len(), 1);
+        assert_eq!(logs[0].action, "presentation_start");
+        assert_eq!(logs[0].instance_id.as_deref(), Some("inst-admin-test"));
+        assert_eq!(logs[0].device_info.as_deref(), Some("Chrome / macOS"));
+
+        // Limpa logs
+        let app2 = create_routes(state.clone());
+        let del_resp = app2
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("DELETE")
+                    .uri("/api/logs")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(del_resp.status(), axum::http::StatusCode::NO_CONTENT);
+
+        let remaining = state.get_action_logs(10, 0, None).await;
+        // Depois de limpar, o próprio clear registra uma ação de 'logs_cleared'
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].action, "logs_cleared");
     }
 }

@@ -156,6 +156,7 @@ pub fn create_routes(state: AppState) -> Router {
         )
         .route("/api/system/network-info", get(get_network_info))
         .route("/api/connections", get(get_connections_endpoint))
+        .route("/api/logs", get(get_logs).delete(clear_logs))
         .route("/api/timer", get(get_timer))
         .route("/api/timer/start", post(start_timer))
         .route("/api/timer/pause", post(pause_timer))
@@ -246,6 +247,41 @@ async fn get_connections_endpoint(
 ) -> Json<Vec<op_core::ClientConnection>> {
     let conns = state.get_connections().await;
     Json(conns)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GetLogsQuery {
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+    pub category: Option<String>,
+}
+
+async fn get_logs(
+    State(state): State<AppState>,
+    Query(query): Query<GetLogsQuery>,
+) -> Json<Vec<op_core::ActionLog>> {
+    let limit = query.limit.unwrap_or(100);
+    let offset = query.offset.unwrap_or(0);
+    let logs = state
+        .get_action_logs(limit, offset, query.category.as_deref())
+        .await;
+    Json(logs)
+}
+
+async fn clear_logs(State(state): State<AppState>) -> StatusCode {
+    if state.clear_action_logs().await {
+        state
+            .log_action(
+                "logs_cleared",
+                "settings",
+                "Histórico de logs foi limpo pelo operador",
+                None,
+            )
+            .await;
+        StatusCode::NO_CONTENT
+    } else {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
 }
 
 async fn select_live_slide(
@@ -606,6 +642,11 @@ async fn save_song(
         state.add_media_item(media_item).await;
     }
 
+    let details = format!("Música salva no catálogo: '{}'", payload.song.title);
+    state
+        .log_action("song_saved", "songs", &details, None)
+        .await;
+
     Ok((StatusCode::CREATED, Json(payload.song)))
 }
 
@@ -634,6 +675,10 @@ async fn add_to_setlist(
     Json(payload): Json<AddToSetlistPayload>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     if let Some(item) = payload.item {
+        let details = format!("Item '{}' adicionado à setlist", item.title);
+        state
+            .log_action("setlist_item_added", "setlists", &details, None)
+            .await;
         state.add_media_item(item).await;
         return Ok(StatusCode::OK);
     }
@@ -731,7 +776,13 @@ async fn activate_setlist(
     Path(id): Path<String>,
 ) -> Result<Json<Setlist>, (StatusCode, String)> {
     match state.switch_active_setlist(&id).await {
-        Some(s) => Ok(Json(s)),
+        Some(s) => {
+            let details = format!("Setlist '{}' ativada", s.title);
+            state
+                .log_action("setlist_activated", "setlists", &details, None)
+                .await;
+            Ok(Json(s))
+        }
         None => Err((StatusCode::NOT_FOUND, "Setlist não encontrada".into())),
     }
 }
@@ -752,6 +803,14 @@ async fn remove_setlist_item(
 
 async fn clear_setlist_items(State(state): State<AppState>) -> StatusCode {
     state.clear_active_setlist_items().await;
+    state
+        .log_action(
+            "setlist_cleared",
+            "setlists",
+            "Todos os itens da setlist foram removidos",
+            None,
+        )
+        .await;
     StatusCode::OK
 }
 

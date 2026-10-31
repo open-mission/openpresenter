@@ -2,8 +2,8 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, broadcast};
 
 use op_core::{
-    ClientConnection, DisplayMode, MediaItem, MediaKind, OutputsConfig, PresentationState, Setlist,
-    Slide, WsMessage,
+    ActionLog, ClientConnection, CreateActionLog, DisplayMode, MediaItem, MediaKind, OutputsConfig,
+    PresentationState, Setlist, Slide, WsMessage,
 };
 
 use crate::session::SessionView;
@@ -466,12 +466,22 @@ impl AppState {
         ip: &str,
         route: &str,
         client_type: &str,
+        instance_id: Option<String>,
+        device_info: Option<String>,
     ) {
         let mut conns = self.connections.write().await;
+        let mut is_new = false;
         if let Some(existing) = conns.iter_mut().find(|c| c.id == id) {
             existing.route = route.to_string();
             existing.client_type = client_type.to_string();
+            if instance_id.is_some() {
+                existing.instance_id = instance_id.clone();
+            }
+            if device_info.is_some() {
+                existing.device_info = device_info.clone();
+            }
         } else {
+            is_new = true;
             let now = chrono::Local::now().format("%H:%M:%S").to_string();
             conns.push(ClientConnection {
                 id: id.to_string(),
@@ -479,6 +489,8 @@ impl AppState {
                 route: route.to_string(),
                 client_type: client_type.to_string(),
                 connected_at: now,
+                instance_id: instance_id.clone(),
+                device_info: device_info.clone(),
             });
         }
         let list = conns.clone();
@@ -487,11 +499,30 @@ impl AppState {
         let _ = self
             .broadcast_tx
             .send(WsMessage::ConnectionsUpdated { connections: list });
+
+        if is_new {
+            let label = device_info.as_deref().unwrap_or(client_type);
+            let details = format!(
+                "Dispositivo conectado: {} ({}) na rota {}",
+                label, ip, route
+            );
+            self.log_action_custom(CreateActionLog {
+                action: "client_connected".to_string(),
+                category: "connections".to_string(),
+                details,
+                instance_id,
+                client_type: Some(client_type.to_string()),
+                device_info,
+                ip_address: Some(ip.to_string()),
+            })
+            .await;
+        }
     }
 
     /// Remove uma conexão ativa de cliente WebSocket.
     pub async fn remove_connection(&self, id: &str) {
         let mut conns = self.connections.write().await;
+        let removed = conns.iter().find(|c| c.id == id).cloned();
         conns.retain(|c| c.id != id);
         let list = conns.clone();
         drop(conns);
@@ -499,6 +530,83 @@ impl AppState {
         let _ = self
             .broadcast_tx
             .send(WsMessage::ConnectionsUpdated { connections: list });
+
+        if let Some(c) = removed {
+            let label = c.device_info.as_deref().unwrap_or(&c.client_type);
+            let details = format!("Dispositivo desconectado: {} ({})", label, c.ip);
+            self.log_action("client_disconnected", "connections", &details, Some(&c))
+                .await;
+        }
+    }
+
+    /// Retorna os dados de uma conexão específica se ela existir.
+    pub async fn get_connection_info(&self, id: &str) -> Option<ClientConnection> {
+        let conns = self.connections.read().await;
+        conns.iter().find(|c| c.id == id).cloned()
+    }
+
+    /// Grava uma ação no histórico auditável e transmite notificação WebSocket em tempo real a partir de uma conexão opcional.
+    pub async fn log_action(
+        &self,
+        action: &str,
+        category: &str,
+        details: &str,
+        conn: Option<&ClientConnection>,
+    ) -> Option<ActionLog> {
+        let create_log = CreateActionLog {
+            action: action.to_string(),
+            category: category.to_string(),
+            details: details.to_string(),
+            instance_id: conn.and_then(|c| c.instance_id.clone()),
+            client_type: conn.map(|c| c.client_type.clone()),
+            device_info: conn.and_then(|c| c.device_info.clone()),
+            ip_address: conn.map(|c| c.ip.clone()),
+        };
+        self.log_action_custom(create_log).await
+    }
+
+    /// Grava uma ação com dados estruturados completos e transmite notificação WebSocket.
+    pub async fn log_action_custom(&self, create_log: CreateActionLog) -> Option<ActionLog> {
+        let saved = if let Some(ref db_opt) = self.db {
+            let mut db = db_opt.lock().await;
+            db.insert_action_log(&create_log).ok()
+        } else {
+            None
+        };
+
+        if let Some(ref log) = saved {
+            let _ = self
+                .broadcast_tx
+                .send(WsMessage::ActionLogged { log: log.clone() });
+        }
+
+        saved
+    }
+
+    /// Retorna os logs auditáveis com paginação e filtro opcional por categoria.
+    pub async fn get_action_logs(
+        &self,
+        limit: usize,
+        offset: usize,
+        category: Option<&str>,
+    ) -> Vec<ActionLog> {
+        if let Some(ref db_opt) = self.db {
+            let db = db_opt.lock().await;
+            db.list_action_logs(limit, offset, category)
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Limpa todo o histórico de logs auditáveis.
+    pub async fn clear_action_logs(&self) -> bool {
+        if let Some(ref db_opt) = self.db {
+            let mut db = db_opt.lock().await;
+            db.clear_action_logs().is_ok()
+        } else {
+            false
+        }
     }
 
     /// Retorna a lista atual de conexões ativas.

@@ -3,9 +3,10 @@ use std::time::Duration;
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use op_core::{
-    AppMeta, BibleBook, BibleSearchResult, BibleVerse, BibleVersionSummary, DEFAULT_LOCALE,
-    MediaFolder, MediaItem, MonitorSelection, OutputConfig, OutputKind, OutputMode, OutputsConfig,
-    SectionType, SessionInfo, Setlist, SetlistSummary, Song, SongSection, SongSummary, Theme,
+    ActionLog, AppMeta, BibleBook, BibleSearchResult, BibleVerse, BibleVersionSummary,
+    CreateActionLog, DEFAULT_LOCALE, MediaFolder, MediaItem, MonitorSelection, OutputConfig,
+    OutputKind, OutputMode, OutputsConfig, SectionType, SessionInfo, Setlist, SetlistSummary, Song,
+    SongSection, SongSummary, Theme,
 };
 use rusqlite::Connection;
 use rusqlite_migration::{M, Migrations};
@@ -65,6 +66,7 @@ impl Database {
             M::up(include_str!("../migrations/0005_media_folders.sql")),
             M::up(include_str!("../migrations/0006_app_settings.sql")),
             M::up(include_str!("../migrations/0007_bibles.sql")),
+            M::up(include_str!("../migrations/0008_action_logs.sql")),
         ]);
         migrations
             .to_latest(&mut conn)
@@ -1046,6 +1048,98 @@ impl Database {
             .map_err(DbError::Write)?;
         Ok(affected > 0)
     }
+
+    /// Insere um novo registro de log de ação no histórico auditável.
+    pub fn insert_action_log(&mut self, log: &CreateActionLog) -> Result<ActionLog, DbError> {
+        let timestamp = chrono::Local::now().to_rfc3339();
+        self.conn
+            .execute(
+                "INSERT INTO action_logs (timestamp, action, category, details, instance_id, client_type, device_info, ip_address)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                rusqlite::params![
+                    timestamp,
+                    log.action,
+                    log.category,
+                    log.details,
+                    log.instance_id,
+                    log.client_type,
+                    log.device_info,
+                    log.ip_address,
+                ],
+            )
+            .map_err(DbError::Write)?;
+
+        let id = self.conn.last_insert_rowid();
+
+        Ok(ActionLog {
+            id,
+            timestamp,
+            action: log.action.clone(),
+            category: log.category.clone(),
+            details: log.details.clone(),
+            instance_id: log.instance_id.clone(),
+            client_type: log.client_type.clone(),
+            device_info: log.device_info.clone(),
+            ip_address: log.ip_address.clone(),
+        })
+    }
+
+    /// Retorna os logs de ações mais recentes, com paginação e filtro opcional por categoria.
+    pub fn list_action_logs(
+        &self,
+        limit: usize,
+        offset: usize,
+        category: Option<&str>,
+    ) -> Result<Vec<ActionLog>, DbError> {
+        let mut sql = String::from(
+            "SELECT id, timestamp, action, category, details, instance_id, client_type, device_info, ip_address
+             FROM action_logs",
+        );
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        if let Some(cat) = category
+            && !cat.trim().is_empty()
+            && cat != "all"
+        {
+            sql.push_str(" WHERE category = ?");
+            params.push(Box::new(cat.to_string()));
+        }
+
+        sql.push_str(" ORDER BY id DESC LIMIT ? OFFSET ?");
+        params.push(Box::new(limit as i64));
+        params.push(Box::new(offset as i64));
+
+        let params_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let mut stmt = self.conn.prepare(&sql).map_err(DbError::Read)?;
+
+        let logs = stmt
+            .query_map(params_refs.as_slice(), |row| {
+                Ok(ActionLog {
+                    id: row.get(0)?,
+                    timestamp: row.get(1)?,
+                    action: row.get(2)?,
+                    category: row.get(3)?,
+                    details: row.get(4)?,
+                    instance_id: row.get(5)?,
+                    client_type: row.get(6)?,
+                    device_info: row.get(7)?,
+                    ip_address: row.get(8)?,
+                })
+            })
+            .map_err(DbError::Read)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(DbError::Read)?;
+
+        Ok(logs)
+    }
+
+    /// Limpa todo o histórico de logs auditáveis.
+    pub fn clear_action_logs(&mut self) -> Result<(), DbError> {
+        self.conn
+            .execute("DELETE FROM action_logs", [])
+            .map_err(DbError::Write)?;
+        Ok(())
+    }
 }
 
 /// Leitor otimizado de um arquivo SQLite individual de Bíblia.
@@ -1425,7 +1519,7 @@ mod tests {
         let path = dir.path().join("open-presenter.db");
         let db = Database::open(&path).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 7);
+        assert_eq!(db.schema_version().unwrap(), 8);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -1458,20 +1552,20 @@ mod tests {
     }
 
     #[test]
-    fn open_creates_schema_v7_with_bibles() {
+    fn open_creates_schema_v8_with_action_logs() {
         let dir = tempfile::tempdir().unwrap();
         let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 7);
+        assert_eq!(db.schema_version().unwrap(), 8);
         let table_count: i64 = db
             .conn
             .query_row(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists', 'media_folders', 'app_settings', 'bibles')",
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists', 'media_folders', 'app_settings', 'bibles', 'action_logs')",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(table_count, 7);
+        assert_eq!(table_count, 8);
     }
 
     #[test]
@@ -1682,7 +1776,7 @@ mod tests {
     }
 
     #[test]
-    fn migrates_v1_database_to_v7_preserving_app_meta() {
+    fn migrates_v1_database_to_v8_preserving_app_meta() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("open-presenter.db");
         {
@@ -1699,7 +1793,7 @@ mod tests {
         }
 
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.schema_version().unwrap(), 7);
+        assert_eq!(db.schema_version().unwrap(), 8);
         let meta = db.load_meta().unwrap().unwrap();
         assert_eq!(meta.first_run_at, ts(2026, 10, 28, 10, 0));
         let count: i64 = db
@@ -1707,6 +1801,56 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM output_config", [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn test_action_logs_crud_and_filtering() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
+
+        let log1 = db
+            .insert_action_log(&CreateActionLog {
+                action: "presentation_start".to_string(),
+                category: "presentation".to_string(),
+                details: "Iniciou apresentação de 'Porque Ele Vive'".to_string(),
+                instance_id: Some("inst-admin-1".to_string()),
+                client_type: Some("admin".to_string()),
+                device_info: Some("Chrome / macOS".to_string()),
+                ip_address: Some("127.0.0.1".to_string()),
+            })
+            .unwrap();
+        assert_eq!(log1.action, "presentation_start");
+        assert_eq!(log1.category, "presentation");
+
+        let log2 = db
+            .insert_action_log(&CreateActionLog {
+                action: "client_connected".to_string(),
+                category: "connections".to_string(),
+                details: "Controle Remoto conectado".to_string(),
+                instance_id: Some("inst-remote-iphone".to_string()),
+                client_type: Some("remote".to_string()),
+                device_info: Some("Safari / iOS".to_string()),
+                ip_address: Some("192.168.1.55".to_string()),
+            })
+            .unwrap();
+        assert_eq!(log2.category, "connections");
+
+        let all_logs = db.list_action_logs(10, 0, None).unwrap();
+        assert_eq!(all_logs.len(), 2);
+        assert_eq!(all_logs[0].id, log2.id); // Ordem decrescente
+        assert_eq!(all_logs[1].id, log1.id);
+
+        let filtered_presentation = db.list_action_logs(10, 0, Some("presentation")).unwrap();
+        assert_eq!(filtered_presentation.len(), 1);
+        assert_eq!(filtered_presentation[0].action, "presentation_start");
+
+        let filtered_connections = db.list_action_logs(10, 0, Some("connections")).unwrap();
+        assert_eq!(filtered_connections.len(), 1);
+        assert_eq!(filtered_connections[0].action, "client_connected");
+
+        db.clear_action_logs().unwrap();
+        let remaining = db.list_action_logs(10, 0, None).unwrap();
+        assert_eq!(remaining.len(), 0);
     }
 
     #[test]

@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Sistema de Logs de Auditoria e Identificação de Dispositivos Conectados:**
+  - Criação da tabela persistente `action_logs` via migração SQLite `0008_action_logs.sql` registrando ações de apresentação, setlists, catálogo de músicas, cronômetros, configurações e auditoria de conexões.
+  - Identificador único persistente de instância (`instance_id`) e extração automática de metadados do navegador/dispositivo (`device_info`), permitindo rastreabilidade precisa de qual operador realizou cada ação em rede local.
+  - Nova aba "Histórico e Logs de Auditoria" na modal de configurações com filtragem dinâmica por categoria, paginação, limpeza e sincronização em tempo real via evento WebSocket `action_logged`.
+  - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
+
 ### Corrigido
 - **Sincronização de versículos bíblicos ao vivo no painel admin em múltiplas instâncias:**
   - Correção na validação de passagem ativa em `BiblePanel.svelte`, assegurando que a marcação em verde e o selo "Ao Vivo" sejam exibidos estritamente quando o livro e capítulo atualmente abertos corresponderem à passagem em projeção.

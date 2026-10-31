@@ -756,6 +756,44 @@ pub struct ClientConnection {
     pub route: String,
     pub client_type: String,
     pub connected_at: String,
+    #[serde(default)]
+    pub instance_id: Option<String>,
+    #[serde(default)]
+    pub device_info: Option<String>,
+}
+
+/// Registro de uma ação auditável no sistema.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActionLog {
+    pub id: i64,
+    pub timestamp: String,
+    pub action: String,
+    pub category: String,
+    pub details: String,
+    #[serde(default)]
+    pub instance_id: Option<String>,
+    #[serde(default)]
+    pub client_type: Option<String>,
+    #[serde(default)]
+    pub device_info: Option<String>,
+    #[serde(default)]
+    pub ip_address: Option<String>,
+}
+
+/// Parâmetros para criação de um novo registro de ação.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CreateActionLog {
+    pub action: String,
+    pub category: String,
+    pub details: String,
+    #[serde(default)]
+    pub instance_id: Option<String>,
+    #[serde(default)]
+    pub client_type: Option<String>,
+    #[serde(default)]
+    pub device_info: Option<String>,
+    #[serde(default)]
+    pub ip_address: Option<String>,
 }
 
 /// Mensagem transmitida via WebSocket entre Admin, Public, Stage e servidor.
@@ -815,6 +853,14 @@ pub enum WsMessage {
         client_type: String,
         #[serde(default)]
         route: Option<String>,
+        #[serde(default)]
+        instance_id: Option<String>,
+        #[serde(default)]
+        device_info: Option<String>,
+    },
+    /// Notificação de nova ação registrada no log do sistema.
+    ActionLogged {
+        log: ActionLog,
     },
     /// Notificação com a lista de conexões ativas no WebSocket.
     ConnectionsUpdated {

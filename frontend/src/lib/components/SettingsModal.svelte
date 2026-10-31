@@ -41,6 +41,7 @@
     Music,
     Clock,
     Video,
+    ScrollText,
   } from 'lucide-svelte';
   import {
     fetchUpdateCheck,
@@ -99,6 +100,7 @@
   import Badge from './ui/Badge.svelte';
   import Button from './ui/Button.svelte';
   import StagePreviewBox from './StagePreviewBox.svelte';
+  import { actionLogsStore } from '../ws';
   import type {
     MediaFolder,
     SystemPaths,
@@ -108,6 +110,7 @@
     LowerThirdSettings,
     StagePreset,
     BibleVersionSummary,
+    ActionLog,
   } from '../types';
 
   export type SettingsTab =
@@ -122,6 +125,7 @@
     | 'sections'
     | 'outputs'
     | 'shortcuts'
+    | 'logs'
     | 'about';
 
   interface Props {
@@ -377,6 +381,115 @@
       updaterError = err.message || 'Falha ao iniciar atualização.';
     }
   }
+
+  // --- ESTADO DA ABA DE LOGS & AUDITORIA ---
+  let actionLogs = $state<ActionLog[]>([]);
+  let selectedLogCategory = $state<string>('all');
+  let isLoadingLogs = $state(false);
+
+  async function fetchLogs() {
+    isLoadingLogs = true;
+    try {
+      const url =
+        selectedLogCategory === 'all'
+          ? '/api/logs?limit=100'
+          : `/api/logs?limit=100&category=${selectedLogCategory}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        actionLogs = await res.json();
+      }
+    } catch (e) {
+      console.error('Erro ao buscar logs:', e);
+    } finally {
+      isLoadingLogs = false;
+    }
+  }
+
+  async function clearAllLogs() {
+    if (!confirm('Deseja realmente limpar todo o histórico de logs do sistema?')) return;
+    try {
+      const res = await fetch('/api/logs', { method: 'DELETE' });
+      if (res.ok) {
+        actionLogs = [];
+        fetchLogs();
+      }
+    } catch (e) {
+      console.error('Erro ao limpar logs:', e);
+    }
+  }
+
+  function getCategoryBadgeClass(category: string): string {
+    switch (category) {
+      case 'presentation':
+        return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+      case 'bibles':
+        return 'bg-sky-500/20 text-sky-400 border border-sky-500/40';
+      case 'songs':
+        return 'bg-purple-500/20 text-purple-400 border border-purple-500/40';
+      case 'setlists':
+        return 'bg-amber-500/20 text-amber-400 border border-amber-500/40';
+      case 'timer':
+        return 'bg-teal-500/20 text-teal-400 border border-teal-500/40';
+      case 'connections':
+        return 'bg-blue-500/20 text-blue-400 border border-blue-500/40';
+      case 'settings':
+        return 'bg-neutral-500/20 text-neutral-400 border border-neutral-500/40';
+      default:
+        return 'bg-neutral-800 text-neutral-300';
+    }
+  }
+
+  function getCategoryLabel(category: string): string {
+    switch (category) {
+      case 'presentation':
+        return 'Apresentação';
+      case 'bibles':
+        return 'Bíblia';
+      case 'songs':
+        return 'Músicas';
+      case 'setlists':
+        return 'Setlist';
+      case 'timer':
+        return 'Cronômetro';
+      case 'connections':
+        return 'Conexão';
+      case 'settings':
+        return 'Ajustes';
+      default:
+        return category;
+    }
+  }
+
+  function formatTimestamp(ts: string): string {
+    if (!ts) return '';
+    try {
+      const d = new Date(ts);
+      return (
+        d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+        ' ' +
+        d.toLocaleDateString([], { day: '2-digit', month: '2-digit' })
+      );
+    } catch {
+      return ts;
+    }
+  }
+
+  $effect(() => {
+    if (activeTab === 'logs' && open) {
+      fetchLogs();
+    }
+  });
+
+  $effect(() => {
+    if ($actionLogsStore.length > 0) {
+      const latest = $actionLogsStore[0];
+      if (selectedLogCategory === 'all' || latest.category === selectedLogCategory) {
+        if (!actionLogs.some((l) => l.id === latest.id)) {
+          actionLogs = [latest, ...actionLogs];
+        }
+      }
+    }
+  });
 
   // Dropdown open states for Shadcn style selects
   let isBaseColorMenuOpen = $state(false);
@@ -967,6 +1080,15 @@
           >
             <Keyboard size={15} class={activeTab === 'shortcuts' ? 'text-primary' : 'text-neutral-500'} />
             <span>Atalhos Rápidos</span>
+          </button>
+
+          <button
+            type="button"
+            onclick={() => (activeTab = 'logs')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'logs' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+          >
+            <ScrollText size={15} class={activeTab === 'logs' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Histórico & Logs</span>
           </button>
 
           <div class="my-2 border-t border-neutral-800/80"></div>
@@ -4172,6 +4294,115 @@
                     <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">F3</kbd>
                   </div>
                 </div>
+              </div>
+            </div>
+
+          <!-- ABA: HISTÓRICO & LOGS DO SISTEMA -->
+          {:else if activeTab === 'logs'}
+            <div class="space-y-6 w-full max-w-4xl">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <ScrollText size={16} class="text-primary" />
+                    <span>Histórico de Ações e Auditoria</span>
+                  </h3>
+                  <p class="text-xs text-muted-foreground mt-0.5">
+                    Registro de ações executadas no sistema, identificando dispositivo, instância e horário.
+                  </p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="gap-1.5 text-xs"
+                    onclick={fetchLogs}
+                    disabled={isLoadingLogs}
+                  >
+                    <RefreshCw size={13} class={isLoadingLogs ? 'animate-spin' : ''} />
+                    <span>Atualizar</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="gap-1.5 text-xs text-destructive hover:bg-destructive/10"
+                    onclick={clearAllLogs}
+                  >
+                    <Trash2 size={13} />
+                    <span>Limpar Logs</span>
+                  </Button>
+                </div>
+              </div>
+
+              <!-- Filtro de Categorias -->
+              <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                {#each [
+                  { id: 'all', label: 'Todas as Ações' },
+                  { id: 'presentation', label: 'Apresentação' },
+                  { id: 'bibles', label: 'Bíblia' },
+                  { id: 'songs', label: 'Músicas' },
+                  { id: 'setlists', label: 'Setlists' },
+                  { id: 'timer', label: 'Cronômetro' },
+                  { id: 'connections', label: 'Conexões' },
+                  { id: 'settings', label: 'Configurações' }
+                ] as cat}
+                  <button
+                    type="button"
+                    onclick={() => { selectedLogCategory = cat.id; fetchLogs(); }}
+                    class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors shrink-0 cursor-pointer {selectedLogCategory === cat.id ? 'bg-primary text-primary-foreground font-semibold' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'}"
+                  >
+                    {cat.label}
+                  </button>
+                {/each}
+              </div>
+
+              <!-- Lista de Logs -->
+              <div class="rounded-xl border border-neutral-800 bg-neutral-900/60 overflow-hidden">
+                {#if isLoadingLogs}
+                  <div class="p-8 text-center text-neutral-500 text-xs">
+                    <RefreshCw size={18} class="animate-spin mx-auto mb-2" />
+                    <span>Carregando histórico de ações...</span>
+                  </div>
+                {:else if actionLogs.length === 0}
+                  <div class="p-8 text-center text-neutral-500 text-xs">
+                    <ScrollText size={24} class="opacity-40 mx-auto mb-2" />
+                    <p class="font-medium text-neutral-400">Nenhum registro de log encontrado</p>
+                    <p class="text-[11px] text-neutral-500 mt-0.5">As ações realizadas no sistema aparecerão aqui.</p>
+                  </div>
+                {:else}
+                  <div class="divide-y divide-neutral-800 max-h-[500px] overflow-y-auto">
+                    {#each actionLogs as log (log.id)}
+                      <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-neutral-850/50 transition-colors">
+                        <div class="flex items-start gap-3">
+                          <span class="mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider {getCategoryBadgeClass(log.category)}">
+                            {getCategoryLabel(log.category)}
+                          </span>
+                          <div>
+                            <p class="text-xs font-semibold text-foreground">{log.details}</p>
+                            <div class="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-neutral-400">
+                              {#if log.device_info}
+                                <span class="flex items-center gap-1 font-mono text-neutral-300">
+                                  <Laptop size={11} />
+                                  {log.device_info}
+                                </span>
+                              {/if}
+                              {#if log.ip_address}
+                                <span class="text-neutral-500">• IP: {log.ip_address}</span>
+                              {/if}
+                              {#if log.client_type}
+                                <span class="text-neutral-500">• Tipo: {log.client_type}</span>
+                              {/if}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="text-[11px] font-mono text-neutral-500 shrink-0 self-end sm:self-center">
+                          {formatTimestamp(log.timestamp)}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
               </div>
             </div>
 

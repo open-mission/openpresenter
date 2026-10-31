@@ -115,6 +115,8 @@
     Globe,
     Cast,
     Smartphone,
+    Laptop,
+    ScrollText,
   } from 'lucide-svelte';
   import { castStore } from '$lib/cast';
 
@@ -1202,29 +1204,46 @@
                 Nenhuma outra conexão registrada no momento.
               </div>
             {:else}
-              <div class="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
+              <div class="space-y-1.5 max-h-72 overflow-y-auto pr-0.5">
                 {#each $connectedClients as conn (conn.id)}
                   <div class="flex items-center justify-between p-2 rounded-lg bg-neutral-950/70 border border-neutral-800/80">
                     <div class="flex items-center gap-2 min-w-0">
-                      <div class="w-6 h-6 rounded flex items-center justify-center shrink-0 {conn.client_type === 'public' ? 'bg-purple-500/20 text-purple-400' : conn.client_type === 'stage' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}">
+                      <div class="w-6 h-6 rounded flex items-center justify-center shrink-0 {conn.client_type === 'public' ? 'bg-purple-500/20 text-purple-400' : conn.client_type === 'stage' ? 'bg-blue-500/20 text-blue-400' : conn.client_type === 'remote' ? 'bg-amber-500/20 text-amber-400' : conn.client_type === 'lower-third' || conn.client_type === 'lower' || conn.client_type === 'obs' ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}">
                         {#if conn.client_type === 'public'}
                           <MonitorPlay size={13} />
                         {:else if conn.client_type === 'stage'}
                           <Tv size={13} />
+                        {:else if conn.client_type === 'remote'}
+                          <Smartphone size={13} />
+                        {:else if conn.client_type === 'lower-third' || conn.client_type === 'lower' || conn.client_type === 'obs'}
+                          <Radio size={13} />
                         {:else}
-                          <Globe size={13} />
+                          <Laptop size={13} />
                         {/if}
                       </div>
                       <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
                           <span class="font-semibold text-white text-xs truncate">
-                            {conn.client_type === 'public' ? 'Projetor Público' : conn.client_type === 'stage' ? 'Retorno de Palco' : 'Painel Operador'}
+                            {conn.client_type === 'public'
+                              ? 'Projetor Público'
+                              : conn.client_type === 'stage'
+                                ? 'Monitor de Palco'
+                                : conn.client_type === 'remote'
+                                  ? 'Controle Remoto'
+                                  : conn.client_type === 'lower-third' || conn.client_type === 'lower' || conn.client_type === 'obs'
+                                    ? 'Transmissão (OBS)'
+                                    : 'Painel Operador'}
                           </span>
                           <span class="text-[10px] font-mono px-1 py-0.2 rounded bg-neutral-800 text-neutral-300">
                             {conn.route}
                           </span>
                         </div>
-                        <div class="text-[11px] font-mono text-neutral-400 truncate">
+                        {#if conn.device_info}
+                          <div class="text-[11px] text-neutral-300 font-medium truncate mt-0.5 flex items-center gap-1">
+                            <span class="opacity-75">{conn.device_info}</span>
+                          </div>
+                        {/if}
+                        <div class="text-[10px] font-mono text-neutral-400 truncate">
                           IP: <span class="text-neutral-200">{conn.ip}</span>
                         </div>
                       </div>
@@ -1236,6 +1255,22 @@
                     </div>
                   </div>
                 {/each}
+              </div>
+
+              <!-- Atalho para Histórico & Logs -->
+              <div class="pt-2 mt-2 border-t border-neutral-800">
+                <button
+                  type="button"
+                  onclick={() => {
+                    isConnectionsDropdownOpen = false;
+                    settingsInitialTab = 'logs';
+                    isSettingsOpen = true;
+                  }}
+                  class="w-full py-1.5 px-2 rounded-lg bg-neutral-800/80 hover:bg-neutral-800 text-neutral-300 hover:text-white flex items-center justify-center gap-1.5 font-medium transition-colors cursor-pointer text-[11px]"
+                >
+                  <ScrollText size={12} class="text-primary" />
+                  <span>Ver Histórico e Logs de Auditoria</span>
+                </button>
               </div>
             {/if}
           </div>

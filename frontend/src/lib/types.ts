@@ -204,6 +204,20 @@ export interface ClientConnection {
   route: string;
   client_type: string;
   connected_at: string;
+  instance_id?: string;
+  device_info?: string;
+}
+
+export interface ActionLog {
+  id: number;
+  timestamp: string;
+  action: string;
+  category: string;
+  details: string;
+  instance_id?: string;
+  client_type?: string;
+  device_info?: string;
+  ip_address?: string;
 }
 
 export type WsMessage =
@@ -219,7 +233,8 @@ export type WsMessage =
   | { type: 'set_timer_overtime'; payload: { allow_overtime: boolean } }
   | { type: 'quick_present_media'; payload: { item: MediaItem; slide_index?: number } }
   | { type: 'set_stage_message'; payload: { message?: string } }
-  | { type: 'identify'; payload: { client_type: string; route?: string } }
+  | { type: 'identify'; payload: { client_type: string; route?: string; instance_id?: string; device_info?: string } }
+  | { type: 'action_logged'; payload: { log: ActionLog } }
   | { type: 'connections_updated'; payload: { connections: ClientConnection[] } }
   | { type: 'state_updated'; payload: { presentation: PresentationState } }
   | { type: 'media_items_updated'; payload: { media_items: MediaItem[] } }

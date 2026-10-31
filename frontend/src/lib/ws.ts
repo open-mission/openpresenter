@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
-import type { DisplayMode, MediaItem, PresentationState, Setlist, WsMessage, ClientConnection } from './types';
+import type { DisplayMode, MediaItem, PresentationState, Setlist, WsMessage, ClientConnection, ActionLog } from './types';
 import { handleSettingBroadcast } from './displaySettings';
+import { getInstanceId, getDeviceInfo } from './instance';
 
 export const presentationState = writable<PresentationState>({
   active_media_id: null,
@@ -25,6 +26,7 @@ export const mediaItemsList = writable<MediaItem[]>([]);
 export const activeSetlist = writable<Setlist | null>(null);
 export const isWsConnected = writable<boolean>(false);
 export const connectedClients = writable<ClientConnection[]>([]);
+export const actionLogsStore = writable<ActionLog[]>([]);
 
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -53,7 +55,12 @@ export function initWebSocket(clientType: 'admin' | 'public' | 'stage' | 'remote
       const currentRoute = typeof window !== 'undefined' ? window.location.pathname : `/${clientType}`;
       sendWsMessage({
         type: 'identify',
-        payload: { client_type: clientType, route: currentRoute },
+        payload: {
+          client_type: clientType,
+          route: currentRoute,
+          instance_id: getInstanceId(),
+          device_info: getDeviceInfo(),
+        },
       });
 
       // Configura ping periódico
@@ -108,6 +115,8 @@ function handleIncomingMessage(msg: WsMessage) {
     handleSettingBroadcast(msg.payload.key, msg.payload.value);
   } else if (msg.type === 'connections_updated') {
     connectedClients.set(msg.payload.connections);
+  } else if (msg.type === 'action_logged') {
+    actionLogsStore.update((logs) => [msg.payload.log, ...logs.slice(0, 99)]);
   } else if (msg.type === 'reload_clients') {
     const target = msg.payload?.target || 'all';
     if (typeof window !== 'undefined') {
