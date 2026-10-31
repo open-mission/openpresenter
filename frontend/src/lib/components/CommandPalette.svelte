@@ -66,6 +66,37 @@
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let prevOpen = false;
 
+  let searchAbortController: AbortController | null = null;
+  let currentSearchId = 0;
+  let lastSearchedTab = $state<'local' | 'bible' | 'online'>('local');
+  let lastSearchedQuery = $state<string>('');
+
+  function abortCurrentSearch() {
+    if (searchAbortController) {
+      searchAbortController.abort();
+      searchAbortController = null;
+    }
+  }
+
+  function switchTab(newTab: 'local' | 'bible' | 'online') {
+    activeTab = newTab;
+    setTimeout(() => {
+      inputElement?.focus();
+    }, 0);
+
+    if (debounceTimer) clearTimeout(debounceTimer);
+    lastSearchedTab = newTab;
+    lastSearchedQuery = query;
+
+    if (newTab === 'local') {
+      searchLocal(query);
+    } else if (newTab === 'bible') {
+      searchBible(query);
+    } else {
+      searchOnline(query);
+    }
+  }
+
   const currentBible = $derived(
     bibles.find((b) => b.id === selectedBibleId) || bibles[0]
   );
@@ -96,6 +127,8 @@
     if (open && !prevOpen) {
       query = '';
       activeTab = 'local';
+      lastSearchedTab = 'local';
+      lastSearchedQuery = '';
       localResults = [];
       onlineResults = [];
       bibleResults = [];
@@ -109,6 +142,7 @@
       }, 50);
     } else if (!open && prevOpen) {
       if (debounceTimer) clearTimeout(debounceTimer);
+      abortCurrentSearch();
     }
     prevOpen = open;
   });
@@ -121,6 +155,12 @@
 
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
+      if (currentTab === lastSearchedTab && currentQuery === lastSearchedQuery) {
+        return;
+      }
+      lastSearchedTab = currentTab;
+      lastSearchedQuery = currentQuery;
+
       if (currentTab === 'local') {
         searchLocal(currentQuery);
       } else if (currentTab === 'bible') {
@@ -136,17 +176,38 @@
   });
 
   async function searchLocal(q: string) {
+    const clean = q.trim();
+    abortCurrentSearch();
+    const controller = new AbortController();
+    searchAbortController = controller;
+    const searchId = ++currentSearchId;
+
     isLoading = true;
     try {
-      const resp = await fetch(`/api/songs?q=${encodeURIComponent(q.trim())}`);
+      const resp = await fetch(`/api/songs?q=${encodeURIComponent(clean)}`, {
+        signal: controller.signal,
+      });
+      if (searchId !== currentSearchId) return;
+
       if (resp.ok) {
         localResults = await resp.json();
-        selectedIndex = 0;
+        // Se a busca local não encontrou músicas e há termo digitado (sem ref bíblica),
+        // pré-seleciona a opção 2 ("Buscar na internet") para que Enter dispare a busca online diretamente
+        if (localResults.length === 0 && clean.length > 0 && !parsedBibleRef) {
+          selectedIndex = 2;
+        } else {
+          selectedIndex = 0;
+        }
       }
-    } catch {
-      localResults = [];
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      if (searchId === currentSearchId) {
+        localResults = [];
+      }
     } finally {
-      isLoading = false;
+      if (searchId === currentSearchId) {
+        isLoading = false;
+      }
     }
   }
 
@@ -154,19 +215,37 @@
     const clean = q.trim();
     if (!clean) {
       onlineResults = [];
+      isLoading = false;
       return;
     }
+
+    abortCurrentSearch();
+    const controller = new AbortController();
+    searchAbortController = controller;
+    const searchId = ++currentSearchId;
+
     isLoading = true;
     try {
-      const resp = await fetch(`/api/songs/online/search?q=${encodeURIComponent(clean)}`);
+      const resp = await fetch(`/api/songs/online/search?q=${encodeURIComponent(clean)}`, {
+        signal: controller.signal,
+      });
+      if (searchId !== currentSearchId) return;
+
       if (resp.ok) {
         onlineResults = await resp.json();
         selectedIndex = 0;
+      } else {
+        onlineResults = [];
       }
-    } catch {
-      onlineResults = [];
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      if (searchId === currentSearchId) {
+        onlineResults = [];
+      }
     } finally {
-      isLoading = false;
+      if (searchId === currentSearchId) {
+        isLoading = false;
+      }
     }
   }
 
@@ -183,6 +262,11 @@
       selectedBibleId = (bibles.find((b) => b.is_default) || bibles[0]).id;
     }
     if (!selectedBibleId) return;
+
+    abortCurrentSearch();
+    const controller = new AbortController();
+    searchAbortController = controller;
+    const searchId = ++currentSearchId;
 
     isLoading = true;
     try {
@@ -204,8 +288,11 @@
         }
 
         const resp = await fetch(
-          `/api/bibles/${targetBibleId}/books/${parsed.book_id}/chapters/${parsed.chapter}/verses`
+          `/api/bibles/${targetBibleId}/books/${parsed.book_id}/chapters/${parsed.chapter}/verses`,
+          { signal: controller.signal }
         );
+        if (searchId !== currentSearchId) return;
+
         if (resp.ok) {
           const allChapterVerses: BibleVerse[] = await resp.json();
           const start = parsed.verse_start || 1;
@@ -221,18 +308,26 @@
       biblePassageRef = null;
       bibleVerses = [];
       const resp = await fetch(
-        `/api/bibles/${selectedBibleId}/search?q=${encodeURIComponent(clean)}&limit=30`
+        `/api/bibles/${selectedBibleId}/search?q=${encodeURIComponent(clean)}&limit=30`,
+        { signal: controller.signal }
       );
+      if (searchId !== currentSearchId) return;
+
       if (resp.ok) {
         bibleResults = await resp.json();
         selectedIndex = 0;
       }
-    } catch (err) {
-      console.error('Erro na busca bíblica no CommandPalette:', err);
-      bibleResults = [];
-      bibleVerses = [];
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      if (searchId === currentSearchId) {
+        console.error('Erro na busca bíblica no CommandPalette:', err);
+        bibleResults = [];
+        bibleVerses = [];
+      }
     } finally {
-      isLoading = false;
+      if (searchId === currentSearchId) {
+        isLoading = false;
+      }
     }
   }
 
@@ -477,14 +572,11 @@
     if (e.key === 'Tab') {
       e.preventDefault();
       if (activeTab === 'local') {
-        activeTab = 'bible';
-        searchBible(query);
+        switchTab('bible');
       } else if (activeTab === 'bible') {
-        activeTab = 'online';
-        searchOnline(query);
+        switchTab('online');
       } else {
-        activeTab = 'local';
-        searchLocal(query);
+        switchTab('local');
       }
       return;
     }
@@ -572,16 +664,14 @@
       if (activeTab === 'local') {
         if (selectedIndex === 0) {
           // Alternar para aba Bíblia Sagrada no Command Palette
-          activeTab = 'bible';
-          searchBible(query);
+          switchTab('bible');
         } else if (selectedIndex === 1) {
           // Criar nova música manualmente
           onclose();
           oncreatenew();
         } else if (selectedIndex === 2) {
           // Buscar na internet
-          activeTab = 'online';
-          searchOnline(query);
+          switchTab('online');
         } else {
           const songIdx = selectedIndex - 3;
           const song = localResults[songIdx];
@@ -607,6 +697,9 @@
         const hit = onlineResults[selectedIndex];
         if (hit) {
           importOnlineHit(hit);
+        } else if (query.trim()) {
+          // Se não há item selecionado, força busca online imediata
+          searchOnline(query);
         }
       }
     }
@@ -655,24 +748,36 @@
         {/if}
 
         <div class="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onclick={() => {
-              if (activeTab === 'local') {
-                activeTab = 'bible';
-                searchBible(query);
-              } else if (activeTab === 'bible') {
-                activeTab = 'online';
-                searchOnline(query);
-              } else {
-                activeTab = 'local';
-                searchLocal(query);
-              }
-            }}
-            class="px-2 py-1 rounded text-[11px] font-medium border border-zinc-700/80 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 transition-colors cursor-pointer"
-          >
-            {activeTab === 'local' ? 'Músicas 🎵' : activeTab === 'bible' ? 'Bíblia 📖' : 'Web 🌐'}
-          </button>
+          <div class="flex items-center bg-zinc-800/80 p-0.5 rounded-lg border border-zinc-700/60">
+            <button
+              type="button"
+              onclick={() => switchTab('local')}
+              class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1 {activeTab === 'local' ? 'bg-zinc-700 text-emerald-400 font-semibold shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+              title="Buscar no catálogo local de músicas"
+            >
+              <Music size={12} />
+              <span class="hidden sm:inline">Músicas</span>
+            </button>
+            <button
+              type="button"
+              onclick={() => switchTab('bible')}
+              class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1 {activeTab === 'bible' ? 'bg-zinc-700 text-amber-400 font-semibold shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+              title="Buscar na Bíblia Sagrada"
+            >
+              <BookOpen size={12} />
+              <span class="hidden sm:inline">Bíblia</span>
+            </button>
+            <button
+              type="button"
+              onclick={() => switchTab('online')}
+              class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1 {activeTab === 'online' ? 'bg-sky-600/40 text-sky-300 font-semibold border border-sky-500/40 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+              title="Buscar na internet (Holyrics e Vagalume)"
+            >
+              <Globe size={12} />
+              <span>Web</span>
+            </button>
+          </div>
+
           <button
             type="button"
             onclick={onclose}
@@ -689,10 +794,7 @@
         <div class="flex items-center gap-1.5">
           <button
             type="button"
-            onclick={() => {
-              activeTab = 'local';
-              searchLocal(query);
-            }}
+            onclick={() => switchTab('local')}
             class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {activeTab === 'local' ? 'bg-zinc-800 text-emerald-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
           >
             <Music size={13} />
@@ -701,10 +803,7 @@
 
           <button
             type="button"
-            onclick={() => {
-              activeTab = 'bible';
-              searchBible(query);
-            }}
+            onclick={() => switchTab('bible')}
             class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {activeTab === 'bible' ? 'bg-zinc-800 text-amber-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
           >
             <BookOpen size={13} />
@@ -713,14 +812,11 @@
 
           <button
             type="button"
-            onclick={() => {
-              activeTab = 'online';
-              searchOnline(query);
-            }}
+            onclick={() => switchTab('online')}
             class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {activeTab === 'online' ? 'bg-zinc-800 text-sky-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
           >
             <Globe size={13} />
-            <span>Online</span>
+            <span>Online {onlineResults.length > 0 ? `(${onlineResults.length})` : ''}</span>
           </button>
         </div>
 
@@ -847,10 +943,7 @@
             <!-- Ação 2: Buscar na Internet -->
             <button
               type="button"
-              onclick={() => {
-                activeTab = 'online';
-                searchOnline(query);
-              }}
+              onclick={() => switchTab('online')}
               class="w-full px-3 py-2 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer {selectedIndex === 2 ? 'bg-zinc-800/90 text-white' : 'hover:bg-zinc-900/80 text-zinc-300'}"
             >
               <div class="flex items-center gap-2.5">
@@ -875,7 +968,7 @@
             </div>
 
             {#each localResults as song, idx (song.id)}
-              {@const isSelected = selectedIndex === idx + 2}
+              {@const isSelected = selectedIndex === idx + 3}
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
                 role="button"

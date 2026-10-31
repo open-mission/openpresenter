@@ -24,6 +24,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Resiliência e Agilidade na Busca de Músicas Online no Command Palette:**
+  - Substituição do botão rotativo cíclico no cabeçalho do Command Palette por um controle segmentado direto com 3 modos dedicados (`[🎵 Músicas]`, `[📖 Bíblia]`, `[🌐 Web]`), permitindo alternar e pesquisar online com um único clique sem requerer cliques sucessivos.
+  - Implementação de cancelamento atômico de buscas assíncronas com `AbortController` e identificador sequencial `searchId`, eliminando conflitos de concorrência e requisições duplicadas entre cliques diretos e o temporizador de debounce reativo.
+  - Pré-seleção inteligente da Ação 2 ("Buscar na internet") ao digitar um título de louvor inexistente no catálogo local (`localResults.length === 0`), permitindo disparar a busca web diretamente com a tecla Enter sem desviar para a busca bíblica.
+  - Preservação contínua de foco no campo de texto (`inputElement.focus()`) ao trocar de abas, contagem de resultados na aba Online e re-execução imediata ao pressionar Enter na aba Web.
 - **Separação Correta de Slides e Redimensionamento com Resizable Shadcn no Catálogo de Músicas:**
   - Decomposição fidedigna das letras de músicas usando `parseRawLyrics(song.lyrics_raw)`, gerando slides 16:9 individuais para cada estrofe delimitada por linhas em branco (`\n\n`), evitando o problema onde dezenas de estrofes eram condensadas em um único card gigante.
   - Grade responsiva com quebra automática (*wrap*) em 1, 2, 3 ou 4 colunas (`grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3`), adaptando o layout dos slides proporcionalmente à largura útil disponível.
