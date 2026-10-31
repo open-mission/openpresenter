@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Fix/Improve: Ajuste visual e espaçamento do resizer do painel de mídias (`BottomPanel.svelte`): posicionamento do separador no fluxo natural com margem inferior para não sobrepor os botões de abas, harmonização da cor de fundo com o painel (`bg-card`), indicador de arraste (*drag indicator*) em tom neutro contrastante (`bg-neutral-400 dark:bg-neutral-500`) com realce na cor primária ao interagir e ajuste da altura colapsada. (commit 10e9974 - 2026-10-31 10:02:44 -03:00)
+
 - [x] Improve: Importação de múltiplas versões da Bíblia simultaneamente ("um a um") no modal de configurações: seleção múltipla no diálogo nativo (`multiple` com extensões `.sqlite`, `.db` e `.sqlite3`), fila assíncrona sequencial, barra de progresso visual em tempo real, notificações toast Sonner para cada versão concluída, suporte a múltiplos caminhos na importação manual e contador atômico sequencial no gerador de ID da versão (`BIBLE_IMPORT_COUNTER`) no backend `op-admin`. (commit 35034aa - 2026-10-31 09:18:21 -03:00)
 
 - [x] Improve: Destaque visual com fundo vermelho no botão de parar apresentação no Header do Remote (`/remote`): aplicação de estilo de ação de parada com fundo `bg-red-600 hover:bg-red-500`, ícone preenchido e rótulo adaptativo para facilitar a interrupção imediata da projeção em smartphones e tablets. (commit 3cda7f5 - 2026-10-31 09:11:47 -03:00)
