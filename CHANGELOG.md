@@ -24,6 +24,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Destaque Visual com Fundo Vermelho no Botão de Parar Apresentação no Header do Remote:**
+  - Aplicação de fundo vermelho de alta visibilidade (`bg-red-600 hover:bg-red-500 text-white`) no botão de parar apresentação no cabeçalho do Controle Remoto Mobile (`/remote`), com ícone de quadrado preenchido e rótulo adaptativo ("Parar"), tornando a interrupção da projeção imediata e intuitiva em telas touch.
 - **Layout de 3 Linhas no Monitor de Palco e Recálculo Automático de Proporções (Soma 100%):**
   - Implementação do layout de 3 linhas horizontais empilhadas (`stacked-rows`) no Monitor de Palco (`/stage`), posicionando Aviso para o Palco, Relógio e Cronômetro em uma barra horizontal inferior abaixo do Próximo Slide, garantindo 100% da largura útil da tela para os textos do slide atual e do próximo slide.
   - Seletor de layout ("3 Linhas Horizontais" vs "Coluna Lateral Direita") nas configurações com persistência local e no backend.

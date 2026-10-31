@@ -560,11 +560,12 @@
       <button
         type="button"
         onclick={handleStop}
-        class="h-9 w-9 flex items-center justify-center text-neutral-400 hover:text-white bg-neutral-800 hover:bg-neutral-700 active:scale-95 rounded-lg transition-all cursor-pointer"
+        class="h-9 px-2 sm:px-2.5 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-950/50 border border-red-500/40"
         title="Parar Apresentação"
         aria-label="Parar Apresentação"
       >
-        <Square size={14} />
+        <Square size={13} class="fill-current" />
+        <span class="hidden min-[370px]:inline">Parar</span>
       </button>
     </div>
   </header>
