@@ -196,6 +196,7 @@
 - [Spec — Fundo Vermelho para o Botão de Parar Apresentação no Header do Controle Remoto](specs/2026-10-31-remote-header-botao-parar-fundo-vermelho.md)
 - [Spec — Importação de Múltiplas Versões da Bíblia de uma Vez](specs/2026-10-31-importacao-multipla-versoes-biblia.md)
 - [Spec — Ajuste Visual e Espaçamento do Resizer do Painel de Mídias](specs/2026-10-31-ajuste-visual-resizer-painel-midias.md)
+- [Spec — Separação Correta de Slides e Redimensionamento com Resizable Shadcn no Catálogo de Músicas](specs/2026-10-31-separacao-slides-catalogo-e-painel-songs-resizable.md)
 
 ## Arquitetura e decisões
 

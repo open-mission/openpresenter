@@ -47,9 +47,16 @@
     backgroundStylesStore,
   } from '../displaySettings';
   import { refreshBibles } from '../bibles';
+  import {
+    ResizablePaneGroup,
+    ResizablePane,
+    ResizableHandle,
+  } from './ui/resizable';
+  import { parseRawLyrics, getSectionColor } from '../songParser';
   import type {
     SongSummary,
     Song,
+    Slide,
     ImageMediaItem,
     MediaFolder,
     WallpaperItem,
@@ -127,6 +134,47 @@
   let isLoadingSongs = $state(false);
   let viewingSong = $state<Song | null>(null);
   let isLoadingLyrics = $state(false);
+
+  // Slides derivados com separação correta a partir de quebras de estrofes (\n\n) e seções (##)
+  const viewingSongSlides = $derived.by<Slide[]>(() => {
+    if (!viewingSong) return [];
+    if (viewingSong.lyrics_raw && viewingSong.lyrics_raw.trim()) {
+      const parsed = parseRawLyrics(viewingSong.lyrics_raw);
+      if (parsed.slides && parsed.slides.length > 0) {
+        return parsed.slides;
+      }
+    }
+    if (viewingSong.sections && viewingSong.sections.length > 0) {
+      const result: Slide[] = [];
+      let slideNum = 1;
+      for (const sec of viewingSong.sections) {
+        const text = sec.lines.join('\n');
+        const blocks = text.split(/\n\s*\n/).filter((b) => b.trim().length > 0);
+        if (blocks.length > 1) {
+          blocks.forEach((block, bIdx) => {
+            result.push({
+              id: `slide-${slideNum++}`,
+              label: `${sec.label || 'Parte'} (${bIdx + 1}/${blocks.length})`,
+              content: block,
+            });
+          });
+        } else {
+          result.push({
+            id: `slide-${slideNum++}`,
+            label: sec.label || `Parte ${slideNum}`,
+            content: text,
+          });
+        }
+      }
+      return result;
+    }
+    const blocks = (viewingSong.lyrics_raw || '').split(/\n\s*\n/).filter((b) => b.trim().length > 0);
+    return blocks.map((b, idx) => ({
+      id: `slide-${idx + 1}`,
+      label: `Slide ${idx + 1}`,
+      content: b.trim(),
+    }));
+  });
 
   // --- GALERIA DE IMAGENS ---
   let images = $state<ImageMediaItem[]>([]);
@@ -658,84 +706,71 @@
           </div>
         </div>
 
-        <!-- Grade/Lista de Músicas com Suporte a Sheet de Letra Lateral -->
-        <div class="flex-1 flex overflow-hidden gap-3">
-          <!-- Coluna do Catálogo de Músicas: compacta quando o preview está aberto, ampla quando fechado -->
-          <div class="{viewingSong ? 'w-80 sm:w-96 shrink-0 border-r border-border pr-2' : 'flex-1 pr-1'} overflow-y-auto flex flex-col">
-            {#if songs.length === 0}
-              <div class="h-32 flex flex-col items-center justify-center text-xs text-muted-foreground">
-                Nenhuma música encontrada no catálogo.
+        {#snippet songCard(song: SongSummary)}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            onclick={() => handleViewSongLyrics(song.id)}
+            onkeydown={(e) => { if (e.key === 'Enter') handleViewSongLyrics(song.id); }}
+            role="button"
+            tabindex="0"
+            class="p-2.5 rounded-lg border border-border bg-card/60 hover:bg-muted/40 transition-all flex flex-col justify-between group cursor-pointer {viewingSong?.id === song.id ? 'ring-1 ring-primary border-primary bg-primary/10' : ''}"
+          >
+            <div>
+              <div class="flex items-center justify-between gap-1 mb-1">
+                <h4 class="text-xs font-bold text-foreground truncate">{song.title}</h4>
+                {#if song.song_key}
+                  <Badge variant="outline" class="text-[9px] py-0 px-1 font-mono text-primary shrink-0">
+                    {song.song_key}
+                  </Badge>
+                {/if}
               </div>
-            {:else}
-              <div class="grid {viewingSong ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'} gap-2">
-                {#each songs as song (song.id)}
-                  <!-- svelte-ignore a11y_no_static_element_interactions -->
-                  <div
-                    onclick={() => handleViewSongLyrics(song.id)}
-                    onkeydown={(e) => { if (e.key === 'Enter') handleViewSongLyrics(song.id); }}
-                    role="button"
-                    tabindex="0"
-                    class="p-2.5 rounded-lg border border-border bg-card/60 hover:bg-muted/40 transition-all flex flex-col justify-between group cursor-pointer {viewingSong?.id === song.id ? 'ring-1 ring-primary border-primary bg-primary/10' : ''}"
-                  >
-                    <div>
-                      <div class="flex items-center justify-between gap-1 mb-1">
-                        <h4 class="text-xs font-bold text-foreground truncate">{song.title}</h4>
-                        {#if song.song_key}
-                          <Badge variant="outline" class="text-[9px] py-0 px-1 font-mono text-primary shrink-0">
-                            {song.song_key}
-                          </Badge>
-                        {/if}
-                      </div>
-                      {#if song.artist}
-                        <p class="text-[11px] text-muted-foreground truncate">{song.artist}</p>
-                      {/if}
-                      {#if song.preview_snippet}
-                        <p class="text-[10px] text-muted-foreground line-clamp-2 mt-1 italic">
-                          "{song.preview_snippet}"
-                        </p>
-                      {/if}
-                    </div>
+              {#if song.artist}
+                <p class="text-[11px] text-muted-foreground truncate">{song.artist}</p>
+              {/if}
+              {#if song.preview_snippet}
+                <p class="text-[10px] text-muted-foreground line-clamp-2 mt-1 italic">
+                  "{song.preview_snippet}"
+                </p>
+              {/if}
+            </div>
 
-                    <div class="flex items-center justify-between gap-1.5 mt-2 pt-2 border-t border-border">
-                      <span class="text-[10px] {viewingSong?.id === song.id ? 'text-primary font-bold' : 'text-primary font-semibold'} flex items-center gap-1 shrink-0 truncate">
-                        <FileText size={11} /> {viewingSong?.id === song.id ? 'Visualizando' : 'Ver Letra'}
-                      </span>
+            <div class="flex items-center justify-between gap-1.5 mt-2 pt-2 border-t border-border">
+              <span class="text-[10px] {viewingSong?.id === song.id ? 'text-primary font-bold' : 'text-primary font-semibold'} flex items-center gap-1 shrink-0 truncate">
+                <FileText size={11} /> {viewingSong?.id === song.id ? 'Visualizando' : 'Ver Letra'}
+              </span>
 
-                      <div class="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onclick={(e) => {
-                            e.stopPropagation();
-                            onaddsongtosetlist?.(song.id);
-                          }}
-                          class="px-2 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] text-foreground font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
-                          title="Adicionar à Setlist"
-                        >
-                          <ListPlus size={11} class="text-primary" />
-                          + Setlist
-                        </button>
+              <div class="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    onaddsongtosetlist?.(song.id);
+                  }}
+                  class="px-2 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] text-foreground font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                  title="Adicionar à Setlist"
+                >
+                  <ListPlus size={11} class="text-primary" />
+                  + Setlist
+                </button>
 
-                        <button
-                          type="button"
-                          onclick={(e) => {
-                            e.stopPropagation();
-                            onpresentsong?.(song.id);
-                          }}
-                          class="px-2 py-0.5 rounded bg-primary/20 hover:bg-primary/30 text-[10px] text-primary font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
-                          title="Apresentar Imediatamente"
-                        >
-                          <Play size={11} class="fill-current" />
-                          Ao Vivo
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                {/each}
+                <button
+                  type="button"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    onpresentsong?.(song.id);
+                  }}
+                  class="px-2 py-0.5 rounded bg-primary/20 hover:bg-primary/30 text-[10px] text-primary font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                  title="Apresentar Imediatamente"
+                >
+                  <Play size={11} class="fill-current" />
+                  Ao Vivo
+                </button>
               </div>
-            {/if}
+            </div>
           </div>
+        {/snippet}
 
-          <!-- Sheet Ampliado de Visualização de Letra (Preenche o espaço restante confortavelmente) -->
+        {#snippet viewingSongSheet()}
           {#if viewingSong}
             <div class="flex-1 min-w-0 border border-border bg-card/60 rounded-xl flex flex-col p-3.5 h-full overflow-hidden shadow-md animate-in slide-in-from-right duration-150">
               <!-- Cabeçalho do Sheet -->
@@ -743,6 +778,11 @@
                 <div class="min-w-0 mr-3">
                   <div class="flex items-center gap-2">
                     <h4 class="text-sm font-bold text-foreground truncate">{viewingSong.title}</h4>
+                    {#if viewingSongSlides.length > 0}
+                      <Badge variant="secondary" class="text-[10px] font-mono">
+                        {viewingSongSlides.length} slides
+                      </Badge>
+                    {/if}
                     {#if viewingSong.song_key}
                       <Badge variant="outline" class="text-[10px] py-0 px-1.5 font-mono text-primary">
                         Tom: {viewingSong.song_key}
@@ -789,40 +829,78 @@
                 </div>
               </div>
 
-              <!-- Prévia dos Slides em DUAS COLUNAS (Aspect Ratio 16:9) -->
-              <div class="flex-1 overflow-y-auto py-3 pr-1">
-                {#if viewingSong.sections && viewingSong.sections.length > 0}
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {#each viewingSong.sections as sec, idx}
-                      <div class="rounded-xl border border-border bg-background/60 overflow-hidden flex flex-col shadow-xs">
-                        <!-- Topo da Seção -->
-                        <div class="px-3 py-1.5 bg-muted/40 border-b border-border flex items-center justify-between">
-                          <span class="text-[10px] uppercase font-bold text-primary flex items-center gap-1.5">
-                            <span class="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[9px] font-mono font-bold">
+              <!-- Prévia dos Slides com Grid Responsivo em 1, 2 ou 3 colunas (Aspect Ratio 16:9) -->
+              <div class="flex-1 overflow-y-auto py-3 pr-1 min-h-0">
+                {#if viewingSongSlides.length > 0}
+                  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+                    {#each viewingSongSlides as slide, idx (slide.id || idx)}
+                      {@const color = getSectionColor(slide.label)}
+                      <div class="rounded-xl border border-border bg-background/60 overflow-hidden flex flex-col shadow-xs transition-all hover:border-primary/50">
+                        <!-- Topo do Slide -->
+                        <div class="px-3 py-1.5 bg-muted/40 border-b border-border flex items-center justify-between text-[10px]">
+                          <span class="uppercase font-bold text-primary flex items-center gap-1.5 truncate">
+                            <span class="w-4 h-4 rounded-full {color.accent || 'bg-primary/20'} text-primary flex items-center justify-center text-[9px] font-mono font-bold shrink-0">
                               {idx + 1}
                             </span>
-                            {sec.label || `Parte ${idx + 1}`}
+                            <span class="truncate">{slide.label || `Slide ${idx + 1}`}</span>
                           </span>
-                          <span class="text-[9px] text-muted-foreground font-mono">16:9</span>
+                          <span class="text-[9px] text-muted-foreground font-mono shrink-0 ml-1">16:9</span>
                         </div>
 
-                        <!-- Conteúdo dos Slides em proporção 16:9 -->
-                        <div class="aspect-video w-full p-3.5 flex flex-col items-center justify-center text-center bg-black/40">
-                          <div class="text-xs sm:text-[13px] font-semibold text-foreground leading-relaxed">
-                            {#each sec.lines as line}
-                              <p>{@html renderFormattedText(line)}</p>
-                            {/each}
+                        <!-- Conteúdo do Slide em proporção 16:9 -->
+                        <div class="aspect-video w-full p-3.5 flex flex-col items-center justify-center text-center bg-black/40 overflow-hidden">
+                          <div class="text-xs sm:text-[13px] font-semibold text-foreground leading-relaxed line-clamp-6">
+                            {@html renderFormattedText(slide.content)}
                           </div>
                         </div>
                       </div>
                     {/each}
                   </div>
-                {:else}
+                {:else if viewingSong.lyrics_raw}
                   <div class="p-4 rounded-xl border border-border bg-background/50 text-xs font-medium text-foreground leading-relaxed whitespace-pre-wrap">
                     {@html renderFormattedText(viewingSong.lyrics_raw)}
                   </div>
                 {/if}
               </div>
+            </div>
+          {/if}
+        {/snippet}
+
+        <!-- Grade/Lista de Músicas com Suporte a Sheet de Letra Lateral e Divisor Resizable -->
+        <div class="flex-1 flex overflow-hidden min-h-0 w-full h-full">
+          {#if viewingSong}
+            <ResizablePaneGroup direction="horizontal" class="flex-1 w-full h-full min-h-0 overflow-hidden">
+              <!-- Coluna do Catálogo de Músicas (Redimensionável) -->
+              <ResizablePane defaultSize={35} minSize={20} maxSize={60} class="flex flex-col pr-3 overflow-y-auto min-h-0">
+                <div class="grid grid-cols-1 gap-2">
+                  {#each songs as song (song.id)}
+                    {@render songCard(song)}
+                  {/each}
+                </div>
+              </ResizablePane>
+
+              <!-- Divisor Redimensionável Shadcn -->
+              <ResizableHandle withHandle class="hover:bg-primary transition-colors cursor-col-resize" />
+
+              <!-- Sheet Ampliado de Visualização de Letra (Redimensionável) -->
+              <ResizablePane defaultSize={65} minSize={40} class="flex flex-col pl-3 min-w-0 min-h-0 overflow-hidden">
+                {@render viewingSongSheet()}
+              </ResizablePane>
+            </ResizablePaneGroup>
+          {:else}
+            <!-- Catálogo em Tela Cheia (Quando nenhum preview de música estiver aberto) -->
+            <div class="flex-1 overflow-y-auto flex flex-col pr-1 min-h-0">
+              {#if songs.length === 0}
+                <div class="h-32 flex flex-col items-center justify-center text-xs text-muted-foreground">
+                  Nenhuma música encontrada no catálogo.
+                </div>
+              {:else}
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                  {#each songs as song (song.id)}
+                    {@render songCard(song)}
+                  {/each}
+                </div>
+              {/if}
             </div>
           {/if}
         </div>

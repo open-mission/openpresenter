@@ -24,6 +24,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Separação Correta de Slides e Redimensionamento com Resizable Shadcn no Catálogo de Músicas:**
+  - Decomposição fidedigna das letras de músicas usando `parseRawLyrics(song.lyrics_raw)`, gerando slides 16:9 individuais para cada estrofe delimitada por linhas em branco (`\n\n`), evitando o problema onde dezenas de estrofes eram condensadas em um único card gigante.
+  - Grade responsiva com quebra automática (*wrap*) em 1, 2, 3 ou 4 colunas (`grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3`), adaptando o layout dos slides proporcionalmente à largura útil disponível.
+  - Integração da suíte Shadcn `ResizablePaneGroup`, `ResizablePane` e `ResizableHandle` no painel de músicas (`BottomPanel.svelte`), permitindo ao operador redimensionar horizontalmente a proporção entre a lista do catálogo e o painel de pré-visualização de slides com alça de arraste visual (*drag handle*).
 - **Ajuste Visual e Espaçamento do Resizer do Painel de Mídias:**
   - Desacoplamento do separador de redimensionamento do painel inferior de mídias (`BottomPanel.svelte`), posicionando-o no fluxo superior com margem dedicada para não sobrepor os botões de seleção de abas ("Músicas", "Imagens", etc.).
   - Unificação da cor de fundo do separador com o fundo do painel (`bg-card`), eliminando contraste indevido de faixa cinza.
