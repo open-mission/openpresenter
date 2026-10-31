@@ -7,7 +7,6 @@
 
 
 ## Backlog
-- [ ] Improve: Quando clicamos na aba de Biblia e ela está fechada, aumentar a altura que ela está abrindo, talvez podemos colocar 75% da altura.
 - [ ] Improve/fix: Quando redmensionamos o painel de midias ele parece que tem um delay, veja se dá para usar o nativo do shadnui para ficar mais fluido (https://www.shadcn-svelte.com/docs/components/resizable)
 - [ ] Improve: Add a opcao de mostrar no Stage os itens (aviso,  clock e timer) embaixo do Proximo Slide, ficando tres linhas assim podemos aproveitar melhor o espaço. Ajustar para podermos controlar a altura dessas linhas, e as porcentagens serem atualizadas, por exemplo se temos 3 linhas uma preenche 30%, outra 30% entao a ultima só pode preencer até 40%, ou seja as alturas da linha precisa ser somadas até 100% para recalcular as alturas.
 - [ ] No Remote Add a Fundo Vermelho para o botão de parar apresentação que fica no Header. Para ficar mais intuitivo.
@@ -19,6 +18,8 @@
 
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Improve: Aumento automático da altura do painel inferior para 75% da janela útil (`window.innerHeight * 0.75`) ao selecionar ou abrir a aba de Bíblia colapsada ou com altura reduzida, garantindo ampla área de leitura para livros, capítulos e versículos com preservação de redimensionamento manual pelo operador. (commit 3c23aa2 - 2026-10-31 08:54:36 -03:00)
 
 - [x] Feat: Suporte a notificações toast com Sonner (`svelte-sonner`) para feedback em tempo real no AdminView (desktop) e RemoteView (mobile) alertando quando apresentações são iniciadas/paradas, novas músicas salvas/editadas no catálogo, modos de exibição alternados e novos aparelhos conectados na rede, preservando telas de projeção (`/public`, `/stage` e `/lower-third`) 100% limpas. (commit 8eef399 - 2026-10-31 08:49:13 -03:00)
 
