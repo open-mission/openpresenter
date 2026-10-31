@@ -10,8 +10,6 @@
 
 - [ ] Implementar a funcionadlidade de importar musica via JSON ou Text ou Markdwn. Mas também teremos uma secao nas configuracoes para importar a Harpa Cristã em /Users/claudio/Downloads/harpa-crista.json temos o arquivo, a ideia é que o usuario possa instalar ela, o json está no repo do github e quando ele pedir para instalar e baixa o json e importa no programa. Nas musicas add a opcao de termos o metadado de grupos e/ou tags para classificarmos e organizarmos as musicas. O padrão de letras é duas linhas por slide ajustar para ser o padrao podendo ser configurado nas config. Tanto para as musicas importadas como para as musicas salvas vindo da web.
 
-- [ ] Ajustar quando pesquisamos uma musica na web via command pallete, muitas vezes tem que clicar novamente no Online ou Web para ele realmente pesquisar.
-
 
 
 ## Doing
@@ -19,6 +17,8 @@
 
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Fix: Ajuste da pesquisa de músicas na web via Command Palette (`CommandPalette.svelte`): substituição do botão rotativo cíclico por controle segmentado com botões diretos de modo (`[🎵 Músicas]`, `[📖 Bíblia]`, `[🌐 Web]`), centralização da troca com `switchTab`, controle de cancelamento de buscas assíncronas com `AbortController` e identificador sequencial `searchId`, eliminação de corridas com o debounce reativo, pré-seleção automática da Ação 2 ("Buscar na internet") ao digitar título inédito no catálogo local e preservação do foco no campo de texto. (commit 24a830f - 2026-10-31 10:28:07 -03:00)
 
 - [x] Fix/Improve: Separação correta de slides e redimensionamento com Resizable Shadcn no catálogo de músicas (`BottomPanel.svelte`): decomposição fidedigna das letras de músicas com `parseRawLyrics(song.lyrics_raw)` gerando slides 16:9 individuais para cada estrofe delimitada por quebras duplas `\n\n`, grade flexível de pré-visualização responsiva com wrap em múltiplas colunas (`grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3`), e integração dos componentes nativos `ResizablePaneGroup`, `ResizablePane` e `ResizableHandle` para ajuste horizontal ergonômico entre catálogo e slides. (commit 055a4e2 - 2026-10-31 10:18:11 -03:00)
 
