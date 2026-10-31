@@ -7,6 +7,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Sistema de Notificações Toast com Sonner para Ações e Eventos em Tempo Real:**
+  - Integração do componente Sonner via `svelte-sonner` adaptado com estilização Shadcn/Tailwind UI, posicionado no canto superior direito no painel administrativo e topo central no controle remoto mobile.
+  - Notificações instantâneas e não invasivas para início e parada de apresentações, salvamento e atualização de músicas no catálogo, alteração de modos de exibição (blackout/ocultar texto) e conexões de novos aparelhos na rede local.
+  - Sincronização automática com eventos WebSocket (`WsMessage::ActionLogged`), informando operadores de desktop quando uma ação foi realizada remotamente via celular/tablet.
+  - Exclusão estrita de toasts nas telas públicas e de transmissão (`/public`, `/stage` e `/lower-third`), preservando a projeção e a saída de vídeo 100% limpas.
 - **Opção de Reiniciar a Aplicação e o Servidor (Interface Web e System Tray):**
   - Implementação de função multiplataforma segura para spawn desanexado do novo executável mantendo argumentos da linha de comando original (`restart_application`).
   - Adição da opção "Reiniciar OpenPresenter" no menu nativo da bandeja do sistema operacional (System Tray), permitindo reinicialização ágil pelo operador na barra de tarefas / menu bar.

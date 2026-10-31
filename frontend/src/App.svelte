@@ -5,6 +5,7 @@
   import StageView from '$lib/views/StageView.svelte';
   import RemoteView from '$lib/views/RemoteView.svelte';
   import LowerThirdView from '$lib/views/LowerThirdView.svelte';
+  import Sonner from '$lib/components/ui/Sonner.svelte';
 
   let currentPath = $state(window.location.pathname);
 
@@ -93,8 +94,10 @@
   <StageView />
 {:else if viewMode === 'remote'}
   <RemoteView />
+  <Sonner position="top-center" richColors closeButton />
 {:else if viewMode === 'lower-third'}
   <LowerThirdView />
 {:else}
   <AdminView />
+  <Sonner position="top-right" richColors closeButton />
 {/if}

@@ -26,6 +26,7 @@
   import { parseRawLyrics, getSectionColor } from '../songParser';
   import { renderFormattedText } from '../markdown';
   import type { Song, Slide, MediaItem } from '../types';
+  import { toast } from '$lib/toast';
 
   interface Props {
     open: boolean;
@@ -219,10 +220,12 @@ Traga sua família e convidados!`;
         }
 
         const saved: Song = await resp.json();
+        toast.success(id ? 'Música atualizada com sucesso!' : 'Música salva com sucesso no catálogo!');
         onsave?.(saved);
         onclose();
       } catch (err: any) {
         errorMessage = err.message || 'Falha na conexão ao salvar';
+        toast.error(errorMessage);
       } finally {
         isSaving = false;
       }
@@ -258,10 +261,12 @@ Traga sua família e convidados!`;
           throw new Error(errorText || 'Erro ao salvar texto na setlist');
         }
 
+        toast.success('Apresentação rápida adicionada à setlist!');
         onsaveItem?.(mediaItemPayload);
         onclose();
       } catch (err: any) {
         errorMessage = err.message || 'Falha ao salvar apresentação';
+        toast.error(errorMessage);
       } finally {
         isSaving = false;
       }
