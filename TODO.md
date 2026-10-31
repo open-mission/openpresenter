@@ -7,8 +7,6 @@
 
 
 ## Backlog
-- [ ] Feat: Desenvolver sistema de logs para manter salvos as acoes do programa e quem vez isso no sentido de instancia
-- [ ] Improve: no componente que mostra "Online" e vemos os clientes conectados, ele fica no Header. Add a opção de visualizar o Navegador ou Aparelho que está conectado.
 - [ ] Improve: Add a opcao de reiniciar a aplicacao ou o servidor ao ser atualizado. e add isso no trail menu.
 - [ ] Feat: Add suport ao Sonner/toast para avisar quando as cores acontece: Apresentacao é iniciada, parada. Nova Musica Salva. Editada, Novo Aparelho Conectado entre outros.
 - [ ] Improve: Quando clicamos na aba de Biblia e ela está fechada, aumentar a altura que ela está abrindo, talvez podemos colocar 75% da altura.
@@ -23,6 +21,8 @@
 
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Feat & Improve: Sistema de logs para manter salvas as ações do programa com identificação de instâncias e exibição de navegador/aparelho no dropdown Online do Header: criação da tabela SQLite action_logs (migração 0008), identificadores únicos persistentes de instância (instance_id) e device_info, endpoints /api/logs e /api/logs/clear com filtros por categoria, sincronização em tempo real via WsMessage::ActionLogged, aba dedicada de Histórico e Logs de Auditoria no SettingsModal e dropdown aprimorado de conexões ativas exibindo ícones de computador/smartphone/tablet, navegador/sistema, IP e rota. (commit b1025e1 - 2026-10-31 08:34:16 -03:00)
 
 - [x] Fix: Sentido e sincronização de navegação de slides via teclado: cálculo de `nextSlide()` e `prevSlide()` em `AdminView.svelte` a partir do slide ao vivo em tempo real (`active_slide_index`), inicialização de foco ao disparar versículos bíblicos (`handlePresentScripture`), sincronização bidirecional do operador com outros aparelhos/remoto e auto-scroll do card de slide. (commit b729a8d - 2026-10-31 08:04:39 -03:00)
 
