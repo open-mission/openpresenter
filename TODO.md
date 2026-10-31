@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Fix: Corrigir carregamento de imagens e vídeos de fundo no Google Cast (Web Receiver): função canônica `resolveMediaUrl(url)` garantindo URLs absolutas para `<img>`, `<video>` e `background-image: url(...)` no `PublicView.svelte`, `PublicPreviewBox.svelte` e `backgrounds.ts`, suporte a parsing de extensão limpa sem query strings em vídeos/imagens, normalização de referências `url(...)` em estilos CSS via `resolveCssUrls()`, e resiliência com polling assíncrono e expiração de falha no carregamento do SDK do Cast (`cast.ts`). (commit 6f0fa7a - 2026-10-31 12:46:41 -03:00)
+
 - [x] Feat/Improve: Expor e detectar IP na rede local (LAN) para servidor Axum e Vite: exibição clara das URLs locais e da rede no banner do terminal (`main.rs`), suporte à variável `HOST`, resolução multi-alvo em `get_local_ip()` para redes de igreja offline (`routes.rs`), configuração `server.host: true` e proxy `/media` em `vite.config.ts`, e dinamização da URL nos componentes do frontend. (commit 9014fa2 - 2026-10-31 12:29:47 -03:00)
 
 - [x] Fix: Correção de estilização e mídia no Google Cast (Web Receiver) do OpenPresenter: headers explícitos de CORS irrestritos para arquivos estáticos (`/assets/*`), mídias locais (`/media/*`) e SPA fallback no backend Axum (`crates/op-admin`), normalização de caminhos absolutos de mídia e background no `cast.ts` e `PublicView.svelte`, tag `<base href="/">` e estilos críticos inline no container raiz de `PublicView.svelte` e `index.html`. (commit 21be317 - 2026-10-31 12:22:16 -03:00)
