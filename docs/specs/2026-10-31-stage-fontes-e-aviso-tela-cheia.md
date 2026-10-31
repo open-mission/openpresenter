@@ -31,9 +31,14 @@ Identificou-se que:
 ### 3. Paridade Visual no Preview do Operador
 - Atualizar `StagePreviewBox.svelte` para refletir proporcionalmente as fontes configuradas de Relógio, Timer e Aviso.
 
+### 4. Rótulos Flutuantes em Posicionamento Absoluto (Otimização de Espaço para Letras)
+- Reposicionar os cabeçalhos/rótulos dos blocos "Slide Atual" e "A Seguir (Próximo)" com posicionamento absoluto (`position: absolute; top: ...; z-index: 10; pointer-events: none;`) com fundo translúcido sutil.
+- Eliminar o consumo vertical rígido de 30px–50px causado por barras de cabeçalho em fluxo estático, liberando 100% da altura dos blocos para o cálculo do `autoScale`, maximizando o corpo e a legibilidade das letras de músicas e passagens bíblicas à distância.
+
 ## Critérios de Aceite
 1. O relógio e o timer no `/stage` preenchem com maior destaque a tela e respeitam os tamanhos definidos em configurações.
 2. O modal de configurações permite ajustar as fontes de Relógio (24–96px), Timer (28–120px) e Aviso (16–64px).
 3. Ao disparar uma mensagem de palco, o `/stage` exibe o alerta em tela cheia e, após o tempo definido, retorna ao layout normal mantendo a mensagem no rodapé.
 4. É possível desativar o pop-in em tela cheia e alterar o tempo de exibição nas configurações.
-5. `cargo fmt`, `cargo clippy`, `cargo test` e `bun run build` passam sem erros ou avisos.
+5. Os rótulos de identificação de slide ficam sobrepostos em posicionamento absoluto, garantindo área útil máxima de altura para as letras no palco.
+6. `cargo fmt`, `cargo clippy`, `cargo test` e `bun run build` passam sem erros ou avisos.

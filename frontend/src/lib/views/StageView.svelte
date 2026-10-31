@@ -263,37 +263,38 @@
   <!-- ========================================================================= -->
   {:else}
     {#snippet currentSlideBlock()}
-      <!-- Slide Atual Grande -->
+      <!-- Slide Atual Grande com Rótulo Flutuante em Absolute para Espaço Máximo -->
       <div
-        class="flex flex-col rounded-none bg-zinc-950/80 p-3 sm:p-5 overflow-hidden border-b transition-all min-h-0"
+        class="relative flex flex-col rounded-none bg-zinc-950/80 overflow-hidden border-b transition-all min-h-0"
         style="flex: {currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
       >
-        <div class="flex items-center justify-between pb-2 border-b border-zinc-800 shrink-0">
+        <!-- Rótulo Flutuante em Absolute (não ocupa espaço vertical das letras) -->
+        <div class="absolute top-2 left-3 right-3 flex items-center justify-between pointer-events-none z-10 opacity-75 hover:opacity-100 transition-opacity">
           <span
-            class="text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+            class="text-[11px] sm:text-xs font-bold uppercase tracking-widest flex items-center gap-1.5 px-2 py-0.5 rounded bg-black/40 backdrop-blur-sm border border-white/5"
             style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};"
           >
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             Slide Atual
           </span>
           {#if isScripture && activeSlide}
             {@const refLabel = activeSlide.label || activeMedia?.title || 'Bíblia'}
             {@const version = activeMedia?.artist_or_ref || ''}
             {@const cleanRef = version && refLabel.endsWith(version) ? refLabel.slice(0, -version.length).trim() : refLabel}
-            <span class="text-xs font-bold bg-zinc-800 text-zinc-200 border border-zinc-700 px-2.5 py-0.5 rounded flex items-center gap-1.5">
+            <span class="text-xs font-bold bg-zinc-900/80 backdrop-blur-sm text-zinc-200 border border-zinc-700/80 px-2.5 py-0.5 rounded flex items-center gap-1.5">
               <span>{cleanRef}</span>
               {#if version}
                 <span class="text-[10px] opacity-75 uppercase font-mono">({version})</span>
               {/if}
             </span>
           {:else if activeSlide}
-            <span class="text-xs font-semibold bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded">
+            <span class="text-xs font-semibold bg-zinc-900/80 backdrop-blur-sm text-zinc-300 border border-zinc-800 px-2 py-0.5 rounded">
               {activeSlide.label}
             </span>
           {/if}
         </div>
 
-        <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden p-2">
+        <div class="w-full h-full flex-1 min-h-0 flex items-center justify-center overflow-hidden p-3 sm:p-5 md:p-6">
           {#if isCurrentImage && activeSlide}
             <div class="w-full h-full flex flex-col items-center justify-center p-2 min-h-0">
               <img
@@ -309,7 +310,7 @@
                 minSize: isScripture
                   ? (stageSettings.scripture_min_font_size || stageSettings.min_font_size || 24)
                   : (stageSettings.lyrics_min_font_size || stageSettings.min_font_size || 24),
-                maxSize: 240
+                maxSize: 260
               }}
               class="w-full font-black leading-tight text-center break-words select-none"
               style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};"
@@ -326,31 +327,32 @@
     {/snippet}
 
     {#snippet nextSlideBlock()}
-      <!-- Próximo Slide Compacto Abaixo -->
+      <!-- Próximo Slide Compacto com Rótulo Flutuante em Absolute -->
       <div
-        class="rounded-none bg-zinc-900/40 p-2 sm:p-3 overflow-hidden border-b md:border-b-0 flex flex-col shrink-0 transition-all min-h-0"
+        class="relative rounded-none bg-zinc-900/40 overflow-hidden border-b md:border-b-0 flex flex-col shrink-0 transition-all min-h-0"
         style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
       >
-        <div class="flex items-center justify-between pb-1 border-b border-zinc-800/80 shrink-0">
+        <!-- Rótulo Flutuante em Absolute (não ocupa espaço vertical das letras) -->
+        <div class="absolute top-1.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10 opacity-75 hover:opacity-100 transition-opacity">
           <span
-            class="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5"
+            class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 px-2 py-0.5 rounded bg-black/40 backdrop-blur-sm border border-white/5"
             style="color: {stageSettings.next_text_color || '#facc15'};"
           >
-            <ArrowRight size={13} />
+            <ArrowRight size={12} />
             A Seguir (Próximo)
           </span>
           {#if isScripture && nextSlide}
-            <span class="text-[10px] font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 px-1.5 py-0.5 rounded flex items-center gap-1">
+            <span class="text-[10px] font-bold bg-zinc-900/80 backdrop-blur-sm text-zinc-300 border border-zinc-700/80 px-1.5 py-0.5 rounded flex items-center gap-1">
               <span>{nextSlide.label}</span>
             </span>
           {:else if nextSlide}
-            <span class="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">
+            <span class="text-[10px] bg-zinc-900/80 backdrop-blur-sm text-zinc-400 border border-zinc-800 px-1.5 py-0.5 rounded">
               {nextSlide.label}
             </span>
           {/if}
         </div>
 
-        <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden p-2">
+        <div class="w-full h-full flex-1 min-h-0 flex items-center justify-center overflow-hidden p-2 sm:p-4">
           {#if isNextImage && nextSlide}
             <div class="w-full h-full flex items-center justify-center p-1 min-h-0">
               <img

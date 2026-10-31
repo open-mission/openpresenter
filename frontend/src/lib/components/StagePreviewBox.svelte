@@ -75,10 +75,10 @@
         <div class="flex-1 flex flex-col gap-0 min-h-0 min-w-0 border-r border-zinc-800" style="flex: {100 - (footerRatio * 1.5)};">
           <!-- Atual -->
           <div
-            class="rounded-none border-b p-1 overflow-hidden bg-zinc-900/70 flex flex-col justify-between"
+            class="relative rounded-none border-b p-1 overflow-hidden bg-zinc-900/70 flex flex-col justify-center"
             style="flex: {currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
           >
-            <span class="text-[8px] font-bold uppercase truncate" style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};">
+            <span class="absolute top-0.5 left-1 text-[7px] font-bold uppercase truncate opacity-75 pointer-events-none" style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};">
               ● {isScripture ? `${activeSlide?.label || 'Bíblia'}` : `Atual: ${activeSlide?.label || 'Slide'}`}
             </span>
             {#if isCurrentMediaImage && activeSlide}
@@ -96,11 +96,11 @@
 
           <!-- Próximo -->
           <div
-            class="rounded-none p-1 overflow-hidden bg-zinc-900/40 flex flex-col justify-between"
+            class="relative rounded-none p-1 overflow-hidden bg-zinc-900/40 flex flex-col justify-center"
             style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
           >
-            <span class="text-[7px] font-bold uppercase truncate flex items-center gap-1" style="color: {stageSettings.next_text_color || '#facc15'};">
-              <ArrowRight size={8} />
+            <span class="absolute top-0.5 left-1 text-[6.5px] font-bold uppercase truncate flex items-center gap-0.5 opacity-75 pointer-events-none" style="color: {stageSettings.next_text_color || '#facc15'};">
+              <ArrowRight size={7} />
               {isScripture && nextSlide ? `${nextSlide.label}` : 'A Seguir:'}
             </span>
             {#if isNextMediaImage && nextSlide}
@@ -171,10 +171,10 @@
       <div class="flex-1 flex flex-col gap-0 min-h-0 w-full h-full">
         <!-- Linha 1: Slide Atual -->
         <div
-          class="rounded-none border-b p-1 overflow-hidden bg-zinc-900/70 flex flex-col justify-between min-h-0"
+          class="relative rounded-none border-b p-1 overflow-hidden bg-zinc-900/70 flex flex-col justify-center min-h-0"
           style="flex: {currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
         >
-          <span class="text-[8px] font-bold uppercase truncate" style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};">
+          <span class="absolute top-0.5 left-1 text-[7px] font-bold uppercase truncate opacity-75 pointer-events-none" style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};">
             ● {isScripture ? `${activeSlide?.label || 'Bíblia'}` : `Atual: ${activeSlide?.label || 'Slide'}`}
           </span>
           {#if isCurrentMediaImage && activeSlide}
@@ -192,11 +192,11 @@
 
         <!-- Linha 2: Próximo Slide -->
         <div
-          class="rounded-none border-b p-1 overflow-hidden bg-zinc-900/40 flex flex-col justify-between min-h-0"
+          class="relative rounded-none border-b p-1 overflow-hidden bg-zinc-900/40 flex flex-col justify-center min-h-0"
           style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
         >
-          <span class="text-[7px] font-bold uppercase truncate flex items-center gap-1" style="color: {stageSettings.next_text_color || '#facc15'};">
-            <ArrowRight size={8} />
+          <span class="absolute top-0.5 left-1 text-[6.5px] font-bold uppercase truncate flex items-center gap-0.5 opacity-75 pointer-events-none" style="color: {stageSettings.next_text_color || '#facc15'};">
+            <ArrowRight size={7} />
             {isScripture && nextSlide ? `${nextSlide.label}` : 'A Seguir:'}
           </span>
           {#if isNextMediaImage && nextSlide}

@@ -39,6 +39,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Exibição refinada no dropdown de status de rede do cabeçalho, mostrando tipo de aparelho com ícones dedicados (computador, smartphone, tablet), sistema operacional/navegador, IP, rota e atalho direto para os logs.
 
 ### Melhorado
+- **Rótulos Flutuantes em Posicionamento Absoluto no Monitor de Palco (`StageView.svelte`):**
+  - Reposicionamento dos cabeçalhos dos blocos "Slide Atual" e "A Seguir (Próximo)" com estilo flutuante em posicionamento absoluto (`absolute top-2 left-3 right-3`) e fundo translúcido sutil.
+  - Eliminação do consumo vertical rígido de 30px–50px causado por barras estáticas de cabeçalho, liberando 100% da altura e largura útil dos blocos para o algoritmo de `autoScale`, permitindo que as letras de louvor e versículos bíblicos alcancem tamanhos muito maiores e mais legíveis.
+  - Atualização correspondente no preview de palco (`StagePreviewBox.svelte`).
 - **Fontes Maiores e Controles de Tamanho no Monitor de Palco (`/stage` e `SettingsModal.svelte`):**
   - Aumento significativo dos tamanhos de fonte do Relógio, Timer/Cronômetro e Aviso para o Palco, garantindo que preencham melhor o espaço útil da tela e sejam perfeitamente legíveis a 10–30 metros de distância.
   - Novos controles deslizantes na aba "Palco" das configurações com ajustes numéricos em tempo real para Relógio (`clock_font_size`: 24px a 96px, padrão 48px), Timer (`timer_font_size`: 28px a 120px, padrão 56px) e Aviso (`alert_font_size`: 16px a 64px, padrão 28px).
