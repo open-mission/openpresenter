@@ -216,6 +216,8 @@
 
 - [Spec — Preparação e Lançamento da Versão 0.4.0](specs/2026-10-31-release-0-4-0.md)
 - [Plano — Preparação e Lançamento da Versão 0.4.0](plans/2026-10-31-release-0-4-0.md)
+- [Spec — Customizações e Configurações Visuais da Agenda (Public e Stage)](specs/2026-10-31-configuracoes-agenda-public-e-stage.md)
+- [Plano — Customizações e Configurações Visuais da Agenda (Public e Stage)](plans/2026-10-31-configuracoes-agenda-public-e-stage.md)
 
 ## Arquitetura e decisões
 

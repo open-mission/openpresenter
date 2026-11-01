@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Feat/Improve: Customizações visuais e dimensionamento da Agenda (Schedule) nas telas Pública e Palco: opções nas configurações para controle do container (fundo com/sem blur, opacidade e largura máxima), tamanho dos textos (título, dia, horário, detalhes) e ajustes de tamanho dos textos de retorno no monitor de palco. (commit 11b7517 - 2026-10-31 23:51:26 -03:00)
+
 - [x] Lançamento da versão 0.4.0: unificação de versão em todo o workspace (Cargo.toml, package.json, workflows, componentes e testes), consolidação de tipo de mídia agenda, imagens no lower third para OBS, instalação oficial da Harpa Cristã (540 hinos), toasts Sonner, fechamento da release 0.4.0 no CHANGELOG.md, spec docs/specs/2026-10-31-release-0-4-0.md e publicação da tag v0.4.0. (commit ec833fe - 2026-10-31 21:15:22 -03:00)
 
 - [x] Feat/Improve: Exibição e seleção de imagens no Lower Third (`/lower-third`): correção da renderização de imagem (em vez de texto bruto de caminho), opções configuráveis de modo de imagem (`fullscreen`, `lower_third`, `hide`) e ajuste (`contain`/`cover`), e suporte à seleção de imagem alternativa dedicada para o Lower Third em `MediaItem`. (commit e737f28 - 2026-10-31 20:35:23 -03:00)

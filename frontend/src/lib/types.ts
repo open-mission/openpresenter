@@ -289,6 +289,20 @@ export interface PublicDisplaySettings {
   scripture_show_reference?: boolean;
   scripture_reference_position?: 'footer' | 'below_text' | 'none';
   scripture_reference_font_size?: number;
+
+  // Agenda / Programação na Tela Pública
+  schedule_box_background?: boolean;
+  schedule_bg_opacity?: number;
+  schedule_max_width_percent?: number;
+  schedule_padding?: 'compact' | 'normal' | 'spacious';
+  schedule_title_min_font_size?: number;
+  schedule_title_max_font_size?: number;
+  schedule_day_font_size?: number;
+  schedule_time_font_size?: number;
+  schedule_details_font_size?: number;
+  schedule_show_badges?: boolean;
+  schedule_show_footer?: boolean;
+  schedule_align_h?: 'left' | 'center' | 'right';
 }
 
 export type ImageDisplayMode = 'fullscreen' | 'lower_third' | 'hide';
@@ -369,6 +383,15 @@ export interface StageDisplaySettings {
   // Aviso para o Palco em Tela Cheia Temporária
   alert_fullscreen_flash?: boolean;
   alert_flash_duration_seconds?: number;
+
+  // Agenda / Programação no Palco
+  stage_schedule_title_min_font_size?: number;
+  stage_schedule_title_max_font_size?: number;
+  stage_schedule_day_font_size?: number;
+  stage_schedule_time_font_size?: number;
+  stage_schedule_details_font_size?: number;
+  stage_schedule_next_min_font_size?: number;
+  stage_schedule_next_max_font_size?: number;
 }
 
 export type SectionType =

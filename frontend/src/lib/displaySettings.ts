@@ -40,6 +40,20 @@ export const DEFAULT_PUBLIC_SETTINGS: PublicDisplaySettings = {
   scripture_show_reference: true,
   scripture_reference_position: 'footer',
   scripture_reference_font_size: 28,
+
+  // Agenda / Programação na Tela Pública
+  schedule_box_background: true,
+  schedule_bg_opacity: 65,
+  schedule_max_width_percent: 80,
+  schedule_padding: 'normal',
+  schedule_title_min_font_size: 32,
+  schedule_title_max_font_size: 110,
+  schedule_day_font_size: 20,
+  schedule_time_font_size: 18,
+  schedule_details_font_size: 20,
+  schedule_show_badges: true,
+  schedule_show_footer: true,
+  schedule_align_h: 'center',
 };
 
 export const DEFAULT_CHURCH_BRAND: ChurchBrandSettings = {
@@ -88,6 +102,15 @@ export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
   // Aviso para o Palco em Tela Cheia Temporária
   alert_fullscreen_flash: true,
   alert_flash_duration_seconds: 5,
+
+  // Agenda / Programação no Palco
+  stage_schedule_title_min_font_size: 28,
+  stage_schedule_title_max_font_size: 180,
+  stage_schedule_day_font_size: 18,
+  stage_schedule_time_font_size: 16,
+  stage_schedule_details_font_size: 18,
+  stage_schedule_next_min_font_size: 18,
+  stage_schedule_next_max_font_size: 120,
 };
 
 export const DEFAULT_LOWER_THIRD_SETTINGS: LowerThirdSettings = {

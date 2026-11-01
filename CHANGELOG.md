@@ -6,6 +6,24 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Configurações Visuais e Tipográficas da Agenda (Projeção Pública e Monitor de Palco):**
+  - Controles visuais dedicados para o tipo de mídia Agenda (`MediaKind::Schedule`) em `SettingsModal.svelte` nas abas "Projeção Pública" e "Monitor de Palco".
+  - **Projeção Pública (`/public` e preview do operador):**
+    - Opção de exibir ou ocultar o container com fundo translúcido (`schedule_box_background`).
+    - Ajuste de opacidade do fundo do card de 10% a 100% (`schedule_bg_opacity`).
+    - Largura máxima do container de 50% a 100% (`schedule_max_width_percent`).
+    - Espaçamento interno com modos Compacto, Normal e Amplo (`schedule_padding`).
+    - Alinhamento horizontal do conteúdo: Esquerda, Centro e Direita (`schedule_align_h`).
+    - Configuração fina da tipografia com auto-scale: título mín/máx (18-64px / 48-160px), badges de dia da semana (12-36px), horário (12-32px) e texto de detalhes (12-40px).
+    - Opções para exibir ou ocultar os distintivos (badges) de dia/horário e o rodapé com o título geral da agenda.
+  - **Monitor de Palco (`/stage` e preview):**
+    - Ajuste das fontes do Slide Atual da Agenda: auto-scale do título mín/máx (20-60px / 60-240px), badges de dia da semana (12-36px), horário (12-32px) e texto de detalhes (12-32px).
+    - Ajuste do bloco "A Seguir" para o próximo evento da agenda com auto-scale do título mín/máx (12-48px / 40-160px).
+  - **Simulação em Tempo Real:**
+    - Alternador de prévia `[📅 Agenda]` adicionado à visualização 16:9 na aba "Fundos de Letras & CSS" para teste de contraste em tempo real com os presets de plano de fundo.
+    - Prévia interativa em tempo real com `StagePreviewBox` na aba do Monitor de Palco refletindo instantaneamente as alterações de fontes para o evento atual e o próximo evento.
+
 ## [0.4.0] - 2026-10-31
 
 ### Adicionado

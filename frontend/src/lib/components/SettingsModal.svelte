@@ -42,6 +42,7 @@
     Clock,
     Video,
     ScrollText,
+    CalendarDays,
   } from 'lucide-svelte';
   import {
     fetchUpdateCheck,
@@ -165,9 +166,9 @@
   let settingsSongFileInputEl: HTMLInputElement | null = $state(null);
 
   // Sub-seções internas
-  let publicSection = $state<'lyrics' | 'scripture' | 'general'>('lyrics');
-  let stageSection = $state<'lyrics' | 'scripture' | 'general'>('lyrics');
-  let bgPreviewMode = $state<'lyrics' | 'scripture'>('lyrics');
+  let publicSection = $state<'lyrics' | 'scripture' | 'schedule' | 'general'>('lyrics');
+  let stageSection = $state<'lyrics' | 'scripture' | 'schedule' | 'general'>('lyrics');
+  let bgPreviewMode = $state<'lyrics' | 'scripture' | 'schedule'>('lyrics');
   let ltPreviewMode = $state<'lyrics' | 'scripture' | 'image'>('lyrics');
 
   // Configurações de Fundos de Letras e CSS
@@ -1629,7 +1630,7 @@
               </div>
 
               <!-- Seletor de Seções da Projeção Pública -->
-              <div class="p-1 bg-neutral-950 rounded-xl border border-neutral-800 grid grid-cols-3 gap-1">
+              <div class="p-1 bg-neutral-950 rounded-xl border border-neutral-800 grid grid-cols-2 sm:grid-cols-4 gap-1">
                 <button
                   type="button"
                   onclick={() => (publicSection = 'lyrics')}
@@ -1646,6 +1647,15 @@
                 >
                   <BookOpen size={13} />
                   <span>Textos Bíblicos</span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => (publicSection = 'schedule')}
+                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'schedule' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                >
+                  <CalendarDays size={13} />
+                  <span>Agenda</span>
                 </button>
 
                 <button
@@ -2048,6 +2058,321 @@
                   </div>
                 </div>
 
+              {:else if publicSection === 'schedule'}
+                <!-- SEÇÃO: AGENDA & EVENTOS NA PROJEÇÃO PÚBLICA -->
+                <div class="space-y-4">
+                  <!-- Container & Fundo da Agenda -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                          <Layers size={14} class="text-primary" />
+                          Container e Fundo do Card da Agenda
+                        </h4>
+                        <p class="text-[11px] text-neutral-400 mt-0.5">
+                          Personalize a caixa visual onde as informações do evento são exibidas no telão.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-[11px] h-7"
+                        onclick={() => {
+                          localPublic = {
+                            ...localPublic,
+                            schedule_box_background: DEFAULT_PUBLIC_SETTINGS.schedule_box_background,
+                            schedule_bg_opacity: DEFAULT_PUBLIC_SETTINGS.schedule_bg_opacity,
+                            schedule_max_width_percent: DEFAULT_PUBLIC_SETTINGS.schedule_max_width_percent,
+                            schedule_padding: DEFAULT_PUBLIC_SETTINGS.schedule_padding,
+                            schedule_align_h: DEFAULT_PUBLIC_SETTINGS.schedule_align_h,
+                            schedule_title_min_font_size: DEFAULT_PUBLIC_SETTINGS.schedule_title_min_font_size,
+                            schedule_title_max_font_size: DEFAULT_PUBLIC_SETTINGS.schedule_title_max_font_size,
+                            schedule_day_font_size: DEFAULT_PUBLIC_SETTINGS.schedule_day_font_size,
+                            schedule_time_font_size: DEFAULT_PUBLIC_SETTINGS.schedule_time_font_size,
+                            schedule_details_font_size: DEFAULT_PUBLIC_SETTINGS.schedule_details_font_size,
+                            schedule_show_badges: DEFAULT_PUBLIC_SETTINGS.schedule_show_badges,
+                            schedule_show_footer: DEFAULT_PUBLIC_SETTINGS.schedule_show_footer,
+                          };
+                          savePublicDisplaySettings(localPublic);
+                        }}
+                      >
+                        Restaurar Padrão
+                      </Button>
+                    </div>
+
+                    <!-- Fundo translúcido (Toggle) -->
+                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
+                      <div>
+                        <div class="text-[11px] font-semibold text-white">Exibir Fundo no Card de Agenda</div>
+                        <p class="text-[10px] text-neutral-400 mt-0.5">
+                          Adiciona uma placa translúcida com borda e efeito de vidro atrás das informações.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Alternar fundo da agenda"
+                        onclick={() => updatePublicField('schedule_box_background', localPublic.schedule_box_background === false ? true : false)}
+                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.schedule_box_background !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                        role="switch"
+                        aria-checked={localPublic.schedule_box_background !== false}
+                      >
+                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.schedule_box_background !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
+                      </button>
+                    </div>
+
+                    {#if localPublic.schedule_box_background !== false}
+                      <!-- Opacidade do Fundo -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Opacidade do Fundo</span>
+                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                            {localPublic.schedule_bg_opacity ?? 80}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="10"
+                          max="100"
+                          step="5"
+                          value={localPublic.schedule_bg_opacity ?? 80}
+                          oninput={(e) => updatePublicField('schedule_bg_opacity', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                        <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
+                          <span>10% (Quase transparente)</span>
+                          <span>80% (Padrão)</span>
+                          <span>100% (Sólido)</span>
+                        </div>
+                      </div>
+                    {/if}
+
+                    <!-- Largura Máxima do Container (%) -->
+                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-neutral-300 font-medium">Largura Máxima do Container</span>
+                        <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                          {localPublic.schedule_max_width_percent ?? 90}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="50"
+                        max="100"
+                        step="5"
+                        value={localPublic.schedule_max_width_percent ?? 90}
+                        oninput={(e) => updatePublicField('schedule_max_width_percent', Number((e.target as HTMLInputElement).value))}
+                        class="w-full accent-primary cursor-pointer"
+                      />
+                      <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
+                        <span>50% (Estreito / Central)</span>
+                        <span>90% (Padrão)</span>
+                        <span>100% (Largura total)</span>
+                      </div>
+                    </div>
+
+                    <!-- Espaçamento Interno (Padding) e Alinhamento Horizontal -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <!-- Espaçamento Interno -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <span class="text-[11px] font-semibold text-white block">Espaçamento Interno (Padding)</span>
+                        <div class="grid grid-cols-3 gap-1">
+                          {#each [
+                            { id: 'compact', label: 'Compacto' },
+                            { id: 'normal', label: 'Normal' },
+                            { id: 'spacious', label: 'Amplo' }
+                          ] as padOpt}
+                            <button
+                              type="button"
+                              onclick={() => updatePublicField('schedule_padding', padOpt.id as any)}
+                              class="py-1.5 px-2 rounded-md text-[11px] font-medium transition-colors cursor-pointer text-center {(localPublic.schedule_padding ?? 'normal') === padOpt.id ? 'bg-primary text-primary-foreground font-semibold shadow' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
+                            >
+                              {padOpt.label}
+                            </button>
+                          {/each}
+                        </div>
+                      </div>
+
+                      <!-- Alinhamento Horizontal -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <span class="text-[11px] font-semibold text-white block">Alinhamento Horizontal</span>
+                        <div class="grid grid-cols-3 gap-1">
+                          {#each [
+                            { id: 'left', label: 'Esquerda' },
+                            { id: 'center', label: 'Centro' },
+                            { id: 'right', label: 'Direita' }
+                          ] as alignOpt}
+                            <button
+                              type="button"
+                              onclick={() => updatePublicField('schedule_align_h', alignOpt.id as any)}
+                              class="py-1.5 px-2 rounded-md text-[11px] font-medium transition-colors cursor-pointer text-center {(localPublic.schedule_align_h ?? 'center') === alignOpt.id ? 'bg-primary text-primary-foreground font-semibold shadow' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
+                            >
+                              {alignOpt.label}
+                            </button>
+                          {/each}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Tipografia da Agenda -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                      <Type size={14} class="text-primary" />
+                      Tipografia e Tamanho dos Textos
+                    </h4>
+                    <p class="text-[11px] text-neutral-400">
+                      Ajuste fino dos tamanhos de fontes do título, data/hora e detalhes do evento na projeção pública.
+                    </p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <!-- Título Min -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Título (Mínimo Auto-Scale)</span>
+                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                            {localPublic.schedule_title_min_font_size ?? 28}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="18"
+                          max="64"
+                          step="2"
+                          value={localPublic.schedule_title_min_font_size ?? 28}
+                          oninput={(e) => updatePublicField('schedule_title_min_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+
+                      <!-- Título Max -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Título (Máximo Auto-Scale)</span>
+                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                            {localPublic.schedule_title_max_font_size ?? 96}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="48"
+                          max="160"
+                          step="4"
+                          value={localPublic.schedule_title_max_font_size ?? 96}
+                          oninput={(e) => updatePublicField('schedule_title_max_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+
+                      <!-- Badge Dia -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Texto do Dia da Semana</span>
+                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                            {localPublic.schedule_day_font_size ?? 18}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="12"
+                          max="36"
+                          step="1"
+                          value={localPublic.schedule_day_font_size ?? 18}
+                          oninput={(e) => updatePublicField('schedule_day_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+
+                      <!-- Badge Hora -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Texto do Horário</span>
+                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                            {localPublic.schedule_time_font_size ?? 16}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="12"
+                          max="32"
+                          step="1"
+                          value={localPublic.schedule_time_font_size ?? 16}
+                          oninput={(e) => updatePublicField('schedule_time_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Detalhes / Descrição -->
+                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-neutral-300 font-medium">Texto de Detalhes / Descrição</span>
+                        <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                          {localPublic.schedule_details_font_size ?? 22}px
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="12"
+                        max="40"
+                        step="1"
+                        value={localPublic.schedule_details_font_size ?? 22}
+                        oninput={(e) => updatePublicField('schedule_details_font_size', Number((e.target as HTMLInputElement).value))}
+                        class="w-full accent-primary cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Visibilidade de Elementos da Agenda -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                      <Sliders size={14} class="text-primary" />
+                      Visibilidade de Elementos
+                    </h4>
+
+                    <div class="space-y-2">
+                      <!-- Badges Dia e Hora -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Exibir Badges de Dia da Semana e Horário</div>
+                          <p class="text-[10px] text-neutral-400 mt-0.5">
+                            Exibe os distintivos coloridos com dia (ex: QUARTA-FEIRA) e horário (ex: 19:30).
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label="Alternar badges de dia e horário"
+                          onclick={() => updatePublicField('schedule_show_badges', localPublic.schedule_show_badges === false ? true : false)}
+                          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.schedule_show_badges !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                          role="switch"
+                          aria-checked={localPublic.schedule_show_badges !== false}
+                        >
+                          <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.schedule_show_badges !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
+                        </button>
+                      </div>
+
+                      <!-- Rodapé Nome da Agenda -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Exibir Rodapé com Nome da Programação</div>
+                          <p class="text-[10px] text-neutral-400 mt-0.5">
+                            Exibe a linha divisória e o título geral da agenda no rodapé da projeção pública.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label="Alternar rodapé da agenda"
+                          onclick={() => updatePublicField('schedule_show_footer', localPublic.schedule_show_footer === false ? true : false)}
+                          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.schedule_show_footer !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                          role="switch"
+                          aria-checked={localPublic.schedule_show_footer !== false}
+                        >
+                          <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.schedule_show_footer !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               {:else}
                 <!-- SEÇÃO 3: MARGENS & GERAL -->
                 <div class="space-y-4">
@@ -2317,7 +2642,7 @@
                     <span>Prévia em Tempo Real (16:9)</span>
                   </span>
 
-                  <!-- Alternador entre Letra de Louvor e Texto Bíblico -->
+                  <!-- Alternador entre Letra de Louvor, Texto Bíblico e Agenda -->
                   <div class="flex items-center rounded-lg border border-neutral-800 bg-neutral-900 p-0.5 text-xs">
                     <button
                       type="button"
@@ -2334,6 +2659,14 @@
                     >
                       <BookOpen size={12} />
                       <span>Texto Bíblico</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick={() => (bgPreviewMode = 'schedule')}
+                      class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {bgPreviewMode === 'schedule' ? 'bg-primary text-primary-foreground font-semibold shadow' : 'text-neutral-400 hover:text-white'}"
+                    >
+                      <CalendarDays size={12} />
+                      <span>Agenda</span>
                     </button>
                   </div>
 
@@ -2368,7 +2701,7 @@
                         Harpa Cristã • 526
                       </span>
                     </div>
-                  {:else}
+                  {:else if bgPreviewMode === 'scripture'}
                     <!-- Versículo Bíblico centralizado com rodapé ou abaixo do texto -->
                     <div class="relative z-10 my-auto text-center flex flex-col items-center justify-center">
                       <p
@@ -2404,6 +2737,60 @@
                         </span>
                       </div>
                     {/if}
+                  {:else}
+                    <!-- Card de Agenda em tempo real -->
+                    <div
+                      class="relative z-10 my-auto w-full flex flex-col {localPublic.schedule_align_h === 'left' ? 'items-start text-left' : localPublic.schedule_align_h === 'right' ? 'items-end text-right' : 'items-center text-center'}"
+                    >
+                      <div
+                        class="rounded-xl transition-all duration-300 w-full {localPublic.schedule_box_background !== false ? 'border border-white/20 shadow-2xl backdrop-blur-md' : ''} {localPublic.schedule_padding === 'compact' ? 'p-3' : localPublic.schedule_padding === 'spacious' ? 'p-6' : 'p-4'}"
+                        style="
+                          max-width: {localPublic.schedule_max_width_percent ?? 90}%;
+                          background-color: {localPublic.schedule_box_background !== false ? `rgba(0, 0, 0, ${(localPublic.schedule_bg_opacity ?? 80) / 100})` : 'transparent'};
+                        "
+                      >
+                        {#if localPublic.schedule_show_badges !== false}
+                          <div class="flex flex-wrap items-center gap-1.5 mb-2 {localPublic.schedule_align_h === 'left' ? 'justify-start' : localPublic.schedule_align_h === 'right' ? 'justify-end' : 'justify-center'}">
+                            <span
+                              class="px-2 py-0.5 rounded font-black tracking-wider uppercase border border-amber-400/40 bg-amber-400/20 text-amber-300 shadow-sm"
+                              style="font-size: {Math.max(8, Math.round((localPublic.schedule_day_font_size ?? 18) * 0.45))}px;"
+                            >
+                              Quarta-Feira
+                            </span>
+                            <span
+                              class="px-2 py-0.5 rounded font-bold font-mono border border-cyan-400/40 bg-cyan-400/20 text-cyan-200 shadow-sm"
+                              style="font-size: {Math.max(8, Math.round((localPublic.schedule_time_font_size ?? 16) * 0.45))}px;"
+                            >
+                              19:30
+                            </span>
+                          </div>
+                        {/if}
+
+                        <h2
+                          class="font-black leading-tight tracking-tight drop-shadow-md"
+                          style="font-size: {Math.max(14, Math.round((localPublic.schedule_title_max_font_size ?? 96) * 0.28))}px; color: {currentSelectedPreset.textColor || '#ffffff'};"
+                        >
+                          Culto de Oração e Estudo da Palavra
+                        </h2>
+
+                        <p
+                          class="mt-2 font-medium leading-relaxed opacity-90"
+                          style="font-size: {Math.max(9, Math.round((localPublic.schedule_details_font_size ?? 22) * 0.45))}px; color: {currentSelectedPreset.textColor || '#ffffff'};"
+                        >
+                          Momento de oração com toda a igreja e reflexão bíblica no templo central.
+                        </p>
+                      </div>
+
+                      {#if localPublic.schedule_show_footer !== false}
+                        <div
+                          class="mt-2 pt-1 border-t border-white/20 w-full flex items-center justify-between text-white/70 font-bold uppercase tracking-wider text-[9px]"
+                          style="max-width: {localPublic.schedule_max_width_percent ?? 90}%;"
+                        >
+                          <span>Programação Semanal</span>
+                          <span>2026</span>
+                        </div>
+                      {/if}
+                    </div>
                   {/if}
                 </div>
               </div>
@@ -2649,7 +3036,7 @@
               </div>
 
               <!-- Seletor de Seções do Monitor de Retorno (Stage) -->
-              <div class="p-1 bg-neutral-950 rounded-xl border border-neutral-800 grid grid-cols-3 gap-1">
+              <div class="p-1 bg-neutral-950 rounded-xl border border-neutral-800 grid grid-cols-2 sm:grid-cols-4 gap-1">
                 <button
                   type="button"
                   onclick={() => (stageSection = 'lyrics')}
@@ -2666,6 +3053,15 @@
                 >
                   <BookOpen size={13} />
                   <span>Textos Bíblicos</span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => (stageSection = 'schedule')}
+                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {stageSection === 'schedule' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                >
+                  <CalendarDays size={13} />
+                  <span>Agenda</span>
                 </button>
 
                 <button
@@ -2906,6 +3302,246 @@
                           class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
                         />
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+              {:else if stageSection === 'schedule'}
+                <!-- SEÇÃO: AGENDA NO MONITOR DE PALCO -->
+                <div class="space-y-4">
+                  <!-- Fontes do Slide Atual da Agenda -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                          <Type size={14} class="text-primary" />
+                          Slide Atual da Agenda (Ao Vivo no Palco)
+                        </h4>
+                        <p class="text-[11px] text-neutral-400 mt-0.5">
+                          Ajuste as fontes do evento ativo exibido em destaque para os ministrantes e equipe de apoio.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-[11px] h-7"
+                        onclick={() => {
+                          localStage = {
+                            ...localStage,
+                            stage_schedule_title_min_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_title_min_font_size,
+                            stage_schedule_title_max_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_title_max_font_size,
+                            stage_schedule_day_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_day_font_size,
+                            stage_schedule_time_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_time_font_size,
+                            stage_schedule_details_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_details_font_size,
+                            stage_schedule_next_min_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_next_min_font_size,
+                            stage_schedule_next_max_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_next_max_font_size,
+                          };
+                          saveStageDisplaySettings(localStage);
+                        }}
+                      >
+                        Restaurar Padrão
+                      </Button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <!-- Título Min Slide Atual -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Título (Mínimo Auto-Scale)</span>
+                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                            {localStage.stage_schedule_title_min_font_size ?? 28}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="20"
+                          max="60"
+                          step="2"
+                          value={localStage.stage_schedule_title_min_font_size ?? 28}
+                          oninput={(e) => updateStageField('stage_schedule_title_min_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+
+                      <!-- Título Max Slide Atual -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Título (Máximo Auto-Scale)</span>
+                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                            {localStage.stage_schedule_title_max_font_size ?? 120}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="60"
+                          max="240"
+                          step="4"
+                          value={localStage.stage_schedule_title_max_font_size ?? 120}
+                          oninput={(e) => updateStageField('stage_schedule_title_max_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+
+                      <!-- Dia da Semana -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Badge do Dia da Semana</span>
+                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                            {localStage.stage_schedule_day_font_size ?? 18}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="12"
+                          max="36"
+                          step="1"
+                          value={localStage.stage_schedule_day_font_size ?? 18}
+                          oninput={(e) => updateStageField('stage_schedule_day_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+
+                      <!-- Horário -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Badge do Horário</span>
+                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                            {localStage.stage_schedule_time_font_size ?? 16}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="12"
+                          max="32"
+                          step="1"
+                          value={localStage.stage_schedule_time_font_size ?? 16}
+                          oninput={(e) => updateStageField('stage_schedule_time_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Detalhes / Descrição -->
+                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                      <div class="flex justify-between items-center text-xs">
+                        <span class="text-neutral-300 font-medium">Texto de Detalhes / Descrição</span>
+                        <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                          {localStage.stage_schedule_details_font_size ?? 18}px
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="12"
+                        max="32"
+                        step="1"
+                        value={localStage.stage_schedule_details_font_size ?? 18}
+                        oninput={(e) => updateStageField('stage_schedule_details_font_size', Number((e.target as HTMLInputElement).value))}
+                        class="w-full accent-primary cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Fontes do Próximo Slide (A Seguir no Palco) -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                      <Sliders size={14} class="text-primary" />
+                      Próximo Slide da Agenda (A Seguir no Palco)
+                    </h4>
+                    <p class="text-[11px] text-neutral-400">
+                      Configure os limites de auto-scale para o título do próximo evento da agenda no bloco "A Seguir".
+                    </p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <!-- Próximo Título Min -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Título Mínimo A Seguir</span>
+                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                            {localStage.stage_schedule_next_min_font_size ?? 18}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="12"
+                          max="48"
+                          step="2"
+                          value={localStage.stage_schedule_next_min_font_size ?? 18}
+                          oninput={(e) => updateStageField('stage_schedule_next_min_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+
+                      <!-- Próximo Título Max -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Título Máximo A Seguir</span>
+                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                            {localStage.stage_schedule_next_max_font_size ?? 64}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="40"
+                          max="160"
+                          step="4"
+                          value={localStage.stage_schedule_next_max_font_size ?? 64}
+                          oninput={(e) => updateStageField('stage_schedule_next_max_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Simulação Gráfica Interativa da Agenda no Retorno -->
+                  <div class="p-4 rounded-xl border border-neutral-800 bg-black flex flex-col items-center justify-center">
+                    <div class="flex items-center justify-between w-full max-w-sm mb-2">
+                      <span class="text-[10px] text-neutral-500 font-mono uppercase">Simulação do Retorno (Agenda)</span>
+                      <span class="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary font-mono font-semibold uppercase">
+                        Preset: {localStage.preset}
+                      </span>
+                    </div>
+
+                    <div class="w-80 max-w-full">
+                      <StagePreviewBox
+                        stageSettings={localStage}
+                        activeSlide={{
+                          id: 'demo_sched_cur',
+                          label: 'Culto de Oração',
+                          content: 'Momento de oração com toda a igreja e estudo bíblico',
+                          metadata: {
+                            schedule_day: 'Quarta-Feira',
+                            schedule_time: '19:30',
+                            schedule_details: 'Momento de oração com toda a igreja e estudo bíblico',
+                          },
+                        }}
+                        nextSlide={{
+                          id: 'demo_sched_next',
+                          label: 'Culto da Família',
+                          content: 'Celebração com santa ceia e ministração da palavra',
+                          metadata: {
+                            schedule_day: 'Domingo',
+                            schedule_time: '18:00',
+                            schedule_details: 'Celebração com santa ceia e ministração da palavra',
+                          },
+                        }}
+                        activeMedia={{
+                          id: 'demo_sched_med',
+                          title: 'Programação da Semana',
+                          kind: 'schedule',
+                          artist_or_ref: '',
+                          slides: [],
+                        }}
+                        timer={{
+                          duration_seconds: 600,
+                          remaining_seconds: 450,
+                          running: true,
+                          is_overtime: false,
+                          allow_overtime: false,
+                          warning_threshold_seconds: 60,
+                          stage_message: 'Aviso Palco',
+                        }}
+                        stageClock="19:45:00"
+                      />
                     </div>
                   </div>
                 </div>

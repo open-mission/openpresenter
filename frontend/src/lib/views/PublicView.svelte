@@ -299,30 +299,50 @@
         {:else if isSchedule}
           <!-- Agenda / Programação de Cultos e Festividades -->
           {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
+          {@const showBoxBg = publicSettings.schedule_box_background ?? true}
+          {@const boxOpacity = (publicSettings.schedule_bg_opacity ?? 65) / 100}
+          {@const maxWidthPct = publicSettings.schedule_max_width_percent ?? 80}
+          {@const padClass = publicSettings.schedule_padding === 'compact'
+            ? 'p-5 sm:p-7 md:p-9 gap-4'
+            : publicSettings.schedule_padding === 'spacious'
+              ? 'p-10 sm:p-16 md:p-20 gap-8'
+              : 'p-8 sm:p-12 md:p-16 gap-6'}
+          {@const schedAlign = publicSettings.schedule_align_h ?? 'center'}
           <div class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col items-center justify-center overflow-hidden animate-in fade-in duration-150 select-none">
-            <div class="w-full max-w-5xl rounded-3xl bg-black/65 backdrop-blur-xl border border-white/15 shadow-2xl p-8 sm:p-12 md:p-16 flex flex-col items-center justify-center text-center gap-6">
+            <div
+              class="w-full rounded-3xl transition-all shadow-2xl flex flex-col justify-center {padClass} {schedAlign === 'left' ? 'items-start text-left' : schedAlign === 'right' ? 'items-end text-right' : 'items-center text-center'}"
+              style="max-width: {maxWidthPct}%; {showBoxBg ? `background-color: rgba(0, 0, 0, ${boxOpacity}); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.15);` : 'background: transparent; border: none; box-shadow: none;'}"
+            >
               <!-- Badges de Topo: Dia da Semana e Horário -->
-              <div class="flex items-center justify-center gap-3 flex-wrap">
-                <span class="px-5 py-1.5 rounded-full bg-amber-500/25 text-amber-300 border border-amber-500/50 text-base sm:text-lg md:text-xl font-black uppercase tracking-wider shadow-lg">
-                  {ev.day}
-                </span>
-                {#if ev.time}
-                  <span class="px-4 py-1.5 rounded-full bg-white/10 text-white border border-white/20 text-sm sm:text-base md:text-lg font-mono font-bold flex items-center gap-2 shadow-lg">
-                    <Clock size={18} class="text-amber-400" />
-                    <span>{ev.time}</span>
+              {#if publicSettings.schedule_show_badges !== false}
+                <div class="flex items-center gap-3 flex-wrap {schedAlign === 'left' ? 'justify-start' : schedAlign === 'right' ? 'justify-end' : 'justify-center'}">
+                  <span
+                    class="px-5 py-1.5 rounded-full bg-amber-500/25 text-amber-300 border border-amber-500/50 font-black uppercase tracking-wider shadow-lg"
+                    style="font-size: {publicSettings.schedule_day_font_size ?? 20}px;"
+                  >
+                    {ev.day}
                   </span>
-                {/if}
-              </div>
+                  {#if ev.time}
+                    <span
+                      class="px-4 py-1.5 rounded-full bg-white/10 text-white border border-white/20 font-mono font-bold flex items-center gap-2 shadow-lg"
+                      style="font-size: {publicSettings.schedule_time_font_size ?? 18}px;"
+                    >
+                      <Clock size={Math.round((publicSettings.schedule_time_font_size ?? 18) * 1.0)} class="text-amber-400" />
+                      <span>{ev.time}</span>
+                    </span>
+                  {/if}
+                </div>
+              {/if}
 
               <!-- Título do Evento com Auto-Scale -->
-              <div class="w-full flex-1 min-h-[120px] max-h-[360px] flex items-center justify-center overflow-hidden">
+              <div class="w-full flex-1 min-h-[100px] max-h-[380px] flex items-center {schedAlign === 'left' ? 'justify-start' : schedAlign === 'right' ? 'justify-end' : 'justify-center'} overflow-hidden">
                 <div
                   use:autoScale={{
-                    minSize: 32,
-                    maxSize: 110,
+                    minSize: publicSettings.schedule_title_min_font_size ?? 32,
+                    maxSize: publicSettings.schedule_title_max_font_size ?? 110,
                   }}
                   style="color: {activeTextColor};"
-                  class="w-full font-black tracking-tight leading-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]"
+                  class="w-full font-black tracking-tight leading-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] {schedAlign === 'left' ? 'text-left' : schedAlign === 'right' ? 'text-right' : 'text-center'}"
                 >
                   {ev.title}
                 </div>
@@ -330,14 +350,17 @@
 
               <!-- Detalhes do Evento -->
               {#if ev.details}
-                <div class="text-neutral-300 text-base sm:text-lg md:text-xl font-medium tracking-wide opacity-90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] max-w-3xl">
+                <div
+                  class="text-neutral-300 font-medium tracking-wide opacity-90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] max-w-3xl {schedAlign === 'left' ? 'text-left' : schedAlign === 'right' ? 'text-right' : 'text-center'}"
+                  style="font-size: {publicSettings.schedule_details_font_size ?? 20}px;"
+                >
                   {ev.details}
                 </div>
               {/if}
 
               <!-- Identificador da Agenda no Rodapé -->
-              {#if activeMedia?.title}
-                <div class="pt-4 border-t border-white/10 text-xs sm:text-sm text-neutral-400 uppercase tracking-widest font-semibold opacity-75">
+              {#if (publicSettings.schedule_show_footer !== false) && activeMedia?.title}
+                <div class="pt-4 border-t border-white/10 text-xs sm:text-sm text-neutral-400 uppercase tracking-widest font-semibold opacity-75 {schedAlign === 'left' ? 'text-left w-full' : schedAlign === 'right' ? 'text-right w-full' : 'text-center'}">
                   {activeMedia.title}
                 </div>
               {/if}

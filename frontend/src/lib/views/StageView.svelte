@@ -343,12 +343,18 @@
             {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
             <div class="w-full h-full flex flex-col items-center justify-center text-center gap-3 p-3 select-none">
               <div class="flex items-center gap-2.5 flex-wrap justify-center">
-                <span class="px-4 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-base md:text-xl font-black uppercase tracking-wider">
+                <span
+                  class="px-4 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-black uppercase tracking-wider"
+                  style="font-size: {stageSettings.stage_schedule_day_font_size ?? 18}px;"
+                >
                   {ev.day}
                 </span>
                 {#if ev.time}
-                  <span class="px-3.5 py-1 rounded-full bg-zinc-800 text-zinc-100 border border-zinc-700 text-sm md:text-base font-mono font-bold flex items-center gap-1.5">
-                    <Clock size={16} class="text-amber-400" />
+                  <span
+                    class="px-3.5 py-1 rounded-full bg-zinc-800 text-zinc-100 border border-zinc-700 font-mono font-bold flex items-center gap-1.5"
+                    style="font-size: {stageSettings.stage_schedule_time_font_size ?? 16}px;"
+                  >
+                    <Clock size={Math.round((stageSettings.stage_schedule_time_font_size ?? 16) * 1.0)} class="text-amber-400" />
                     <span>{ev.time}</span>
                   </span>
                 {/if}
@@ -357,8 +363,8 @@
               <div class="w-full flex-1 min-h-0 flex items-center justify-center">
                 <div
                   use:autoScale={{
-                    minSize: 28,
-                    maxSize: 180,
+                    minSize: stageSettings.stage_schedule_title_min_font_size ?? 28,
+                    maxSize: stageSettings.stage_schedule_title_max_font_size ?? 180,
                   }}
                   class="w-full font-black leading-tight text-white drop-shadow-md text-center break-words"
                 >
@@ -367,7 +373,10 @@
               </div>
 
               {#if ev.details}
-                <p class="text-sm md:text-lg text-zinc-400 font-medium max-w-2xl">
+                <p
+                  class="text-zinc-400 font-medium max-w-2xl"
+                  style="font-size: {stageSettings.stage_schedule_details_font_size ?? 18}px;"
+                >
                   {ev.details}
                 </p>
               {/if}
@@ -451,8 +460,8 @@
               <div class="w-full flex-1 min-h-0 flex items-center justify-center">
                 <div
                   use:autoScale={{
-                    minSize: 18,
-                    maxSize: 120,
+                    minSize: stageSettings.stage_schedule_next_min_font_size ?? 18,
+                    maxSize: stageSettings.stage_schedule_next_max_font_size ?? 120,
                   }}
                   class="w-full font-black leading-tight text-white text-center break-words opacity-95"
                 >

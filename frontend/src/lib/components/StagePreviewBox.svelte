@@ -119,8 +119,26 @@
             {:else if isSchedule && activeSlide}
               {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
               <div class="flex flex-col items-center justify-center my-auto px-1 text-center">
-                <span class="text-[7px] text-amber-300 font-bold uppercase truncate">{ev.day} {ev.time ? `• ${ev.time}` : ''}</span>
-                <p class="text-[9px] font-black text-white leading-tight line-clamp-1 truncate">{ev.title}</p>
+                <span
+                  class="text-amber-300 font-bold uppercase truncate"
+                  style="font-size: {Math.max(6, Math.round((stageSettings.stage_schedule_day_font_size ?? 18) * 0.38))}px;"
+                >
+                  {ev.day} {ev.time ? `• ${ev.time}` : ''}
+                </span>
+                <p
+                  class="font-black text-white leading-tight line-clamp-1 truncate"
+                  style="font-size: {Math.max(7, Math.round((stageSettings.stage_schedule_title_min_font_size ?? 28) * 0.32))}px;"
+                >
+                  {ev.title}
+                </p>
+                {#if ev.details}
+                  <span
+                    class="text-zinc-400 font-medium truncate"
+                    style="font-size: {Math.max(5.5, Math.round((stageSettings.stage_schedule_details_font_size ?? 18) * 0.32))}px;"
+                  >
+                    {ev.details}
+                  </span>
+                {/if}
               </div>
             {:else if activeSlide}
               <p class="text-[10px] font-extrabold leading-tight line-clamp-2 my-auto" style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};">
@@ -147,8 +165,18 @@
             {:else if isSchedule && nextSlide}
               {@const nextEv = parseScheduleContent(nextSlide.label, nextSlide.content)}
               <div class="flex flex-col items-center justify-center my-auto px-1 text-center opacity-90">
-                <span class="text-[6.5px] text-yellow-300 font-bold uppercase truncate">{nextEv.day} {nextEv.time ? `• ${nextEv.time}` : ''}</span>
-                <p class="text-[8.5px] font-extrabold text-white leading-tight line-clamp-1 truncate">{nextEv.title}</p>
+                <span
+                  class="text-yellow-300 font-bold uppercase truncate"
+                  style="font-size: {Math.max(5.5, Math.round((stageSettings.stage_schedule_day_font_size ?? 18) * 0.35))}px;"
+                >
+                  {nextEv.day} {nextEv.time ? `• ${nextEv.time}` : ''}
+                </span>
+                <p
+                  class="font-extrabold text-white leading-tight line-clamp-1 truncate"
+                  style="font-size: {Math.max(6.5, Math.round((stageSettings.stage_schedule_next_min_font_size ?? 18) * 0.35))}px;"
+                >
+                  {nextEv.title}
+                </p>
               </div>
             {:else if nextSlide}
               <p class="text-[10px] font-extrabold leading-tight line-clamp-1 my-auto opacity-95" style="color: {stageSettings.next_text_color || '#facc15'};">
@@ -227,8 +255,26 @@
           {:else if isSchedule && activeSlide}
             {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
             <div class="flex flex-col items-center justify-center my-auto px-1 text-center">
-              <span class="text-[7px] text-amber-300 font-bold uppercase truncate">{ev.day} {ev.time ? `• ${ev.time}` : ''}</span>
-              <p class="text-[9px] font-black text-white leading-tight line-clamp-1 truncate">{ev.title}</p>
+              <span
+                class="text-amber-300 font-bold uppercase truncate"
+                style="font-size: {Math.max(6, Math.round((stageSettings.stage_schedule_day_font_size ?? 18) * 0.38))}px;"
+              >
+                {ev.day} {ev.time ? `• ${ev.time}` : ''}
+              </span>
+              <p
+                class="font-black text-white leading-tight line-clamp-1 truncate"
+                style="font-size: {Math.max(7, Math.round((stageSettings.stage_schedule_title_min_font_size ?? 28) * 0.32))}px;"
+              >
+                {ev.title}
+              </p>
+              {#if ev.details}
+                <span
+                  class="text-zinc-400 font-medium truncate"
+                  style="font-size: {Math.max(5.5, Math.round((stageSettings.stage_schedule_details_font_size ?? 18) * 0.32))}px;"
+                >
+                  {ev.details}
+                </span>
+              {/if}
             </div>
           {:else if activeSlide}
             <p class="text-[10px] font-extrabold leading-tight line-clamp-2 my-auto" style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};">
@@ -255,8 +301,18 @@
           {:else if isSchedule && nextSlide}
             {@const nextEv = parseScheduleContent(nextSlide.label, nextSlide.content)}
             <div class="flex flex-col items-center justify-center my-auto px-1 text-center opacity-90">
-              <span class="text-[6.5px] text-yellow-300 font-bold uppercase truncate">{nextEv.day} {nextEv.time ? `• ${nextEv.time}` : ''}</span>
-              <p class="text-[8.5px] font-extrabold text-white leading-tight line-clamp-1 truncate">{nextEv.title}</p>
+              <span
+                class="text-yellow-300 font-bold uppercase truncate"
+                style="font-size: {Math.max(5.5, Math.round((stageSettings.stage_schedule_day_font_size ?? 18) * 0.35))}px;"
+              >
+                {nextEv.day} {nextEv.time ? `• ${nextEv.time}` : ''}
+              </span>
+              <p
+                class="font-extrabold text-white leading-tight line-clamp-1 truncate"
+                style="font-size: {Math.max(6.5, Math.round((stageSettings.stage_schedule_next_min_font_size ?? 18) * 0.35))}px;"
+              >
+                {nextEv.title}
+              </p>
             </div>
           {:else if nextSlide}
             <p class="text-[10px] font-extrabold leading-tight line-clamp-1 my-auto opacity-95" style="color: {stageSettings.next_text_color || '#facc15'};">
