@@ -227,6 +227,8 @@
 
 - [Spec — Preparação e Lançamento da Versão 0.4.1](specs/2026-11-01-release-0-4-1.md)
 - [Plano — Preparação e Lançamento da Versão 0.4.1](plans/2026-11-01-release-0-4-1.md)
+- [Spec — Context Menu e Exclusão de Papéis de Parede Locais no Painel de Fundos](specs/2026-11-01-context-menu-e-exclusao-de-fundos.md)
+- [Plano — Context Menu e Exclusão de Papéis de Parede Locais no Painel de Fundos](plans/2026-11-01-context-menu-e-exclusao-de-fundos.md)
 
 ## Arquitetura e decisões
 

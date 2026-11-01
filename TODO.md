@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Feat: Menus de contexto no Painel de Fundos (BottomPanel.svelte) com opções contextuais (Usar nas Letras, Copiar URL/CSS, Importar, Recarregar, Limpar Fundo) e exclusão completa de papéis de parede locais no frontend (botão lixeira e context menu) e no backend (DELETE /api/media/wallpapers/{filename}) com proteção de wallpapers padrão, sanitização de traversal e fallback dinâmico de apresentação ativa. (2026-11-01 10:37:00 -03:00)
+
 - [x] Lançamento da versão 0.4.1: unificação de versão em todo o workspace (Cargo.toml, package.json, workflows, componentes e testes), consolidação da aba Outros no painel de mídias, customizações de exibição da Agenda (Public e Stage), menus de contexto pro nos slides da apresentação, no preview e na aba Outros, fechamento da release 0.4.1 no CHANGELOG.md, spec docs/specs/2026-11-01-release-0-4-1.md, publicação da tag v0.4.1 e push para o repositório remoto. (commit 405e64b - 2026-11-01 01:36:00 -03:00)
 
 - [x] UI/Design: Remoção do rótulo de texto estático "Typeset:" na barra de formatação do SongEditorModal para uma interface mais limpa e minimalista. (commit 197bb15 - 2026-11-01 01:21:00 -03:00)

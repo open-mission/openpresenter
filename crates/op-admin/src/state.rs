@@ -141,6 +141,16 @@ impl AppState {
         app_state
     }
 
+    /// Resolve o diretório raiz de mídias a partir da sessão ativa ou do sistema padrão.
+    pub fn resolve_media_dir(&self) -> std::path::PathBuf {
+        if !self.session.media_path.is_empty() {
+            std::path::PathBuf::from(&self.session.media_path)
+        } else {
+            crate::session::resolve_media_dir()
+                .unwrap_or_else(|_| std::path::PathBuf::from("media"))
+        }
+    }
+
     /// Adiciona ou atualiza um item na lista de mídias (Setlist) e transmite o novo estado via WebSocket.
     pub async fn add_media_item(&self, item: MediaItem) {
         let mut items = self.media_items.write().await;

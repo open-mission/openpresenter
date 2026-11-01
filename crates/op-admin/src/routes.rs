@@ -252,6 +252,10 @@ pub fn create_routes(state: AppState) -> Router {
             axum::routing::delete(delete_media_folder),
         )
         .route("/api/media/wallpapers", get(list_wallpapers))
+        .route(
+            "/api/media/wallpapers/{filename}",
+            axum::routing::delete(delete_wallpaper),
+        )
         .route("/api/media/images", get(list_images))
         .route("/api/media/images/upload", post(upload_image))
         .route("/api/media/upload", post(upload_media))
@@ -1556,6 +1560,72 @@ async fn upload_media(
         url: format!("/api/media/files/wallpapers/{sanitized_name}"),
         filename: sanitized_name,
     }))
+}
+
+async fn delete_wallpaper(
+    State(state): State<AppState>,
+    Path(filename): Path<String>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let media_dir = state.resolve_media_dir();
+    let wallpapers_dir = media_dir.join("wallpapers");
+
+    let clean_name = std::path::Path::new(&filename)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or((StatusCode::BAD_REQUEST, "Nome de arquivo inválido".into()))?;
+
+    if clean_name != filename || clean_name.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "Nome de arquivo inválido".into()));
+    }
+
+    if clean_name == "dark-ambient.svg"
+        || clean_name == "worship-glow.svg"
+        || clean_name == "cross-subtle.svg"
+    {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Papéis de parede padrão do sistema não podem ser removidos".into(),
+        ));
+    }
+
+    let file_path = wallpapers_dir.join(clean_name);
+    if !file_path.exists() || !file_path.is_file() {
+        return Err((
+            StatusCode::NOT_FOUND,
+            "Papel de parede não encontrado".into(),
+        ));
+    }
+
+    tokio::fs::remove_file(&file_path).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao remover arquivo: {e}"),
+        )
+    })?;
+
+    let removed_url = format!("/api/media/files/wallpapers/{clean_name}");
+    {
+        let mut pres = state.presentation.write().await;
+        let mut changed = false;
+        if pres.wallpaper_path.as_deref() == Some(&removed_url) {
+            pres.wallpaper_path = Some("/api/media/files/wallpapers/dark-ambient.svg".into());
+            changed = true;
+        }
+        if pres.lyrics_background_path.as_deref() == Some(&removed_url) {
+            pres.lyrics_background_path =
+                Some("/api/media/files/wallpapers/dark-ambient.svg".into());
+            changed = true;
+        }
+        if changed {
+            let updated = pres.clone();
+            drop(pres);
+            let _ = state.broadcast_tx.send(WsMessage::StateUpdated {
+                presentation: updated,
+            });
+        }
+    }
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn serve_media_file(Path(subpath): Path<String>) -> impl IntoResponse {

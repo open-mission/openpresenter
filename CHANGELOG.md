@@ -6,6 +6,19 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Menu de Contexto e Exclusão de Papéis de Parede Locais no Painel de Fundos (`BottomPanel.svelte`, `routes.rs`):**
+  - Novo endpoint backend `DELETE /api/media/wallpapers/{filename}` em `op-admin` com sanitização contra path traversal, validação de nome e proteção estrita contra remoção dos arquivos padrão do sistema (`dark-ambient.svg`, `worship-glow.svg`, `cross-subtle.svg`).
+  - Restauração automática para o papel de parede padrão do sistema e broadcast WebSocket em tempo real caso o papel de parede excluído esteja ativo na apresentação ao vivo ou nas letras.
+  - Botão de exclusão rápida direta (ícone lixeira `Trash2`) no rodapé dos cartões de papéis de parede locais, com confirmação e recarregamento imediato da lista.
+  - Menus de contexto nativos personalizados ao clicar com o botão direito nos elementos do painel de fundos:
+    - **Cartões de Papéis Locais:** Usar como Fundo das Letras (Ao Vivo), Copiar URL do Arquivo e Excluir Papel de Parede Local (ou Papel Padrão Protegido).
+    - **Cartões de Presets CSS e Gradientes:** Usar como Fundo das Letras (Ao Vivo) e Copiar Código CSS.
+    - **Área Vazia da Grade de Fundos:** Importar Fundo (Imagem / Vídeo)..., Recarregar Fundos Locais e Remover Fundo Ativo das Letras.
+  - Supressão completa do menu de contexto padrão do navegador web em toda a grade de fundos.
+  - Teste de integração automatizado `test_delete_wallpaper_endpoint` cobrindo tentativas de exclusão de arquivos padrão (403), arquivos inexistentes (404), tentativas de traversal (400) e fluxo de sucesso (204) com rollback do wallpaper ativo.
+
+
 ## [0.4.1] - 2026-11-01
 
 ### Adicionado

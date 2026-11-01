@@ -1730,4 +1730,93 @@ mod tests {
         assert_eq!(logs.len(), 1);
         assert_eq!(logs[0].action, "restart_requested");
     }
+
+    #[tokio::test]
+    async fn test_delete_wallpaper_endpoint() {
+        let (state, _dir) = mock_state_with_db();
+        let app = create_routes(state.clone());
+
+        // 1. Tentar deletar um papel de parede padrão deve retornar 403 FORBIDDEN
+        let resp_default = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("DELETE")
+                    .uri("/api/media/wallpapers/dark-ambient.svg")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp_default.status(), StatusCode::FORBIDDEN);
+
+        // 2. Tentar deletar um papel inexistente deve retornar 404 NOT_FOUND
+        let resp_not_found = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("DELETE")
+                    .uri("/api/media/wallpapers/nao-existe-12345.jpg")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp_not_found.status(), StatusCode::NOT_FOUND);
+
+        // 3. Tentar path traversal deve retornar 400 BAD_REQUEST
+        let resp_traversal = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("DELETE")
+                    .uri("/api/media/wallpapers/..%2F..%2Ffoo.txt")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp_traversal.status(), StatusCode::BAD_REQUEST);
+
+        // 4. Criar um arquivo customizado em media/wallpapers
+        let media_dir = state.resolve_media_dir();
+        let wallpapers_dir = media_dir.join("wallpapers");
+        std::fs::create_dir_all(&wallpapers_dir).unwrap();
+        let custom_file = wallpapers_dir.join("custom_test_bg.jpg");
+        std::fs::write(&custom_file, b"test image content").unwrap();
+        assert!(custom_file.exists());
+
+        // Define esse wallpaper como ativo na apresentação
+        {
+            let mut pres = state.presentation.write().await;
+            pres.wallpaper_path = Some("/api/media/files/wallpapers/custom_test_bg.jpg".into());
+            pres.lyrics_background_path =
+                Some("/api/media/files/wallpapers/custom_test_bg.jpg".into());
+        }
+
+        // 5. Deletar o papel customizado deve retornar 204 NO_CONTENT
+        let resp_del = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("DELETE")
+                    .uri("/api/media/wallpapers/custom_test_bg.jpg")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp_del.status(), StatusCode::NO_CONTENT);
+        assert!(!custom_file.exists());
+
+        // Verifica que o wallpaper ativo foi redefinido para o padrão
+        let pres = state.presentation.read().await;
+        assert_eq!(
+            pres.wallpaper_path.as_deref(),
+            Some("/api/media/files/wallpapers/dark-ambient.svg")
+        );
+        assert_eq!(
+            pres.lyrics_background_path.as_deref(),
+            Some("/api/media/files/wallpapers/dark-ambient.svg")
+        );
+    }
 }

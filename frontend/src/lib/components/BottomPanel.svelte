@@ -850,6 +850,173 @@
         return { label: 'Outro', color: 'border-neutral-500/40 bg-neutral-500/10 text-neutral-300' };
     }
   }
+
+  async function handleDeleteWallpaper(wall: WallpaperItem) {
+    if (wall.is_default) {
+      notifyError('Ação Bloqueada', 'Papéis de parede padrão do sistema não podem ser excluídos.');
+      return;
+    }
+
+    const confirmed = confirm(
+      `Deseja realmente excluir o papel de parede "${wall.name}"?\nEsta ação removerá o arquivo permanentemente.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/media/wallpapers/${encodeURIComponent(wall.name)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Falha ao excluir papel de parede');
+      }
+      notifySuccess('Papel de Parede Removido', `"${wall.name}" foi excluído com sucesso.`);
+      await loadWallpapers();
+    } catch (err: any) {
+      notifyError('Erro ao Excluir', err.message || 'Não foi possível excluir o papel de parede.');
+    }
+  }
+
+  function handleLocalWallpaperContextMenu(e: MouseEvent, wall: WallpaperItem) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    contextMenuItems = [
+      {
+        id: 'wall-name',
+        label: wall.name,
+        disabled: true,
+      },
+      { id: 'div-wall-0', divider: true },
+      {
+        id: 'wall-use-lyrics',
+        label: 'Usar como Fundo das Letras (Ao Vivo)',
+        icon: Play,
+        onclick: () => applyBackground(wall.url),
+      },
+      {
+        id: 'wall-copy-url',
+        label: 'Copiar URL do Arquivo',
+        icon: Copy,
+        onclick: async () => {
+          try {
+            await navigator.clipboard.writeText(wall.url);
+            notifySuccess('URL Copiada', 'Caminho do arquivo copiado para a área de transferência.');
+          } catch {
+            notifyError('Erro', 'Não foi possível copiar para a área de transferência.');
+          }
+        },
+      },
+      { id: 'div-wall-1', divider: true },
+      ...(wall.is_default
+        ? [
+            {
+              id: 'wall-protected',
+              label: 'Papel de Parede Padrão (Protegido)',
+              icon: ShieldCheck,
+              disabled: true,
+            },
+          ]
+        : [
+            {
+              id: 'wall-delete',
+              label: 'Excluir Papel de Parede Local',
+              icon: Trash2,
+              destructive: true,
+              onclick: () => handleDeleteWallpaper(wall),
+            },
+          ]),
+    ];
+
+    contextMenuOpen = true;
+  }
+
+  function handlePresetContextMenu(e: MouseEvent, preset: BackgroundPreset) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const encoded = encodeBackground(preset);
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    contextMenuItems = [
+      {
+        id: 'preset-name',
+        label: preset.name,
+        disabled: true,
+      },
+      { id: 'div-preset-0', divider: true },
+      {
+        id: 'preset-use-lyrics',
+        label: 'Usar como Fundo das Letras (Ao Vivo)',
+        icon: Play,
+        onclick: () => applyBackground(encoded),
+      },
+      {
+        id: 'preset-copy-css',
+        label: 'Copiar Código CSS',
+        icon: Copy,
+        onclick: async () => {
+          try {
+            await navigator.clipboard.writeText(preset.style);
+            notifySuccess('Código CSS Copiado', 'Estilo CSS copiado para a área de transferência.');
+          } catch {
+            notifyError('Erro', 'Não foi possível copiar o CSS.');
+          }
+        },
+      },
+    ];
+
+    contextMenuOpen = true;
+  }
+
+  function handleBackgroundsEmptyContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    contextMenuItems = [
+      {
+        id: 'bg-empty-header',
+        label: 'Fundos & Gradientes',
+        disabled: true,
+      },
+      { id: 'div-bg-empty-0', divider: true },
+      {
+        id: 'bg-import',
+        label: 'Importar Fundo (Imagem / Vídeo)...',
+        icon: Upload,
+        onclick: () => triggerImportWallpaper(),
+      },
+      {
+        id: 'bg-reload',
+        label: 'Recarregar Fundos Locais',
+        icon: RefreshCw,
+        onclick: async () => {
+          await loadWallpapers();
+          notifySuccess('Fundos Atualizados', 'Lista de papéis de parede recarregada.');
+        },
+      },
+      { id: 'div-bg-empty-1', divider: true },
+      {
+        id: 'bg-clear-lyrics',
+        label: 'Remover Fundo Ativo das Letras',
+        icon: X,
+        destructive: true,
+        onclick: () => {
+          setPresentationWallpaper('');
+          notifySuccess('Fundo Removido', 'Fundo personalizado de letras foi desativado.');
+        },
+      },
+    ];
+
+    contextMenuOpen = true;
+  }
 </script>
 
 <!-- Input Oculto de Arquivo de Imagem -->
@@ -1907,7 +2074,11 @@
             </div>
 
             <!-- Grade de Cartões de Fundo 16:9 com Prévia Viva -->
-            <div class="flex-1 overflow-y-auto pr-1">
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              class="flex-1 overflow-y-auto pr-1"
+              oncontextmenu={handleBackgroundsEmptyContextMenu}
+            >
               <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 <!-- Presets em Código CSS -->
                 {#if selectedBgCategory !== 'local'}
@@ -1918,6 +2089,7 @@
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
                       onclick={() => applyBackground(encoded)}
+                      oncontextmenu={(e) => handlePresetContextMenu(e, preset)}
                       role="button"
                       tabindex="0"
                       onkeydown={(e) => { if (e.key === 'Enter') applyBackground(encoded); }}
@@ -1969,6 +2141,7 @@
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
                       onclick={() => applyBackground(wall.url)}
+                      oncontextmenu={(e) => handleLocalWallpaperContextMenu(e, wall)}
                       role="button"
                       tabindex="0"
                       onkeydown={(e) => { if (e.key === 'Enter') applyBackground(wall.url); }}
@@ -2020,6 +2193,20 @@
                           <Play size={10} class="fill-current" />
                           <span>Usar nas Letras</span>
                         </button>
+
+                        {#if !wall.is_default}
+                          <button
+                            type="button"
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteWallpaper(wall);
+                            }}
+                            class="h-6 w-6 rounded bg-transparent hover:bg-destructive/20 text-muted-foreground hover:text-destructive flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                            title="Excluir este papel de parede local"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        {/if}
                       </div>
                     </div>
                   {/each}
