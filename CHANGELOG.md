@@ -6,6 +6,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-31
+
 ### Adicionado
 - **Exibição e Seleção de Imagens no Lower Third para Transmissão OBS (`/lower-third`):**
   - Renderização gráfica de imagens no terço inferior da transmissão (`LowerThirdView.svelte`), substituindo a exibição de texto bruto do caminho do arquivo.

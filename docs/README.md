@@ -212,6 +212,11 @@
 - [Spec — Exibição e Seleção de Imagens no Lower Third](specs/2026-10-31-imagens-no-lower-third.md)
 - [Plano — Exibição e Seleção de Imagens no Lower Third](plans/2026-10-31-imagens-no-lower-third.md)
 
+## Release v0.4.0: Mídia Agenda, Imagens no Lower Third, Harpa Cristã, Toasts e Otimizações de Palco e Transmissão
+
+- [Spec — Preparação e Lançamento da Versão 0.4.0](specs/2026-10-31-release-0-4-0.md)
+- [Plano — Preparação e Lançamento da Versão 0.4.0](plans/2026-10-31-release-0-4-0.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

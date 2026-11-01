@@ -5210,7 +5210,7 @@
                 </p>
                 <div class="flex items-center justify-center gap-2 pt-1 flex-wrap">
                   <Badge variant="secondary" class="text-[10px] font-mono">
-                    v{updateInfo?.current_version || '0.3.1'}
+                    v{updateInfo?.current_version || '0.4.0'}
                   </Badge>
                   <Badge variant="outline" class="text-[10px] text-primary border-primary/40">GPL-3.0</Badge>
                   <Badge variant="outline" class="text-[10px] text-neutral-400">Rust · Axum · Svelte · SQLite</Badge>
