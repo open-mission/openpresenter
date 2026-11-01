@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Lançamento da versão 0.4.0: unificação de versão em todo o workspace (Cargo.toml, package.json, workflows, componentes e testes), consolidação de tipo de mídia agenda, imagens no lower third para OBS, instalação oficial da Harpa Cristã (540 hinos), toasts Sonner, fechamento da release 0.4.0 no CHANGELOG.md, spec docs/specs/2026-10-31-release-0-4-0.md e publicação da tag v0.4.0. (commit ec833fe - 2026-10-31 21:15:22 -03:00)
+
 - [x] Feat/Improve: Exibição e seleção de imagens no Lower Third (`/lower-third`): correção da renderização de imagem (em vez de texto bruto de caminho), opções configuráveis de modo de imagem (`fullscreen`, `lower_third`, `hide`) e ajuste (`contain`/`cover`), e suporte à seleção de imagem alternativa dedicada para o Lower Third em `MediaItem`. (commit e737f28 - 2026-10-31 20:35:23 -03:00)
 
 - [x] Feat: Tipo de Mídia Agenda (Schedule) para cadastro de programações de cultos semanais e festividades/eventos futuros: enum `MediaKind::Schedule` no `op-core`, editor dinâmico `ScheduleEditorModal.svelte` com atalhos de dias da semana, integração na setlist e menu de contexto em `AdminView.svelte`, renderização na Tela Pública (`/public`) com badges de dia/horário e autoScale sobre o papel de parede, e sincronização sequencial no Monitor de Palco (`/stage`) e preview (`StagePreviewBox.svelte`) exibindo dia atual e próximo da agenda. (2026-10-31 13:55:00 -03:00)
