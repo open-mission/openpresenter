@@ -33,16 +33,19 @@
     Bookmark,
     Pencil,
     Trash2,
+    Copy,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
   import { cn } from '../utils';
   import BiblePanel from './BiblePanel.svelte';
+  import ContextMenu, { type MenuItem } from './ContextMenu.svelte';
   import { renderFormattedText } from '../markdown';
   import { notifySuccess, notifyError } from '../toast';
   import {
     customItemsStore,
     loadCustomItems,
+    saveOrUpdateCustomItem,
     deleteCustomItem,
     importItemsFromSetlist,
   } from '../customItems';
@@ -681,6 +684,156 @@
       }
       notifySuccess('Item Excluído', `"${item.title}" foi removido do catálogo.`);
     }
+  }
+
+  // Menu de Contexto para a Aba Outros
+  let contextMenuOpen = $state(false);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
+  let contextMenuItems = $state<MenuItem[]>([]);
+
+  async function handleDuplicateCustomItem(item: MediaItem) {
+    const newItem: MediaItem = {
+      ...JSON.parse(JSON.stringify(item)),
+      id: `${item.kind || 'item'}-${Date.now()}`,
+      title: `${item.title} (Cópia)`,
+      slides: item.slides.map((s, idx) => ({
+        ...s,
+        id: `${item.kind || 'slide'}-${Date.now()}-${idx + 1}`,
+      })),
+    };
+    await saveOrUpdateCustomItem(newItem);
+    viewingCustomItem = newItem;
+    notifySuccess('Item Duplicado', `"${newItem.title}" criado com sucesso.`);
+  }
+
+  function handleOtherItemContextMenu(e: MouseEvent, item: MediaItem) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    viewingCustomItem = item;
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    contextMenuItems = [
+      {
+        id: 'other-present-now',
+        label: 'Apresentar Agora (Ao Vivo)',
+        icon: Play,
+        onclick: () => onpresentitem?.(item, 0),
+      },
+      {
+        id: 'other-add-setlist',
+        label: 'Adicionar à Setlist',
+        icon: ListPlus,
+        onclick: () => onadditemtosetlist?.(item),
+      },
+      { id: 'div-other-1', divider: true },
+      {
+        id: 'other-edit',
+        label: 'Editar Item',
+        icon: Pencil,
+        onclick: () => onopenedititem?.(item),
+      },
+      {
+        id: 'other-dup',
+        label: 'Duplicar Item',
+        icon: Copy,
+        onclick: () => handleDuplicateCustomItem(item),
+      },
+      { id: 'div-other-2', divider: true },
+      {
+        id: 'other-del',
+        label: 'Excluir do Catálogo',
+        icon: Trash2,
+        destructive: true,
+        onclick: () => handleDeleteCustomItemClick(item, e),
+      },
+    ];
+
+    contextMenuOpen = true;
+  }
+
+  function handleOtherSlideContextMenu(e: MouseEvent, item: MediaItem, slide: Slide, idx: number) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    contextMenuItems = [
+      {
+        id: 'slide-title',
+        label: `${slide.label || `Slide ${idx + 1}`}`,
+        disabled: true,
+      },
+      { id: 'div-slide-0', divider: true },
+      {
+        id: 'slide-present-live',
+        label: 'Apresentar Este Slide Ao Vivo',
+        icon: Play,
+        onclick: () => onpresentitem?.(item, idx),
+      },
+      {
+        id: 'slide-add-setlist',
+        label: 'Adicionar Apresentação à Setlist',
+        icon: ListPlus,
+        onclick: () => onadditemtosetlist?.(item),
+      },
+      { id: 'div-slide-1', divider: true },
+      {
+        id: 'slide-edit-item',
+        label: 'Editar Apresentação',
+        icon: Pencil,
+        onclick: () => onopenedititem?.(item),
+      },
+    ];
+
+    contextMenuOpen = true;
+  }
+
+  function handleOtherEmptyContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    contextMenuItems = [
+      {
+        id: 'empty-header',
+        label: 'Aba Outros',
+        disabled: true,
+      },
+      { id: 'div-empty-0', divider: true },
+      {
+        id: 'create-schedule',
+        label: 'Nova Programação (Agenda)',
+        icon: CalendarDays,
+        onclick: () => onopenscheduleeditor?.(),
+      },
+      {
+        id: 'create-text',
+        label: 'Nova Apresentação de Texto',
+        icon: FileText,
+        onclick: () => onopentexteditor?.(),
+      },
+      {
+        id: 'create-announcement',
+        label: 'Novo Aviso / Comunicado',
+        icon: Bookmark,
+        onclick: () => onopenquickitemeditor?.('announcement'),
+      },
+      { id: 'div-empty-1', divider: true },
+      {
+        id: 'reload-catalog',
+        label: 'Recarregar Catálogo',
+        icon: RefreshCw,
+        onclick: () => loadCustomItems(),
+      },
+    ];
+
+    contextMenuOpen = true;
   }
 
   function getItemKindBadge(kind: MediaItem['kind']) {
@@ -1992,7 +2145,8 @@
             <ResizablePaneGroup direction="horizontal" class="h-full rounded-xl border border-border overflow-hidden">
               <!-- Painel Esquerdo: Lista de Cards -->
               <ResizablePane defaultSize={35} minSize={25} maxSize={50} class="bg-card/40 flex flex-col min-w-0">
-                <div class="flex-1 overflow-y-auto p-2 space-y-2">
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div class="flex-1 overflow-y-auto p-2 space-y-2" oncontextmenu={handleOtherEmptyContextMenu}>
                   {#if filteredCustomItems.length === 0}
                     <div class="h-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground space-y-2">
                       <Boxes size={32} class="opacity-40" />
@@ -2016,6 +2170,7 @@
                         onclick={() => (viewingCustomItem = item)}
                         ondblclick={() => onpresentitem?.(item, 0)}
                         onkeydown={(e) => { if (e.key === 'Enter') viewingCustomItem = item; }}
+                        oncontextmenu={(e) => handleOtherItemContextMenu(e, item)}
                         class="p-2.5 rounded-lg border transition-all flex flex-col justify-between group cursor-pointer {isSelected ? 'ring-1 ring-primary border-primary bg-primary/10 shadow-xs' : 'border-border bg-card/60 hover:bg-muted/40'}"
                       >
                         <div>
@@ -2159,7 +2314,8 @@
                     </div>
 
                     <!-- Grade Responsiva de Slides 16:9 -->
-                    <div class="flex-1 overflow-y-auto py-3 pr-1 min-h-0">
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div class="flex-1 overflow-y-auto py-3 pr-1 min-h-0" oncontextmenu={handleOtherEmptyContextMenu}>
                       {#if viewingCustomItem.slides.length > 0}
                         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
                           {#each viewingCustomItem.slides as slide, idx (slide.id || idx)}
@@ -2168,6 +2324,7 @@
                               tabindex="0"
                               ondblclick={() => viewingCustomItem && onpresentitem?.(viewingCustomItem, idx)}
                               onkeydown={(e) => { if (e.key === 'Enter') viewingCustomItem && onpresentitem?.(viewingCustomItem, idx); }}
+                              oncontextmenu={(e) => viewingCustomItem && handleOtherSlideContextMenu(e, viewingCustomItem, slide, idx)}
                               class="group rounded-xl border border-border bg-neutral-950 flex flex-col overflow-hidden shadow-xs hover:border-primary/60 transition-all cursor-pointer relative"
                             >
                               <!-- Barra superior do slide -->
@@ -2250,4 +2407,12 @@
       {/if}
     </div>
   {/if}
+
+  <ContextMenu
+    open={contextMenuOpen}
+    x={contextMenuX}
+    y={contextMenuY}
+    items={contextMenuItems}
+    onclose={() => (contextMenuOpen = false)}
+  />
 </div>

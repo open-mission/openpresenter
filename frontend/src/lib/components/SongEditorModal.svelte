@@ -21,9 +21,14 @@
     AlignVerticalJustifyEnd,
     FileText,
     Rows2,
+    ChevronDown,
+    Copy,
+    Trash2,
+    Tag,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
+  import ContextMenu, { type MenuItem } from './ContextMenu.svelte';
   import { parseRawLyrics, getSectionColor, formatLyricsLinesPerSlide } from '../songParser';
   import { renderFormattedText } from '../markdown';
   import type { Song, Slide, MediaItem } from '../types';
@@ -69,6 +74,13 @@
 
   // Referência ao textarea para inserção de formatação
   let textareaEl: HTMLTextAreaElement | null = $state(null);
+
+  // Estado do dropdown de seções e do menu de contexto
+  let isSectionDropdownOpen = $state(false);
+  let contextMenuOpen = $state(false);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
+  let contextMenuItems = $state<MenuItem[]>([]);
 
   function addTag(tagText: string) {
     const clean = tagText.trim();
@@ -309,8 +321,253 @@ Traga sua família e convidados!`;
   }
 
   function insertSectionTag(tag: string) {
-    const textToInsert = `\n\n## ${tag}\n`;
-    lyricsRaw += textToInsert;
+    if (!textareaEl) {
+      lyricsRaw += `\n\n## ${tag}\n`;
+      return;
+    }
+
+    const start = textareaEl.selectionStart;
+    const end = textareaEl.selectionEnd;
+    const current = lyricsRaw;
+
+    let prefix = '';
+    if (start > 0) {
+      if (current.slice(0, start).endsWith('\n\n')) {
+        prefix = '## ';
+      } else if (current.slice(0, start).endsWith('\n')) {
+        prefix = '\n## ';
+      } else {
+        prefix = '\n\n## ';
+      }
+    } else {
+      prefix = '## ';
+    }
+
+    const suffix = '\n';
+    const insertion = `${prefix}${tag}${suffix}`;
+    lyricsRaw = current.slice(0, start) + insertion + current.slice(end);
+    const newCursor = start + insertion.length;
+
+    setTimeout(() => {
+      if (textareaEl) {
+        textareaEl.focus();
+        textareaEl.setSelectionRange(newCursor, newCursor);
+      }
+    }, 10);
+  }
+
+  interface SlideLocation {
+    slideIndex: number;
+    sectionLabel: string;
+    sectionHeaderStart: number;
+    sectionHeaderEnd: number;
+    isFirstInSec: boolean;
+    blockStart: number;
+    blockEnd: number;
+  }
+
+  function getSlideLocations(raw: string): SlideLocation[] {
+    const locations: SlideLocation[] = [];
+    const lineRegex = /([^\r\n]*)(\r?\n|$)/g;
+    let match: RegExpExecArray | null;
+
+    let currentSectionLabel = 'Verso 1';
+    let currentSecHeaderStart = -1;
+    let currentSecHeaderEnd = -1;
+    let isFirstInSec = true;
+
+    let currentBlockStart = -1;
+    let currentBlockEnd = -1;
+    let inBlock = false;
+
+    while ((match = lineRegex.exec(raw)) !== null) {
+      if (match.index === raw.length && match[0] === '') break;
+
+      const line = match[1];
+      const lineStart = match.index;
+      const lineEnd = lineStart + line.length;
+      const trimmed = line.trim();
+
+      if (trimmed.startsWith('##') || trimmed.startsWith('# ')) {
+        if (inBlock) {
+          locations.push({
+            slideIndex: locations.length,
+            sectionLabel: currentSectionLabel,
+            sectionHeaderStart: currentSecHeaderStart,
+            sectionHeaderEnd: currentSecHeaderEnd,
+            isFirstInSec,
+            blockStart: currentBlockStart,
+            blockEnd: currentBlockEnd,
+          });
+          inBlock = false;
+          isFirstInSec = false;
+        }
+        currentSectionLabel = trimmed.replace(/^#+\s*/, '').trim() || 'Seção';
+        currentSecHeaderStart = lineStart;
+        currentSecHeaderEnd = lineEnd;
+        isFirstInSec = true;
+      } else if (trimmed === '') {
+        if (inBlock) {
+          locations.push({
+            slideIndex: locations.length,
+            sectionLabel: currentSectionLabel,
+            sectionHeaderStart: currentSecHeaderStart,
+            sectionHeaderEnd: currentSecHeaderEnd,
+            isFirstInSec,
+            blockStart: currentBlockStart,
+            blockEnd: currentBlockEnd,
+          });
+          inBlock = false;
+          isFirstInSec = false;
+        }
+      } else {
+        if (!inBlock) {
+          inBlock = true;
+          currentBlockStart = lineStart;
+        }
+        currentBlockEnd = lineEnd;
+      }
+
+      if (match[2] === '') break;
+    }
+
+    if (inBlock) {
+      locations.push({
+        slideIndex: locations.length,
+        sectionLabel: currentSectionLabel,
+        sectionHeaderStart: currentSecHeaderStart,
+        sectionHeaderEnd: currentSecHeaderEnd,
+        isFirstInSec,
+        blockStart: currentBlockStart,
+        blockEnd: currentBlockEnd,
+      });
+    }
+
+    return locations;
+  }
+
+  function setSlideSection(slideIdx: number, newLabel: string) {
+    const locs = getSlideLocations(lyricsRaw);
+    const loc = locs[slideIdx];
+    if (!loc) return;
+
+    if (loc.isFirstInSec && loc.sectionHeaderStart >= 0) {
+      lyricsRaw =
+        lyricsRaw.slice(0, loc.sectionHeaderStart) +
+        `## ${newLabel}` +
+        lyricsRaw.slice(loc.sectionHeaderEnd);
+    } else {
+      const before = lyricsRaw.slice(0, loc.blockStart).trimEnd();
+      const after = lyricsRaw.slice(loc.blockStart);
+      lyricsRaw = `${before}\n\n## ${newLabel}\n${after}`;
+    }
+    toast.success(`Seção alterada para "${newLabel}"!`);
+  }
+
+  function duplicateSlide(slideIdx: number) {
+    const locs = getSlideLocations(lyricsRaw);
+    const loc = locs[slideIdx];
+    if (!loc) return;
+    const slideContent = lyricsRaw.slice(loc.blockStart, loc.blockEnd);
+    const before = lyricsRaw.slice(0, loc.blockEnd);
+    const after = lyricsRaw.slice(loc.blockEnd);
+    lyricsRaw = `${before}\n\n${slideContent}${after}`;
+    toast.success('Slide duplicado!');
+  }
+
+  function deleteSlide(slideIdx: number) {
+    const locs = getSlideLocations(lyricsRaw);
+    const loc = locs[slideIdx];
+    if (!loc) return;
+
+    const hasSiblingInSec = locs.some(
+      (l, idx) => idx !== slideIdx && l.sectionHeaderStart === loc.sectionHeaderStart
+    );
+
+    let deleteStart = loc.blockStart;
+    if (!hasSiblingInSec && loc.sectionHeaderStart >= 0) {
+      deleteStart = loc.sectionHeaderStart;
+    }
+
+    let deleteEnd = loc.blockEnd;
+    while (
+      deleteEnd < lyricsRaw.length &&
+      (lyricsRaw[deleteEnd] === '\n' || lyricsRaw[deleteEnd] === '\r')
+    ) {
+      deleteEnd++;
+    }
+
+    const before = lyricsRaw.slice(0, deleteStart).trimEnd();
+    const after = lyricsRaw.slice(deleteEnd).trimStart();
+
+    if (before && after) {
+      const joiner = before.split('\n').pop()?.startsWith('#') ? '\n' : '\n\n';
+      lyricsRaw = `${before}${joiner}${after}`;
+    } else {
+      lyricsRaw = before || after || '';
+    }
+    toast.success('Slide removido!');
+  }
+
+  function handleSlideContextMenu(e: MouseEvent, slide: Slide, idx: number) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    const sectionsList =
+      mode === 'song'
+        ? [
+            'Verso 1',
+            'Verso 2',
+            'Verso 3',
+            'Pré-Refrão',
+            'Refrão',
+            'Ponte',
+            'Intro',
+            'Final',
+            'Instrumental',
+          ]
+        : ['Boas-vindas', 'Aviso', 'Campanha', 'Informações', 'Encerramento'];
+
+    const sectionItems: MenuItem[] = sectionsList.map((sec) => ({
+      id: `sec-${sec}`,
+      label: slide.label.startsWith(sec) ? `✓ ${sec}` : sec,
+      icon: Tag,
+      onclick: () => setSlideSection(idx, sec),
+    }));
+
+    contextMenuItems = [
+      {
+        id: 'slide-header',
+        label: `Slide #${idx + 1} (${slide.label})`,
+        disabled: true,
+      },
+      { id: 'div-sections', divider: true },
+      {
+        id: 'sections-title',
+        label: 'Mudar Seção:',
+        disabled: true,
+      },
+      ...sectionItems,
+      { id: 'div-actions', divider: true },
+      {
+        id: 'dup-slide',
+        label: 'Duplicar Slide',
+        icon: Copy,
+        onclick: () => duplicateSlide(idx),
+      },
+      {
+        id: 'del-slide',
+        label: 'Excluir Slide',
+        icon: Trash2,
+        destructive: true,
+        onclick: () => deleteSlide(idx),
+      },
+    ];
+
+    contextMenuOpen = true;
   }
 </script>
 
@@ -643,35 +900,51 @@ Traga sua família e convidados!`;
                   <span>2 Linhas/Slide</span>
                 </button>
               {/if}
-            </div>
-          </div>
 
-          <!-- Barra de Atalhos de Tags de Seções -->
-          <div class="px-4 py-2 border-b border-neutral-800/60 bg-neutral-900/30 flex items-center gap-1.5 overflow-x-auto text-xs shrink-0">
-            <span class="text-[11px] text-neutral-500 font-medium shrink-0 flex items-center gap-1 mr-1">
-              <Hash size={13} class="text-neutral-500" /> {mode === 'song' ? 'Inserir Parte:' : 'Inserir Slide:'}
-            </span>
-            {#if mode === 'song'}
-              {#each ['Verso 1', 'Verso 2', 'Verso 3', 'Pré-Refrão', 'Refrão', 'Ponte', 'Intro', 'Final'] as tag}
+              <div class="h-4 w-[1px] bg-neutral-800 shrink-0 mx-1"></div>
+
+              <!-- Menu Compacto de Inserção de Seção no Cursor -->
+              <div class="relative shrink-0">
                 <button
                   type="button"
-                  onclick={() => insertSectionTag(tag)}
-                  class="px-2 py-0.5 rounded bg-neutral-800/80 hover:bg-neutral-700 border border-neutral-700/50 text-[11px] text-neutral-300 font-medium transition-colors shrink-0 cursor-pointer"
+                  onclick={() => (isSectionDropdownOpen = !isSectionDropdownOpen)}
+                  title="Inserir tag de seção no cursor"
+                  class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white text-[11px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
                 >
-                  + {tag}
+                  <Hash size={13} class="text-primary" />
+                  <span>+ Seção</span>
+                  <ChevronDown size={11} class="text-neutral-400" />
                 </button>
-              {/each}
-            {:else}
-              {#each ['Boas-vindas', 'Aviso 1', 'Aviso 2', 'Campanha', 'Informações', 'Encerramento'] as tag}
-                <button
-                  type="button"
-                  onclick={() => insertSectionTag(tag)}
-                  class="px-2 py-0.5 rounded bg-neutral-800/80 hover:bg-neutral-700 border border-neutral-700/50 text-[11px] text-neutral-300 font-medium transition-colors shrink-0 cursor-pointer"
-                >
-                  + {tag}
-                </button>
-              {/each}
-            {/if}
+                {#if isSectionDropdownOpen}
+                  <!-- svelte-ignore a11y_click_events_have_key_events -->
+                  <div
+                    class="fixed inset-0 z-40"
+                    onclick={() => (isSectionDropdownOpen = false)}
+                    role="presentation"
+                  ></div>
+                  <div
+                    class="absolute left-0 top-full mt-1 z-50 min-w-[160px] max-h-60 overflow-y-auto bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl p-1 text-xs select-none"
+                  >
+                    <div class="px-2 py-1 text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
+                      Inserir no Cursor
+                    </div>
+                    {#each (mode === 'song' ? ['Verso 1', 'Verso 2', 'Verso 3', 'Pré-Refrão', 'Refrão', 'Ponte', 'Intro', 'Final', 'Instrumental'] : ['Boas-vindas', 'Aviso', 'Campanha', 'Informações', 'Encerramento']) as tag}
+                      <button
+                        type="button"
+                        onclick={() => {
+                          insertSectionTag(tag);
+                          isSectionDropdownOpen = false;
+                        }}
+                        class="w-full text-left px-2 py-1.5 rounded hover:bg-neutral-800 text-neutral-200 hover:text-white transition-colors cursor-pointer flex items-center gap-2"
+                      >
+                        <span class="w-1.5 h-1.5 rounded-full bg-primary/70"></span>
+                        <span>{tag}</span>
+                      </button>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            </div>
           </div>
 
           <!-- Dica de Sintaxe -->
@@ -727,8 +1000,11 @@ Traga sua família e convidados!`;
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {#each parsed.slides as slide, idx (slide.id)}
                   {@const color = getSectionColor(slide.label)}
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
                   <div
-                    class="group relative aspect-video bg-neutral-900/90 rounded-lg border border-neutral-800 overflow-hidden flex flex-col shadow-md transition-all hover:border-neutral-700"
+                    class="group relative aspect-video bg-neutral-900/90 rounded-lg border border-neutral-800 overflow-hidden flex flex-col shadow-md transition-all hover:border-neutral-700 cursor-context-menu"
+                    oncontextmenu={(e) => handleSlideContextMenu(e, slide, idx)}
+                    title="Botão direito para mudar seção, duplicar ou excluir slide"
                   >
                     <!-- Header do Card com Tag da Seção -->
                     <div
@@ -801,4 +1077,12 @@ Traga sua família e convidados!`;
       </div>
     </div>
   </div>
+
+  <ContextMenu
+    open={contextMenuOpen}
+    x={contextMenuX}
+    y={contextMenuY}
+    items={contextMenuItems}
+    onclose={() => (contextMenuOpen = false)}
+  />
 {/if}

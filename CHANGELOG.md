@@ -7,6 +7,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Melhorias no Editor de Músicas e Apresentações de Texto (`SongEditorModal.svelte`):**
+  - Inserção inteligente de tags de seção (`## Tag`) na exata posição do cursor no editor de texto, calculando prefixos e quebras de linha contextuais para manter a formatação limpa.
+  - Substituição da barra fixa horizontal de atalhos por um menu dropdown compacto `+ Seção ▾` na barra de ferramentas de typeset, economizando espaço vertical e reduzindo ruído visual.
+  - Menu de contexto nativo com botão direito nos cards de pré-visualização 16:9 dos slides, permitindo alternar instantaneamente a seção do slide (`Verso 1`, `Verso 2`, `Refrão`, `Ponte`, etc.), duplicar slide e excluir slide sem precisar editar o texto manualmente.
+- **Menu de Contexto Completo na Aba "Outros" do Painel de Mídias (`BottomPanel.svelte`):**
+  - Supressão do menu de contexto padrão do navegador web (`e.preventDefault()`) em toda a aba "Outros".
+  - Menu de contexto personalizado para cards da lista: Apresentar Agora (Ao Vivo), Adicionar à Setlist, Editar Item, Duplicar Item e Excluir do Catálogo.
+  - Menu de contexto para os slides na grade de prévia 16:9: Apresentar Este Slide Ao Vivo, Adicionar à Setlist e Editar Apresentação.
+  - Menu de contexto para áreas vazias: atalhos rápidos para criar Nova Programação (Agenda), Nova Apresentação de Texto, Novo Aviso / Comunicado e Recarregar Catálogo.
+- **Aprimoramentos de Acessibilidade e Rolagem no Componente `ContextMenu.svelte`:**
+  - Limite de altura máxima (`max-h-[85vh]`) com rolagem vertical automática (`overflow-y-auto`) e cálculo seguro de coordenadas (`Math.max(10, ...)`), garantindo que menus longos nunca vazem das bordas da tela.
 - **Nova Aba "Outros" no Painel de Mídias para Agenda, Textos Livres, Avisos e Seções:**
   - Adição da aba "Outros" (`id="tab-others"`) na barra de navegação do painel inferior (`BottomPanel.svelte`) com badge de quantidade de itens cadastrados.
   - Catálogo persistente via módulo `customItems.ts` integrado ao banco de dados SQLite (`app_settings` com chave `custom_media_items`) e sincronização reativa via WebSocket em tempo real.

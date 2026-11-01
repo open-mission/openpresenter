@@ -220,6 +220,8 @@
 - [Plano — Customizações e Configurações Visuais da Agenda (Public e Stage)](plans/2026-10-31-configuracoes-agenda-public-e-stage.md)
 - [Spec — Aba "Outros" no Painel de Mídias (Agenda, Textos e Avisos)](specs/2026-11-01-aba-outros-painel-de-midias.md)
 - [Plano — Aba "Outros" no Painel de Mídias (Agenda, Textos e Avisos)](plans/2026-11-01-aba-outros-painel-de-midias.md)
+- [Spec — Inserção no Cursor e Menus de Contexto no Editor de Músicas e Aba Outros](specs/2026-11-01-context-menu-editor-musicas-e-aba-outros.md)
+- [Plano — Inserção no Cursor e Menus de Contexto no Editor de Músicas e Aba Outros](plans/2026-11-01-context-menu-editor-musicas-e-aba-outros.md)
 
 ## Arquitetura e decisões
 

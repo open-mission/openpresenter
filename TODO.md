@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Fix/Improve: Inserção de seções na posição do cursor no SongEditorModal, ContextMenu com seções no clique direito dos slides preview substituindo barra estática de botões, e ContextMenu nativo customizado na aba Outros do BottomPanel evitando menu padrão do navegador. (commit 8bbc151 - 2026-11-01 00:43:00 -03:00)
+
 - [x] Feat: Nova aba "Outros" no painel de mídias (BottomPanel.svelte) para visualização, prévia 16:9, busca e gerenciamento de itens de Agenda (Schedule), Textos Livres, Avisos e Seções, com ações de adicionar à setlist, apresentação direta ao vivo e criação/edição. (commit 866050c - 2026-11-01 00:20:00 -03:00)
 
 - [x] Feat/Improve: Customizações visuais e dimensionamento da Agenda (Schedule) nas telas Pública e Palco: opções nas configurações para controle do container (fundo com/sem blur, opacidade e largura máxima), tamanho dos textos (título, dia, horário, detalhes) e ajustes de tamanho dos textos de retorno no monitor de palco. (commit 11b7517 - 2026-10-31 23:51:26 -03:00)

@@ -32,8 +32,8 @@
       const menuHeight = items.length * 36;
       const maxX = window.innerWidth - menuWidth - 10;
       const maxY = window.innerHeight - menuHeight - 10;
-      adjustedX = Math.min(x, maxX);
-      adjustedY = Math.min(y, maxY);
+      adjustedX = Math.max(10, Math.min(x, maxX));
+      adjustedY = Math.max(10, Math.min(y, maxY));
     }
   });
 
@@ -67,7 +67,7 @@
   <div
     bind:this={menuElement}
     style="left: {adjustedX}px; top: {adjustedY}px;"
-    class="fixed z-50 min-w-[200px] rounded-lg border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
+    class="fixed z-50 min-w-[200px] max-h-[85vh] overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
     onclick={(e) => e.stopPropagation()}
     role="menu"
     tabindex="-1"
