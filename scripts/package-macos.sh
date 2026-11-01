@@ -8,7 +8,7 @@ set -e
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-VERSION="0.4.1"
+VERSION="0.4.2"
 APP_NAME="OpenPresenter"
 BUNDLE_DIR="$ROOT_DIR/dist/macos/${APP_NAME}.app"
 CONTENTS_DIR="$BUNDLE_DIR/Contents"

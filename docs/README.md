@@ -232,6 +232,11 @@
 - [Spec — Ajustes de Lower Thirds, Stage View, Modal de Configurações e Painel de Mídias](specs/2026-11-01-ajustes-lower-thirds-stage-e-painel-midias.md)
 - [Plano — Ajustes de Lower Thirds, Stage View, Modal de Configurações e Painel de Mídias](plans/2026-11-01-ajustes-lower-thirds-stage-e-painel-midias.md)
 
+## Release v0.4.2: Lower Thirds Pro, Stage View com Imagem, Modal Ampliado, Painel de Mídias e Exclusão de Fundos
+
+- [Spec — Preparação e Lançamento da Versão 0.4.2](specs/2026-11-01-release-0-4-2.md)
+- [Plano — Preparação e Lançamento da Versão 0.4.2](plans/2026-11-01-release-0-4-2.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

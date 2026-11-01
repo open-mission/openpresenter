@@ -6,6 +6,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-01
+
 ### Adicionado
 - **Aprimoramentos no Lower Third (`LowerThirdView.svelte`, `SettingsModal.svelte`, `types.ts`, `displaySettings.ts`):**
   - Opção dedicada para tamanho da fonte em versículos bíblicos (`scripture_font_size`), permitindo controle independente do tamanho para letras de músicas.
