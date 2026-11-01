@@ -229,6 +229,8 @@
 - [Plano — Preparação e Lançamento da Versão 0.4.1](plans/2026-11-01-release-0-4-1.md)
 - [Spec — Context Menu e Exclusão de Papéis de Parede Locais no Painel de Fundos](specs/2026-11-01-context-menu-e-exclusao-de-fundos.md)
 - [Plano — Context Menu e Exclusão de Papéis de Parede Locais no Painel de Fundos](plans/2026-11-01-context-menu-e-exclusao-de-fundos.md)
+- [Spec — Ajustes de Lower Thirds, Stage View, Modal de Configurações e Painel de Mídias](specs/2026-11-01-ajustes-lower-thirds-stage-e-painel-midias.md)
+- [Plano — Ajustes de Lower Thirds, Stage View, Modal de Configurações e Painel de Mídias](plans/2026-11-01-ajustes-lower-thirds-stage-e-painel-midias.md)
 
 ## Arquitetura e decisões
 

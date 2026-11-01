@@ -7,6 +7,21 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Aprimoramentos no Lower Third (`LowerThirdView.svelte`, `SettingsModal.svelte`, `types.ts`, `displaySettings.ts`):**
+  - Opção dedicada para tamanho da fonte em versículos bíblicos (`scripture_font_size`), permitindo controle independente do tamanho para letras de músicas.
+  - Correção do alinhamento do texto e posicionamento do box no tema Caixa Flutuante (`floating`), respeitando a configuração de alinhamento configurada (`left`, `center`, `right`).
+  - Suavização do tema Gradiente Central (`gradient`) com máscara radial suave (`mask-image`), eliminando cortes retos nas bordas.
+  - Suporte a imagem customizada de fundo (PNG/JPG) no box do Lower Third (`box_bg_type: 'image'`), com upload direto via modal, cantos arredondados configuráveis (`box_border_radius`) e efeito de fade suave nas bordas (`box_edge_fade` e `box_edge_fade_amount`).
+  - Pré-visualização 16:9 em tempo real no `SettingsModal` refletindo fielmente as fontes bíblicas, o alinhamento da caixa flutuante e o fundo com imagem e bordas suaves.
+- **Stage View com Imagem em Tela Cheia Acima do Rodapé (`StageView.svelte`, `StagePreviewBox.svelte`):**
+  - Ao apresentar uma imagem, o bloco "A Seguir" é ocultado e o slide atual é expandido para preencher todo o espaço útil acima do rodapé de relógio, cronômetro e avisos.
+  - Remoção da limitação rígida `max-h-[50vh]`, garantindo ajuste proporcional suave com `object-contain`.
+- **Melhorias no Modal de Configurações (`SettingsModal.svelte`):**
+  - Correção de importação do ícone `MessageSquare`, solucionando falha de acesso à sub-aba "Layout & Tempo" nas configurações do Monitor de Palco.
+  - Ampliação da largura do modal para `w-[95vw] max-w-6xl 2xl:max-w-7xl h-[90vh] max-h-[860px]` para melhor ergonomia visual e aproveitamento do espaço de exibição.
+- **Melhorias no Painel de Mídias e Seleção de Cards (`BottomPanel.svelte`):**
+  - A aba "Outros" agora inicia com catálogo completo em grade, abrindo o sheet lateral de visualização de slides somente quando um item é clicado (com botão de fechar X), padronizando a experiência com a aba de Músicas.
+  - Adição de padding interno (`p-1.5`) nos containers com rolagem nas abas de Músicas e Outros, corrigindo o corte das bordas e anéis de foco/seleção dos cartões nas listas.
 - **Menu de Contexto e Exclusão de Papéis de Parede Locais no Painel de Fundos (`BottomPanel.svelte`, `routes.rs`):**
   - Novo endpoint backend `DELETE /api/media/wallpapers/{filename}` em `op-admin` com sanitização contra path traversal, validação de nome e proteção estrita contra remoção dos arquivos padrão do sistema (`dark-ambient.svg`, `worship-glow.svg`, `cross-subtle.svg`).
   - Restauração automática para o papel de parede padrão do sistema e broadcast WebSocket em tempo real caso o papel de parede excluído esteja ativo na apresentação ao vivo ou nas letras.

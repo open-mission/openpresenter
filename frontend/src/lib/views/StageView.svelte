@@ -118,11 +118,24 @@
   });
 
   const isCurrentImage = $derived(
-    activeMedia?.kind === 'image' || (activeSlide?.content && activeSlide.content.startsWith('/media/'))
+    activeMedia?.kind === 'image' ||
+      (activeSlide?.content &&
+        (activeSlide.content.startsWith('/media/') ||
+          activeSlide.content.startsWith('/api/media/') ||
+          activeSlide.content.startsWith('http://') ||
+          activeSlide.content.startsWith('https://') ||
+          activeSlide.content.startsWith('data:image/') ||
+          /\.(jpg|jpeg|png|webp|gif|svg|bmp|tiff)$/i.test(activeSlide.content)))
   );
 
   const isNextImage = $derived(
-    nextSlide?.content && nextSlide.content.startsWith('/media/')
+    nextSlide?.content &&
+      (nextSlide.content.startsWith('/media/') ||
+        nextSlide.content.startsWith('/api/media/') ||
+        nextSlide.content.startsWith('http://') ||
+        nextSlide.content.startsWith('https://') ||
+        nextSlide.content.startsWith('data:image/') ||
+        /\.(jpg|jpeg|png|webp|gif|svg|bmp|tiff)$/i.test(nextSlide.content))
   );
 
   const isScripture = $derived(activeMedia?.kind === 'scripture');
@@ -297,7 +310,7 @@
       <!-- Slide Atual Grande com Rótulo Flutuante em Absolute para Espaço Máximo -->
       <div
         class="relative flex flex-col rounded-none bg-zinc-950/80 overflow-hidden border-b transition-all min-h-0"
-        style="flex: {currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
+        style="flex: {isCurrentImage ? (currentRatio + nextRatio) : currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
       >
         <!-- Rótulo Flutuante em Absolute (não ocupa espaço vertical das letras) -->
         <div class="absolute top-2 left-3 right-3 flex items-center justify-between pointer-events-none z-10 opacity-75 hover:opacity-100 transition-opacity">
@@ -329,15 +342,17 @@
           {/if}
         </div>
 
-        <div class="w-full h-full flex-1 min-h-0 flex items-center justify-center overflow-hidden p-3 sm:p-5 md:p-6">
+        <div class="w-full h-full flex-1 min-h-0 flex items-center justify-center overflow-hidden {isCurrentImage ? 'p-1' : 'p-3 sm:p-5 md:p-6'}">
           {#if isCurrentImage && activeSlide}
-            <div class="w-full h-full flex flex-col items-center justify-center p-2 min-h-0">
+            <div class="w-full h-full flex flex-col items-center justify-center min-h-0 overflow-hidden relative">
               <img
                 src={activeSlide.content}
                 alt={activeMedia?.title || 'Imagem'}
-                class="max-w-full max-h-[50vh] object-contain rounded shadow-2xl border border-zinc-800"
+                class="w-full h-full max-w-full max-h-full object-contain rounded drop-shadow-2xl"
               />
-              <span class="text-xs text-zinc-400 font-mono mt-1.5 truncate max-w-sm">{activeMedia?.title || 'Imagem'}</span>
+              <span class="absolute bottom-2 bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded text-[11px] text-zinc-300 font-mono truncate max-w-sm pointer-events-none">
+                {activeMedia?.title || 'Imagem'}
+              </span>
             </div>
           {:else if isSchedule && activeSlide}
             {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
@@ -599,7 +614,9 @@
           style="flex: {100 - (footerRatio * 2.2)}; min-width: 0;"
         >
           {@render currentSlideBlock()}
-          {@render nextSlideBlock()}
+          {#if !isCurrentImage}
+            {@render nextSlideBlock()}
+          {/if}
         </div>
 
         <!-- Coluna Lateral Direita (Aviso, Relógio e Timer) -->
@@ -615,11 +632,13 @@
     {:else}
       <!-- MODO NOVO PADRÃO: 3 LINHAS EMPILHADAS DE LARGURA TOTAL (100% DA TELA) -->
       <div class="flex-1 flex flex-col gap-0 min-h-0 w-full h-full">
-        <!-- Linha 1: Slide Atual -->
+        <!-- Linha 1: Slide Atual (Expande totalmente quando for imagem) -->
         {@render currentSlideBlock()}
 
-        <!-- Linha 2: Próximo Slide -->
-        {@render nextSlideBlock()}
+        <!-- Linha 2: Próximo Slide (Ocultado quando for imagem para que ela ocupe todo o espaço) -->
+        {#if !isCurrentImage}
+          {@render nextSlideBlock()}
+        {/if}
 
         <!-- Linha 3: Barra de Informações Horizontal (Aviso, Relógio e Timer) -->
         <div

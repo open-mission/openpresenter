@@ -19,11 +19,24 @@
   } = $props();
 
   const isCurrentMediaImage = $derived(
-    activeMedia?.kind === 'image' || (activeSlide?.content && activeSlide.content.startsWith('/media/'))
+    activeMedia?.kind === 'image' ||
+      (activeSlide?.content &&
+        (activeSlide.content.startsWith('/media/') ||
+          activeSlide.content.startsWith('/api/media/') ||
+          activeSlide.content.startsWith('http://') ||
+          activeSlide.content.startsWith('https://') ||
+          activeSlide.content.startsWith('data:image/') ||
+          /\.(jpg|jpeg|png|webp|gif|svg|bmp|tiff)$/i.test(activeSlide.content)))
   );
 
   const isNextMediaImage = $derived(
-    nextSlide?.content && nextSlide.content.startsWith('/media/')
+    nextSlide?.content &&
+      (nextSlide.content.startsWith('/media/') ||
+        nextSlide.content.startsWith('/api/media/') ||
+        nextSlide.content.startsWith('http://') ||
+        nextSlide.content.startsWith('https://') ||
+        nextSlide.content.startsWith('data:image/') ||
+        /\.(jpg|jpeg|png|webp|gif|svg|bmp|tiff)$/i.test(nextSlide.content))
   );
 
   const isScripture = $derived(activeMedia?.kind === 'scripture');
@@ -106,14 +119,14 @@
         <div class="flex-1 flex flex-col gap-0 min-h-0 min-w-0 border-r border-zinc-800" style="flex: {100 - (footerRatio * 1.5)};">
           <!-- Atual -->
           <div
-            class="relative rounded-none border-b p-1 overflow-hidden bg-zinc-900/70 flex flex-col justify-center"
-            style="flex: {currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
+            class="relative rounded-none border-b p-1 overflow-hidden bg-zinc-900/70 flex flex-col justify-center min-h-0"
+            style="flex: {isCurrentMediaImage ? (currentRatio + nextRatio) : currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
           >
             <span class="absolute top-0.5 left-1 text-[7px] font-bold uppercase truncate opacity-75 pointer-events-none" style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};">
               ● {isScripture ? `${activeSlide?.label || 'Bíblia'}` : `Atual: ${activeSlide?.label || 'Slide'}`}
             </span>
             {#if isCurrentMediaImage && activeSlide}
-              <div class="w-full h-10 flex items-center justify-center my-auto">
+              <div class="w-full h-full flex items-center justify-center my-auto p-0.5 min-h-0 overflow-hidden">
                 <img src={activeSlide.content} alt="Atual" class="max-w-full max-h-full object-contain rounded" />
               </div>
             {:else if isSchedule && activeSlide}
@@ -149,43 +162,45 @@
             {/if}
           </div>
 
-          <!-- Próximo -->
-          <div
-            class="relative rounded-none p-1 overflow-hidden bg-zinc-900/40 flex flex-col justify-center"
-            style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
-          >
-            <span class="absolute top-0.5 left-1 text-[6.5px] font-bold uppercase truncate flex items-center gap-0.5 opacity-75 pointer-events-none" style="color: {stageSettings.next_text_color || '#facc15'};">
-              <ArrowRight size={7} />
-              {isScripture && nextSlide ? `${nextSlide.label}` : 'A Seguir:'}
-            </span>
-            {#if isNextMediaImage && nextSlide}
-              <div class="w-full h-8 flex items-center justify-center my-auto opacity-85">
-                <img src={nextSlide.content} alt="Próximo" class="max-w-full max-h-full object-contain rounded" />
-              </div>
-            {:else if isSchedule && nextSlide}
-              {@const nextEv = parseScheduleContent(nextSlide.label, nextSlide.content)}
-              <div class="flex flex-col items-center justify-center my-auto px-1 text-center opacity-90">
-                <span
-                  class="text-yellow-300 font-bold uppercase truncate"
-                  style="font-size: {Math.max(5.5, Math.round((stageSettings.stage_schedule_day_font_size ?? 18) * 0.35))}px;"
-                >
-                  {nextEv.day} {nextEv.time ? `• ${nextEv.time}` : ''}
-                </span>
-                <p
-                  class="font-extrabold text-white leading-tight line-clamp-1 truncate"
-                  style="font-size: {Math.max(6.5, Math.round((stageSettings.stage_schedule_next_min_font_size ?? 18) * 0.35))}px;"
-                >
-                  {nextEv.title}
+          <!-- Próximo (Ocultado quando for imagem em tela cheia) -->
+          {#if !isCurrentMediaImage}
+            <div
+              class="relative rounded-none p-1 overflow-hidden bg-zinc-900/40 flex flex-col justify-center min-h-0"
+              style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
+            >
+              <span class="absolute top-0.5 left-1 text-[6.5px] font-bold uppercase truncate flex items-center gap-0.5 opacity-75 pointer-events-none" style="color: {stageSettings.next_text_color || '#facc15'};">
+                <ArrowRight size={7} />
+                {isScripture && nextSlide ? `${nextSlide.label}` : 'A Seguir:'}
+              </span>
+              {#if isNextMediaImage && nextSlide}
+                <div class="w-full h-8 flex items-center justify-center my-auto opacity-85">
+                  <img src={nextSlide.content} alt="Próximo" class="max-w-full max-h-full object-contain rounded" />
+                </div>
+              {:else if isSchedule && nextSlide}
+                {@const nextEv = parseScheduleContent(nextSlide.label, nextSlide.content)}
+                <div class="flex flex-col items-center justify-center my-auto px-1 text-center opacity-90">
+                  <span
+                    class="text-yellow-300 font-bold uppercase truncate"
+                    style="font-size: {Math.max(5.5, Math.round((stageSettings.stage_schedule_day_font_size ?? 18) * 0.35))}px;"
+                  >
+                    {nextEv.day} {nextEv.time ? `• ${nextEv.time}` : ''}
+                  </span>
+                  <p
+                    class="font-extrabold text-white leading-tight line-clamp-1 truncate"
+                    style="font-size: {Math.max(6.5, Math.round((stageSettings.stage_schedule_next_min_font_size ?? 18) * 0.35))}px;"
+                  >
+                    {nextEv.title}
+                  </p>
+                </div>
+              {:else if nextSlide}
+                <p class="text-[10px] font-extrabold leading-tight line-clamp-1 my-auto opacity-95" style="color: {stageSettings.next_text_color || '#facc15'};">
+                  {nextSlide.content.split('\n')[0]}
                 </p>
-              </div>
-            {:else if nextSlide}
-              <p class="text-[10px] font-extrabold leading-tight line-clamp-1 my-auto opacity-95" style="color: {stageSettings.next_text_color || '#facc15'};">
-                {nextSlide.content.split('\n')[0]}
-              </p>
-            {:else}
-              <span class="text-zinc-600 text-[8px] italic my-auto">Fim</span>
-            {/if}
-          </div>
+              {:else}
+                <span class="text-zinc-600 text-[8px] italic my-auto">Fim</span>
+              {/if}
+            </div>
+          {/if}
         </div>
 
         <!-- Coluna Lateral (Aviso Sempre Visível, Relógio, Timer) -->
@@ -243,13 +258,13 @@
         <!-- Linha 1: Slide Atual -->
         <div
           class="relative rounded-none border-b p-1 overflow-hidden bg-zinc-900/70 flex flex-col justify-center min-h-0"
-          style="flex: {currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
+          style="flex: {isCurrentMediaImage ? (currentRatio + nextRatio) : currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
         >
           <span class="absolute top-0.5 left-1 text-[7px] font-bold uppercase truncate opacity-75 pointer-events-none" style="color: {isScripture ? (stageSettings.scripture_text_color || stageSettings.current_text_color || '#ffffff') : (stageSettings.current_text_color || '#ffffff')};">
             ● {isScripture ? `${activeSlide?.label || 'Bíblia'}` : `Atual: ${activeSlide?.label || 'Slide'}`}
           </span>
           {#if isCurrentMediaImage && activeSlide}
-            <div class="w-full h-10 flex items-center justify-center my-auto">
+            <div class="w-full h-full flex items-center justify-center my-auto p-0.5 min-h-0 overflow-hidden">
               <img src={activeSlide.content} alt="Atual" class="max-w-full max-h-full object-contain rounded" />
             </div>
           {:else if isSchedule && activeSlide}
@@ -285,43 +300,45 @@
           {/if}
         </div>
 
-        <!-- Linha 2: Próximo Slide -->
-        <div
-          class="relative rounded-none border-b p-1 overflow-hidden bg-zinc-900/40 flex flex-col justify-center min-h-0"
-          style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
-        >
-          <span class="absolute top-0.5 left-1 text-[6.5px] font-bold uppercase truncate flex items-center gap-0.5 opacity-75 pointer-events-none" style="color: {stageSettings.next_text_color || '#facc15'};">
-            <ArrowRight size={7} />
-            {isScripture && nextSlide ? `${nextSlide.label}` : 'A Seguir:'}
-          </span>
-          {#if isNextMediaImage && nextSlide}
-            <div class="w-full h-8 flex items-center justify-center my-auto opacity-85">
-              <img src={nextSlide.content} alt="Próximo" class="max-w-full max-h-full object-contain rounded" />
-            </div>
-          {:else if isSchedule && nextSlide}
-            {@const nextEv = parseScheduleContent(nextSlide.label, nextSlide.content)}
-            <div class="flex flex-col items-center justify-center my-auto px-1 text-center opacity-90">
-              <span
-                class="text-yellow-300 font-bold uppercase truncate"
-                style="font-size: {Math.max(5.5, Math.round((stageSettings.stage_schedule_day_font_size ?? 18) * 0.35))}px;"
-              >
-                {nextEv.day} {nextEv.time ? `• ${nextEv.time}` : ''}
-              </span>
-              <p
-                class="font-extrabold text-white leading-tight line-clamp-1 truncate"
-                style="font-size: {Math.max(6.5, Math.round((stageSettings.stage_schedule_next_min_font_size ?? 18) * 0.35))}px;"
-              >
-                {nextEv.title}
+        <!-- Linha 2: Próximo Slide (Ocultado quando for imagem em tela cheia) -->
+        {#if !isCurrentMediaImage}
+          <div
+            class="relative rounded-none border-b p-1 overflow-hidden bg-zinc-900/40 flex flex-col justify-center min-h-0"
+            style="flex: {nextRatio}; border-color: {stageSettings.next_border_color || '#eab308'};"
+          >
+            <span class="absolute top-0.5 left-1 text-[6.5px] font-bold uppercase truncate flex items-center gap-0.5 opacity-75 pointer-events-none" style="color: {stageSettings.next_text_color || '#facc15'};">
+              <ArrowRight size={7} />
+              {isScripture && nextSlide ? `${nextSlide.label}` : 'A Seguir:'}
+            </span>
+            {#if isNextMediaImage && nextSlide}
+              <div class="w-full h-8 flex items-center justify-center my-auto opacity-85">
+                <img src={nextSlide.content} alt="Próximo" class="max-w-full max-h-full object-contain rounded" />
+              </div>
+            {:else if isSchedule && nextSlide}
+              {@const nextEv = parseScheduleContent(nextSlide.label, nextSlide.content)}
+              <div class="flex flex-col items-center justify-center my-auto px-1 text-center opacity-90">
+                <span
+                  class="text-yellow-300 font-bold uppercase truncate"
+                  style="font-size: {Math.max(5.5, Math.round((stageSettings.stage_schedule_day_font_size ?? 18) * 0.35))}px;"
+                >
+                  {nextEv.day} {nextEv.time ? `• ${nextEv.time}` : ''}
+                </span>
+                <p
+                  class="font-extrabold text-white leading-tight line-clamp-1 truncate"
+                  style="font-size: {Math.max(6.5, Math.round((stageSettings.stage_schedule_next_min_font_size ?? 18) * 0.35))}px;"
+                >
+                  {nextEv.title}
+                </p>
+              </div>
+            {:else if nextSlide}
+              <p class="text-[10px] font-extrabold leading-tight line-clamp-1 my-auto opacity-95" style="color: {stageSettings.next_text_color || '#facc15'};">
+                {nextSlide.content.split('\n')[0]}
               </p>
-            </div>
-          {:else if nextSlide}
-            <p class="text-[10px] font-extrabold leading-tight line-clamp-1 my-auto opacity-95" style="color: {stageSettings.next_text_color || '#facc15'};">
-              {nextSlide.content.split('\n')[0]}
-            </p>
-          {:else}
-            <span class="text-zinc-600 text-[8px] italic my-auto">Fim</span>
-          {/if}
-        </div>
+            {:else}
+              <span class="text-zinc-600 text-[8px] italic my-auto">Fim</span>
+            {/if}
+          </div>
+        {/if}
 
         <!-- Linha 3: Barra Inferior Horizontal (Aviso, Hora, Timer) -->
         <div

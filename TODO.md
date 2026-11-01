@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Feat/Fix: Aprimoramentos no Lower Third (tamanho de fonte para versículos bíblicos, alinhamento na caixa flutuante, gradiente central suave e imagem de fundo customizada com bordas arredondadas e fade), Stage View (preenchimento total da tela com imagem acima do rodapé de relógio/timer/aviso), SettingsModal (largura ampliada e correção de importação de MessageSquare na sub-aba Layout & Tempo) e BottomPanel (aba Outros iniciando em grade fechada e correção do corte de borda/anel de foco nos cards). (2026-11-01 11:10:00 -03:00)
+
 - [x] Feat: Menus de contexto no Painel de Fundos (BottomPanel.svelte) com opções contextuais (Usar nas Letras, Copiar URL/CSS, Importar, Recarregar, Limpar Fundo) e exclusão completa de papéis de parede locais no frontend (botão lixeira e context menu) e no backend (DELETE /api/media/wallpapers/{filename}) com proteção de wallpapers padrão, sanitização de traversal e fallback dinâmico de apresentação ativa. (commit ba7ad03 - 2026-11-01 10:39:35 -03:00)
 
 - [x] Lançamento da versão 0.4.1: unificação de versão em todo o workspace (Cargo.toml, package.json, workflows, componentes e testes), consolidação da aba Outros no painel de mídias, customizações de exibição da Agenda (Public e Stage), menus de contexto pro nos slides da apresentação, no preview e na aba Outros, fechamento da release 0.4.1 no CHANGELOG.md, spec docs/specs/2026-11-01-release-0-4-1.md, publicação da tag v0.4.1 e push para o repositório remoto. (commit 405e64b - 2026-11-01 01:36:00 -03:00)

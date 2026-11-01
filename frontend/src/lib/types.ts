@@ -315,6 +315,7 @@ export interface LowerThirdSettings {
   bg_opacity: number;
   text_color: string;
   font_size: number;
+  scripture_font_size?: number;
   font_weight: 'normal' | 'semibold' | 'bold' | 'extrabold';
   text_align: 'left' | 'center' | 'right';
   shadow_strength: 'none' | 'subtle' | 'medium' | 'strong';
@@ -324,6 +325,11 @@ export interface LowerThirdSettings {
   show_reference: boolean;
   image_display_mode?: ImageDisplayMode;
   image_fit?: 'contain' | 'cover';
+  box_bg_type?: 'color' | 'image';
+  box_bg_image_url?: string;
+  box_border_radius?: number;
+  box_edge_fade?: boolean;
+  box_edge_fade_amount?: number;
 }
 
 export interface NetworkInfoResponse {

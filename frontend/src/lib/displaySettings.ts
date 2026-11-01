@@ -122,6 +122,7 @@ export const DEFAULT_LOWER_THIRD_SETTINGS: LowerThirdSettings = {
   bg_opacity: 75,
   text_color: '#ffffff',
   font_size: 32,
+  scripture_font_size: 28,
   font_weight: 'bold',
   text_align: 'center',
   shadow_strength: 'strong',
@@ -131,6 +132,11 @@ export const DEFAULT_LOWER_THIRD_SETTINGS: LowerThirdSettings = {
   show_reference: true,
   image_display_mode: 'fullscreen',
   image_fit: 'contain',
+  box_bg_type: 'color',
+  box_bg_image_url: '',
+  box_border_radius: 16,
+  box_edge_fade: false,
+  box_edge_fade_amount: 20,
 };
 
 export const DEFAULT_BACKGROUND_STYLES: BackgroundStylesMap = {

@@ -43,6 +43,7 @@
     Video,
     ScrollText,
     CalendarDays,
+    MessageSquare,
   } from 'lucide-svelte';
   import {
     fetchUpdateCheck,
@@ -170,6 +171,43 @@
   let stageSection = $state<'lyrics' | 'scripture' | 'schedule' | 'general'>('lyrics');
   let bgPreviewMode = $state<'lyrics' | 'scripture' | 'schedule'>('lyrics');
   let ltPreviewMode = $state<'lyrics' | 'scripture' | 'image'>('lyrics');
+  let settingsLtBgFileInputEl: HTMLInputElement | null = $state(null);
+  let isUploadingLtBg = $state(false);
+
+  async function handleLtBgUpload(e: Event) {
+    const input = e.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    isUploadingLtBg = true;
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const b64 = (reader.result as string).split(',')[1];
+        const res = await fetch('/api/media/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            content_base64: b64,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          localLowerThird = {
+            ...localLowerThird,
+            box_bg_type: 'image',
+            box_bg_image_url: data.url,
+          };
+          saveLowerThirdSettings(localLowerThird);
+        }
+        isUploadingLtBg = false;
+        input.value = '';
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      isUploadingLtBg = false;
+    }
+  }
 
   // Configurações de Fundos de Letras e CSS
   let localBgStyles = $state<BackgroundStylesMap>({
@@ -1250,7 +1288,7 @@
   >
     <!-- Modal Container -->
     <div
-      class="w-full max-w-4xl xl:max-w-5xl h-[88vh] max-h-[760px] bg-card border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden text-foreground"
+      class="w-[95vw] max-w-6xl 2xl:max-w-7xl h-[90vh] max-h-[860px] bg-card border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden text-foreground"
     >
       <!-- Header do Modal -->
       <div class="h-14 px-6 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-between shrink-0">
@@ -4048,51 +4086,180 @@
                     </div>
                   </div>
 
-                  <!-- Cores e Gradiente -->
+                  <!-- Cores e Fundo da Caixa -->
                   <div class="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-4">
                     <h4 class="text-xs font-bold text-neutral-200">Cores & Composição de Fundo</h4>
 
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <span class="text-xs font-semibold text-neutral-300 block">Vincular Cor ao Fundo Público Ativo</span>
-                        <span class="text-[11px] text-neutral-500">Adapta automaticamente o gradiente à cor do tema de projeção.</span>
+                    <!-- Tipo de Fundo da Caixa (Cor vs Imagem) -->
+                    <div class="space-y-1.5">
+                      <span class="text-xs font-semibold text-neutral-300 block">Tipo de Fundo da Caixa:</span>
+                      <div class="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onclick={() => (localLowerThird.box_bg_type = 'color')}
+                          class="p-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer {(localLowerThird.box_bg_type || 'color') === 'color' ? 'border-primary bg-primary/20 text-white font-bold' : 'border-neutral-800 bg-neutral-950 text-neutral-400'}"
+                        >
+                          Cor & Gradiente
+                        </button>
+                        <button
+                          type="button"
+                          onclick={() => (localLowerThird.box_bg_type = 'image')}
+                          class="p-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer {localLowerThird.box_bg_type === 'image' ? 'border-primary bg-primary/20 text-white font-bold' : 'border-neutral-800 bg-neutral-950 text-neutral-400'}"
+                        >
+                          Imagem Personalizada (PNG/JPG)
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-label="Vincular Cor ao Fundo Público Ativo"
-                        aria-checked={localLowerThird.use_public_bg}
-                        onclick={() => (localLowerThird.use_public_bg = !localLowerThird.use_public_bg)}
-                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localLowerThird.use_public_bg ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                      >
-                        <span
-                          class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localLowerThird.use_public_bg ? 'translate-x-5' : 'translate-x-0'}"
-                        ></span>
-                      </button>
                     </div>
 
-                    {#if !localLowerThird.use_public_bg}
-                      <div class="flex items-center justify-between pt-2 border-t border-neutral-800">
-                        <span class="text-xs text-neutral-300">Cor Base do Gradiente / Barra:</span>
-                        <div class="flex items-center gap-2">
+                    {#if localLowerThird.box_bg_type === 'image'}
+                      <!-- Controles da Imagem de Fundo -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-3">
+                        <div class="flex items-center justify-between gap-3">
+                          <div class="flex items-center gap-2 min-w-0">
+                            {#if localLowerThird.box_bg_image_url}
+                              <img
+                                src={localLowerThird.box_bg_image_url}
+                                alt="Fundo Lower Third"
+                                class="w-12 h-8 object-cover rounded border border-neutral-700 shrink-0"
+                              />
+                              <span class="text-xs text-neutral-300 truncate max-w-xs">{localLowerThird.box_bg_image_url.split('/').pop()}</span>
+                            {:else}
+                              <div class="w-12 h-8 rounded border border-dashed border-neutral-700 flex items-center justify-center text-neutral-500 text-[10px] shrink-0">
+                                Sem foto
+                              </div>
+                              <span class="text-xs text-neutral-400">Nenhuma imagem selecionada</span>
+                            {/if}
+                          </div>
+
+                          <div class="flex items-center gap-1.5 shrink-0">
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                              bind:this={settingsLtBgFileInputEl}
+                              onchange={handleLtBgUpload}
+                              class="hidden"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              class="h-7 text-xs gap-1"
+                              onclick={() => settingsLtBgFileInputEl?.click()}
+                              disabled={isUploadingLtBg}
+                            >
+                              <Upload size={12} />
+                              <span>{isUploadingLtBg ? 'Enviando...' : localLowerThird.box_bg_image_url ? 'Alterar' : 'Enviar'}</span>
+                            </Button>
+                            {#if localLowerThird.box_bg_image_url}
+                              <button
+                                type="button"
+                                onclick={() => (localLowerThird.box_bg_image_url = '')}
+                                class="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive cursor-pointer"
+                                title="Remover imagem de fundo"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            {/if}
+                          </div>
+                        </div>
+
+                        <!-- Arredondamento das Bordas -->
+                        <div class="space-y-1 pt-1">
+                          <div class="flex justify-between text-xs text-neutral-300">
+                            <span>Arredondamento das Bordas:</span>
+                            <span class="font-mono text-primary font-bold">{localLowerThird.box_border_radius ?? 16}px</span>
+                          </div>
                           <input
-                            type="color"
-                            bind:value={localLowerThird.bg_color}
-                            class="w-8 h-8 rounded border border-neutral-700 bg-transparent cursor-pointer"
-                          />
-                          <input
-                            type="text"
-                            bind:value={localLowerThird.bg_color}
-                            class="w-20 px-2 py-1 rounded bg-black border border-neutral-800 text-xs font-mono uppercase text-center"
+                            type="range"
+                            min="0"
+                            max="48"
+                            step="2"
+                            value={localLowerThird.box_border_radius ?? 16}
+                            oninput={(e) => (localLowerThird.box_border_radius = Number((e.target as HTMLInputElement).value))}
+                            class="w-full accent-primary cursor-pointer"
                           />
                         </div>
+
+                        <!-- Suavizar Bordas com Fade (Feather) -->
+                        <div class="flex items-center justify-between pt-2 border-t border-neutral-800">
+                          <div>
+                            <span class="text-xs font-semibold text-neutral-300 block">Suavizar Bordas com Fade (Feather)</span>
+                            <span class="text-[10px] text-neutral-500">Aplica desvanecimento radial suave nas extremidades da caixa.</span>
+                          </div>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-label="Suavizar Bordas com Fade"
+                            aria-checked={Boolean(localLowerThird.box_edge_fade)}
+                            onclick={() => (localLowerThird.box_edge_fade = !localLowerThird.box_edge_fade)}
+                            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localLowerThird.box_edge_fade ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                          >
+                            <span
+                              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localLowerThird.box_edge_fade ? 'translate-x-5' : 'translate-x-0'}"
+                            ></span>
+                          </button>
+                        </div>
+
+                        {#if localLowerThird.box_edge_fade}
+                          <div class="space-y-1 pt-1">
+                            <div class="flex justify-between text-xs text-neutral-300">
+                              <span>Intensidade do Fade:</span>
+                              <span class="font-mono text-primary font-bold">{localLowerThird.box_edge_fade_amount ?? 20}%</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="5"
+                              max="40"
+                              step="5"
+                              value={localLowerThird.box_edge_fade_amount ?? 20}
+                              oninput={(e) => (localLowerThird.box_edge_fade_amount = Number((e.target as HTMLInputElement).value))}
+                              class="w-full accent-primary cursor-pointer"
+                            />
+                          </div>
+                        {/if}
                       </div>
+                    {:else}
+                      <div class="flex items-center justify-between">
+                        <div>
+                          <span class="text-xs font-semibold text-neutral-300 block">Vincular Cor ao Fundo Público Ativo</span>
+                          <span class="text-[11px] text-neutral-500">Adapta automaticamente o gradiente à cor do tema de projeção.</span>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-label="Vincular Cor ao Fundo Público Ativo"
+                          aria-checked={localLowerThird.use_public_bg}
+                          onclick={() => (localLowerThird.use_public_bg = !localLowerThird.use_public_bg)}
+                          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localLowerThird.use_public_bg ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                        >
+                          <span
+                            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localLowerThird.use_public_bg ? 'translate-x-5' : 'translate-x-0'}"
+                          ></span>
+                        </button>
+                      </div>
+
+                      {#if !localLowerThird.use_public_bg}
+                        <div class="flex items-center justify-between pt-2 border-t border-neutral-800">
+                          <span class="text-xs text-neutral-300">Cor Base do Gradiente / Barra:</span>
+                          <div class="flex items-center gap-2">
+                            <input
+                              type="color"
+                              bind:value={localLowerThird.bg_color}
+                              class="w-8 h-8 rounded border border-neutral-700 bg-transparent cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              bind:value={localLowerThird.bg_color}
+                              class="w-20 px-2 py-1 rounded bg-black border border-neutral-800 text-xs font-mono uppercase text-center"
+                            />
+                          </div>
+                        </div>
+                      {/if}
                     {/if}
 
                     <!-- Opacidade do Fundo -->
                     <div class="space-y-1 pt-1">
                       <div class="flex justify-between text-xs text-neutral-300">
-                        <span>Opacidade do Fundo / Gradiente:</span>
+                        <span>Opacidade do Fundo:</span>
                         <span class="font-mono text-primary font-bold">{localLowerThird.bg_opacity}%</span>
                       </div>
                       <input
@@ -4142,20 +4309,38 @@
                   <div class="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-4">
                     <h4 class="text-xs font-bold text-neutral-200">Tipografia & Contraste para Transmissão</h4>
 
-                    <!-- Tamanho da Fonte -->
-                    <div class="space-y-1">
-                      <div class="flex justify-between text-xs text-neutral-300">
-                        <span>Tamanho da Fonte:</span>
-                        <span class="font-mono text-primary font-bold">{localLowerThird.font_size}px</span>
+                    <!-- Tamanhos de Fontes (Louvor e Versículos) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-1.5">
+                        <div class="flex justify-between text-xs text-neutral-300">
+                          <span>Fonte de Músicas:</span>
+                          <span class="font-mono text-primary font-bold">{localLowerThird.font_size}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="18"
+                          max="60"
+                          step="2"
+                          bind:value={localLowerThird.font_size}
+                          class="w-full accent-primary cursor-pointer"
+                        />
                       </div>
-                      <input
-                        type="range"
-                        min="20"
-                        max="56"
-                        step="2"
-                        bind:value={localLowerThird.font_size}
-                        class="w-full accent-primary cursor-pointer"
-                      />
+
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-1.5">
+                        <div class="flex justify-between text-xs text-neutral-300">
+                          <span>Fonte de Versículos:</span>
+                          <span class="font-mono text-primary font-bold">{localLowerThird.scripture_font_size ?? 28}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="16"
+                          max="56"
+                          step="2"
+                          value={localLowerThird.scripture_font_size ?? 28}
+                          oninput={(e) => (localLowerThird.scripture_font_size = Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3 pt-1">
@@ -4378,11 +4563,20 @@
                               </div>
                             {/if}
                           {:else}
+                          {@const effectivePreviewFontSize = ltPreviewMode === 'scripture'
+                            ? Math.max(8, Math.round((localLowerThird.scripture_font_size ?? 28) * 0.35))
+                            : Math.max(9, Math.round((localLowerThird.font_size ?? 32) * 0.35))}
+                          {@const previewHasImage = localLowerThird.box_bg_type === 'image' && !!localLowerThird.box_bg_image_url}
+                          {@const previewBorderRadius = localLowerThird.box_border_radius ?? 16}
+                          {@const previewFadeMask = (localLowerThird.box_edge_fade ?? false)
+                            ? `radial-gradient(ellipse at center, black ${Math.max(10, 100 - (localLowerThird.box_edge_fade_amount ?? 30) * 1.8)}%, transparent 100%)`
+                            : undefined}
+
                           <!-- Prévia Gradiente -->
                           {#if localLowerThird.theme === 'gradient'}
                             <div
-                              class="px-4 py-2 rounded-xl text-center flex flex-col items-center justify-center overflow-hidden"
-                              style="background: radial-gradient(ellipse at center, rgba(0,0,0,{(localLowerThird.bg_opacity ?? 75) / 100}) 0%, rgba(0,0,0,{(localLowerThird.bg_opacity ?? 75) / 100}) 60%, transparent 100%);"
+                              class="px-4 py-2.5 text-center flex flex-col items-center justify-center overflow-hidden transition-all"
+                              style="background: radial-gradient(ellipse at center, rgba(0,0,0,{(localLowerThird.bg_opacity ?? 75) / 100}) 0%, rgba(0,0,0,{((localLowerThird.bg_opacity ?? 75) / 100) * 0.75}) 40%, rgba(0,0,0,{((localLowerThird.bg_opacity ?? 75) / 100) * 0.2}) 70%, transparent 100%); -webkit-mask-image: radial-gradient(ellipse at center, black 55%, transparent 100%); mask-image: radial-gradient(ellipse at center, black 55%, transparent 100%);"
                             >
                               {#if localLowerThird.show_reference}
                                 <span class="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider mb-1 bg-black/60 border border-white/20 text-white shadow">
@@ -4391,7 +4585,7 @@
                               {/if}
                               <p
                                 class="leading-tight {localLowerThird.text_align === 'left' ? 'text-left' : localLowerThird.text_align === 'right' ? 'text-right' : 'text-center'}"
-                                style="font-size: {Math.max(9, Math.round((localLowerThird.font_size ?? 32) * 0.35))}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : localLowerThird.font_weight === 'semibold' ? '600' : '400'}; color: {localLowerThird.text_color || '#ffffff'}; text-shadow: 0 1px 3px rgba(0,0,0,0.9);"
+                                style="font-size: {effectivePreviewFontSize}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : localLowerThird.font_weight === 'semibold' ? '600' : '400'}; color: {localLowerThird.text_color || '#ffffff'}; text-shadow: 0 1px 3px rgba(0,0,0,0.9);"
                               >
                                 {ltPreviewMode === 'scripture'
                                   ? 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito'
@@ -4411,7 +4605,7 @@
                               {/if}
                               <p
                                 class="leading-tight {localLowerThird.text_align === 'left' ? 'text-left' : localLowerThird.text_align === 'right' ? 'text-right' : 'text-center'}"
-                                style="font-size: {Math.max(9, Math.round((localLowerThird.font_size ?? 32) * 0.35))}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : '600'}; color: {localLowerThird.text_color || '#ffffff'};"
+                                style="font-size: {effectivePreviewFontSize}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : '600'}; color: {localLowerThird.text_color || '#ffffff'};"
                               >
                                 {ltPreviewMode === 'scripture'
                                   ? 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito'
@@ -4421,15 +4615,26 @@
 
                           <!-- Prévia Floating -->
                           {:else if localLowerThird.theme === 'floating'}
-                            <div class="px-4 py-1.5 rounded-2xl bg-black/70 border border-white/20 text-center mx-auto shadow-lg backdrop-blur-sm">
+                            <div
+                              class="px-4 py-2 border border-white/20 shadow-lg backdrop-blur-sm relative overflow-hidden transition-all {localLowerThird.text_align === 'left' ? 'text-left mr-auto' : localLowerThird.text_align === 'right' ? 'text-right ml-auto' : 'text-center mx-auto'}"
+                              style="border-radius: {previewBorderRadius}px; {previewFadeMask ? `-webkit-mask-image: ${previewFadeMask}; mask-image: ${previewFadeMask};` : ''} background-color: {previewHasImage ? 'transparent' : 'rgba(0,0,0,0.7)'};"
+                            >
+                              {#if previewHasImage}
+                                <img
+                                  src={localLowerThird.box_bg_image_url}
+                                  alt=""
+                                  class="absolute inset-0 w-full h-full object-cover pointer-events-none -z-10"
+                                  style="opacity: {(localLowerThird.bg_opacity ?? 75) / 100}; border-radius: {previewBorderRadius}px;"
+                                />
+                              {/if}
                               {#if localLowerThird.show_reference}
                                 <span class="text-[8px] font-bold uppercase text-white/80 block mb-0.5">
                                   {ltPreviewMode === 'scripture' ? '📖 João 3:16' : '🎵 Porque Ele Vive'}
                                 </span>
                               {/if}
                               <p
-                                class="leading-tight"
-                                style="font-size: {Math.max(9, Math.round((localLowerThird.font_size ?? 32) * 0.35))}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : '600'}; color: {localLowerThird.text_color || '#ffffff'};"
+                                class="leading-tight {localLowerThird.text_align === 'left' ? 'text-left' : localLowerThird.text_align === 'right' ? 'text-right' : 'text-center'}"
+                                style="font-size: {effectivePreviewFontSize}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : '600'}; color: {localLowerThird.text_color || '#ffffff'};"
                               >
                                 {ltPreviewMode === 'scripture'
                                   ? 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito'
@@ -4446,8 +4651,8 @@
                                 </span>
                               {/if}
                               <p
-                                class="leading-tight drop-shadow-lg"
-                                style="font-size: {Math.max(9, Math.round((localLowerThird.font_size ?? 32) * 0.35))}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : '600'}; color: {localLowerThird.text_color || '#ffffff'}; text-shadow: 0 2px 6px rgba(0,0,0,1);"
+                                class="leading-tight drop-shadow-lg {localLowerThird.text_align === 'left' ? 'text-left' : localLowerThird.text_align === 'right' ? 'text-right' : 'text-center'}"
+                                style="font-size: {effectivePreviewFontSize}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : '600'}; color: {localLowerThird.text_color || '#ffffff'}; text-shadow: 0 2px 6px rgba(0,0,0,1);"
                               >
                                 {ltPreviewMode === 'scripture'
                                   ? 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito'
