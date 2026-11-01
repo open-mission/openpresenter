@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Feat/UI: Customização de cores e visibilidade de fundo da Agenda (Public e Stage), e Modo de Visualização de Setlist em Fluxo Contínuo estilo ProPresenter com seções agrupadoras, colapso/expansão individual e global, marcação de conclusão e apresentação de seção inteira contínua. (commit c3d70ef - 2026-11-01 14:08:39 -03:00)
+
 - [x] Feat/UI: Fontes customizadas com input numérico e equalização na Agenda (Public e Stage), opções de ocultar segundos e data no relógio do monitor de palco (normal e descanso), transição suave de fade para imagens e volta ao papel de parede, correção de safe-area no iOS e divisores visuais de seção na setlist do Remote (/remote), transições suaves de fade no Lower Third e limpeza global de emojis na interface. (commit ca448ae - 2026-11-01 13:35:00 -03:00)
 
 - [x] Lançamento da versão 0.4.2: unificação de versão em todo o workspace (Cargo.toml, package.json, workflows, componentes e testes), aprimoramentos no Lower Thirds (fonte de escrituras, alinhamento flutuante, gradiente suave e fundo com imagem), Stage View com imagem em tela cheia acima do rodapé, modal de configurações ampliado, painel de mídias com aba Outros em grade e correção de corte de borda/anel de seleção, menus de contexto e exclusão de papéis de parede locais, fechamento da release 0.4.2 no CHANGELOG.md, spec docs/specs/2026-11-01-release-0-4-2.md e publicação da tag v0.4.2. (commit 3332db1 - 2026-11-01 11:56:00 -03:00)

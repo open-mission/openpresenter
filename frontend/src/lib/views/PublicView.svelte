@@ -325,19 +325,22 @@
             >
               <!-- Badges de Topo: Dia da Semana e Horário -->
               {#if publicSettings.schedule_show_badges !== false}
+                {@const showBadgeBg = publicSettings.schedule_badge_bg !== false}
+                {@const dayColor = publicSettings.schedule_day_color || '#fcd34d'}
+                {@const timeColor = publicSettings.schedule_time_color || '#ffffff'}
                 <div class="flex items-center gap-3 flex-wrap {schedAlign === 'left' ? 'justify-start' : schedAlign === 'right' ? 'justify-end' : 'justify-center'}">
                   <span
-                    class="px-5 py-1.5 rounded-full bg-amber-500/25 text-amber-300 border border-amber-500/50 font-black uppercase tracking-wider shadow-lg"
-                    style="font-size: {publicSettings.schedule_day_font_size ?? 20}px;"
+                    class="font-black uppercase tracking-wider {showBadgeBg ? 'px-5 py-1.5 rounded-full bg-amber-500/25 border border-amber-500/50 shadow-lg' : 'drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]'}"
+                    style="font-size: {publicSettings.schedule_day_font_size ?? 20}px; color: {dayColor};"
                   >
                     {ev.day}
                   </span>
                   {#if ev.time}
                     <span
-                      class="px-4 py-1.5 rounded-full bg-white/10 text-white border border-white/20 font-mono font-bold flex items-center gap-2 shadow-lg"
-                      style="font-size: {publicSettings.schedule_time_font_size ?? 18}px;"
+                      class="font-mono font-bold flex items-center gap-2 {showBadgeBg ? 'px-4 py-1.5 rounded-full bg-white/10 border border-white/20 shadow-lg' : 'drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]'}"
+                      style="font-size: {publicSettings.schedule_time_font_size ?? 18}px; color: {timeColor};"
                     >
-                      <Clock size={Math.round((publicSettings.schedule_time_font_size ?? 18) * 1.0)} class="text-amber-400" />
+                      <Clock size={Math.round((publicSettings.schedule_time_font_size ?? 18) * 1.0)} style="color: {timeColor};" />
                       <span>{ev.time}</span>
                     </span>
                   {/if}

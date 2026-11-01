@@ -7,6 +7,18 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Visualização de Setlist em Fluxo Contínuo estilo ProPresenter (`AdminView.svelte`, `SettingsModal.svelte`, `settings.ts`):**
+  - Alternador direto no cabeçalho do operador e nas Configurações entre os modos "Item Focado (Tradicional)" e "Fluxo Contínuo (Estilo ProPresenter)" com persistência no `localStorage`.
+  - Agrupamento reativo da programação em seções (`setlistGroups`) delimitadas pelos divisores de seção.
+  - Cabeçalhos de seção estilizados com destaque visual (ícone de marcador, contagem de itens/slides e badges de status).
+  - Controle de colapso/expansão individual e global ("Expandir Tudo" e "Recolher Tudo").
+  - Marcação de seções e itens como concluídos/já apresentados (`completedSectionIds`, `completedItemIds`), recolhendo e atenuando os blocos com indicador visual de check.
+  - Recurso **Apresentar Seção**: agrupa todos os slides de todos os itens daquela seção (ex: todos os louvores ou imagens de oferta) em uma super-apresentação sequencial para projeção contínua e ininterrupta.
+  - Navegação inteligente de slides no modo contínuo: avançar além do último slide de uma música ou retroceder antes do primeiro slide salta naturalmente para os slides do item adjacente.
+- **Customização de Cores e Fundo da Agenda na Tela Pública e Palco (`SettingsModal.svelte`, `PublicView.svelte`, `StageView.svelte`, `PublicPreviewBox.svelte`, `StagePreviewBox.svelte`, `types.ts`, `displaySettings.ts`):**
+  - Opções configuráveis de cor do dia da semana (`schedule_day_color` / `stage_schedule_day_color`) e do horário (`schedule_time_color` / `stage_schedule_time_color`).
+  - Opção para ativar ou desativar o fundo dos badges/pílulas (`schedule_badge_bg` / `stage_schedule_badge_bg`) de dia e horário.
+  - Controles com color pickers e switches integrados na aba Tela Pública > Agenda e Monitor de Palco > Agenda do modal de configurações.
 - **Fontes Customizadas e Equalização na Agenda (`SettingsModal.svelte`, `PublicView.svelte`, `StageView.svelte`):**
   - Campos numéricos `<input type="number">` acoplados aos sliders de tipografia da Agenda (Dia da Semana, Horário, Detalhes e limites de auto-scale de Título) nas configurações da Tela Pública e do Monitor de Palco.
   - Limite e range de sliders equalizados entre Dia da Semana e Horário (`min="12" max={Math.max(80, value)}`), evitando desproporção quando dispostos na mesma linha.

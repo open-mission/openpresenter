@@ -62,11 +62,14 @@
     churchBrandStore,
   } from '$lib/displaySettings';
   import { refreshBibles } from '$lib/bibles';
-  import { notifySuccess } from '$lib/toast';
+  import { notifySuccess, notifyError } from '$lib/toast';
   import {
     themeStore,
     sectionsStore,
     previewLabelsStore,
+    setlistViewModeStore,
+    setSetlistViewMode,
+    type SetlistViewMode,
     applyTheme,
     initAppTheme,
     getSectionStyle,
@@ -84,11 +87,15 @@
     ChevronLeft,
     ChevronRight,
     ChevronDown,
+    ChevronUp,
     Wifi,
     WifiOff,
     Radio,
     Clock,
     Layers,
+    LayoutGrid,
+    Rows3,
+    ListFilter,
     Plus,
     Play,
     Pause,
@@ -106,6 +113,7 @@
     Edit3,
     Trash2,
     Check,
+    CheckCircle2,
     Eraser,
     Filter,
     PanelLeftClose,
@@ -187,6 +195,12 @@
   let contextMenuY = $state(0);
   let contextMenuItems = $state<MenuItem[]>([]);
 
+  // Estados de Colapso e Conclusão do Fluxo Contínuo (Estilo ProPresenter)
+  let collapsedSectionIds = $state<Record<string, boolean>>({});
+  let collapsedItemIds = $state<Record<string, boolean>>({});
+  let completedSectionIds = $state<Record<string, boolean>>({});
+  let completedItemIds = $state<Record<string, boolean>>({});
+
   onMount(() => {
     initWebSocket('admin');
     initAppTheme();
@@ -246,6 +260,50 @@
       const matchesKind = filterKind === 'all' || item.kind === filterKind;
       return matchesSearch && matchesKind;
     });
+  });
+
+  export interface SetlistSectionGroup {
+    id: string;
+    title: string;
+    headerItem?: MediaItem;
+    items: MediaItem[];
+    totalSlides: number;
+  }
+
+  // Agrupamento da Setlist por Seções (Show Flow estilo ProPresenter)
+  const setlistGroups = $derived.by<SetlistSectionGroup[]>(() => {
+    const list = filteredMedia;
+    const groups: SetlistSectionGroup[] = [];
+    let currentGroup: SetlistSectionGroup = {
+      id: '__initial__',
+      title: 'Início do Culto',
+      items: [],
+      totalSlides: 0,
+    };
+
+    for (const item of list) {
+      if (item.kind === 'header') {
+        if (currentGroup.items.length > 0 || currentGroup.id !== '__initial__') {
+          groups.push(currentGroup);
+        }
+        currentGroup = {
+          id: item.id,
+          title: item.title,
+          headerItem: item,
+          items: [],
+          totalSlides: 0,
+        };
+      } else {
+        currentGroup.items.push(item);
+        currentGroup.totalSlides += item.slides ? item.slides.length : 0;
+      }
+    }
+
+    if (currentGroup.items.length > 0 || currentGroup.id !== '__initial__' || groups.length === 0) {
+      groups.push(currentGroup);
+    }
+
+    return groups.filter((g) => g.items.length > 0 || g.headerItem !== undefined);
   });
 
   // Mídia selecionada para exibição no painel central
@@ -387,8 +445,110 @@
     wsStopPresentation();
   }
 
+  // Controle de Seções e Itens no Fluxo Contínuo ProPresenter
+  function toggleCollapseSection(groupId: string) {
+    collapsedSectionIds[groupId] = !collapsedSectionIds[groupId];
+  }
+
+  function toggleCollapseItem(itemId: string) {
+    collapsedItemIds[itemId] = !collapsedItemIds[itemId];
+  }
+
+  function toggleCompleteSection(groupId: string) {
+    const nextVal = !completedSectionIds[groupId];
+    completedSectionIds[groupId] = nextVal;
+    if (nextVal) {
+      collapsedSectionIds[groupId] = true;
+    }
+  }
+
+  function toggleCompleteItem(itemId: string) {
+    completedItemIds[itemId] = !completedItemIds[itemId];
+  }
+
+  function expandAllFlowSections() {
+    collapsedSectionIds = {};
+    collapsedItemIds = {};
+  }
+
+  function collapseAllFlowSections() {
+    const newCollapsedSections: Record<string, boolean> = {};
+    for (const g of setlistGroups) {
+      newCollapsedSections[g.id] = true;
+    }
+    collapsedSectionIds = newCollapsedSections;
+  }
+
+  // Apresentar uma Seção Inteira como Apresentação Contínua
+  function presentEntireSection(group: SetlistSectionGroup) {
+    if (!group.items || group.items.length === 0) {
+      notifyError('Esta seção não possui itens para apresentar.');
+      return;
+    }
+
+    const aggregatedSlides: Slide[] = [];
+    for (const item of group.items) {
+      if (item.slides && item.slides.length > 0) {
+        for (const s of item.slides) {
+          aggregatedSlides.push({
+            ...s,
+            id: `${item.id}-${s.id}`,
+            label: `${item.title} • ${s.label}`,
+          });
+        }
+      }
+    }
+
+    if (aggregatedSlides.length === 0) {
+      notifyError('Nenhum slide disponível para apresentar nesta seção.');
+      return;
+    }
+
+    const sectionMedia: MediaItem = {
+      id: `section-${group.id}`,
+      title: group.title,
+      kind: 'announcement',
+      artist_or_ref: `Seção (${group.items.length} itens • ${aggregatedSlides.length} slides)`,
+      slides: aggregatedSlides,
+    };
+
+    quickPresentMedia(sectionMedia, 0);
+    notifySuccess('Apresentando Seção', `Iniciada a projeção de "${group.title}" (${aggregatedSlides.length} slides em sequência).`);
+  }
+
   // Navegação de slides
   function nextSlide() {
+    if ($setlistViewModeStore === 'flow' && isSelectedMediaLive) {
+      const currentMediaId = $presentationState.active_media_id;
+      const currentSlideIdx = $presentationState.active_slide_index ?? 0;
+      const currentMedia =
+        $presentationState.quick_media?.id === currentMediaId
+          ? $presentationState.quick_media
+          : $mediaItemsList.find((m) => m.id === currentMediaId) || selectedMedia;
+
+      if (currentMedia && currentSlideIdx < currentMedia.slides.length - 1) {
+        selectSlide(currentMedia.id, currentSlideIdx + 1);
+        return;
+      }
+
+      // Se não for super-apresentação agregada e acabou os slides da música/imagem, avança para o próximo item
+      if (currentMedia && !currentMedia.id.startsWith('section-')) {
+        const currentIndex = $mediaItemsList.findIndex((m) => m.id === currentMediaId);
+        if (currentIndex !== -1) {
+          for (let i = currentIndex + 1; i < $mediaItemsList.length; i++) {
+            const nextItem = $mediaItemsList[i];
+            if (nextItem.kind !== 'header' && nextItem.slides && nextItem.slides.length > 0) {
+              selectedMediaId = nextItem.id;
+              focusedSlideIndex = 0;
+              selectSlide(nextItem.id, 0);
+              return;
+            }
+          }
+        }
+      }
+      return;
+    }
+
     if (!selectedMedia || selectedMedia.slides.length === 0) return;
     const currentIdx =
       isSelectedMediaLive &&
@@ -408,6 +568,38 @@
   }
 
   function prevSlide() {
+    if ($setlistViewModeStore === 'flow' && isSelectedMediaLive) {
+      const currentMediaId = $presentationState.active_media_id;
+      const currentSlideIdx = $presentationState.active_slide_index ?? 0;
+      const currentMedia =
+        $presentationState.quick_media?.id === currentMediaId
+          ? $presentationState.quick_media
+          : $mediaItemsList.find((m) => m.id === currentMediaId) || selectedMedia;
+
+      if (currentMedia && currentSlideIdx > 0) {
+        selectSlide(currentMedia.id, currentSlideIdx - 1);
+        return;
+      }
+
+      // Se for o primeiro slide do item e não for agregador, voltar para o último slide do item anterior
+      if (currentMedia && !currentMedia.id.startsWith('section-')) {
+        const currentIndex = $mediaItemsList.findIndex((m) => m.id === currentMediaId);
+        if (currentIndex > 0) {
+          for (let i = currentIndex - 1; i >= 0; i--) {
+            const prevItem = $mediaItemsList[i];
+            if (prevItem.kind !== 'header' && prevItem.slides && prevItem.slides.length > 0) {
+              const lastSlideIdx = prevItem.slides.length - 1;
+              selectedMediaId = prevItem.id;
+              focusedSlideIndex = lastSlideIdx;
+              selectSlide(prevItem.id, lastSlideIdx);
+              return;
+            }
+          }
+        }
+      }
+      return;
+    }
+
     if (!selectedMedia || selectedMedia.slides.length === 0) return;
     const currentIdx =
       isSelectedMediaLive &&
@@ -841,15 +1033,16 @@
   }
 
   // Menu de Contexto nos Slides de Apresentação
-  function handleSlideCardContextMenu(e: MouseEvent, slide: Slide, idx: number) {
+  function handleSlideCardContextMenu(e: MouseEvent, slide: Slide, idx: number, item?: MediaItem) {
     e.preventDefault();
     e.stopPropagation();
 
     contextMenuX = e.clientX;
     contextMenuY = e.clientY;
 
+    const targetMedia = item || selectedMedia;
     const isLive =
-      $presentationState.active_media_id === selectedMedia?.id &&
+      $presentationState.active_media_id === targetMedia?.id &&
       $presentationState.active_slide_index === idx &&
       $presentationState.display_mode === 'live';
 
@@ -859,7 +1052,7 @@
     contextMenuItems = [
       {
         id: 'slide-card-header',
-        label: `Slide #${idx + 1} (${slide.label || 'Slide'})`,
+        label: `${targetMedia ? targetMedia.title + ' • ' : ''}Slide #${idx + 1} (${slide.label || 'Slide'})`,
         disabled: true,
       },
       { id: 'sc-div-0', divider: true },
@@ -868,13 +1061,22 @@
         label: isLive ? '✓ Ao Vivo no Telão' : 'Apresentar Agora (Ao Vivo)',
         icon: Play,
         disabled: isLive,
-        onclick: () => presentSlide(idx),
+        onclick: () => {
+          if (targetMedia) {
+            selectedMediaId = targetMedia.id;
+            focusedSlideIndex = idx;
+            selectSlide(targetMedia.id, idx);
+          }
+        },
       },
       {
         id: 'sc-focus-slide',
         label: 'Focar Slide (Sem Projetar)',
         icon: Eye,
-        onclick: () => selectSlideForFocus(idx),
+        onclick: () => {
+          if (targetMedia) selectedMediaId = targetMedia.id;
+          selectSlideForFocus(idx);
+        },
       },
       { id: 'sc-div-1', divider: true },
       {
@@ -903,17 +1105,17 @@
       },
     ];
 
-    if (selectedMedia) {
+    if (targetMedia) {
       contextMenuItems.push({
         id: 'sc-edit-item',
         label:
-          selectedMedia.kind === 'song'
+          targetMedia.kind === 'song'
             ? 'Editar Música'
-            : selectedMedia.kind === 'schedule'
+            : targetMedia.kind === 'schedule'
               ? 'Editar Agenda'
               : 'Editar Apresentação',
         icon: Pencil,
-        onclick: () => handleEditItem(selectedMedia),
+        onclick: () => handleEditItem(targetMedia),
       });
     }
 
@@ -2185,43 +2387,172 @@
 
     <!-- COLUNA 2: PAINEL CENTRAL DE SLIDES / PREVIEW -->
     <main class="flex-1 flex flex-col min-w-0 bg-background/80 overflow-hidden">
-      {#if selectedMedia}
-        <!-- Cabeçalho da Mídia Selecionada com Ações de Apresentação -->
-        <div class="h-14 px-5 border-b border-border bg-card/40 flex items-center justify-between shrink-0">
-          <div class="min-w-0">
-            <div class="flex items-center gap-2">
-              <h2 class="text-base font-bold text-foreground truncate leading-tight">
-                {selectedMedia.title}
-              </h2>
-              <Badge variant="default" class="text-[10px] py-0 px-1.5">
-                {selectedMedia.kind === 'song' ? 'Louvor' : selectedMedia.kind === 'scripture' ? 'Bíblia' : selectedMedia.kind === 'header' ? 'Seção' : 'Aviso'}
-              </Badge>
-              {#if isSelectedMediaLive}
+      <!-- Snippet Reutilizável de Renderização de Slide 16:9 -->
+      {#snippet renderSlideCard(item: MediaItem, slide: Slide, idx: number)}
+        {@const isLive =
+          $presentationState.active_media_id === item.id &&
+          $presentationState.active_slide_index === idx &&
+          $presentationState.display_mode === 'live'}
+        {@const isFocused = selectedMediaId === item.id && focusedSlideIndex === idx}
+        {@const sectionStyle = getSectionStyle(slide.label, $sectionsStore)}
+
+        <div
+          id={`slide-card-${item.id}-${idx}`}
+          class={cn(
+            'group flex flex-col rounded-lg border transition-all duration-150 overflow-hidden cursor-pointer select-none relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
+            isLive
+              ? 'border-emerald-500 bg-card shadow-lg ring-2 ring-emerald-500/50'
+              : isFocused
+                ? 'border-sky-500 bg-card shadow-md ring-2 ring-sky-500/40'
+                : 'border-border bg-card/60 hover:border-border hover:bg-muted/70'
+          )}
+          onclick={() => {
+            selectedMediaId = item.id;
+            selectSlideForFocus(idx);
+          }}
+          ondblclick={() => {
+            selectedMediaId = item.id;
+            focusedSlideIndex = idx;
+            selectSlide(item.id, idx);
+          }}
+          oncontextmenu={(e) => handleSlideCardContextMenu(e, slide, idx, item)}
+          role="button"
+          tabindex="0"
+          aria-label={`Slide ${idx + 1}: ${slide.label}`}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') {
+              selectedMediaId = item.id;
+              focusedSlideIndex = idx;
+              selectSlide(item.id, idx);
+            }
+          }}
+        >
+          <!-- Cabeçalho do Cartão do Slide com Cores Customizadas de Seção -->
+          <div
+            class={cn(
+              'px-3 py-1.5 border-b flex items-center justify-between text-xs',
+              sectionStyle.bg,
+              sectionStyle.border
+            )}
+          >
+            <span class={cn('font-semibold flex items-center gap-1.5', sectionStyle.text)}>
+              <span
+                class="w-4 h-4 rounded-full bg-black/40 text-white flex items-center justify-center text-[10px] font-mono"
+              >
+                {idx + 1}
+              </span>
+              {slide.label}
+            </span>
+
+            <div class="flex items-center gap-1">
+              {#if isLive}
                 <Badge variant="live" class="text-[10px] py-0 px-1.5 animate-pulse">
-                  NO AR
+                  AO VIVO
                 </Badge>
-              {/if}
-              {#if selectedMedia.lower_image_url}
-                <Badge
-                  variant="outline"
-                  class="text-[10px] py-0 px-1.5 text-emerald-400 border-emerald-500/40 bg-emerald-950/40 gap-1 flex items-center"
-                  title="Possui imagem alternativa para Lower Third"
-                >
-                  <ImageIcon size={11} />
-                  <span>Lower Third</span>
+              {:else if isFocused}
+                <Badge variant="secondary" class="text-[10px] py-0 px-1.5 border-sky-500/40 text-sky-400 bg-sky-950/40">
+                  FOCADO
                 </Badge>
               {/if}
             </div>
-            {#if selectedMedia.artist_or_ref}
-              <p class="text-xs text-muted-foreground truncate mt-0.5">
-                {selectedMedia.artist_or_ref}
-              </p>
-            {/if}
           </div>
 
-          <!-- Ações e Controles de Navegação -->
-          <div class="flex items-center gap-1.5 shrink-0">
-            {#if isSelectedMediaLive}
+          <!-- Conteúdo Visual do Slide (Proporção 16:9) -->
+          {#if item.kind === 'image'}
+            <div class="aspect-video w-full bg-black/80 flex items-center justify-center relative overflow-hidden">
+              <img src={slide.content} alt={item.title} class="w-full h-full object-contain" />
+              <span class="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground font-mono bg-black/60 px-1 rounded">
+                Imagem 16:9
+              </span>
+            </div>
+          {:else}
+            <div class="aspect-video w-full p-4 flex flex-col bg-black/60 relative overflow-hidden">
+              <div
+                class={cn(
+                  'w-full h-full flex flex-col leading-tight',
+                  (slide.align_h || item.align_h) === 'left'
+                    ? 'text-left items-start'
+                    : (slide.align_h || item.align_h) === 'right'
+                      ? 'text-right items-end'
+                      : (slide.align_h || item.align_h) === 'justify'
+                        ? 'text-justify items-center'
+                        : 'text-center items-center',
+                  (slide.align_v || item.align_v) === 'top'
+                    ? 'justify-start'
+                    : (slide.align_v || item.align_v) === 'bottom'
+                      ? 'justify-end'
+                      : 'justify-center'
+                )}
+              >
+                <div
+                  class={cn(
+                    'text-xs sm:text-sm font-semibold select-none leading-relaxed',
+                    isLive
+                      ? 'text-emerald-200'
+                      : isFocused
+                        ? 'text-white'
+                        : 'text-foreground/90 group-hover:text-foreground'
+                  )}
+                >
+                  {@html renderFormattedText(slide.content)}
+                </div>
+              </div>
+
+              <span class="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground/60 font-mono">
+                16:9
+              </span>
+            </div>
+          {/if}
+        </div>
+      {/snippet}
+
+      {#if $setlistViewModeStore === 'flow'}
+        <!-- ========================================== -->
+        <!-- MODO FLUXO CONTÍNUO (SHOW FLOW - PROPRESENTER) -->
+        <!-- ========================================== -->
+        <!-- Cabeçalho do Fluxo Contínuo -->
+        <div class="h-14 px-5 border-b border-border bg-card/40 flex items-center justify-between shrink-0 gap-3">
+          <div class="min-w-0 flex items-center gap-2">
+            <h2 class="text-sm font-bold text-foreground truncate leading-tight flex items-center gap-1.5">
+              <Rows3 size={15} class="text-sky-400 shrink-0" />
+              <span>{currentSetlistTitle}</span>
+            </h2>
+            <Badge variant="outline" class="text-[10px] py-0 px-1.5 border-sky-500/30 text-sky-400 bg-sky-950/30">
+              Fluxo Contínuo
+            </Badge>
+            <span class="text-xs text-muted-foreground hidden sm:inline">
+              ({setlistGroups.length} {setlistGroups.length === 1 ? 'seção' : 'seções'} • {$mediaItemsList.length} itens)
+            </span>
+          </div>
+
+          <!-- Ações e Alternador de Modo -->
+          <div class="flex items-center gap-2 shrink-0">
+            <!-- Botões Expandir / Recolher Tudo -->
+            <div class="flex items-center gap-1 mr-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onclick={expandAllFlowSections}
+                class="text-[11px] h-7 px-2 text-muted-foreground hover:text-foreground"
+                title="Expandir todas as seções"
+              >
+                <ChevronDown size={13} />
+                <span class="hidden md:inline">Expandir</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onclick={collapseAllFlowSections}
+                class="text-[11px] h-7 px-2 text-muted-foreground hover:text-foreground"
+                title="Recolher todas as seções"
+              >
+                <ChevronUp size={13} />
+                <span class="hidden md:inline">Recolher</span>
+              </Button>
+            </div>
+
+            <!-- Botão Parar Apresentação se houver algo ao vivo -->
+            {#if $presentationState.display_mode === 'live'}
               <Button
                 variant="destructive"
                 size="sm"
@@ -2231,173 +2562,435 @@
                 class="gap-1.5 text-xs font-semibold"
               >
                 <Square size={13} class="fill-current" />
-                {#if $previewLabelsStore}
-                  <span>Parar (Esc)</span>
-                {/if}
+                <span class="hidden sm:inline">Parar</span>
               </Button>
             {/if}
 
-            <Button
-              variant={isSelectedMediaLive ? 'live' : 'default'}
-              size="sm"
-              onclick={() => presentSlide(focusedSlideIndex)}
-              aria-label="Apresentar slide selecionado (Enter)"
-              title="Apresentar Slide Focado (Enter)"
-              class="gap-1.5 text-xs font-semibold shadow-sm"
-            >
-              <Play size={13} class="fill-current" />
-              {#if $previewLabelsStore}
-                <span>Apresentar (Enter)</span>
-              {/if}
-            </Button>
-
-            <div class="h-4 w-[1px] bg-border mx-1"></div>
-
+            <!-- Navegação Anterior / Próximo -->
             <Button
               variant="secondary"
               size="sm"
               onclick={prevSlide}
-              aria-label="Slide anterior (Seta para a esquerda)"
+              aria-label="Slide anterior"
               title="Slide Anterior (←)"
               class="gap-1 text-xs"
             >
               <ChevronLeft size={14} />
-              {#if $previewLabelsStore}
-                <span>Anterior</span>
-              {/if}
             </Button>
             <Button
               variant="secondary"
               size="sm"
               onclick={nextSlide}
-              aria-label="Próximo slide (Seta para a direita ou barra de espaço)"
+              aria-label="Próximo slide"
               title="Próximo Slide (→ ou Espaço)"
               class="gap-1 text-xs"
             >
-              {#if $previewLabelsStore}
-                <span>Próximo</span>
-              {/if}
               <ChevronRight size={14} />
             </Button>
+
+            <div class="h-4 w-[1px] bg-border mx-1"></div>
+
+            <!-- Seletor do Modo de Visualização -->
+            <div class="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border">
+              <button
+                type="button"
+                onclick={() => setSetlistViewMode('item')}
+                class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer text-muted-foreground hover:text-foreground"
+                title="Alternar para Modo Item Focado"
+              >
+                <LayoutGrid size={13} />
+                <span class="hidden lg:inline">Focado</span>
+              </button>
+              <button
+                type="button"
+                onclick={() => setSetlistViewMode('flow')}
+                class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer bg-background text-foreground shadow-xs"
+                title="Modo Fluxo Contínuo ProPresenter ativo"
+              >
+                <Rows3 size={13} class="text-sky-400" />
+                <span class="hidden lg:inline">Fluxo</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Grade de Slides (Aspect Ratio 16:9) -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="flex-1 overflow-y-auto p-5" oncontextmenu={handleSlidesGridContextMenu}>
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {#each selectedMedia.slides as slide, idx (slide.id)}
-              {@const isLive =
-                $presentationState.active_media_id === selectedMedia.id &&
-                $presentationState.active_slide_index === idx &&
-                $presentationState.display_mode === 'live'}
-              {@const isFocused = focusedSlideIndex === idx}
-              {@const sectionStyle = getSectionStyle(slide.label, $sectionsStore)}
+        <!-- Conteúdo Rolável com as Seções e Itens em Linha Contínua -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-6">
+          {#each setlistGroups as group (group.id)}
+            {@const isSectionCompleted = !!completedSectionIds[group.id]}
+            {@const isSectionCollapsed = !!collapsedSectionIds[group.id]}
 
+            <section
+              class={cn(
+                'rounded-xl border transition-all duration-200 overflow-hidden',
+                isSectionCompleted
+                  ? 'border-emerald-800/40 bg-card/30 opacity-75'
+                  : 'border-border/80 bg-card/60 shadow-xs'
+              )}
+            >
+              <!-- BARRA DE CABEÇALHO DA SEÇÃO (Estilo ProPresenter Header Bar) -->
               <div
-                id={`slide-card-${idx}`}
                 class={cn(
-                  'group flex flex-col rounded-lg border transition-all duration-150 overflow-hidden cursor-pointer select-none relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
-                  isLive
-                    ? 'border-emerald-500 bg-card shadow-lg ring-2 ring-emerald-500/50'
-                    : isFocused
-                      ? 'border-sky-500 bg-card shadow-md ring-2 ring-sky-500/40'
-                      : 'border-border bg-card/60 hover:border-border hover:bg-muted/70'
+                  'px-3.5 py-2.5 flex items-center justify-between select-none transition-colors border-b',
+                  isSectionCompleted
+                    ? 'bg-emerald-950/25 border-emerald-900/30 text-emerald-200'
+                    : 'bg-sky-950/40 border-sky-900/40 text-foreground'
                 )}
-                onclick={() => selectSlideForFocus(idx)}
-                ondblclick={() => presentSlide(idx)}
-                oncontextmenu={(e) => handleSlideCardContextMenu(e, slide, idx)}
-                role="button"
-                tabindex="0"
-                aria-label={`Slide ${idx + 1}: ${slide.label}`}
-                onkeydown={(e) => {
-                  if (e.key === 'Enter') presentSlide(idx);
-                }}
               >
-                <!-- Cabeçalho do Cartão do Slide com Cores Customizadas de Seção -->
-                <div
-                  class={cn(
-                    'px-3 py-1.5 border-b flex items-center justify-between text-xs',
-                    sectionStyle.bg,
-                    sectionStyle.border
-                  )}
-                >
-                  <span class={cn('font-semibold flex items-center gap-1.5', sectionStyle.text)}>
-                    <span
-                      class="w-4 h-4 rounded-full bg-black/40 text-white flex items-center justify-center text-[10px] font-mono"
-                    >
-                      {idx + 1}
-                    </span>
-                    {slide.label}
-                  </span>
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <button
+                    type="button"
+                    onclick={() => toggleCollapseSection(group.id)}
+                    class="p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-white transition-colors cursor-pointer"
+                    title={isSectionCollapsed ? 'Expandir Seção' : 'Recolher Seção'}
+                  >
+                    {#if isSectionCollapsed}
+                      <ChevronRight size={16} />
+                    {:else}
+                      <ChevronDown size={16} />
+                    {/if}
+                  </button>
 
-                  <div class="flex items-center gap-1">
-                    {#if isLive}
-                      <Badge variant="live" class="text-[10px] py-0 px-1.5 animate-pulse">
-                        AO VIVO
-                      </Badge>
-                    {:else if isFocused}
-                      <Badge variant="secondary" class="text-[10px] py-0 px-1.5 border-sky-500/40 text-sky-400 bg-sky-950/40">
-                        FOCADO
+                  <div class="flex items-center gap-2 min-w-0">
+                    <Bookmark size={15} class={isSectionCompleted ? 'text-emerald-400' : 'text-sky-400'} />
+                    <h3 class={cn('font-bold text-sm tracking-tight truncate', isSectionCompleted && 'line-through text-muted-foreground')}>
+                      {group.title}
+                    </h3>
+                  </div>
+
+                  <div class="flex items-center gap-1.5 shrink-0 ml-1">
+                    <span class="text-[11px] font-mono text-muted-foreground bg-black/30 px-2 py-0.5 rounded">
+                      {group.items.length} {group.items.length === 1 ? 'item' : 'itens'} • {group.totalSlides} slides
+                    </span>
+                    {#if isSectionCompleted}
+                      <Badge variant="live" class="text-[10px] py-0 px-1.5 gap-1 bg-emerald-900/60 text-emerald-300 border border-emerald-600/40">
+                        <Check size={11} /> Concluído
                       </Badge>
                     {/if}
                   </div>
                 </div>
 
-                <!-- Conteúdo Visual do Slide (Proporção 16:9) -->
-                {#if selectedMedia.kind === 'image'}
-                  <div class="aspect-video w-full bg-black/80 flex items-center justify-center relative overflow-hidden">
-                    <img src={slide.content} alt={selectedMedia.title} class="w-full h-full object-contain" />
-                    <span class="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground font-mono bg-black/60 px-1 rounded">
-                      Imagem 16:9
-                    </span>
-                  </div>
-                {:else}
-                  <div class="aspect-video w-full p-4 flex flex-col bg-black/60 relative overflow-hidden">
+                <!-- Ações da Seção -->
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <!-- Botão Apresentar Seção Inteira -->
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onclick={() => presentEntireSection(group)}
+                    disabled={group.items.length === 0 || group.totalSlides === 0}
+                    class="h-7 px-2.5 text-xs gap-1 font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
+                    title="Apresentar toda esta seção em sequência contínua"
+                  >
+                    <Play size={12} class="fill-current" />
+                    <span>Apresentar Seção</span>
+                  </Button>
+
+                  <!-- Botão Marcar Concluído -->
+                  <button
+                    type="button"
+                    onclick={() => toggleCompleteSection(group.id)}
+                    class={cn(
+                      'p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer',
+                      isSectionCompleted
+                        ? 'border-emerald-600/50 bg-emerald-900/40 text-emerald-300 hover:bg-emerald-800/50'
+                        : 'border-border/70 bg-card/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+                    )}
+                    title={isSectionCompleted ? 'Marcar seção como não concluída' : 'Marcar seção como concluída (recolhe automaticamente)'}
+                  >
+                    <CheckCircle2 size={14} class={isSectionCompleted ? 'text-emerald-400' : 'text-muted-foreground'} />
+                  </button>
+                </div>
+              </div>
+
+              <!-- ITENS DA SEÇÃO -->
+              {#if !isSectionCollapsed}
+                <div class="p-3.5 space-y-4">
+                  {#each group.items as item, itemIdx (item.id)}
+                    {@const isItemCompleted = !!completedItemIds[item.id]}
+                    {@const isItemCollapsed = !!collapsedItemIds[item.id]}
+                    {@const isItemLive = $presentationState.active_media_id === item.id && $presentationState.display_mode === 'live'}
+
                     <div
                       class={cn(
-                        'w-full h-full flex flex-col leading-tight',
-                        (slide.align_h || selectedMedia.align_h) === 'left'
-                          ? 'text-left items-start'
-                          : (slide.align_h || selectedMedia.align_h) === 'right'
-                            ? 'text-right items-end'
-                            : (slide.align_h || selectedMedia.align_h) === 'justify'
-                              ? 'text-justify items-center'
-                              : 'text-center items-center',
-                        (slide.align_v || selectedMedia.align_v) === 'top'
-                          ? 'justify-start'
-                          : (slide.align_v || selectedMedia.align_v) === 'bottom'
-                            ? 'justify-end'
-                            : 'justify-center'
+                        'rounded-lg border transition-all duration-150 overflow-hidden',
+                        isItemLive
+                          ? 'border-emerald-500/80 bg-neutral-900/80 shadow-md ring-1 ring-emerald-500/40'
+                          : isItemCompleted
+                            ? 'border-neutral-800/60 bg-neutral-950/40 opacity-70'
+                            : 'border-neutral-800/80 bg-neutral-900/50 hover:border-neutral-700/80'
                       )}
                     >
-                      <div
-                        class={cn(
-                          'text-xs sm:text-sm font-semibold select-none leading-relaxed',
-                          isLive
-                            ? 'text-emerald-200'
-                            : isFocused
-                              ? 'text-white'
-                              : 'text-foreground/90 group-hover:text-foreground'
-                        )}
-                      >
-                        {@html renderFormattedText(slide.content)}
-                      </div>
-                    </div>
+                      <!-- BARRA DE CABEÇALHO DO ITEM (Estilo ProPresenter Item Bar) -->
+                      <div class="px-3 py-2 bg-neutral-900/90 border-b border-neutral-800/80 flex items-center justify-between gap-2 select-none">
+                        <div class="flex items-center gap-2 min-w-0">
+                          <button
+                            type="button"
+                            onclick={() => toggleCollapseItem(item.id)}
+                            class="p-0.5 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                            title={isItemCollapsed ? 'Expandir slides do item' : 'Recolher slides do item'}
+                          >
+                            {#if isItemCollapsed}
+                              <ChevronRight size={14} />
+                            {:else}
+                              <ChevronDown size={14} />
+                            {/if}
+                          </button>
 
-                    <span class="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground/60 font-mono">
-                      16:9
-                    </span>
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          </div>
+                          <div class="w-5 h-5 rounded-md flex items-center justify-center shrink-0 bg-neutral-800 text-neutral-300">
+                            {#if item.kind === 'song'}
+                              <Music size={12} class="text-sky-400" />
+                            {:else if item.kind === 'scripture'}
+                              <BookOpen size={12} class="text-amber-400" />
+                            {:else if item.kind === 'image'}
+                              <ImageIcon size={12} class="text-emerald-400" />
+                            {:else}
+                              <FileText size={12} class="text-purple-400" />
+                            {/if}
+                          </div>
+
+                          <span class="font-bold text-xs text-neutral-200 truncate {isItemCompleted ? 'line-through text-neutral-500' : ''}">
+                            {item.title}
+                          </span>
+
+                          {#if item.artist_or_ref}
+                            <span class="text-[11px] text-neutral-400 truncate hidden sm:inline">
+                              • {item.artist_or_ref}
+                            </span>
+                          {/if}
+
+                          <span class="text-[10px] text-neutral-500 font-mono shrink-0 ml-1">
+                            ({item.slides ? item.slides.length : 0} {item.slides && item.slides.length === 1 ? 'slide' : 'slides'})
+                          </span>
+
+                          {#if isItemLive}
+                            <Badge variant="live" class="text-[9px] py-0 px-1.5 animate-pulse">
+                              NO AR
+                            </Badge>
+                          {/if}
+
+                          {#if isItemCompleted}
+                            <Badge variant="outline" class="text-[9px] py-0 px-1.5 border-emerald-800 text-emerald-400 bg-emerald-950/30">
+                              ✓ Concluído
+                            </Badge>
+                          {/if}
+                        </div>
+
+                        <!-- Ações do Item -->
+                        <div class="flex items-center gap-1.5 shrink-0">
+                          <!-- Botão Projetar Item a partir do Slide 0 -->
+                          {#if item.slides && item.slides.length > 0}
+                            <Button
+                              variant={isItemLive ? 'live' : 'secondary'}
+                              size="sm"
+                              onclick={() => {
+                                selectedMediaId = item.id;
+                                focusedSlideIndex = 0;
+                                selectSlide(item.id, 0);
+                              }}
+                              class="h-6 px-2 text-[11px] gap-1 font-medium"
+                              title="Iniciar apresentação deste item no telão"
+                            >
+                              <Play size={10} class="fill-current" />
+                              <span>Ao Vivo</span>
+                            </Button>
+                          {/if}
+
+                          <!-- Botão Marcar Item Concluído -->
+                          <button
+                            type="button"
+                            onclick={() => toggleCompleteItem(item.id)}
+                            class={cn(
+                              'p-1 rounded border text-xs transition-colors cursor-pointer',
+                              isItemCompleted
+                                ? 'border-emerald-600/50 bg-emerald-950/60 text-emerald-400'
+                                : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
+                            )}
+                            title={isItemCompleted ? 'Desmarcar conclusão' : 'Marcar item como concluído'}
+                          >
+                            <Check size={12} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- GRADE DE SLIDES DO ITEM -->
+                      {#if !isItemCollapsed}
+                        <div class="p-3 bg-neutral-950/50">
+                          {#if item.slides && item.slides.length > 0}
+                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+                              {#each item.slides as slide, sIdx (slide.id)}
+                                {@render renderSlideCard(item, slide, sIdx)}
+                              {/each}
+                            </div>
+                          {:else}
+                            <div class="p-3 text-center text-xs text-muted-foreground">
+                              Nenhum slide disponível neste item.
+                            </div>
+                          {/if}
+                        </div>
+                      {/if}
+                    </div>
+                  {:else}
+                    <div class="p-4 text-center text-xs text-muted-foreground border border-dashed border-border rounded-lg">
+                      Nenhum item nesta seção. Adicione itens através do painel da setlist ou menu de mídias.
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </section>
+          {:else}
+            <div class="p-12 text-center text-sm text-muted-foreground">
+              Nenhuma mídia ou seção adicionada à programação. Adicione itens pela barra lateral ou menu inferior.
+            </div>
+          {/each}
         </div>
       {:else}
-        <div class="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-          Selecione uma mídia na setlist para visualizar os slides.
-        </div>
+        <!-- ========================================== -->
+        <!-- MODO ITEM FOCADO (TRADICIONAL) -->
+        <!-- ========================================== -->
+        {#if selectedMedia}
+          <!-- Cabeçalho da Mídia Selecionada com Ações de Apresentação -->
+          <div class="h-14 px-5 border-b border-border bg-card/40 flex items-center justify-between shrink-0 gap-3">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <h2 class="text-base font-bold text-foreground truncate leading-tight">
+                  {selectedMedia.title}
+                </h2>
+                <Badge variant="default" class="text-[10px] py-0 px-1.5">
+                  {selectedMedia.kind === 'song' ? 'Louvor' : selectedMedia.kind === 'scripture' ? 'Bíblia' : selectedMedia.kind === 'header' ? 'Seção' : 'Aviso'}
+                </Badge>
+                {#if isSelectedMediaLive}
+                  <Badge variant="live" class="text-[10px] py-0 px-1.5 animate-pulse">
+                    NO AR
+                  </Badge>
+                {/if}
+                {#if selectedMedia.lower_image_url}
+                  <Badge
+                    variant="outline"
+                    class="text-[10px] py-0 px-1.5 text-emerald-400 border-emerald-500/40 bg-emerald-950/40 gap-1 flex items-center"
+                    title="Possui imagem alternativa para Lower Third"
+                  >
+                    <ImageIcon size={11} />
+                    <span>Lower Third</span>
+                  </Badge>
+                {/if}
+              </div>
+              {#if selectedMedia.artist_or_ref}
+                <p class="text-xs text-muted-foreground truncate mt-0.5">
+                  {selectedMedia.artist_or_ref}
+                </p>
+              {/if}
+            </div>
+
+            <!-- Ações e Controles de Navegação -->
+            <div class="flex items-center gap-1.5 shrink-0">
+              {#if isSelectedMediaLive}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onclick={stopPresentation}
+                  aria-label="Parar apresentação (Esc)"
+                  title="Parar Projeção (Esc)"
+                  class="gap-1.5 text-xs font-semibold"
+                >
+                  <Square size={13} class="fill-current" />
+                  {#if $previewLabelsStore}
+                    <span>Parar (Esc)</span>
+                  {/if}
+                </Button>
+              {/if}
+
+              <Button
+                variant={isSelectedMediaLive ? 'live' : 'default'}
+                size="sm"
+                onclick={() => presentSlide(focusedSlideIndex)}
+                aria-label="Apresentar slide selecionado (Enter)"
+                title="Apresentar Slide Focado (Enter)"
+                class="gap-1.5 text-xs font-semibold shadow-sm"
+              >
+                <Play size={13} class="fill-current" />
+                {#if $previewLabelsStore}
+                  <span>Apresentar (Enter)</span>
+                {/if}
+              </Button>
+
+              <div class="h-4 w-[1px] bg-border mx-1"></div>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                onclick={prevSlide}
+                aria-label="Slide anterior (Seta para a esquerda)"
+                title="Slide Anterior (←)"
+                class="gap-1 text-xs"
+              >
+                <ChevronLeft size={14} />
+                {#if $previewLabelsStore}
+                  <span>Anterior</span>
+                {/if}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onclick={nextSlide}
+                aria-label="Próximo slide (Seta para a direita ou barra de espaço)"
+                title="Próximo Slide (→ ou Espaço)"
+                class="gap-1 text-xs"
+              >
+                {#if $previewLabelsStore}
+                  <span>Próximo</span>
+                {/if}
+                <ChevronRight size={14} />
+              </Button>
+
+              <div class="h-4 w-[1px] bg-border mx-1"></div>
+
+              <!-- Seletor do Modo de Visualização -->
+              <div class="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border">
+                <button
+                  type="button"
+                  onclick={() => setSetlistViewMode('item')}
+                  class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer bg-background text-foreground shadow-xs"
+                  title="Modo Item Focado ativo"
+                >
+                  <LayoutGrid size={13} />
+                  <span class="hidden lg:inline">Focado</span>
+                </button>
+                <button
+                  type="button"
+                  onclick={() => setSetlistViewMode('flow')}
+                  class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer text-muted-foreground hover:text-foreground"
+                  title="Alternar para Modo Fluxo Contínuo ProPresenter"
+                >
+                  <Rows3 size={13} />
+                  <span class="hidden lg:inline">Fluxo</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grade de Slides do Item Selecionado (Aspect Ratio 16:9) -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div class="flex-1 overflow-y-auto p-5" oncontextmenu={handleSlidesGridContextMenu}>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {#each selectedMedia.slides as slide, idx (slide.id)}
+                {@render renderSlideCard(selectedMedia, slide, idx)}
+              {/each}
+            </div>
+          </div>
+        {:else}
+          <div class="flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm gap-3">
+            <span>Selecione uma mídia na setlist para visualizar os slides.</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={() => setSetlistViewMode('flow')}
+              class="gap-1.5 text-xs"
+            >
+              <Rows3 size={14} />
+              <span>Ver no Fluxo Contínuo ProPresenter</span>
+            </Button>
+          </div>
+        {/if}
       {/if}
     </main>
 

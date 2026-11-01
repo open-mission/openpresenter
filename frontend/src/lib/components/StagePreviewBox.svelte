@@ -144,10 +144,10 @@
               {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
               <div class="flex flex-col items-center justify-center my-auto px-1 text-center">
                 <span
-                  class="text-amber-300 font-bold uppercase truncate"
-                  style="font-size: {Math.max(6, Math.round((stageSettings.stage_schedule_day_font_size ?? 18) * 0.38))}px;"
+                  class="font-bold uppercase truncate"
+                  style="color: {stageSettings.stage_schedule_day_color || '#fcd34d'}; font-size: {Math.max(6, Math.round((stageSettings.stage_schedule_day_font_size ?? 18) * 0.38))}px;"
                 >
-                  {ev.day} {ev.time ? `• ${ev.time}` : ''}
+                  {ev.day} {#if ev.time}<span style="color: {stageSettings.stage_schedule_time_color || '#ffffff'};">• {ev.time}</span>{/if}
                 </span>
                 <p
                   class="font-black text-white leading-tight line-clamp-1 truncate"
@@ -282,10 +282,10 @@
             {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
             <div class="flex flex-col items-center justify-center my-auto px-1 text-center">
               <span
-                class="text-amber-300 font-bold uppercase truncate"
-                style="font-size: {Math.max(6, Math.round((stageSettings.stage_schedule_day_font_size ?? 18) * 0.38))}px;"
+                class="font-bold uppercase truncate"
+                style="color: {stageSettings.stage_schedule_day_color || '#fcd34d'}; font-size: {Math.max(6, Math.round((stageSettings.stage_schedule_day_font_size ?? 18) * 0.38))}px;"
               >
-                {ev.day} {ev.time ? `• ${ev.time}` : ''}
+                {ev.day} {#if ev.time}<span style="color: {stageSettings.stage_schedule_time_color || '#ffffff'};">• {ev.time}</span>{/if}
               </span>
               <p
                 class="font-black text-white leading-tight line-clamp-1 truncate"

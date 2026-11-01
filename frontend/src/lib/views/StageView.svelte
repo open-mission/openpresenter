@@ -365,20 +365,23 @@
             </div>
           {:else if isSchedule && activeSlide}
             {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
+            {@const showBadgeBg = stageSettings.stage_schedule_badge_bg !== false}
+            {@const dayColor = stageSettings.stage_schedule_day_color || '#fcd34d'}
+            {@const timeColor = stageSettings.stage_schedule_time_color || '#ffffff'}
             <div class="w-full h-full flex flex-col items-center justify-center text-center gap-3 p-3 select-none">
               <div class="flex items-center gap-2.5 flex-wrap justify-center">
                 <span
-                  class="px-4 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-black uppercase tracking-wider"
-                  style="font-size: {stageSettings.stage_schedule_day_font_size ?? 18}px;"
+                  class="font-black uppercase tracking-wider {showBadgeBg ? 'px-4 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 shadow' : 'drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]'}"
+                  style="font-size: {stageSettings.stage_schedule_day_font_size ?? 18}px; color: {dayColor};"
                 >
                   {ev.day}
                 </span>
                 {#if ev.time}
                   <span
-                    class="px-3.5 py-1 rounded-full bg-zinc-800 text-zinc-100 border border-zinc-700 font-mono font-bold flex items-center gap-1.5"
-                    style="font-size: {stageSettings.stage_schedule_time_font_size ?? 16}px;"
+                    class="font-mono font-bold flex items-center gap-1.5 {showBadgeBg ? 'px-3.5 py-1 rounded-full bg-zinc-800 border border-zinc-700 shadow' : 'drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]'}"
+                    style="font-size: {stageSettings.stage_schedule_time_font_size ?? 16}px; color: {timeColor};"
                   >
-                    <Clock size={Math.round((stageSettings.stage_schedule_time_font_size ?? 16) * 1.0)} class="text-amber-400" />
+                    <Clock size={Math.round((stageSettings.stage_schedule_time_font_size ?? 16) * 1.0)} style="color: {timeColor};" />
                     <span>{ev.time}</span>
                   </span>
                 {/if}
@@ -468,14 +471,23 @@
             </div>
           {:else if isSchedule && nextSlide}
             {@const nextEv = parseScheduleContent(nextSlide.label, nextSlide.content)}
+            {@const showBadgeBg = stageSettings.stage_schedule_badge_bg !== false}
+            {@const dayColor = stageSettings.stage_schedule_day_color || '#fcd34d'}
+            {@const timeColor = stageSettings.stage_schedule_time_color || '#ffffff'}
             <div class="w-full h-full flex flex-col items-center justify-center text-center gap-1.5 p-2 select-none">
               <div class="flex items-center gap-2 flex-wrap justify-center">
-                <span class="px-3 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 text-xs md:text-sm font-black uppercase tracking-wider">
+                <span
+                  class="text-xs md:text-sm font-black uppercase tracking-wider {showBadgeBg ? 'px-3 py-0.5 rounded-full bg-yellow-500/20 border border-yellow-500/40 shadow' : 'drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]'}"
+                  style="color: {dayColor};"
+                >
                   {nextEv.day}
                 </span>
                 {#if nextEv.time}
-                  <span class="px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs font-mono font-bold flex items-center gap-1">
-                    <Clock size={12} class="text-yellow-400" />
+                  <span
+                    class="text-xs font-mono font-bold flex items-center gap-1 {showBadgeBg ? 'px-2.5 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 shadow' : 'drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]'}"
+                    style="color: {timeColor};"
+                  >
+                    <Clock size={12} style="color: {timeColor};" />
                     <span>{nextEv.time}</span>
                   </span>
                 {/if}

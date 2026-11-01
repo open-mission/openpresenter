@@ -305,6 +305,9 @@ export interface PublicDisplaySettings {
   schedule_show_badges?: boolean;
   schedule_show_footer?: boolean;
   schedule_align_h?: 'left' | 'center' | 'right';
+  schedule_day_color?: string;
+  schedule_time_color?: string;
+  schedule_badge_bg?: boolean;
 }
 
 export type ImageDisplayMode = 'fullscreen' | 'lower_third' | 'hide';
@@ -404,6 +407,9 @@ export interface StageDisplaySettings {
   stage_schedule_details_font_size?: number;
   stage_schedule_next_min_font_size?: number;
   stage_schedule_next_max_font_size?: number;
+  stage_schedule_day_color?: string;
+  stage_schedule_time_color?: string;
+  stage_schedule_badge_bg?: boolean;
 }
 
 export type SectionType =

@@ -240,6 +240,8 @@
 - [Plano — Fontes Customizadas da Agenda e Exibição de Segundos e Data no Relógio do Palco](plans/2026-11-01-agenda-fontes-customizadas-e-stage-relogio-segundos-data.md)
 - [Spec — Remote iOS Safe-Area & Divisores, Fade no Lower Third e Limpeza de Emojis](specs/2026-11-01-remote-ios-safe-area-lower-third-fade-e-limpeza-emojis.md)
 - [Plano — Remote iOS Safe-Area & Divisores, Fade no Lower Third e Limpeza de Emojis](plans/2026-11-01-remote-ios-safe-area-lower-third-fade-e-limpeza-emojis.md)
+- [Spec — Setlist em Fluxo Contínuo (Estilo ProPresenter) e Customização de Cores e Fundo da Agenda](specs/2026-11-01-setlist-propresenter-flow-e-agenda-cores-bg.md)
+- [Plano — Setlist em Fluxo Contínuo (Estilo ProPresenter) e Customização de Cores e Fundo da Agenda](plans/2026-11-01-setlist-propresenter-flow-e-agenda-cores-bg.md)
 
 ## Arquitetura e decisões
 

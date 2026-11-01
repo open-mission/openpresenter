@@ -57,6 +57,9 @@ export const DEFAULT_PUBLIC_SETTINGS: PublicDisplaySettings = {
   schedule_show_badges: true,
   schedule_show_footer: true,
   schedule_align_h: 'center',
+  schedule_day_color: '#fcd34d',
+  schedule_time_color: '#ffffff',
+  schedule_badge_bg: true,
 };
 
 export const DEFAULT_CHURCH_BRAND: ChurchBrandSettings = {
@@ -118,6 +121,9 @@ export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
   stage_schedule_details_font_size: 18,
   stage_schedule_next_min_font_size: 18,
   stage_schedule_next_max_font_size: 120,
+  stage_schedule_day_color: '#fcd34d',
+  stage_schedule_time_color: '#ffffff',
+  stage_schedule_badge_bg: true,
 };
 
 export const DEFAULT_LOWER_THIRD_SETTINGS: LowerThirdSettings = {

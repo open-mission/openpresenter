@@ -25,6 +25,8 @@
     Sliders,
     Type,
     Layers,
+    LayoutGrid,
+    Rows3,
     Upload,
     Church,
     Maximize2,
@@ -60,11 +62,13 @@
     sectionsStore,
     wallpaperFitStore,
     previewLabelsStore,
+    setlistViewModeStore,
     setTheme,
     setBaseColor,
     setAccentTheme,
     setWallpaperFit,
     setPreviewLabels,
+    setSetlistViewMode,
     saveSections,
     resetSectionsToDefault,
     COLOR_PRESETS,
@@ -74,6 +78,7 @@
     type BaseColor,
     type AccentTheme,
     type WallpaperFitMode,
+    type SetlistViewMode,
     type CustomSectionConfig,
   } from '../settings';
   import {
@@ -1668,6 +1673,56 @@
                   </button>
                 </div>
               </div>
+
+              <!-- CONTROLE DO MODO DA PROGRAMAÇÃO / SETLIST (PROPRESENTER SHOW FLOW) -->
+              <div class="pt-4 border-t border-neutral-800 space-y-4">
+                <div>
+                  <h3 class="text-sm font-semibold text-white">Visualização da Programação (Setlist)</h3>
+                  <p class="text-xs text-neutral-400 mt-0.5">
+                    Escolha a forma padrão como a programação e os slides são apresentados no painel central do operador.
+                  </p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <button
+                    type="button"
+                    onclick={() => setSetlistViewMode('item')}
+                    class="p-4 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {$setlistViewModeStore === 'item' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
+                  >
+                    <div class="flex items-center justify-between mb-3">
+                      <LayoutGrid size={20} class={$setlistViewModeStore === 'item' ? 'text-primary' : 'text-neutral-400'} />
+                      {#if $setlistViewModeStore === 'item'}
+                        <Check size={16} class="text-primary" />
+                      {/if}
+                    </div>
+                    <div>
+                      <div class="text-xs font-semibold text-white">Item Focado (Tradicional)</div>
+                      <div class="text-[10px] text-neutral-400 mt-0.5">
+                        Exibe na tela central apenas a grade de slides da mídia selecionada na setlist.
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => setSetlistViewMode('flow')}
+                    class="p-4 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {$setlistViewModeStore === 'flow' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
+                  >
+                    <div class="flex items-center justify-between mb-3">
+                      <Rows3 size={20} class={$setlistViewModeStore === 'flow' ? 'text-primary' : 'text-neutral-400'} />
+                      {#if $setlistViewModeStore === 'flow'}
+                        <Check size={16} class="text-primary" />
+                      {/if}
+                    </div>
+                    <div>
+                      <div class="text-xs font-semibold text-white">Fluxo Contínuo (ProPresenter)</div>
+                      <div class="text-[10px] text-neutral-400 mt-0.5">
+                        Exibe todas as seções e slides em sequência vertical contínua, com colapso e apresentação por seção.
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
             </div>
 
           <!-- ABA: TELA PÚBLICA (PUBLIC) -->
@@ -2169,6 +2224,57 @@
                       >
                         <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.schedule_box_background !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
                       </button>
+                    </div>
+
+                    <!-- Fundo dos Badges (Dia e Horário) -->
+                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
+                      <div>
+                        <div class="text-[11px] font-semibold text-white">Exibir Fundo das Pílulas (Dia e Horário)</div>
+                        <p class="text-[10px] text-neutral-400 mt-0.5">
+                          Quando ativado, exibe pílulas arredondadas atrás do dia e horário. Quando desativado, exibe apenas os textos limpos.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Alternar fundo das pílulas de dia e horário"
+                        onclick={() => updatePublicField('schedule_badge_bg', localPublic.schedule_badge_bg === false ? true : false)}
+                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.schedule_badge_bg !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                        role="switch"
+                        aria-checked={localPublic.schedule_badge_bg !== false}
+                      >
+                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.schedule_badge_bg !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
+                      </button>
+                    </div>
+
+                    <!-- Cores do Dia da Semana e Horário -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <!-- Cor do Dia da Semana -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Cor do Dia da Semana</div>
+                          <div class="text-[9px] text-neutral-400 font-mono">{localPublic.schedule_day_color || '#fcd34d'}</div>
+                        </div>
+                        <input
+                          type="color"
+                          value={localPublic.schedule_day_color || '#fcd34d'}
+                          oninput={(e) => updatePublicField('schedule_day_color', (e.target as HTMLInputElement).value)}
+                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                        />
+                      </div>
+
+                      <!-- Cor do Horário -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Cor do Horário</div>
+                          <div class="text-[9px] text-neutral-400 font-mono">{localPublic.schedule_time_color || '#ffffff'}</div>
+                        </div>
+                        <input
+                          type="color"
+                          value={localPublic.schedule_time_color || '#ffffff'}
+                          oninput={(e) => updatePublicField('schedule_time_color', (e.target as HTMLInputElement).value)}
+                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                        />
+                      </div>
                     </div>
 
                     {#if localPublic.schedule_box_background !== false}
@@ -3682,6 +3788,59 @@
                         oninput={(e) => updateStageField('stage_schedule_details_font_size', Number((e.target as HTMLInputElement).value))}
                         class="w-full accent-primary cursor-pointer"
                       />
+                    </div>
+
+                    <!-- Cores e Fundo das Pílulas da Agenda no Palco -->
+                    <div class="pt-3 border-t border-neutral-800 space-y-3">
+                      <!-- Fundo das Pílulas -->
+                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
+                        <div>
+                          <div class="text-[11px] font-semibold text-white">Exibir Fundo das Pílulas no Palco</div>
+                          <p class="text-[10px] text-neutral-400 mt-0.5">
+                            Adiciona molduras arredondadas atrás do dia e horário no retorno dos ministrantes.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-label="Alternar fundo das pílulas no palco"
+                          aria-checked={localStage.stage_schedule_badge_bg !== false}
+                          onclick={() => updateStageField('stage_schedule_badge_bg', localStage.stage_schedule_badge_bg === false ? true : false)}
+                          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localStage.stage_schedule_badge_bg !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                        >
+                          <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localStage.stage_schedule_badge_bg !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
+                        </button>
+                      </div>
+
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <!-- Cor do Dia no Palco -->
+                        <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
+                          <div>
+                            <div class="text-[11px] font-semibold text-white">Cor do Dia no Palco</div>
+                            <div class="text-[9px] text-neutral-400 font-mono">{localStage.stage_schedule_day_color || '#fcd34d'}</div>
+                          </div>
+                          <input
+                            type="color"
+                            value={localStage.stage_schedule_day_color || '#fcd34d'}
+                            oninput={(e) => updateStageField('stage_schedule_day_color', (e.target as HTMLInputElement).value)}
+                            class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                          />
+                        </div>
+
+                        <!-- Cor do Horário no Palco -->
+                        <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
+                          <div>
+                            <div class="text-[11px] font-semibold text-white">Cor do Horário no Palco</div>
+                            <div class="text-[9px] text-neutral-400 font-mono">{localStage.stage_schedule_time_color || '#ffffff'}</div>
+                          </div>
+                          <input
+                            type="color"
+                            value={localStage.stage_schedule_time_color || '#ffffff'}
+                            oninput={(e) => updateStageField('stage_schedule_time_color', (e.target as HTMLInputElement).value)}
+                            class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 

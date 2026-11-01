@@ -23,6 +23,7 @@ export type AccentTheme =
   | 'yellow';
 
 export type WallpaperFitMode = 'cover' | 'contain' | 'center' | 'repeat';
+export type SetlistViewMode = 'item' | 'flow';
 
 export interface BaseColorPreset {
   id: BaseColor;
@@ -237,6 +238,7 @@ const STORAGE_ACCENT_THEME_KEY = 'open_presenter_accent_theme';
 const STORAGE_SECTIONS_KEY = 'open_presenter_sections';
 const STORAGE_WALLPAPER_FIT_KEY = 'open_presenter_wallpaper_fit';
 const STORAGE_PREVIEW_LABELS_KEY = 'open_presenter_preview_labels';
+const STORAGE_SETLIST_VIEW_MODE_KEY = 'open_presenter_setlist_view_mode';
 
 function loadInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'system';
@@ -304,6 +306,15 @@ function loadInitialPreviewLabels(): boolean {
   return saved === 'true';
 }
 
+function loadInitialSetlistViewMode(): SetlistViewMode {
+  if (typeof window === 'undefined') return 'item';
+  const saved = localStorage.getItem(STORAGE_SETLIST_VIEW_MODE_KEY);
+  if (saved === 'flow' || saved === 'item') {
+    return saved;
+  }
+  return 'item';
+}
+
 function loadInitialSections(): CustomSectionConfig[] {
   if (typeof window === 'undefined') return DEFAULT_SECTIONS;
   try {
@@ -326,7 +337,15 @@ export const neutralFamilyStore = baseColorStore; // alias
 export const accentThemeStore = writable<AccentTheme>(loadInitialAccentTheme());
 export const wallpaperFitStore = writable<WallpaperFitMode>(loadInitialWallpaperFit());
 export const previewLabelsStore = writable<boolean>(loadInitialPreviewLabels());
+export const setlistViewModeStore = writable<SetlistViewMode>(loadInitialSetlistViewMode());
 export const sectionsStore = writable<CustomSectionConfig[]>(loadInitialSections());
+
+export function setSetlistViewMode(mode: SetlistViewMode) {
+  setlistViewModeStore.set(mode);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_SETLIST_VIEW_MODE_KEY, mode);
+  }
+}
 
 export function applyBaseColor(color: BaseColor, isDark = true) {
   if (typeof document === 'undefined') return;
