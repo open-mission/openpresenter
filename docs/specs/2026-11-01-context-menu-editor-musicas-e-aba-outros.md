@@ -23,18 +23,37 @@
 ## 2. Escopo
 
 ### 2.1 Em Escopo
-1. **Correção da Inserção no Cursor (`SongEditorModal.svelte`):**
+1. **Correção da Inserção no Cursor e Barra de Typeset (`SongEditorModal.svelte`):**
    - Inserir a tag de seção (`## NomeDaSecao`) exatamente na posição do cursor (`selectionStart`/`selectionEnd`) do `textarea`.
    - Ajustar quebras de linha limpas antes e depois da tag.
    - Posicionar o cursor imediatamente após a tag inserida com foco devolvido ao editor.
+   - Eliminar dropdowns absolutos aprisionados em containers com scroll na barra de typeset; acionar o menu flutuante via `ContextMenu` posicionado sob o botão `+ Seção ▾`, garantindo zero overflow ou barras de rolagem na barra de ferramentas.
 2. **Menu de Contexto nos Slides de Prévia do Editor:**
    - Adicionar menu de contexto via [`ContextMenu.svelte`](../../frontend/src/lib/components/ContextMenu.svelte) ao clicar com o botão direito em qualquer card de slide na prévia do editor.
    - Opções para definir/alterar a seção daquele slide:
      - 🏷️ `Verso 1`, `Verso 2`, `Verso 3`, `Pré-Refrão`, `Refrão`, `Ponte`, `Intro`, `Instrumental`, `Final` (modo música).
      - 🏷️ `Boas-vindas`, `Avisos`, `Campanha`, `Informações`, `Encerramento` (modo texto).
+     - ➕ Opção de `+ Nova Seção...` para nomear seções livres (ex.: Ministração, Espontâneo, Solo, Coro 2).
    - Opções de duplicar slide e excluir slide.
-   - Remover a barra estática volumosa de botões sobre o editor, mantendo um botão compacto suspenso `[+ Seção ▾]` na barra de ferramentas superior para conveniência.
-3. **Menu de Contexto Customizado na Aba "Outros" (`BottomPanel.svelte`):**
+3. **Menu de Contexto na Grade de Slides de Apresentação (`AdminView.svelte`):**
+   - Suprimir o menu do navegador no painel central de slides do operador.
+   - No clique direito em cada slide da apresentação (`slide-card-${idx}`):
+     - ▶️ Apresentar Este Slide (Ao Vivo)
+     - 👁️ Focar Slide (Sem Projetar)
+     - 🚫 Blackout / Apagar Projeção (F1 / .)
+     - 🔤 Limpar Letra / Ocultar Texto (F2 / ,)
+     - 📋 Copiar Letra / Texto do Slide
+     - ✏️ Editar Apresentação / Música
+     - ⬆️ Ir para o Primeiro Slide (Slide 1)
+     - ➡️ Próximo Slide (→ / Espaço)
+     - ⬅️ Slide Anterior (←)
+   - No clique direito na área vazia da grade de slides:
+     - ▶️ Apresentar do Início (Slide 1)
+     - ⏹️ Parar Apresentação (Esc)
+     - 🚫 Blackout (F1 / .)
+     - 🔤 Limpar Texto (F2 / ,)
+     - ✏️ Editar Item Atual
+4. **Menu de Contexto Customizado na Aba "Outros" (`BottomPanel.svelte`):**
    - Substituir o menu padrão do navegador em cards da lista de itens com opções:
      - ▶️ Apresentar ao Vivo
      - ➕ Adicionar à Setlist

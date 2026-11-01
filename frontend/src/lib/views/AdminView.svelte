@@ -62,6 +62,7 @@
     churchBrandStore,
   } from '$lib/displaySettings';
   import { refreshBibles } from '$lib/bibles';
+  import { notifySuccess } from '$lib/toast';
   import {
     themeStore,
     sectionsStore,
@@ -76,6 +77,7 @@
     Search,
     MonitorPlay,
     Tv,
+    Eye,
     EyeOff,
     Slash,
     ExternalLink,
@@ -121,6 +123,9 @@
     ScrollText,
     Video,
     CalendarDays,
+    Copy,
+    Type,
+    X,
   } from 'lucide-svelte';
   import { castStore } from '$lib/cast';
 
@@ -829,6 +834,176 @@
         label: 'Versículo Bíblico (Em breve)',
         icon: BookOpen,
         disabled: true,
+      },
+    ];
+
+    contextMenuOpen = true;
+  }
+
+  // Menu de Contexto nos Slides de Apresentação
+  function handleSlideCardContextMenu(e: MouseEvent, slide: Slide, idx: number) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    const isLive =
+      $presentationState.active_media_id === selectedMedia?.id &&
+      $presentationState.active_slide_index === idx &&
+      $presentationState.display_mode === 'live';
+
+    const isBlackout = $presentationState.display_mode === 'blackout';
+    const isClearText = $presentationState.display_mode === 'cleartext';
+
+    contextMenuItems = [
+      {
+        id: 'slide-card-header',
+        label: `Slide #${idx + 1} (${slide.label || 'Slide'})`,
+        disabled: true,
+      },
+      { id: 'sc-div-0', divider: true },
+      {
+        id: 'sc-present-live',
+        label: isLive ? '✓ Ao Vivo no Telão' : 'Apresentar Agora (Ao Vivo)',
+        icon: Play,
+        disabled: isLive,
+        onclick: () => presentSlide(idx),
+      },
+      {
+        id: 'sc-focus-slide',
+        label: 'Focar Slide (Sem Projetar)',
+        icon: Eye,
+        onclick: () => selectSlideForFocus(idx),
+      },
+      { id: 'sc-div-1', divider: true },
+      {
+        id: 'sc-blackout',
+        label: isBlackout ? 'Restaurar Projeção (Sair do Blackout)' : 'Blackout / Apagar Tela (F1 / .)',
+        icon: EyeOff,
+        onclick: () => toggleBlackout(),
+      },
+      {
+        id: 'sc-clear-text',
+        label: isClearText ? 'Restaurar Letra na Projeção' : 'Limpar Letra / Ocultar Texto (F2 / ,)',
+        icon: Type,
+        onclick: () => toggleClearText(),
+      },
+      { id: 'sc-div-2', divider: true },
+      {
+        id: 'sc-copy-text',
+        label: 'Copiar Letra deste Slide',
+        icon: Copy,
+        onclick: () => {
+          if (slide.content) {
+            navigator.clipboard.writeText(slide.content);
+            notifySuccess('Copiado', 'Letra do slide copiada para a área de transferência.');
+          }
+        },
+      },
+    ];
+
+    if (selectedMedia) {
+      contextMenuItems.push({
+        id: 'sc-edit-item',
+        label:
+          selectedMedia.kind === 'song'
+            ? 'Editar Música'
+            : selectedMedia.kind === 'schedule'
+              ? 'Editar Agenda'
+              : 'Editar Apresentação',
+        icon: Pencil,
+        onclick: () => handleEditItem(selectedMedia),
+      });
+    }
+
+    if (selectedMedia && selectedMedia.slides.length > 1) {
+      contextMenuItems.push({ id: 'sc-div-3', divider: true });
+      if (idx > 0) {
+        contextMenuItems.push({
+          id: 'sc-first-slide',
+          label: 'Ir para o Primeiro Slide (Slide 1)',
+          icon: ArrowUpToLine,
+          onclick: () => presentSlide(0),
+        });
+      }
+      if (idx < selectedMedia.slides.length - 1) {
+        contextMenuItems.push({
+          id: 'sc-next-slide',
+          label: 'Próximo Slide (→ / Espaço)',
+          icon: ChevronRight,
+          onclick: () => nextSlide(),
+        });
+      }
+      if (idx > 0) {
+        contextMenuItems.push({
+          id: 'sc-prev-slide',
+          label: 'Slide Anterior (←)',
+          icon: ChevronLeft,
+          onclick: () => prevSlide(),
+        });
+      }
+    }
+
+    contextMenuOpen = true;
+  }
+
+  // Menu de Contexto na Área Vazia da Grade de Slides
+  function handleSlidesGridContextMenu(e: MouseEvent) {
+    if (!selectedMedia) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    const isBlackout = $presentationState.display_mode === 'blackout';
+    const isClearText = $presentationState.display_mode === 'cleartext';
+
+    contextMenuItems = [
+      {
+        id: 'grid-header',
+        label: `${selectedMedia.title} (${selectedMedia.slides.length} slides)`,
+        disabled: true,
+      },
+      { id: 'grid-div-0', divider: true },
+      {
+        id: 'grid-present-start',
+        label: 'Apresentar do Início (Slide 1)',
+        icon: Play,
+        onclick: () => presentSlide(0),
+      },
+      {
+        id: 'grid-stop',
+        label: 'Parar Apresentação (Esc)',
+        icon: X,
+        destructive: true,
+        onclick: () => stopPresentation(),
+      },
+      { id: 'grid-div-1', divider: true },
+      {
+        id: 'grid-blackout',
+        label: isBlackout ? 'Restaurar Projeção' : 'Blackout (F1 / .)',
+        icon: EyeOff,
+        onclick: () => toggleBlackout(),
+      },
+      {
+        id: 'grid-cleartext',
+        label: isClearText ? 'Restaurar Texto' : 'Limpar Texto (F2 / ,)',
+        icon: Type,
+        onclick: () => toggleClearText(),
+      },
+      { id: 'grid-div-2', divider: true },
+      {
+        id: 'grid-edit',
+        label:
+          selectedMedia.kind === 'song'
+            ? 'Editar Música'
+            : selectedMedia.kind === 'schedule'
+              ? 'Editar Agenda'
+              : 'Editar Apresentação',
+        icon: Pencil,
+        onclick: () => handleEditItem(selectedMedia),
       },
     ];
 
@@ -2107,7 +2282,8 @@
         </div>
 
         <!-- Grade de Slides (Aspect Ratio 16:9) -->
-        <div class="flex-1 overflow-y-auto p-5">
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="flex-1 overflow-y-auto p-5" oncontextmenu={handleSlidesGridContextMenu}>
           <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {#each selectedMedia.slides as slide, idx (slide.id)}
               {@const isLive =
@@ -2129,6 +2305,7 @@
                 )}
                 onclick={() => selectSlideForFocus(idx)}
                 ondblclick={() => presentSlide(idx)}
+                oncontextmenu={(e) => handleSlideCardContextMenu(e, slide, idx)}
                 role="button"
                 tabindex="0"
                 aria-label={`Slide ${idx + 1}: ${slide.label}`}

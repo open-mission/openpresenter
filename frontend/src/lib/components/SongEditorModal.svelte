@@ -25,6 +25,7 @@
     Copy,
     Trash2,
     Tag,
+    Plus,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
@@ -75,8 +76,7 @@
   // Referência ao textarea para inserção de formatação
   let textareaEl: HTMLTextAreaElement | null = $state(null);
 
-  // Estado do dropdown de seções e do menu de contexto
-  let isSectionDropdownOpen = $state(false);
+  // Estado do menu de contexto
   let contextMenuOpen = $state(false);
   let contextMenuX = $state(0);
   let contextMenuY = $state(0);
@@ -509,6 +509,70 @@ Traga sua família e convidados!`;
     toast.success('Slide removido!');
   }
 
+  function promptInsertNewSection() {
+    const customName = prompt(
+      'Digite o nome da nova seção (Ex: Ministração, Espontâneo, Refrão 2, Solo):'
+    );
+    if (customName && customName.trim()) {
+      insertSectionTag(customName.trim());
+    }
+  }
+
+  function promptNewSection(slideIdx: number) {
+    const customName = prompt(
+      'Digite o nome da nova seção (Ex: Ministração, Espontâneo, Refrão 2, Solo):'
+    );
+    if (customName && customName.trim()) {
+      setSlideSection(slideIdx, customName.trim());
+    }
+  }
+
+  function handleOpenSectionMenu(e: MouseEvent) {
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    contextMenuX = rect.left;
+    contextMenuY = rect.bottom + 4;
+
+    const sectionsList =
+      mode === 'song'
+        ? [
+            'Verso 1',
+            'Verso 2',
+            'Verso 3',
+            'Pré-Refrão',
+            'Refrão',
+            'Ponte',
+            'Intro',
+            'Final',
+            'Instrumental',
+          ]
+        : ['Boas-vindas', 'Aviso', 'Campanha', 'Informações', 'Encerramento'];
+
+    contextMenuItems = [
+      {
+        id: 'tb-sec-header',
+        label: 'Inserir Seção no Cursor:',
+        disabled: true,
+      },
+      { id: 'tb-div-0', divider: true },
+      ...sectionsList.map((sec) => ({
+        id: `tb-sec-${sec}`,
+        label: sec,
+        icon: Tag,
+        onclick: () => insertSectionTag(sec),
+      })),
+      { id: 'tb-div-1', divider: true },
+      {
+        id: 'tb-sec-new',
+        label: '+ Nova Seção...',
+        icon: Plus,
+        onclick: () => promptInsertNewSection(),
+      },
+    ];
+
+    contextMenuOpen = true;
+  }
+
   function handleSlideContextMenu(e: MouseEvent, slide: Slide, idx: number) {
     e.preventDefault();
     e.stopPropagation();
@@ -551,6 +615,12 @@ Traga sua família e convidados!`;
         disabled: true,
       },
       ...sectionItems,
+      {
+        id: 'sec-new-custom',
+        label: '+ Nova Seção...',
+        icon: Plus,
+        onclick: () => promptNewSection(idx),
+      },
       { id: 'div-actions', divider: true },
       {
         id: 'dup-slide',
@@ -782,7 +852,7 @@ Traga sua família e convidados!`;
           </div>
 
           <!-- BARRA DE FERRAMENTAS TYPESET E ALINHAMENTO -->
-          <div class="px-3 py-2 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-between gap-2 overflow-x-auto text-xs shrink-0 select-none">
+          <div class="px-3 py-2 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-between gap-2 text-xs shrink-0 select-none">
             <!-- Formatação de Texto (Markdown Typeset) -->
             <div class="flex items-center gap-1 shrink-0">
               <span class="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mr-1">Typeset:</span>
@@ -903,47 +973,17 @@ Traga sua família e convidados!`;
 
               <div class="h-4 w-[1px] bg-neutral-800 shrink-0 mx-1"></div>
 
-              <!-- Menu Compacto de Inserção de Seção no Cursor -->
-              <div class="relative shrink-0">
-                <button
-                  type="button"
-                  onclick={() => (isSectionDropdownOpen = !isSectionDropdownOpen)}
-                  title="Inserir tag de seção no cursor"
-                  class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white text-[11px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-                >
-                  <Hash size={13} class="text-primary" />
-                  <span>+ Seção</span>
-                  <ChevronDown size={11} class="text-neutral-400" />
-                </button>
-                {#if isSectionDropdownOpen}
-                  <!-- svelte-ignore a11y_click_events_have_key_events -->
-                  <div
-                    class="fixed inset-0 z-40"
-                    onclick={() => (isSectionDropdownOpen = false)}
-                    role="presentation"
-                  ></div>
-                  <div
-                    class="absolute left-0 top-full mt-1 z-50 min-w-[160px] max-h-60 overflow-y-auto bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl p-1 text-xs select-none"
-                  >
-                    <div class="px-2 py-1 text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
-                      Inserir no Cursor
-                    </div>
-                    {#each (mode === 'song' ? ['Verso 1', 'Verso 2', 'Verso 3', 'Pré-Refrão', 'Refrão', 'Ponte', 'Intro', 'Final', 'Instrumental'] : ['Boas-vindas', 'Aviso', 'Campanha', 'Informações', 'Encerramento']) as tag}
-                      <button
-                        type="button"
-                        onclick={() => {
-                          insertSectionTag(tag);
-                          isSectionDropdownOpen = false;
-                        }}
-                        class="w-full text-left px-2 py-1.5 rounded hover:bg-neutral-800 text-neutral-200 hover:text-white transition-colors cursor-pointer flex items-center gap-2"
-                      >
-                        <span class="w-1.5 h-1.5 rounded-full bg-primary/70"></span>
-                        <span>{tag}</span>
-                      </button>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
+              <!-- Botão Compacto para Inserir Seção no Cursor -->
+              <button
+                type="button"
+                onclick={handleOpenSectionMenu}
+                title="Inserir tag de seção no cursor"
+                class="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white text-[11px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                <Hash size={13} class="text-primary" />
+                <span>+ Seção</span>
+                <ChevronDown size={11} class="text-neutral-400" />
+              </button>
             </div>
           </div>
 

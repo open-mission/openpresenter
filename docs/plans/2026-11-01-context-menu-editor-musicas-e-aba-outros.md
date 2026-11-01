@@ -14,14 +14,22 @@
   - [x] Refatorar `insertSectionTag(tag)` para usar `selectionStart` e `selectionEnd` de `textareaEl`.
   - [x] Inserir espaçamento e prefixo `## ` adequado e devolver o foco com o cursor posicionado após a tag.
 
-### Etapa 2: Menu de Contexto nos Slides de Prévia do `SongEditorModal.svelte`
+### Etapa 2: Menu de Contexto nos Slides de Prévia e Ajuste da Barra do `SongEditorModal.svelte`
 - [x] Em [`frontend/src/lib/components/SongEditorModal.svelte`](../../frontend/src/lib/components/SongEditorModal.svelte):
   - [x] Importar [`ContextMenu.svelte`](../../frontend/src/lib/components/ContextMenu.svelte) e `type MenuItem`.
   - [x] Remover a barra estática de botões de atalho de seção sobre o textarea, adicionando botão dropdown compacto `[+ Seção ▾]` na barra de ferramentas.
   - [x] Implementar handler de clique direito nos cards de slide da prévia (`handleSlideContextMenu(e, slide, index)`).
   - [x] Criar função para alterar a seção do slide no texto (`setSlideSection(slide, newLabel)`) e ações de duplicar/excluir slide.
+  - [x] Ajustar `+ Seção ▾` para abrir via `ContextMenu` flutuante em vez de dropdown absoluto aprisionado no container com scroll.
+  - [x] Adicionar opção `+ Nova Seção...` no menu de contexto dos slides da prévia e no menu da barra.
 
-### Etapa 3: Menu de Contexto na Aba "Outros" em `BottomPanel.svelte`
+### Etapa 3: Menu de Contexto na Grade de Slides do Operador em `AdminView.svelte`
+- [x] Em [`frontend/src/lib/views/AdminView.svelte`](../../frontend/src/lib/views/AdminView.svelte):
+  - [x] Implementar `handleSlideCardContextMenu(e, slide, idx)` nos cards `slide-card-${idx}` da apresentação principal.
+  - [x] Implementar `handleSlidesGridContextMenu(e)` na área vazia da grade de slides.
+  - [x] Oferecer ações de Apresentar ao Vivo, Focar, Blackout, Limpar Letra, Copiar Texto, Editar e Navegação.
+
+### Etapa 4: Menu de Contexto na Aba "Outros" em `BottomPanel.svelte`
 - [x] Em [`frontend/src/lib/components/BottomPanel.svelte`](../../frontend/src/lib/components/BottomPanel.svelte):
   - [x] Importar [`ContextMenu.svelte`](../../frontend/src/lib/components/ContextMenu.svelte) e `type MenuItem`.
   - [x] Implementar `handleOtherItemContextMenu(e, item)` nos cards da lista.

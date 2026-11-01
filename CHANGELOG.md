@@ -7,10 +7,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Menu de Contexto na Grade de Slides de Apresentação (`AdminView.svelte`):**
+  - Supressão do menu padrão do navegador na grade central de slides do operador (`slide-card-${idx}`) e na área vazia da grade.
+  - Ações contextuais completas nos slides: Apresentar Agora (Ao Vivo), Focar Slide (Sem Projetar), Blackout / Apagar Projeção (F1 / .), Limpar Letra / Ocultar Texto (F2 / ,), Copiar Letra deste Slide, Editar Item (Música/Agenda/Texto) e atalhos de navegação (Slide 1, Próximo e Anterior).
+  - Ações contextuais na área vazia da grade: Apresentar do Início (Slide 1), Parar Apresentação (Esc), Blackout, Limpar Texto e Editar Apresentação.
 - **Melhorias no Editor de Músicas e Apresentações de Texto (`SongEditorModal.svelte`):**
   - Inserção inteligente de tags de seção (`## Tag`) na exata posição do cursor no editor de texto, calculando prefixos e quebras de linha contextuais para manter a formatação limpa.
-  - Substituição da barra fixa horizontal de atalhos por um menu dropdown compacto `+ Seção ▾` na barra de ferramentas de typeset, economizando espaço vertical e reduzindo ruído visual.
-  - Menu de contexto nativo com botão direito nos cards de pré-visualização 16:9 dos slides, permitindo alternar instantaneamente a seção do slide (`Verso 1`, `Verso 2`, `Refrão`, `Ponte`, etc.), duplicar slide e excluir slide sem precisar editar o texto manualmente.
+  - Botão compacto `+ Seção ▾` acionado via menu flutuante (`ContextMenu`), eliminando aprisionamento dentro do container e barras de rolagem na barra de ferramentas de typeset.
+  - Opção `+ Nova Seção...` adicionada tanto ao menu de atalhos quanto ao menu de contexto de clique direito dos slides de prévia 16:9, permitindo nomear e criar seções personalizadas instantaneamente (ex.: Ministração, Espontâneo, Solo).
+  - Menu de contexto nativo com botão direito nos cards de pré-visualização 16:9 dos slides para alternar seções, duplicar e excluir slides sem precisar editar o texto manualmente.
 - **Menu de Contexto Completo na Aba "Outros" do Painel de Mídias (`BottomPanel.svelte`):**
   - Supressão do menu de contexto padrão do navegador web (`e.preventDefault()`) em toda a aba "Outros".
   - Menu de contexto personalizado para cards da lista: Apresentar Agora (Ao Vivo), Adicionar à Setlist, Editar Item, Duplicar Item e Excluir do Catálogo.
