@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Lançamento da versão 0.4.3: unificação de versão em todo o workspace (Cargo.toml, Cargo.lock, package.json, workflows, componentes e testes), Setlist em fluxo contínuo estilo ProPresenter (Show Flow) com seções, colapso e super-apresentação agregada, cores e fundo de badges da Agenda (Public e Stage), fontes customizadas com input numérico, relógio sem segundos e sem data no monitor de palco, fade de imagens na tela pública e transições suaves no lower third, melhorias no remote mobile (ícone oficial, iOS safe-area e divisores visuais), agrupamento temático de configurações e limpeza global de emojis na interface, fechamento da release 0.4.3 no CHANGELOG.md, spec docs/specs/2026-11-01-release-0-4-3.md e publicação da tag v0.4.3. (commit d9a1f34 - 2026-11-01 14:21:36 -03:00)
+
 - [x] Feat/UI: Customização de cores e visibilidade de fundo da Agenda (Public e Stage), e Modo de Visualização de Setlist em Fluxo Contínuo estilo ProPresenter com seções agrupadoras, colapso/expansão individual e global, marcação de conclusão e apresentação de seção inteira contínua. (commit c3d70ef - 2026-11-01 14:08:39 -03:00)
 
 - [x] Feat/UI: Fontes customizadas com input numérico e equalização na Agenda (Public e Stage), opções de ocultar segundos e data no relógio do monitor de palco (normal e descanso), transição suave de fade para imagens e volta ao papel de parede, correção de safe-area no iOS e divisores visuais de seção na setlist do Remote (/remote), transições suaves de fade no Lower Third e limpeza global de emojis na interface. (commit ca448ae - 2026-11-01 13:35:00 -03:00)

@@ -6,6 +6,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-11-01
+
 ### Adicionado
 - **Visualização de Setlist em Fluxo Contínuo estilo ProPresenter (`AdminView.svelte`, `SettingsModal.svelte`, `settings.ts`):**
   - Alternador direto no cabeçalho do operador e nas Configurações entre os modos "Item Focado (Tradicional)" e "Fluxo Contínuo (Estilo ProPresenter)" com persistência no `localStorage`.
