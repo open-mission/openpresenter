@@ -218,6 +218,8 @@
 - [Plano — Preparação e Lançamento da Versão 0.4.0](plans/2026-10-31-release-0-4-0.md)
 - [Spec — Customizações e Configurações Visuais da Agenda (Public e Stage)](specs/2026-10-31-configuracoes-agenda-public-e-stage.md)
 - [Plano — Customizações e Configurações Visuais da Agenda (Public e Stage)](plans/2026-10-31-configuracoes-agenda-public-e-stage.md)
+- [Spec — Aba "Outros" no Painel de Mídias (Agenda, Textos e Avisos)](specs/2026-11-01-aba-outros-painel-de-midias.md)
+- [Plano — Aba "Outros" no Painel de Mídias (Agenda, Textos e Avisos)](plans/2026-11-01-aba-outros-painel-de-midias.md)
 
 ## Arquitetura e decisões
 

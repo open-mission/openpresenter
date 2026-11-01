@@ -28,6 +28,11 @@
     Film,
     ShieldCheck,
     Tag,
+    Boxes,
+    CalendarDays,
+    Bookmark,
+    Pencil,
+    Trash2,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
@@ -35,6 +40,12 @@
   import BiblePanel from './BiblePanel.svelte';
   import { renderFormattedText } from '../markdown';
   import { notifySuccess, notifyError } from '../toast';
+  import {
+    customItemsStore,
+    loadCustomItems,
+    deleteCustomItem,
+    importItemsFromSetlist,
+  } from '../customItems';
   import {
     BACKGROUND_PRESETS,
     getAllBackgrounds,
@@ -78,7 +89,14 @@
     onpresentscripture?: (item: MediaItem, slideIndex: number) => void;
     onaddscripturetosetlist?: (item: MediaItem) => void;
     onopenbibleconfig?: () => void;
-    requestedTab?: 'songs' | 'images' | 'backgrounds' | 'bible' | null;
+    onadditemtosetlist?: (item: MediaItem) => void;
+    onpresentitem?: (item: MediaItem, slideIndex?: number) => void;
+    onopenedititem?: (item: MediaItem) => void;
+    onopenscheduleeditor?: () => void;
+    onopentexteditor?: () => void;
+    onopenquickitemeditor?: (mode: 'header' | 'announcement') => void;
+    activeSetlistItems?: MediaItem[];
+    requestedTab?: 'songs' | 'images' | 'backgrounds' | 'bible' | 'others' | null;
     targetScriptureRef?: ParsedReference | null;
   }
 
@@ -93,19 +111,26 @@
     onpresentscripture,
     onaddscripturetosetlist,
     onopenbibleconfig,
+    onadditemtosetlist,
+    onpresentitem,
+    onopenedititem,
+    onopenscheduleeditor,
+    onopentexteditor,
+    onopenquickitemeditor,
+    activeSetlistItems = [],
     requestedTab = null,
     targetScriptureRef = null,
   }: Props = $props();
 
   let isCollapsed = $state(true);
   let isMaximized = $state(false);
-  let activeTab = $state<'songs' | 'images' | 'backgrounds' | 'bible'>('songs');
+  let activeTab = $state<'songs' | 'images' | 'backgrounds' | 'bible' | 'others'>('songs');
   let panelHeight = $state(290);
   let isDragging = $state(false);
   let startY = 0;
   let startHeight = 290;
 
-  function selectTab(tab: 'songs' | 'images' | 'backgrounds' | 'bible') {
+  function selectTab(tab: 'songs' | 'images' | 'backgrounds' | 'bible' | 'others') {
     if (tab === 'bible') {
       if (isCollapsed || activeTab !== 'bible') {
         const h75 = typeof window !== 'undefined' ? Math.round(window.innerHeight * 0.75) : 550;
@@ -113,6 +138,8 @@
         const targetH = Math.min(Math.max(panelHeight, h75), maxH);
         panelHeight = targetH;
       }
+    } else if (tab === 'others') {
+      loadCustomItems();
     }
     activeTab = tab;
     if (isCollapsed) isCollapsed = false;
@@ -130,6 +157,8 @@
     } else if (activeTab === 'songs') {
       loadSongs();
       loadSongTags();
+    } else if (activeTab === 'others') {
+      loadCustomItems();
     }
   });
 
@@ -254,6 +283,7 @@
     loadImages();
     loadFolders();
     loadWallpapers();
+    loadCustomItems();
   });
 
   async function loadSongTags() {
@@ -583,6 +613,90 @@
     reader.readAsDataURL(file);
     input.value = '';
   }
+
+  // --- ABA OUTROS (AGENDA, TEXTOS, AVISOS, SEÇÕES) ---
+  let othersSearch = $state('');
+  let othersKindFilter = $state<'all' | 'schedule' | 'text' | 'announcement' | 'header'>('all');
+  let viewingCustomItem = $state<MediaItem | null>(null);
+  let isImportingFromSetlist = $state(false);
+
+  const filteredCustomItems = $derived.by(() => {
+    return $customItemsStore.filter((item) => {
+      const matchesKind =
+        othersKindFilter === 'all' || item.kind === othersKindFilter;
+      const term = othersSearch.trim().toLowerCase();
+      if (!term) return matchesKind;
+
+      const titleMatch = item.title.toLowerCase().includes(term);
+      const artistMatch = item.artist_or_ref?.toLowerCase().includes(term);
+      const slideMatch = item.slides.some(
+        (s) =>
+          s.label?.toLowerCase().includes(term) ||
+          s.content?.toLowerCase().includes(term) ||
+          (s.metadata?.schedule_day && s.metadata.schedule_day.toLowerCase().includes(term)) ||
+          (s.metadata?.schedule_time && s.metadata.schedule_time.toLowerCase().includes(term)) ||
+          (s.metadata?.schedule_details && s.metadata.schedule_details.toLowerCase().includes(term))
+      );
+
+      return matchesKind && (titleMatch || artistMatch || slideMatch);
+    });
+  });
+
+  $effect(() => {
+    if (activeTab === 'others') {
+      if (!viewingCustomItem && filteredCustomItems.length > 0) {
+        viewingCustomItem = filteredCustomItems[0];
+      } else if (viewingCustomItem && !filteredCustomItems.some((i) => i.id === viewingCustomItem?.id)) {
+        viewingCustomItem = filteredCustomItems[0] || null;
+      }
+    }
+  });
+
+  async function handleImportFromSetlistClick() {
+    if (!activeSetlistItems || activeSetlistItems.length === 0) {
+      notifyError('Setlist Vazia', 'Não há itens na setlist ativa para importar.');
+      return;
+    }
+    isImportingFromSetlist = true;
+    try {
+      const count = await importItemsFromSetlist(activeSetlistItems);
+      if (count > 0) {
+        notifySuccess('Importação Concluída', `${count} novo(s) item(ns) importado(s) para o catálogo Outros.`);
+      } else {
+        notifySuccess('Tudo Atualizado', 'Todos os itens suportados da setlist já estão no catálogo.');
+      }
+    } catch (err) {
+      notifyError('Erro na Importação', 'Não foi possível importar os itens da setlist.');
+    } finally {
+      isImportingFromSetlist = false;
+    }
+  }
+
+  async function handleDeleteCustomItemClick(item: MediaItem, e: MouseEvent) {
+    e.stopPropagation();
+    if (confirm(`Deseja realmente excluir "${item.title}" do catálogo Outros?`)) {
+      await deleteCustomItem(item.id);
+      if (viewingCustomItem?.id === item.id) {
+        viewingCustomItem = null;
+      }
+      notifySuccess('Item Excluído', `"${item.title}" foi removido do catálogo.`);
+    }
+  }
+
+  function getItemKindBadge(kind: MediaItem['kind']) {
+    switch (kind) {
+      case 'schedule':
+        return { label: 'Agenda', color: 'border-amber-500/40 bg-amber-500/10 text-amber-300' };
+      case 'text':
+        return { label: 'Texto', color: 'border-blue-500/40 bg-blue-500/10 text-blue-300' };
+      case 'announcement':
+        return { label: 'Aviso', color: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' };
+      case 'header':
+        return { label: 'Seção', color: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300' };
+      default:
+        return { label: 'Outro', color: 'border-neutral-500/40 bg-neutral-500/10 text-neutral-300' };
+    }
+  }
 </script>
 
 <!-- Input Oculto de Arquivo de Imagem -->
@@ -727,6 +841,28 @@
       >
         <BookOpen size={13} class="text-amber-400" />
         <span>Bíblia</span>
+      </button>
+
+      <!-- Aba Outros (Agenda, Textos, Avisos, Seções) -->
+      <button
+        type="button"
+        role="tab"
+        id="tab-others"
+        aria-controls="panel-others"
+        aria-selected={activeTab === 'others' && !isCollapsed}
+        onclick={() => selectTab('others')}
+        class={cn(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
+          activeTab === 'others' && !isCollapsed
+            ? 'bg-muted text-foreground shadow-xs border border-border'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+        )}
+      >
+        <Boxes size={13} class="text-emerald-400" />
+        <span>Outros</span>
+        <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+          {$customItemsStore.length}
+        </Badge>
       </button>
     </div>
 
@@ -1749,6 +1885,367 @@
             {onaddscripturetosetlist}
             {onopenbibleconfig}
           />
+        </div>
+
+      <!-- ================= ABA 5: OUTROS (AGENDA, TEXTOS, AVISOS, SEÇÕES) ================= -->
+      {:else if activeTab === 'others'}
+        <div role="tabpanel" id="panel-others" aria-labelledby="tab-others" class="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <!-- Barra de Ações Superior da Aba Outros -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 mb-2.5 shrink-0">
+            <!-- Campo de Busca -->
+            <div class="relative flex-1 max-w-md">
+              <Search size={13} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+              <input
+                type="text"
+                bind:value={othersSearch}
+                placeholder="Pesquisar em Outros (agenda, textos, avisos)..."
+                class="w-full h-7 pl-8 pr-3 bg-neutral-900 border border-neutral-800 rounded-md text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-primary/60"
+              />
+            </div>
+
+            <!-- Botões de Ação e Criação Rápida -->
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onclick={loadCustomItems}
+                title="Recarregar catálogo"
+                class="h-7 text-xs px-2"
+              >
+                <RefreshCw size={12} />
+              </Button>
+
+              {#if activeSetlistItems && activeSetlistItems.length > 0}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={handleImportFromSetlistClick}
+                  disabled={isImportingFromSetlist}
+                  title="Importar itens de agenda e texto da setlist ativa para o catálogo"
+                  class="h-7 text-xs gap-1 cursor-pointer border-primary/40 text-primary hover:bg-primary/10"
+                >
+                  <Upload size={12} class={isImportingFromSetlist ? 'animate-spin' : ''} />
+                  <span class="hidden md:inline">{isImportingFromSetlist ? 'Importando...' : 'Importar da Setlist'}</span>
+                </Button>
+              {/if}
+
+              <!-- Botão Criar Agenda -->
+              <Button
+                variant="outline"
+                size="sm"
+                onclick={onopenscheduleeditor}
+                title="Criar nova programação ou culto na Agenda"
+                class="h-7 text-xs gap-1 border-amber-500/40 text-amber-300 hover:bg-amber-500/10 cursor-pointer"
+              >
+                <CalendarDays size={12} />
+                <span>+ Agenda</span>
+              </Button>
+
+              <!-- Botão Criar Texto -->
+              <Button
+                variant="outline"
+                size="sm"
+                onclick={onopentexteditor}
+                title="Criar nova apresentação de texto livre"
+                class="h-7 text-xs gap-1 border-blue-500/40 text-blue-300 hover:bg-blue-500/10 cursor-pointer"
+              >
+                <FileText size={12} />
+                <span>+ Texto</span>
+              </Button>
+
+              <!-- Botão Criar Aviso -->
+              <Button
+                variant="outline"
+                size="sm"
+                onclick={() => onopenquickitemeditor?.('announcement')}
+                title="Criar novo aviso ou comunicado rápido"
+                class="h-7 text-xs gap-1 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 cursor-pointer"
+              >
+                <Bookmark size={12} />
+                <span>+ Aviso</span>
+              </Button>
+            </div>
+          </div>
+
+          <!-- Barra de Filtros de Categoria (Chips) -->
+          <div class="flex items-center gap-1.5 mb-2.5 overflow-x-auto pb-1 text-xs shrink-0 select-none">
+            {#each [
+              { id: 'all', label: 'Todos', count: $customItemsStore.length },
+              { id: 'schedule', label: '📅 Agenda', count: $customItemsStore.filter((i) => i.kind === 'schedule').length },
+              { id: 'text', label: '📝 Textos', count: $customItemsStore.filter((i) => i.kind === 'text').length },
+              { id: 'announcement', label: '📢 Avisos', count: $customItemsStore.filter((i) => i.kind === 'announcement').length },
+              { id: 'header', label: '🔖 Seções', count: $customItemsStore.filter((i) => i.kind === 'header').length }
+            ] as cat}
+              <button
+                type="button"
+                onclick={() => (othersKindFilter = cat.id as any)}
+                class="px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {othersKindFilter === cat.id ? 'bg-primary text-primary-foreground font-bold shadow-xs' : 'bg-muted hover:bg-muted/80 text-muted-foreground'}"
+              >
+                <span>{cat.label}</span>
+                <span class="text-[9px] font-mono opacity-80">({cat.count})</span>
+              </button>
+            {/each}
+          </div>
+
+          <!-- Divisão Resizable: Lista de Cards (Esquerda) e Prévia dos Slides 16:9 (Direita) -->
+          <div class="flex-1 min-h-0">
+            <ResizablePaneGroup direction="horizontal" class="h-full rounded-xl border border-border overflow-hidden">
+              <!-- Painel Esquerdo: Lista de Cards -->
+              <ResizablePane defaultSize={35} minSize={25} maxSize={50} class="bg-card/40 flex flex-col min-w-0">
+                <div class="flex-1 overflow-y-auto p-2 space-y-2">
+                  {#if filteredCustomItems.length === 0}
+                    <div class="h-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground space-y-2">
+                      <Boxes size={32} class="opacity-40" />
+                      <p class="text-xs font-medium">Nenhum item encontrado nesta categoria.</p>
+                      <div class="flex items-center gap-2 pt-2">
+                        <Button variant="outline" size="sm" class="text-xs h-7" onclick={onopenscheduleeditor}>
+                          + Criar Agenda
+                        </Button>
+                        <Button variant="outline" size="sm" class="text-xs h-7" onclick={onopentexteditor}>
+                          + Criar Texto
+                        </Button>
+                      </div>
+                    </div>
+                  {:else}
+                    {#each filteredCustomItems as item (item.id)}
+                      {@const badge = getItemKindBadge(item.kind)}
+                      {@const isSelected = viewingCustomItem?.id === item.id}
+                      <div
+                        role="button"
+                        tabindex="0"
+                        onclick={() => (viewingCustomItem = item)}
+                        ondblclick={() => onpresentitem?.(item, 0)}
+                        onkeydown={(e) => { if (e.key === 'Enter') viewingCustomItem = item; }}
+                        class="p-2.5 rounded-lg border transition-all flex flex-col justify-between group cursor-pointer {isSelected ? 'ring-1 ring-primary border-primary bg-primary/10 shadow-xs' : 'border-border bg-card/60 hover:bg-muted/40'}"
+                      >
+                        <div>
+                          <div class="flex items-center justify-between gap-1 mb-1">
+                            <h4 class="text-xs font-bold text-foreground truncate">{item.title}</h4>
+                            <span class="text-[9px] px-1.5 py-0.2 rounded font-semibold border shrink-0 {badge.color}">
+                              {badge.label}
+                            </span>
+                          </div>
+
+                          {#if item.kind === 'schedule'}
+                            <p class="text-[10px] text-muted-foreground truncate">
+                              {#if item.slides.length > 0}
+                                {item.slides.map((s) => s.metadata?.schedule_day || s.label).filter(Boolean).slice(0, 3).join(' • ')}
+                              {:else}
+                                Programação de cultos
+                              {/if}
+                            </p>
+                          {:else if item.slides[0]?.content}
+                            <p class="text-[10px] text-muted-foreground line-clamp-2 mt-0.5 italic">
+                              "{item.slides[0].content.slice(0, 90)}"
+                            </p>
+                          {/if}
+                        </div>
+
+                        <!-- Rodapé do Card com Ações Rápidas -->
+                        <div class="flex items-center justify-between pt-2 mt-1.5 border-t border-border/50 text-[10px]">
+                          <span class="font-mono text-muted-foreground">
+                            {item.slides.length} {item.slides.length === 1 ? 'slide' : 'slides'}
+                          </span>
+
+                          <div class="flex items-center gap-1 opacity-90 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onclick={(e) => {
+                                e.stopPropagation();
+                                onadditemtosetlist?.(item);
+                              }}
+                              class="px-1.5 py-0.5 rounded hover:bg-primary/20 text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors cursor-pointer"
+                              title="Adicionar à Setlist"
+                            >
+                              <ListPlus size={11} class="text-primary" />
+                              <span class="hidden sm:inline">+ Setlist</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onclick={(e) => {
+                                e.stopPropagation();
+                                onpresentitem?.(item, 0);
+                              }}
+                              class="px-1.5 py-0.5 rounded bg-primary/20 hover:bg-primary/30 text-primary font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                              title="Apresentar Imediatamente"
+                            >
+                              <Play size={10} class="fill-current" />
+                              <span class="hidden sm:inline">Ao Vivo</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onclick={(e) => {
+                                e.stopPropagation();
+                                onopenedititem?.(item);
+                              }}
+                              class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                              title="Editar este item"
+                            >
+                              <Pencil size={11} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onclick={(e) => handleDeleteCustomItemClick(item, e)}
+                              class="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                              title="Excluir do catálogo"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    {/each}
+                  {/if}
+                </div>
+              </ResizablePane>
+
+              <!-- Divisor Resizable -->
+              <ResizableHandle withHandle />
+
+              <!-- Painel Direito: Prévia 16:9 dos Slides -->
+              <ResizablePane defaultSize={65} minSize={40} class="bg-card/20 flex flex-col min-w-0">
+                {#if viewingCustomItem}
+                  {@const currentBadge = getItemKindBadge(viewingCustomItem.kind)}
+                  <div class="flex-1 flex flex-col p-3 overflow-hidden">
+                    <!-- Cabeçalho da Prévia -->
+                    <div class="flex items-center justify-between pb-2.5 border-b border-border shrink-0">
+                      <div class="min-w-0 mr-3">
+                        <div class="flex items-center gap-2">
+                          <h4 class="text-sm font-bold text-foreground truncate">{viewingCustomItem.title}</h4>
+                          <span class="text-[9px] px-2 py-0.5 rounded font-semibold border shrink-0 {currentBadge.color}">
+                            {currentBadge.label}
+                          </span>
+                          <Badge variant="secondary" class="text-[10px] font-mono">
+                            {viewingCustomItem.slides.length} slides
+                          </Badge>
+                        </div>
+                        {#if viewingCustomItem.artist_or_ref}
+                          <p class="text-[11px] text-muted-foreground truncate mt-0.5">{viewingCustomItem.artist_or_ref}</p>
+                        {/if}
+                      </div>
+
+                      <div class="flex items-center gap-1.5">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onclick={() => viewingCustomItem && onadditemtosetlist?.(viewingCustomItem)}
+                          class="h-7 text-xs gap-1"
+                        >
+                          <ListPlus size={12} class="text-primary" />
+                          <span>+ Setlist</span>
+                        </Button>
+                        <Button
+                          variant="live"
+                          size="sm"
+                          onclick={() => viewingCustomItem && onpresentitem?.(viewingCustomItem, 0)}
+                          class="h-7 text-xs gap-1 font-bold"
+                        >
+                          <Play size={12} class="fill-current" />
+                          <span>Apresentar</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onclick={() => viewingCustomItem && onopenedititem?.(viewingCustomItem)}
+                          class="h-7 text-xs gap-1"
+                        >
+                          <Pencil size={12} />
+                          <span>Editar</span>
+                        </Button>
+                      </div>
+                    </div>
+
+                    <!-- Grade Responsiva de Slides 16:9 -->
+                    <div class="flex-1 overflow-y-auto py-3 pr-1 min-h-0">
+                      {#if viewingCustomItem.slides.length > 0}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+                          {#each viewingCustomItem.slides as slide, idx (slide.id || idx)}
+                            <div
+                              role="button"
+                              tabindex="0"
+                              ondblclick={() => viewingCustomItem && onpresentitem?.(viewingCustomItem, idx)}
+                              onkeydown={(e) => { if (e.key === 'Enter') viewingCustomItem && onpresentitem?.(viewingCustomItem, idx); }}
+                              class="group rounded-xl border border-border bg-neutral-950 flex flex-col overflow-hidden shadow-xs hover:border-primary/60 transition-all cursor-pointer relative"
+                            >
+                              <!-- Barra superior do slide -->
+                              <div class="h-6 px-2.5 bg-neutral-900/80 border-b border-border/50 flex items-center justify-between shrink-0">
+                                <span class="text-[10px] font-bold text-neutral-300 font-mono">
+                                  {slide.label || `Slide ${idx + 1}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onclick={(e) => {
+                                    e.stopPropagation();
+                                    viewingCustomItem && onpresentitem?.(viewingCustomItem, idx);
+                                  }}
+                                  class="text-[9px] text-primary hover:underline flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Play size={9} class="fill-current" />
+                                  <span>Ao Vivo</span>
+                                </button>
+                              </div>
+
+                              <!-- Área 16:9 de Conteúdo do Slide -->
+                              <div class="aspect-video w-full p-3 flex flex-col justify-center items-center text-center select-none bg-neutral-950/90 relative overflow-hidden">
+                                {#if viewingCustomItem.kind === 'schedule'}
+                                  <!-- Card de Agenda em miniatura -->
+                                  <div class="w-full flex flex-col items-center justify-center p-2 rounded-lg bg-white/5 border border-white/10">
+                                    {#if slide.metadata?.schedule_day || slide.metadata?.schedule_time}
+                                      <div class="flex items-center gap-1 mb-1">
+                                        {#if slide.metadata?.schedule_day}
+                                          <span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                                            {slide.metadata.schedule_day}
+                                          </span>
+                                        {/if}
+                                        {#if slide.metadata?.schedule_time}
+                                          <span class="px-1.5 py-0.2 rounded text-[8px] font-bold font-mono bg-cyan-400/20 text-cyan-200 border border-cyan-400/30">
+                                            {slide.metadata.schedule_time}
+                                          </span>
+                                        {/if}
+                                      </div>
+                                    {/if}
+                                    <h5 class="text-xs font-bold text-white line-clamp-2 leading-tight">
+                                      {slide.label || slide.content}
+                                    </h5>
+                                    {#if slide.metadata?.schedule_details}
+                                      <p class="text-[9px] text-neutral-400 line-clamp-1 mt-1">
+                                        {slide.metadata.schedule_details}
+                                      </p>
+                                    {/if}
+                                  </div>
+                                {:else if viewingCustomItem.kind === 'header'}
+                                  <div class="px-3 py-1 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-200 font-bold text-xs uppercase tracking-wider">
+                                    {slide.content || viewingCustomItem.title}
+                                  </div>
+                                {:else}
+                                  <!-- Conteúdo de Texto ou Aviso -->
+                                  <p class="text-xs text-white/90 font-medium leading-relaxed line-clamp-4 whitespace-pre-wrap">
+                                    {slide.content}
+                                  </p>
+                                {/if}
+                              </div>
+                            </div>
+                          {/each}
+                        </div>
+                      {:else}
+                        <div class="h-full flex items-center justify-center text-xs text-muted-foreground">
+                          Este item não possui slides cadastrados.
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                {:else}
+                  <div class="flex-1 flex flex-col items-center justify-center text-center p-6 text-muted-foreground space-y-2">
+                    <Boxes size={36} class="opacity-30" />
+                    <p class="text-xs font-medium">Selecione um item à esquerda para visualizar seus slides em 16:9.</p>
+                  </div>
+                {/if}
+              </ResizablePane>
+            </ResizablePaneGroup>
+          </div>
         </div>
       {/if}
     </div>

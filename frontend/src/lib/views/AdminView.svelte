@@ -71,6 +71,7 @@
     getSectionStyle,
   } from '$lib/settings';
   import { resolveBackground } from '$lib/backgrounds';
+  import { saveOrUpdateCustomItem } from '$lib/customItems';
   import {
     Search,
     MonitorPlay,
@@ -163,7 +164,7 @@
   let renamingItemId = $state<string>('');
   let renamingItemTitle = $state<string>('');
   let settingsInitialTab = $state<SettingsTab>('appearance');
-  let bottomPanelRequestedTab = $state<'songs' | 'images' | 'backgrounds' | 'bible' | null>(null);
+  let bottomPanelRequestedTab = $state<'songs' | 'images' | 'backgrounds' | 'bible' | 'others' | null>(null);
   let targetScriptureRef = $state<ParsedReference | null>(null);
   let draggedItemIndex = $state<number | null>(null);
 
@@ -1075,6 +1076,7 @@
 
   function handleItemSaved(item: MediaItem) {
     selectedMediaId = item.id;
+    saveOrUpdateCustomItem(item).catch(() => {});
   }
 
   function handleOpenRename(item: MediaItem) {
@@ -1105,6 +1107,7 @@
         body: JSON.stringify({ item }),
       });
       selectedMediaId = item.id;
+      saveOrUpdateCustomItem(item).catch(() => {});
     } catch (err) {
       console.error('Erro ao adicionar item:', err);
     }
@@ -1118,9 +1121,31 @@
         body: JSON.stringify({ item }),
       });
       selectedMediaId = item.id;
+      saveOrUpdateCustomItem(item).catch(() => {});
     } catch (err) {
       console.error('Erro ao salvar agenda na setlist:', err);
     }
+  }
+
+  async function handleAddCustomItemToSetlist(item: MediaItem) {
+    try {
+      await fetch('/api/setlist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item }),
+      });
+      selectedMediaId = item.id;
+      notifySuccess('Adicionado à Setlist', `"${item.title}" foi adicionado com sucesso.`);
+    } catch (err) {
+      console.error('Erro ao adicionar item à setlist:', err);
+      notifyError('Erro', 'Não foi possível adicionar o item à setlist.');
+    }
+  }
+
+  function handlePresentCustomItem(item: MediaItem, slideIndex: number = 0) {
+    selectedMediaId = item.id;
+    focusedSlideIndex = slideIndex;
+    quickPresentMedia(item, slideIndex);
   }
 
   function handleOpenCreate() {
@@ -2392,10 +2417,11 @@
     {/if}
   </div>
 
-  <!-- Painel Inferior Colapsável e Redimensionável (Músicas, Imagens e Bíblias) -->
+  <!-- Painel Inferior Colapsável e Redimensionável (Músicas, Imagens, Bíblias e Outros) -->
   <BottomPanel
     requestedTab={bottomPanelRequestedTab}
     targetScriptureRef={targetScriptureRef}
+    activeSetlistItems={$mediaItemsList}
     onaddsongtosetlist={handleAddSongToSetlist}
     onpresentsong={handlePresentSong}
     onpresentimage={handlePresentImage}
@@ -2411,6 +2437,24 @@
     onopenbibleconfig={() => {
       settingsInitialTab = 'bibles';
       isSettingsOpen = true;
+    }}
+    onadditemtosetlist={handleAddCustomItemToSetlist}
+    onpresentitem={handlePresentCustomItem}
+    onopenedititem={handleEditItem}
+    onopenscheduleeditor={() => {
+      editingScheduleItem = null;
+      isScheduleEditorOpen = true;
+    }}
+    onopentexteditor={() => {
+      songEditorMode = 'text';
+      editingItem = null;
+      editingSong = null;
+      isSongEditorOpen = true;
+    }}
+    onopenquickitemeditor={(mode) => {
+      quickItemMode = mode;
+      editingQuickItem = null;
+      isQuickItemModalOpen = true;
     }}
   />
 

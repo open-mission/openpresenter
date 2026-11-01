@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Feat: Nova aba "Outros" no painel de mídias (BottomPanel.svelte) para visualização, prévia 16:9, busca e gerenciamento de itens de Agenda (Schedule), Textos Livres, Avisos e Seções, com ações de adicionar à setlist, apresentação direta ao vivo e criação/edição. (commit 866050c - 2026-11-01 00:20:00 -03:00)
+
 - [x] Feat/Improve: Customizações visuais e dimensionamento da Agenda (Schedule) nas telas Pública e Palco: opções nas configurações para controle do container (fundo com/sem blur, opacidade e largura máxima), tamanho dos textos (título, dia, horário, detalhes) e ajustes de tamanho dos textos de retorno no monitor de palco. (commit 11b7517 - 2026-10-31 23:51:26 -03:00)
 
 - [x] Lançamento da versão 0.4.0: unificação de versão em todo o workspace (Cargo.toml, package.json, workflows, componentes e testes), consolidação de tipo de mídia agenda, imagens no lower third para OBS, instalação oficial da Harpa Cristã (540 hinos), toasts Sonner, fechamento da release 0.4.0 no CHANGELOG.md, spec docs/specs/2026-10-31-release-0-4-0.md e publicação da tag v0.4.0. (commit ec833fe - 2026-10-31 21:15:22 -03:00)

@@ -7,6 +7,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Nova Aba "Outros" no Painel de Mídias para Agenda, Textos Livres, Avisos e Seções:**
+  - Adição da aba "Outros" (`id="tab-others"`) na barra de navegação do painel inferior (`BottomPanel.svelte`) com badge de quantidade de itens cadastrados.
+  - Catálogo persistente via módulo `customItems.ts` integrado ao banco de dados SQLite (`app_settings` com chave `custom_media_items`) e sincronização reativa via WebSocket em tempo real.
+  - Seeding inicial com modelos pré-configurados úteis para o culto (Programação Semanal com horários e cultos, Boas-Vindas aos Visitantes e Avisos Gerais).
+  - Barra de ferramentas com busca textual instantânea, filtros por categoria (`Todos`, `📅 Agenda`, `📝 Textos`, `📢 Avisos`, `🔖 Seções`), botão recarregar, importação direta de itens da setlist ativa e atalhos rápidos `+ Agenda`, `+ Texto` e `+ Aviso`.
+  - Layout dividido em painel resizable:
+    - Lista de cards com badges coloridos de tipo, indicador de slides, resumo/detalhes e botões de ação rápida (`+ Setlist`, `Ao Vivo`, `Editar` e `Excluir`).
+    - Pré-visualização detalhada com cabeçalho de ações e grade responsiva de miniaturas 16:9 estilizadas para cada tipo de conteúdo (card de agenda com badges de dia/hora ou texto formatado).
+  - Ações rápidas: clique duplo no card ou no slide para apresentação imediata ao vivo via `quickPresentMedia`, e adição à setlist ativa com feedback visual via Sonner.
 - **Configurações Visuais e Tipográficas da Agenda (Projeção Pública e Monitor de Palco):**
   - Controles visuais dedicados para o tipo de mídia Agenda (`MediaKind::Schedule`) em `SettingsModal.svelte` nas abas "Projeção Pública" e "Monitor de Palco".
   - **Projeção Pública (`/public` e preview do operador):**

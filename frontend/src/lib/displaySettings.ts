@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { customItemsStore } from './customItems';
 import type {
   PublicDisplaySettings,
   ChurchBrandSettings,
@@ -353,6 +354,10 @@ export function handleSettingBroadcast(key: string, value: string | null) {
     } else if (key === 'song_settings') {
       songSettingsStore.set({ ...DEFAULT_SONG_SETTINGS, ...parsed });
       saveLocal('song_settings', parsed);
+    } else if (key === 'custom_media_items') {
+      if (Array.isArray(parsed)) {
+        customItemsStore.set(parsed);
+      }
     }
   } catch (e) {
     console.error('Falha ao aplicar configuração recebida via WebSocket:', e);
