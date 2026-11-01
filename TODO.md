@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] UI/Design: Remoção do rótulo de texto estático "Typeset:" na barra de formatação do SongEditorModal para uma interface mais limpa e minimalista. (commit 197bb15 - 2026-11-01 01:21:00 -03:00)
+
 - [x] Fix/Improve: Ajustar `+ Seção` no typeset para abrir via ContextMenu flutuante sem scroll/aprisionamento no container, adicionar opção `+ Nova Seção...` no menu de contexto dos slides do SongEditorModal, e adicionar ContextMenu nativo com ações relevantes na grade de slides de apresentação do AdminView. (commit 6eb2852 - 2026-11-01 01:04:00 -03:00)
 
 - [x] Fix/Improve: Inserção de seções na posição do cursor no SongEditorModal, ContextMenu com seções no clique direito dos slides preview substituindo barra estática de botões, e ContextMenu nativo customizado na aba Outros do BottomPanel evitando menu padrão do navegador. (commit 8bbc151 - 2026-11-01 00:43:00 -03:00)

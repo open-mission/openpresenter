@@ -13,7 +13,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Ações contextuais na área vazia da grade: Apresentar do Início (Slide 1), Parar Apresentação (Esc), Blackout, Limpar Texto e Editar Apresentação.
 - **Melhorias no Editor de Músicas e Apresentações de Texto (`SongEditorModal.svelte`):**
   - Inserção inteligente de tags de seção (`## Tag`) na exata posição do cursor no editor de texto, calculando prefixos e quebras de linha contextuais para manter a formatação limpa.
-  - Botão compacto `+ Seção ▾` acionado via menu flutuante (`ContextMenu`), eliminando aprisionamento dentro do container e barras de rolagem na barra de ferramentas de typeset.
+  - Botão compacto `+ Seção ▾` acionado via menu flutuante (`ContextMenu`), eliminando aprisionamento dentro do container e barras de rolagem na barra de ferramentas.
+  - Remoção do rótulo de texto "Typeset:" na barra de formatação, tornando a toolbar mais limpa e focada nos ícones.
   - Opção `+ Nova Seção...` adicionada tanto ao menu de atalhos quanto ao menu de contexto de clique direito dos slides de prévia 16:9, permitindo nomear e criar seções personalizadas instantaneamente (ex.: Ministração, Espontâneo, Solo).
   - Menu de contexto nativo com botão direito nos cards de pré-visualização 16:9 dos slides para alternar seções, duplicar e excluir slides sem precisar editar o texto manualmente.
 - **Menu de Contexto Completo na Aba "Outros" do Painel de Mídias (`BottomPanel.svelte`):**

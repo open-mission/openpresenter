@@ -851,11 +851,10 @@ Traga sua família e convidados!`;
             {/if}
           </div>
 
-          <!-- BARRA DE FERRAMENTAS TYPESET E ALINHAMENTO -->
+          <!-- BARRA DE FERRAMENTAS E ALINHAMENTO -->
           <div class="px-3 py-2 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-between gap-2 text-xs shrink-0 select-none">
-            <!-- Formatação de Texto (Markdown Typeset) -->
+            <!-- Formatação de Texto (Markdown) -->
             <div class="flex items-center gap-1 shrink-0">
-              <span class="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mr-1">Typeset:</span>
               <button
                 type="button"
                 onclick={applyBold}
