@@ -180,10 +180,11 @@
       {#if item.lower_image_url}
         <Badge
           variant="outline"
-          class="text-[9px] py-0 px-1 text-emerald-400 border-emerald-500/40 bg-emerald-950/40 gap-0.5"
+          class="text-[9px] py-0 px-1 text-emerald-400 border-emerald-500/40 bg-emerald-950/40 gap-1 flex items-center"
           title="Possui imagem alternativa para Lower Third"
         >
-          Lower 🖼️
+          <ImageIcon size={10} />
+          <span>Lower</span>
         </Badge>
       {/if}
       {#if isLive}

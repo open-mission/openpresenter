@@ -37,6 +37,7 @@
     X,
     Check,
     Layers,
+    Bookmark,
   } from 'lucide-svelte';
 
   // Navegação mobile entre as 3 abas principais
@@ -511,7 +512,7 @@
   <!-- TOP BAR: Status, Logotipo Oficial e Ações Rápidas de Emergência com Safe-Area -->
   <header
     class="flex items-center justify-between px-3 py-2.5 bg-neutral-900 border-b border-neutral-800 shrink-0"
-    style="padding-top: max(env(safe-area-inset-top), 10px);"
+    style="padding-top: max(calc(env(safe-area-inset-top, 0px) + 8px), 14px);"
   >
     <!-- Logotipo Oficial OpenPresenter Minimal -->
     <div class="flex items-center gap-2">
@@ -520,19 +521,14 @@
         alt="OpenPresenter"
         class="w-7 h-7 rounded-lg shadow-sm shrink-0 border border-neutral-700/50"
       />
-      <div class="flex items-center gap-1.5">
-        <span class="font-bold text-xs tracking-tight text-white flex items-center">
-          Open<span class="text-neutral-400 font-medium">Presenter</span>
-        </span>
+      <span
+        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold {$isWsConnected ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-red-950 text-red-400 border border-red-800'}"
+      >
         <span
-          class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold {$isWsConnected ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-red-950 text-red-400 border border-red-800'}"
-        >
-          <span
-            class="w-1.5 h-1.5 rounded-full {$isWsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}"
-          ></span>
-          {$isWsConnected ? 'Remoto' : 'Offline'}
-        </span>
-      </div>
+          class="w-1.5 h-1.5 rounded-full {$isWsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}"
+        ></span>
+        {$isWsConnected ? 'Remoto' : 'Offline'}
+      </span>
     </div>
 
     <!-- Botões de Ação de Projeção (Tamanho adequado para toque) -->
@@ -639,7 +635,7 @@
           </p>
         {:else}
           <span class="text-xs text-neutral-500 italic">
-            {isBlackout ? '⚫ Projeção em Blackout' : isClear ? '👁️ Texto ocultado' : 'Nenhum slide em exibição'}
+            {isBlackout ? 'Projeção em Blackout' : isClear ? 'Texto ocultado' : 'Nenhum slide em exibição'}
           </span>
         {/if}
       </div>
@@ -706,70 +702,86 @@
         {:else}
           <div class="space-y-1.5">
             {#each activeSetlistData.items as item, itemIdx}
-              {@const isItemActive = $presentationState.active_media_id === item.id}
-              {@const isExpanded = expandedSetlistItemId === item.id}
-              <div
-                class="rounded-xl border transition-all overflow-hidden {isItemActive ? 'bg-neutral-900 border-emerald-500 shadow-lg shadow-emerald-950/20' : 'bg-neutral-900/60 border-neutral-800/80'}"
-              >
-                <!-- Cabeçalho do item da setlist -->
-                <button
-                  type="button"
-                  onclick={() => {
-                    expandedSetlistItemId = isExpanded ? null : item.id;
-                  }}
-                  class="w-full px-3 py-2.5 flex items-center justify-between text-left cursor-pointer"
-                >
-                  <div class="flex items-center gap-2 min-w-0 pr-2">
-                    <span
-                      class="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 {isItemActive ? 'bg-emerald-500 text-black shadow' : 'bg-neutral-800 text-neutral-400'}"
-                    >
-                      {itemIdx + 1}
-                    </span>
-                    <div class="truncate">
-                      <p class="text-xs font-bold truncate text-neutral-200 {isItemActive ? 'text-emerald-400' : ''}">
-                        {item.title}
-                      </p>
-                      {#if item.artist_or_ref}
-                        <p class="text-[10px] text-neutral-400 truncate">{item.artist_or_ref}</p>
-                      {/if}
+              {#if item.kind === 'header'}
+                <!-- Divisor de Seção na Setlist (Conforme no Painel do Operador) -->
+                <div class="pt-3 pb-1 px-1 flex items-center justify-between gap-2 select-none" role="separator">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <div class="w-4 h-4 rounded text-emerald-400 flex items-center justify-center shrink-0">
+                      <Bookmark size={13} />
                     </div>
-                  </div>
-
-                  <div class="flex items-center gap-1.5 shrink-0">
-                    {#if isItemActive}
-                      <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse">
-                        Ao Vivo
-                      </span>
-                    {/if}
-                    <span class="text-[10px] text-neutral-500 font-mono">
-                      {item.slides.length} slides
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-400 truncate">
+                      {item.title}
                     </span>
                   </div>
-                </button>
-
-                <!-- Slides expandidos com toque direto para projetar -->
-                {#if isExpanded}
-                  <div class="px-2 pb-2 pt-1 border-t border-neutral-800/60 space-y-1 bg-black/40">
-                    {#each item.slides as slide, sIdx}
-                      {@const isCurrentSlideLive = isItemActive && currentSlideIndex === sIdx && isLive}
-                      <button
-                        type="button"
-                        onclick={() => handleSelectSlide(item.id, sIdx)}
-                        class="w-full text-left p-2.5 rounded-lg text-xs flex items-start gap-2 transition-all cursor-pointer {isCurrentSlideLive ? 'bg-emerald-600/30 border border-emerald-500 text-white font-semibold ring-1 ring-emerald-500' : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-neutral-800/40'}"
+                  <div class="h-[1px] flex-1 bg-neutral-800/80"></div>
+                </div>
+              {:else}
+                {@const mediaIndex = activeSetlistData.items.slice(0, itemIdx).filter((i) => i.kind !== 'header').length + 1}
+                {@const isItemActive = $presentationState.active_media_id === item.id}
+                {@const isExpanded = expandedSetlistItemId === item.id}
+                <div
+                  class="rounded-xl border transition-all overflow-hidden {isItemActive ? 'bg-neutral-900 border-emerald-500 shadow-lg shadow-emerald-950/20' : 'bg-neutral-900/60 border-neutral-800/80'}"
+                >
+                  <!-- Cabeçalho do item da setlist -->
+                  <button
+                    type="button"
+                    onclick={() => {
+                      expandedSetlistItemId = isExpanded ? null : item.id;
+                    }}
+                    class="w-full px-3 py-2.5 flex items-center justify-between text-left cursor-pointer"
+                  >
+                    <div class="flex items-center gap-2 min-w-0 pr-2">
+                      <span
+                        class="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 {isItemActive ? 'bg-emerald-500 text-black shadow' : 'bg-neutral-800 text-neutral-400'}"
                       >
-                        <span
-                          class="text-[9px] px-1.5 py-0.5 rounded font-mono shrink-0 mt-0.5 {isCurrentSlideLive ? 'bg-emerald-500 text-black font-extrabold' : 'bg-neutral-800 text-neutral-400'}"
-                        >
-                          {slide.label || `${sIdx + 1}`}
-                        </span>
-                        <p class="line-clamp-2 leading-relaxed flex-1">
-                          {slide.content.replace(/\n/g, ' ')}
+                        {mediaIndex}
+                      </span>
+                      <div class="truncate">
+                        <p class="text-xs font-bold truncate text-neutral-200 {isItemActive ? 'text-emerald-400' : ''}">
+                          {item.title}
                         </p>
-                      </button>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
+                        {#if item.artist_or_ref}
+                          <p class="text-[10px] text-neutral-400 truncate">{item.artist_or_ref}</p>
+                        {/if}
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      {#if isItemActive}
+                        <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse">
+                          Ao Vivo
+                        </span>
+                      {/if}
+                      <span class="text-[10px] text-neutral-500 font-mono">
+                        {item.slides.length} slides
+                      </span>
+                    </div>
+                  </button>
+
+                  <!-- Slides expandidos com toque direto para projetar -->
+                  {#if isExpanded}
+                    <div class="px-2 pb-2 pt-1 border-t border-neutral-800/60 space-y-1 bg-black/40">
+                      {#each item.slides as slide, sIdx}
+                        {@const isCurrentSlideLive = isItemActive && currentSlideIndex === sIdx && isLive}
+                        <button
+                          type="button"
+                          onclick={() => handleSelectSlide(item.id, sIdx)}
+                          class="w-full text-left p-2.5 rounded-lg text-xs flex items-start gap-2 transition-all cursor-pointer {isCurrentSlideLive ? 'bg-emerald-600/30 border border-emerald-500 text-white font-semibold ring-1 ring-emerald-500' : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-neutral-800/40'}"
+                        >
+                          <span
+                            class="text-[9px] px-1.5 py-0.5 rounded font-mono shrink-0 mt-0.5 {isCurrentSlideLive ? 'bg-emerald-500 text-black font-extrabold' : 'bg-neutral-800 text-neutral-400'}"
+                          >
+                            {slide.label || `${sIdx + 1}`}
+                          </span>
+                          <p class="line-clamp-2 leading-relaxed flex-1">
+                            {slide.content.replace(/\n/g, ' ')}
+                          </p>
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              {/if}
             {/each}
           </div>
         {/if}

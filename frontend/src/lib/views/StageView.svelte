@@ -32,7 +32,13 @@
 
     const updateClock = () => {
       const now = new Date();
-      currentTime = now.toLocaleTimeString('pt-BR', { hour12: false });
+      const showSeconds = stageSettings.clock_show_seconds !== false;
+      currentTime = now.toLocaleTimeString('pt-BR', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        ...(showSeconds ? { second: '2-digit' } : {}),
+      });
       currentDate = now.toLocaleDateString('pt-BR', {
         weekday: 'long',
         day: '2-digit',
@@ -261,8 +267,9 @@
 
       <!-- Mensagem de Palco em Destaque (se houver) -->
       {#if stageMessage}
-        <div class="w-full max-w-3xl mb-8 p-3 sm:p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-base sm:text-lg md:text-xl font-bold text-center shadow-lg animate-pulse shrink-0">
-          ⚠️ {stageMessage}
+        <div class="w-full max-w-3xl mb-8 p-3 sm:p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-base sm:text-lg md:text-xl font-bold text-center shadow-lg animate-pulse shrink-0 flex items-center justify-center gap-2">
+          <AlertTriangle size={20} class="shrink-0 text-amber-300" />
+          <span>{stageMessage}</span>
         </div>
       {/if}
 
@@ -272,11 +279,13 @@
           class="text-7xl sm:text-9xl md:text-[140px] lg:text-[170px] font-mono font-black tracking-tight leading-none drop-shadow-2xl"
           style="color: {stageSettings.current_text_color || '#ffffff'};"
         >
-          {currentTime || '00:00:00'}
+          {currentTime || (stageSettings.clock_show_seconds !== false ? '00:00:00' : '00:00')}
         </div>
-        <div class="text-base sm:text-xl md:text-2xl text-zinc-400 capitalize font-medium tracking-wide">
-          {currentDate}
-        </div>
+        {#if stageSettings.clock_show_date !== false}
+          <div class="text-base sm:text-xl md:text-2xl text-zinc-400 capitalize font-medium tracking-wide">
+            {currentDate}
+          </div>
+        {/if}
 
         <!-- Bloco do Cronômetro / Timer Centralizado (Apenas se estiver rodando ou em overtime) -->
         {#if timer && (timer.running || timerIsOvertime)}
@@ -561,7 +570,9 @@
         >
           {currentTime}
         </div>
-        <div class="text-xs text-zinc-500 capitalize mt-1 truncate shrink-0">{currentDate}</div>
+        {#if stageSettings.clock_show_date !== false}
+          <div class="text-xs text-zinc-500 capitalize mt-1 truncate shrink-0">{currentDate}</div>
+        {/if}
       </div>
     {/snippet}
 

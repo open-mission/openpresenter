@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade } from 'svelte/transition';
   import type {
     Slide,
     MediaItem,
@@ -41,6 +42,10 @@
 
   const isScripture = $derived(activeMedia?.kind === 'scripture');
   const isImageMedia = $derived(activeMedia?.kind === 'image');
+  const imageFadeDuration = $derived.by(() => {
+    if (publicSettings?.image_fade_enabled === false) return 0;
+    return publicSettings?.image_fade_duration_ms ?? 500;
+  });
   const isSchedule = $derived(activeMedia?.kind === 'schedule');
 
   function parseScheduleContent(label: string, content: string) {
@@ -278,9 +283,14 @@
           </div>
         {:else if activeSlide}
           {#if isImageMedia}
-            <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden pointer-events-none">
-              <img src={resolveMediaUrl(activeSlide.content)} alt={activeMedia?.title} class="{imageFitClass} animate-in fade-in duration-200" />
-            </div>
+            {#key activeSlide.content}
+              <div
+                transition:fade={{ duration: imageFadeDuration }}
+                class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden pointer-events-none"
+              >
+                <img src={resolveMediaUrl(activeSlide.content)} alt={activeMedia?.title} class={imageFitClass} />
+              </div>
+            {/key}
           {:else if isSchedule}
             <!-- Agenda / Programação de Cultos e Festividades -->
             {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}

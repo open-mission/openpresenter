@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
   import {
     presentationState,
     mediaItemsList,
@@ -15,7 +16,7 @@
   import { renderFormattedText } from '$lib/markdown';
   import { resolveMediaUrl } from '$lib/cast';
   import type { Slide, MediaItem } from '$lib/types';
-  import { Camera, Layers, CheckCircle2, Tv } from 'lucide-svelte';
+  import { Camera, Layers, CheckCircle2, Tv, Music, BookOpen } from 'lucide-svelte';
 
   let isPreviewBackground = $state(false);
   let isObsBrowser = $state(false);
@@ -315,7 +316,8 @@
   <!-- ════════════════════════════════════════════════════════════ -->
   {#if isVisible && currentSlide && isImageMedia && imageDisplayMode === 'fullscreen'}
     <div
-      class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 transition-opacity duration-300"
+      transition:fade={{ duration: 300 }}
+      class="fixed inset-0 z-40 flex items-center justify-center bg-black/40"
       style="pointer-events: none;"
     >
       <img
@@ -338,133 +340,169 @@
       style="max-width: {lt.max_width_percent ?? 85}%;"
     >
       {#if isVisible && currentSlide}
-        {#if isImageMedia}
-          <!-- RENDERIZAÇÃO DE IMAGEM NO LOWER THIRD (MODO BANNER) -->
-          {#if imageDisplayMode === 'lower_third'}
-            <div class="max-h-44 overflow-hidden rounded-xl border border-white/20 shadow-2xl bg-black/60 backdrop-blur-md flex items-center justify-center">
-              <img
-                src={effectiveImageUrl}
-                alt={activeMedia?.title || 'Imagem'}
-                class="max-h-44 w-auto mx-auto drop-shadow-lg"
-                style="object-fit: {imageFit};"
-                onerror={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            </div>
-          {/if}
-        {:else}
-        <!-- ESTILO 1: GRADIENTE CENTRAL (Padrão de Transmissão Profissional) -->
-        {#if lt.theme === 'gradient'}
-          <div
-            class="relative px-8 py-5 flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'} overflow-hidden"
-            style="border-radius: {borderRadiusPx}px; {boxHasImage ? edgeFadeMask : 'mask-image: radial-gradient(ellipse 98% 90% at 50% 50%, black 50%, transparent 100%); -webkit-mask-image: radial-gradient(ellipse 98% 90% at 50% 50%, black 50%, transparent 100%);'}"
-          >
-            {#if boxHasImage}
-              <div class="absolute inset-0 w-full h-full pointer-events-none z-0" style={boxImageLayerStyle}></div>
-            {:else}
-              <div
-                class="absolute inset-0 w-full h-full pointer-events-none z-0"
-                style="background: radial-gradient(ellipse at center, {bgRgba} 0%, {bgRgba} 45%, {bgRgbaTransparent} 92%);"
-              ></div>
+        <div transition:fade={{ duration: 250 }} class="w-full flex flex-col items-center">
+          {#if isImageMedia}
+            <!-- RENDERIZAÇÃO DE IMAGEM NO LOWER THIRD (MODO BANNER) -->
+            {#if imageDisplayMode === 'lower_third'}
+              <div class="max-h-44 overflow-hidden rounded-xl border border-white/20 shadow-2xl bg-black/60 backdrop-blur-md flex items-center justify-center">
+                <img
+                  src={effectiveImageUrl}
+                  alt={activeMedia?.title || 'Imagem'}
+                  class="max-h-44 w-auto mx-auto drop-shadow-lg"
+                  style="object-fit: {imageFit};"
+                  onerror={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
             {/if}
+          {:else}
+            <!-- ESTILO 1: GRADIENTE CENTRAL (Padrão de Transmissão Profissional) -->
+            {#if lt.theme === 'gradient'}
+              <div
+                class="relative px-8 py-5 flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'} overflow-hidden w-full"
+                style="border-radius: {borderRadiusPx}px; {boxHasImage ? edgeFadeMask : 'mask-image: radial-gradient(ellipse 98% 90% at 50% 50%, black 50%, transparent 100%); -webkit-mask-image: radial-gradient(ellipse 98% 90% at 50% 50%, black 50%, transparent 100%);'}"
+              >
+                {#if boxHasImage}
+                  <div class="absolute inset-0 w-full h-full pointer-events-none z-0" style={boxImageLayerStyle}></div>
+                {:else}
+                  <div
+                    class="absolute inset-0 w-full h-full pointer-events-none z-0"
+                    style="background: radial-gradient(ellipse at center, {bgRgba} 0%, {bgRgba} 45%, {bgRgbaTransparent} 92%);"
+                  ></div>
+                {/if}
 
-            <div class="relative z-10 w-full flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'}">
-              <!-- Badge de Referência Bíblica ou Música -->
-              {#if lt.show_reference && mediaLabel}
-                <div
-                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2.5 bg-black/60 border border-white/20 text-white shadow-md backdrop-blur-md"
-                >
-                  <span>{isScripture ? '📖' : '🎵'}</span>
-                  <span>{mediaLabel}</span>
-                  {#if subLabel}
-                    <span class="opacity-70 font-normal">({subLabel})</span>
+                <div class="relative z-10 w-full flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'}">
+                  <!-- Badge de Referência Bíblica ou Música -->
+                  {#if lt.show_reference && mediaLabel}
+                    <div
+                      class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2.5 bg-black/60 border border-white/20 text-white shadow-md backdrop-blur-md"
+                    >
+                      {#if isScripture}
+                        <BookOpen class="w-3.5 h-3.5 text-primary" />
+                      {:else}
+                        <Music class="w-3.5 h-3.5 text-primary" />
+                      {/if}
+                      <span>{mediaLabel}</span>
+                      {#if subLabel}
+                        <span class="opacity-70 font-normal">({subLabel})</span>
+                      {/if}
+                    </div>
                   {/if}
+
+                  <!-- Texto Principal do Slide -->
+                  {#key currentSlide.content}
+                    <div
+                      transition:fade={{ duration: 150 }}
+                      class="w-full leading-snug tracking-normal {lt.text_align === 'left' ? 'text-left' : lt.text_align === 'right' ? 'text-right' : 'text-center'}"
+                      style="font-size: {effectiveFontSize}px; font-weight: {lt.font_weight === 'extrabold' ? '800' : lt.font_weight === 'bold' ? '700' : lt.font_weight === 'semibold' ? '600' : '400'}; color: {lt.text_color || '#ffffff'}; text-shadow: {textShadowStyle};"
+                    >
+                      {@html renderFormattedText(currentSlide.content)}
+                    </div>
+                  {/key}
                 </div>
-              {/if}
-
-              <!-- Texto Principal do Slide -->
-              <div
-                class="w-full leading-snug tracking-normal {lt.text_align === 'left' ? 'text-left' : lt.text_align === 'right' ? 'text-right' : 'text-center'}"
-                style="font-size: {effectiveFontSize}px; font-weight: {lt.font_weight === 'extrabold' ? '800' : lt.font_weight === 'bold' ? '700' : lt.font_weight === 'semibold' ? '600' : '400'}; color: {lt.text_color || '#ffffff'}; text-shadow: {textShadowStyle};"
-              >
-                {@html renderFormattedText(currentSlide.content)}
               </div>
-            </div>
-          </div>
 
-        <!-- ESTILO 2: BARRA INFERIOR (Lower Third Estilo Noticiário / TV) -->
-        {:else if lt.theme === 'bar'}
-          <div
-            class="w-full px-8 py-4 shadow-2xl backdrop-blur-md flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'} relative overflow-hidden"
-            style="{boxHasImage ? '' : `background-color: ${bgRgba};`} border-radius: {borderRadiusPx}px; border-left: 6px solid {resolvedBg.textColor || '#3b82f6'}; {edgeFadeMask}"
-          >
-            {#if boxHasImage}
-              <div class="absolute inset-0 w-full h-full pointer-events-none z-0" style={boxImageLayerStyle}></div>
-            {/if}
+            <!-- ESTILO 2: BARRA INFERIOR (Lower Third Estilo Noticiário / TV) -->
+            {:else if lt.theme === 'bar'}
+              <div
+                class="w-full px-8 py-4 shadow-2xl backdrop-blur-md flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'} relative overflow-hidden"
+                style="{boxHasImage ? '' : `background-color: ${bgRgba};`} border-radius: {borderRadiusPx}px; border-left: 6px solid {resolvedBg.textColor || '#3b82f6'}; {edgeFadeMask}"
+              >
+                {#if boxHasImage}
+                  <div class="absolute inset-0 w-full h-full pointer-events-none z-0" style={boxImageLayerStyle}></div>
+                {/if}
 
-            <div class="relative z-10 w-full flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'}">
-              {#if lt.show_reference && mediaLabel}
-                <div class="text-xs uppercase font-extrabold tracking-wider mb-1 text-emerald-400 drop-shadow">
-                  {isScripture ? '📖 ' : '🎵 '}{mediaLabel} {subLabel ? `• ${subLabel}` : ''}
+                <div class="relative z-10 w-full flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'}">
+                  {#if lt.show_reference && mediaLabel}
+                    <div class="inline-flex items-center gap-1.5 text-xs uppercase font-extrabold tracking-wider mb-1 text-emerald-400 drop-shadow">
+                      {#if isScripture}
+                        <BookOpen class="w-3.5 h-3.5" />
+                      {:else}
+                        <Music class="w-3.5 h-3.5" />
+                      {/if}
+                      <span>{mediaLabel}</span>
+                      {#if subLabel}
+                        <span class="opacity-70 font-normal">• {subLabel}</span>
+                      {/if}
+                    </div>
+                  {/if}
+
+                  {#key currentSlide.content}
+                    <div
+                      transition:fade={{ duration: 150 }}
+                      class="w-full leading-snug {lt.text_align === 'left' ? 'text-left' : lt.text_align === 'right' ? 'text-right' : 'text-center'}"
+                      style="font-size: {effectiveFontSize}px; font-weight: {lt.font_weight === 'extrabold' ? '800' : lt.font_weight === 'bold' ? '700' : lt.font_weight === 'semibold' ? '600' : '400'}; color: {lt.text_color || '#ffffff'}; text-shadow: {textShadowStyle};"
+                    >
+                      {@html renderFormattedText(currentSlide.content)}
+                    </div>
+                  {/key}
                 </div>
-              {/if}
-
-              <div
-                class="w-full leading-snug {lt.text_align === 'left' ? 'text-left' : lt.text_align === 'right' ? 'text-right' : 'text-center'}"
-                style="font-size: {effectiveFontSize}px; font-weight: {lt.font_weight === 'extrabold' ? '800' : lt.font_weight === 'bold' ? '700' : lt.font_weight === 'semibold' ? '600' : '400'}; color: {lt.text_color || '#ffffff'}; text-shadow: {textShadowStyle};"
-              >
-                {@html renderFormattedText(currentSlide.content)}
               </div>
-            </div>
-          </div>
 
-        <!-- ESTILO 3: CAIXA FLUTUANTE (Glassmorphism Pill) -->
-        {:else if lt.theme === 'floating'}
-          <div
-            class="px-8 py-4 border border-white/20 shadow-2xl backdrop-blur-lg flex flex-col {lt.text_align === 'left' ? 'mr-auto items-start text-left' : lt.text_align === 'right' ? 'ml-auto items-end text-right' : 'mx-auto items-center text-center'} relative overflow-hidden"
-            style="{boxHasImage ? '' : `background-color: ${bgRgba};`} border-radius: {borderRadiusPx}px; {edgeFadeMask}"
-          >
-            {#if boxHasImage}
-              <div class="absolute inset-0 w-full h-full pointer-events-none z-0" style={boxImageLayerStyle}></div>
-            {/if}
+            <!-- ESTILO 3: CAIXA FLUTUANTE (Glassmorphism Pill) -->
+            {:else if lt.theme === 'floating'}
+              <div
+                class="px-8 py-4 border border-white/20 shadow-2xl backdrop-blur-lg flex flex-col {lt.text_align === 'left' ? 'mr-auto items-start text-left' : lt.text_align === 'right' ? 'ml-auto items-end text-right' : 'mx-auto items-center text-center'} relative overflow-hidden"
+                style="{boxHasImage ? '' : `background-color: ${bgRgba};`} border-radius: {borderRadiusPx}px; {edgeFadeMask}"
+              >
+                {#if boxHasImage}
+                  <div class="absolute inset-0 w-full h-full pointer-events-none z-0" style={boxImageLayerStyle}></div>
+                {/if}
 
-            <div class="relative z-10 w-full flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'}">
-              {#if lt.show_reference && mediaLabel}
-                <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase mb-2 bg-white/15 text-white/90">
-                  {isScripture ? '📖 ' : '🎵 '}{mediaLabel}
+                <div class="relative z-10 w-full flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'}">
+                  {#if lt.show_reference && mediaLabel}
+                    <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase mb-2 bg-white/15 text-white/90">
+                      {#if isScripture}
+                        <BookOpen class="w-3 h-3 text-primary" />
+                      {:else}
+                        <Music class="w-3 h-3 text-primary" />
+                      {/if}
+                      <span>{mediaLabel}</span>
+                    </div>
+                  {/if}
+
+                  {#key currentSlide.content}
+                    <div
+                      transition:fade={{ duration: 150 }}
+                      class="w-full leading-snug {lt.text_align === 'left' ? 'text-left' : lt.text_align === 'right' ? 'text-right' : 'text-center'}"
+                      style="font-size: {effectiveFontSize}px; font-weight: {lt.font_weight === 'extrabold' ? '800' : lt.font_weight === 'bold' ? '700' : lt.font_weight === 'semibold' ? '600' : '400'}; color: {lt.text_color || '#ffffff'}; text-shadow: {textShadowStyle};"
+                    >
+                      {@html renderFormattedText(currentSlide.content)}
+                    </div>
+                  {/key}
                 </div>
-              {/if}
-
-              <div
-                class="w-full leading-snug {lt.text_align === 'left' ? 'text-left' : lt.text_align === 'right' ? 'text-right' : 'text-center'}"
-                style="font-size: {effectiveFontSize}px; font-weight: {lt.font_weight === 'extrabold' ? '800' : lt.font_weight === 'bold' ? '700' : lt.font_weight === 'semibold' ? '600' : '400'}; color: {lt.text_color || '#ffffff'}; text-shadow: {textShadowStyle};"
-              >
-                {@html renderFormattedText(currentSlide.content)}
               </div>
-            </div>
-          </div>
 
-        <!-- ESTILO 4: MINIMALISTA (Sem caixa de fundo, apenas tipografia de alto impacto) -->
-        {:else}
-          <div class="w-full flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'}">
-            {#if lt.show_reference && mediaLabel}
-              <span
-                class="text-sm uppercase font-bold tracking-widest mb-1 text-amber-300"
-                style="text-shadow: {textShadowStyle};"
-              >
-                {isScripture ? '📖 ' : '🎵 '}{mediaLabel}
-              </span>
+            <!-- ESTILO 4: MINIMALISTA (Sem caixa de fundo, apenas tipografia de alto impacto) -->
+            {:else}
+              <div class="w-full flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'}">
+                {#if lt.show_reference && mediaLabel}
+                  <div
+                    class="inline-flex items-center gap-1.5 text-sm uppercase font-bold tracking-widest mb-1 text-amber-300"
+                    style="text-shadow: {textShadowStyle};"
+                  >
+                    {#if isScripture}
+                      <BookOpen class="w-3.5 h-3.5" />
+                    {:else}
+                      <Music class="w-3.5 h-3.5" />
+                    {/if}
+                    <span>{mediaLabel}</span>
+                  </div>
+                {/if}
+
+                {#key currentSlide.content}
+                  <div
+                    transition:fade={{ duration: 150 }}
+                    class="w-full leading-snug {lt.text_align === 'left' ? 'text-left' : lt.text_align === 'right' ? 'text-right' : 'text-center'}"
+                    style="font-size: {effectiveFontSize}px; font-weight: {lt.font_weight === 'extrabold' ? '800' : lt.font_weight === 'bold' ? '700' : lt.font_weight === 'semibold' ? '600' : '400'}; color: {lt.text_color || '#ffffff'}; text-shadow: {textShadowStyle};"
+                  >
+                    {@html renderFormattedText(currentSlide.content)}
+                  </div>
+                {/key}
+              </div>
             {/if}
-
-            <div
-              class="w-full leading-snug {lt.text_align === 'left' ? 'text-left' : lt.text_align === 'right' ? 'text-right' : 'text-center'}"
-              style="font-size: {effectiveFontSize}px; font-weight: {lt.font_weight === 'extrabold' ? '800' : lt.font_weight === 'bold' ? '700' : lt.font_weight === 'semibold' ? '600' : '400'}; color: {lt.text_color || '#ffffff'}; text-shadow: {textShadowStyle};"
-            >
-              {@html renderFormattedText(currentSlide.content)}
-            </div>
-          </div>
-        {/if}
-        <!-- Fim da condicional de imagem -->
-        {/if}
+            <!-- Fim da condicional de imagem -->
+          {/if}
+        </div>
       {/if}
     </div>
   </div>

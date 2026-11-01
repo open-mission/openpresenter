@@ -6,6 +6,31 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Fontes Customizadas e Equalização na Agenda (`SettingsModal.svelte`, `PublicView.svelte`, `StageView.svelte`):**
+  - Campos numéricos `<input type="number">` acoplados aos sliders de tipografia da Agenda (Dia da Semana, Horário, Detalhes e limites de auto-scale de Título) nas configurações da Tela Pública e do Monitor de Palco.
+  - Limite e range de sliders equalizados entre Dia da Semana e Horário (`min="12" max={Math.max(80, value)}`), evitando desproporção quando dispostos na mesma linha.
+- **Relógio do Monitor de Palco sem Segundos e sem Data (`StageView.svelte`, `StagePreviewBox.svelte`, `SettingsModal.svelte`, `types.ts`, `displaySettings.ts`):**
+  - Novas opções configuráveis `clock_show_seconds` e `clock_show_date` em `StageDisplaySettings`.
+  - Suporte a formato limpo de horário `HH:MM` (sem segundos) tanto no rodapé do monitor de retorno quanto na tela de descanso.
+  - Opção de ocultar a data abaixo do horário no rodapé e na tela de descanso.
+- **Transição Suave (Fade) para Imagens e Volta ao Papel de Parede (`PublicView.svelte`, `PublicPreviewBox.svelte`, `SettingsModal.svelte`, `types.ts`, `displaySettings.ts`):**
+  - Opções `image_fade_enabled` e `image_fade_duration_ms` nas configurações da Projeção Pública.
+  - Transição suave nativa com `transition:fade` ao iniciar apresentação de imagens, alternar entre fotos e retornar para o papel de parede ao encerrar a mídia.
+- **Fade Suave na Saída Lower Third (`LowerThirdView.svelte`):**
+  - Transições `transition:fade` aplicadas à entrada e saída do Lower Third ao vivo, garantindo desvanecimento elegante no início, encerramento, blackout ou limpeza da tela no OBS.
+  - Transição suave com `{#key currentSlide.content}` na troca entre slides.
+- **Melhorias e Ajustes no Controle Remoto Mobile (`RemoteView.svelte`):**
+  - Remoção do texto do logo "OpenPresenter" no cabeçalho mobile, mantendo apenas o ícone oficial da marca e o badge de status (Remoto / Offline).
+  - Safe-area no iOS aprimorada com `max(calc(env(safe-area-inset-top, 0px) + 8px), 14px)`, evitando sobreposição com o entalhe (notch) e a Dynamic Island.
+  - Renderização de divisores de seção (`kind === 'header'`) como linhas separadoras visuais estilizadas, alinhadas ao comportamento do painel do operador e sem contador de "0 slides".
+  - Reindexação numérica automática para numerar apenas as mídias apresentáveis da setlist.
+- **Agrupamento Temático das Abas de Configuração (`SettingsModal.svelte`):**
+  - Barra lateral de configurações organizada em categorias conceituais: *Telas & Saídas*, *Conteúdo & Mídias* e *Geral & Sistema*.
+  - Ampliação da largura do container de formulários para `max-w-4xl`.
+- **Limpeza Global de Emojis na Interface:**
+  - Remoção de emojis em botões, abas, badges e indicadores (`LowerThirdView.svelte`, `SettingsModal.svelte`, `BottomPanel.svelte`, `MediaItemRow.svelte`, `AdminView.svelte`, `StageView.svelte`, `RemoteView.svelte`), substituindo-os por ícones SVG do Lucide ou texto profissional limpo.
+
 ## [0.4.2] - 2026-11-01
 
 ### Adicionado

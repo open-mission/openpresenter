@@ -2204,10 +2204,11 @@
               {#if selectedMedia.lower_image_url}
                 <Badge
                   variant="outline"
-                  class="text-[10px] py-0 px-1.5 text-emerald-400 border-emerald-500/40 bg-emerald-950/40 gap-1"
+                  class="text-[10px] py-0 px-1.5 text-emerald-400 border-emerald-500/40 bg-emerald-950/40 gap-1 flex items-center"
                   title="Possui imagem alternativa para Lower Third"
                 >
-                  Lower Third 🖼️
+                  <ImageIcon size={11} />
+                  <span>Lower Third</span>
                 </Badge>
               {/if}
             </div>

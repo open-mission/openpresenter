@@ -1312,16 +1312,12 @@
 
       <!-- Corpo com Abas Verticais à Esquerda -->
       <div class="flex-1 flex overflow-hidden">
-        <!-- Sidebar de Abas Verticais (Estilo macOS / ProPresenter) -->
+        <!-- Sidebar de Abas Verticais (Agrupada por Categorias) -->
         <aside class="w-52 sm:w-60 border-r border-neutral-800 bg-neutral-900/30 p-2.5 flex flex-col gap-1 shrink-0 overflow-y-auto">
-          <button
-            type="button"
-            onclick={() => (activeTab = 'appearance')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'appearance' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <Palette size={15} class={activeTab === 'appearance' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Aparência & Cores</span>
-          </button>
+          <!-- GRUPO 1: MONITORES E SAÍDAS -->
+          <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+            Telas & Saídas
+          </div>
 
           <button
             type="button"
@@ -1330,15 +1326,6 @@
           >
             <Monitor size={15} class={activeTab === 'public' ? 'text-primary' : 'text-neutral-500'} />
             <span>Tela Pública (Public)</span>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'lyrics_bg')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'lyrics_bg' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <Sparkles size={15} class={activeTab === 'lyrics_bg' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Fundos de Letras & CSS</span>
           </button>
 
           <button
@@ -1361,12 +1348,26 @@
 
           <button
             type="button"
-            onclick={() => (activeTab = 'church')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'church' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+            onclick={() => (activeTab = 'lyrics_bg')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'lyrics_bg' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
           >
-            <Church size={15} class={activeTab === 'church' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Marca da Igreja</span>
+            <Sparkles size={15} class={activeTab === 'lyrics_bg' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Fundos de Letras & CSS</span>
           </button>
+
+          <button
+            type="button"
+            onclick={() => (activeTab = 'outputs')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'outputs' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+          >
+            <Sliders size={15} class={activeTab === 'outputs' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Monitores & Saídas Físicas</span>
+          </button>
+
+          <!-- GRUPO 2: CONTEÚDO E MÍDIAS -->
+          <div class="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400 border-t border-neutral-800/60 mt-1">
+            Conteúdo & Mídias
+          </div>
 
           <button
             type="button"
@@ -1388,15 +1389,6 @@
 
           <button
             type="button"
-            onclick={() => (activeTab = 'files')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'files' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <HardDrive size={15} class={activeTab === 'files' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Arquivos e Pastas</span>
-          </button>
-
-          <button
-            type="button"
             onclick={() => (activeTab = 'sections')}
             class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'sections' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
           >
@@ -1406,11 +1398,34 @@
 
           <button
             type="button"
-            onclick={() => (activeTab = 'outputs')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'outputs' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+            onclick={() => (activeTab = 'files')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'files' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
           >
-            <Sliders size={15} class={activeTab === 'outputs' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Telas e Saídas</span>
+            <HardDrive size={15} class={activeTab === 'files' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Arquivos e Pastas</span>
+          </button>
+
+          <!-- GRUPO 3: GERAL E SISTEMA -->
+          <div class="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400 border-t border-neutral-800/60 mt-1">
+            Geral & Sistema
+          </div>
+
+          <button
+            type="button"
+            onclick={() => (activeTab = 'appearance')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'appearance' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+          >
+            <Palette size={15} class={activeTab === 'appearance' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Aparência & Cores</span>
+          </button>
+
+          <button
+            type="button"
+            onclick={() => (activeTab = 'church')}
+            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'church' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
+          >
+            <Church size={15} class={activeTab === 'church' ? 'text-primary' : 'text-neutral-500'} />
+            <span>Marca da Igreja</span>
           </button>
 
           <button
@@ -1430,8 +1445,6 @@
             <ScrollText size={15} class={activeTab === 'logs' ? 'text-primary' : 'text-neutral-500'} />
             <span>Histórico & Logs</span>
           </button>
-
-          <div class="my-2 border-t border-neutral-800/80"></div>
 
           <button
             type="button"
@@ -1659,7 +1672,7 @@
 
           <!-- ABA: TELA PÚBLICA (PUBLIC) -->
           {:else if activeTab === 'public'}
-            <div class="space-y-6 max-w-2xl">
+            <div class="space-y-6 max-w-4xl">
               <div>
                 <h3 class="text-sm font-semibold text-white">Configuração da Projeção Pública</h3>
                 <p class="text-xs text-neutral-400 mt-0.5">
@@ -2267,16 +2280,29 @@
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-300 font-medium">Título (Mínimo Auto-Scale)</span>
-                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                            {localPublic.schedule_title_min_font_size ?? 28}px
-                          </span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="10"
+                              max="150"
+                              step="2"
+                              value={localPublic.schedule_title_min_font_size ?? 32}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 10) updatePublicField('schedule_title_min_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho mínimo em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
                           min="18"
-                          max="64"
+                          max={Math.max(64, localPublic.schedule_title_min_font_size ?? 32)}
                           step="2"
-                          value={localPublic.schedule_title_min_font_size ?? 28}
+                          value={localPublic.schedule_title_min_font_size ?? 32}
                           oninput={(e) => updatePublicField('schedule_title_min_font_size', Number((e.target as HTMLInputElement).value))}
                           class="w-full accent-primary cursor-pointer"
                         />
@@ -2286,16 +2312,29 @@
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-300 font-medium">Título (Máximo Auto-Scale)</span>
-                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                            {localPublic.schedule_title_max_font_size ?? 96}px
-                          </span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="30"
+                              max="300"
+                              step="4"
+                              value={localPublic.schedule_title_max_font_size ?? 110}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 30) updatePublicField('schedule_title_max_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho máximo em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
                           min="48"
-                          max="160"
+                          max={Math.max(160, localPublic.schedule_title_max_font_size ?? 110)}
                           step="4"
-                          value={localPublic.schedule_title_max_font_size ?? 96}
+                          value={localPublic.schedule_title_max_font_size ?? 110}
                           oninput={(e) => updatePublicField('schedule_title_max_font_size', Number((e.target as HTMLInputElement).value))}
                           class="w-full accent-primary cursor-pointer"
                         />
@@ -2305,16 +2344,29 @@
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-300 font-medium">Texto do Dia da Semana</span>
-                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                            {localPublic.schedule_day_font_size ?? 18}px
-                          </span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="8"
+                              max="200"
+                              step="1"
+                              value={localPublic.schedule_day_font_size ?? 20}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 8) updatePublicField('schedule_day_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho customizado em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
                           min="12"
-                          max="36"
+                          max={Math.max(80, localPublic.schedule_day_font_size ?? 20)}
                           step="1"
-                          value={localPublic.schedule_day_font_size ?? 18}
+                          value={localPublic.schedule_day_font_size ?? 20}
                           oninput={(e) => updatePublicField('schedule_day_font_size', Number((e.target as HTMLInputElement).value))}
                           class="w-full accent-primary cursor-pointer"
                         />
@@ -2324,16 +2376,29 @@
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-300 font-medium">Texto do Horário</span>
-                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                            {localPublic.schedule_time_font_size ?? 16}px
-                          </span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="8"
+                              max="200"
+                              step="1"
+                              value={localPublic.schedule_time_font_size ?? 20}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 8) updatePublicField('schedule_time_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho customizado em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
                           min="12"
-                          max="32"
+                          max={Math.max(80, localPublic.schedule_time_font_size ?? 20)}
                           step="1"
-                          value={localPublic.schedule_time_font_size ?? 16}
+                          value={localPublic.schedule_time_font_size ?? 20}
                           oninput={(e) => updatePublicField('schedule_time_font_size', Number((e.target as HTMLInputElement).value))}
                           class="w-full accent-primary cursor-pointer"
                         />
@@ -2344,16 +2409,29 @@
                     <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                       <div class="flex justify-between items-center text-xs">
                         <span class="text-neutral-300 font-medium">Texto de Detalhes / Descrição</span>
-                        <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                          {localPublic.schedule_details_font_size ?? 22}px
-                        </span>
+                        <div class="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min="8"
+                            max="200"
+                            step="1"
+                            value={localPublic.schedule_details_font_size ?? 20}
+                            oninput={(e) => {
+                              const val = Number((e.target as HTMLInputElement).value);
+                              if (!isNaN(val) && val >= 8) updatePublicField('schedule_details_font_size', val);
+                            }}
+                            class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                            title="Tamanho customizado em pixels"
+                          />
+                          <span class="text-[10px] font-mono text-neutral-400">px</span>
+                        </div>
                       </div>
                       <input
                         type="range"
                         min="12"
-                        max="40"
+                        max={Math.max(80, localPublic.schedule_details_font_size ?? 20)}
                         step="1"
-                        value={localPublic.schedule_details_font_size ?? 22}
+                        value={localPublic.schedule_details_font_size ?? 20}
                         oninput={(e) => updatePublicField('schedule_details_font_size', Number((e.target as HTMLInputElement).value))}
                         class="w-full accent-primary cursor-pointer"
                       />
@@ -2555,6 +2633,69 @@
                         </button>
                       {/each}
                     </div>
+                  </div>
+
+                  <!-- Transição Suave (Fade) em Imagens e Retorno ao Papel de Parede -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <div class="flex items-center justify-between gap-4">
+                      <div>
+                        <div class="text-xs font-semibold text-white flex items-center gap-2">
+                          <Sparkles size={14} class="text-primary" />
+                          Transição com Fade Suave (Imagens e Papel de Parede)
+                        </div>
+                        <p class="text-[11px] text-neutral-400 mt-0.5">
+                          Aplica desvanecimento suave ao projetar imagens, alternar entre imagens e ao retornar para o papel de parede.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Alternar transição suave de imagens"
+                        onclick={() => updatePublicField('image_fade_enabled', localPublic.image_fade_enabled === false ? true : false)}
+                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.image_fade_enabled !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                        role="switch"
+                        aria-checked={localPublic.image_fade_enabled !== false}
+                      >
+                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.image_fade_enabled !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
+                      </button>
+                    </div>
+
+                    {#if localPublic.image_fade_enabled !== false}
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Duração da Transição</span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="50"
+                              max="3000"
+                              step="50"
+                              value={localPublic.image_fade_duration_ms ?? 500}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 50) updatePublicField('image_fade_duration_ms', val);
+                              }}
+                              class="w-16 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Duração em milissegundos"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">ms</span>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="50"
+                          max="2000"
+                          step="50"
+                          value={localPublic.image_fade_duration_ms ?? 500}
+                          oninput={(e) => updatePublicField('image_fade_duration_ms', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                        <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
+                          <span>100ms (Rápido)</span>
+                          <span>500ms (Recomendado)</span>
+                          <span>2000ms (Lento)</span>
+                        </div>
+                      </div>
+                    {/if}
                   </div>
 
                   <!-- Margens da Projeção -->
@@ -3065,7 +3206,7 @@
 
           <!-- ABA: MONITOR DE PALCO (STAGE) -->
           {:else if activeTab === 'stage'}
-            <div class="space-y-6 max-w-2xl">
+            <div class="space-y-6 max-w-4xl">
               <div>
                 <h3 class="text-sm font-semibold text-white">Layout e Cores do Monitor de Retorno</h3>
                 <p class="text-xs text-neutral-400 mt-0.5">
@@ -3386,14 +3527,27 @@
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-300 font-medium">Título (Mínimo Auto-Scale)</span>
-                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                            {localStage.stage_schedule_title_min_font_size ?? 28}px
-                          </span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="12"
+                              max="200"
+                              step="2"
+                              value={localStage.stage_schedule_title_min_font_size ?? 28}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 12) updateStageField('stage_schedule_title_min_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho customizado em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
-                          min="20"
-                          max="60"
+                          min="14"
+                          max={Math.max(100, localStage.stage_schedule_title_min_font_size ?? 28)}
                           step="2"
                           value={localStage.stage_schedule_title_min_font_size ?? 28}
                           oninput={(e) => updateStageField('stage_schedule_title_min_font_size', Number((e.target as HTMLInputElement).value))}
@@ -3405,14 +3559,27 @@
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-300 font-medium">Título (Máximo Auto-Scale)</span>
-                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                            {localStage.stage_schedule_title_max_font_size ?? 120}px
-                          </span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="20"
+                              max="300"
+                              step="4"
+                              value={localStage.stage_schedule_title_max_font_size ?? 120}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 20) updateStageField('stage_schedule_title_max_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho customizado em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
-                          min="60"
-                          max="240"
+                          min="40"
+                          max={Math.max(240, localStage.stage_schedule_title_max_font_size ?? 120)}
                           step="4"
                           value={localStage.stage_schedule_title_max_font_size ?? 120}
                           oninput={(e) => updateStageField('stage_schedule_title_max_font_size', Number((e.target as HTMLInputElement).value))}
@@ -3424,14 +3591,27 @@
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-300 font-medium">Badge do Dia da Semana</span>
-                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                            {localStage.stage_schedule_day_font_size ?? 18}px
-                          </span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="8"
+                              max="200"
+                              step="1"
+                              value={localStage.stage_schedule_day_font_size ?? 18}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 8) updateStageField('stage_schedule_day_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho customizado em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
                           min="12"
-                          max="36"
+                          max={Math.max(80, localStage.stage_schedule_day_font_size ?? 18)}
                           step="1"
                           value={localStage.stage_schedule_day_font_size ?? 18}
                           oninput={(e) => updateStageField('stage_schedule_day_font_size', Number((e.target as HTMLInputElement).value))}
@@ -3443,16 +3623,29 @@
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-300 font-medium">Badge do Horário</span>
-                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                            {localStage.stage_schedule_time_font_size ?? 16}px
-                          </span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="8"
+                              max="200"
+                              step="1"
+                              value={localStage.stage_schedule_time_font_size ?? 18}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 8) updateStageField('stage_schedule_time_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho customizado em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
                           min="12"
-                          max="32"
+                          max={Math.max(80, localStage.stage_schedule_time_font_size ?? 18)}
                           step="1"
-                          value={localStage.stage_schedule_time_font_size ?? 16}
+                          value={localStage.stage_schedule_time_font_size ?? 18}
                           oninput={(e) => updateStageField('stage_schedule_time_font_size', Number((e.target as HTMLInputElement).value))}
                           class="w-full accent-primary cursor-pointer"
                         />
@@ -3463,14 +3656,27 @@
                     <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                       <div class="flex justify-between items-center text-xs">
                         <span class="text-neutral-300 font-medium">Texto de Detalhes / Descrição</span>
-                        <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                          {localStage.stage_schedule_details_font_size ?? 18}px
-                        </span>
+                        <div class="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min="8"
+                            max="200"
+                            step="1"
+                            value={localStage.stage_schedule_details_font_size ?? 18}
+                            oninput={(e) => {
+                              const val = Number((e.target as HTMLInputElement).value);
+                              if (!isNaN(val) && val >= 8) updateStageField('stage_schedule_details_font_size', val);
+                            }}
+                            class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                            title="Tamanho customizado em pixels"
+                          />
+                          <span class="text-[10px] font-mono text-neutral-400">px</span>
+                        </div>
                       </div>
                       <input
                         type="range"
                         min="12"
-                        max="32"
+                        max={Math.max(80, localStage.stage_schedule_details_font_size ?? 18)}
                         step="1"
                         value={localStage.stage_schedule_details_font_size ?? 18}
                         oninput={(e) => updateStageField('stage_schedule_details_font_size', Number((e.target as HTMLInputElement).value))}
@@ -3494,14 +3700,27 @@
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-300 font-medium">Título Mínimo A Seguir</span>
-                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                            {localStage.stage_schedule_next_min_font_size ?? 18}px
-                          </span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="10"
+                              max="150"
+                              step="2"
+                              value={localStage.stage_schedule_next_min_font_size ?? 18}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 10) updateStageField('stage_schedule_next_min_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho customizado em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
                           min="12"
-                          max="48"
+                          max={Math.max(80, localStage.stage_schedule_next_min_font_size ?? 18)}
                           step="2"
                           value={localStage.stage_schedule_next_min_font_size ?? 18}
                           oninput={(e) => updateStageField('stage_schedule_next_min_font_size', Number((e.target as HTMLInputElement).value))}
@@ -3513,14 +3732,27 @@
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-300 font-medium">Título Máximo A Seguir</span>
-                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                            {localStage.stage_schedule_next_max_font_size ?? 64}px
-                          </span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="20"
+                              max="300"
+                              step="4"
+                              value={localStage.stage_schedule_next_max_font_size ?? 64}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 20) updateStageField('stage_schedule_next_max_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho customizado em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
-                          min="40"
-                          max="160"
+                          min="30"
+                          max={Math.max(160, localStage.stage_schedule_next_max_font_size ?? 64)}
                           step="4"
                           value={localStage.stage_schedule_next_max_font_size ?? 64}
                           oninput={(e) => updateStageField('stage_schedule_next_max_font_size', Number((e.target as HTMLInputElement).value))}
@@ -3584,7 +3816,7 @@
                   </div>
                 </div>
 
-              {:else}
+              {:else if stageSection === 'general'}
                 <!-- SEÇÃO 3: LAYOUT & TEMPO -->
                 <div class="space-y-4">
                   <!-- Preset do Palco (Grid Moderno Pro Padronizado) -->
@@ -3650,6 +3882,65 @@
                     </div>
                   </div>
 
+                  <!-- Formato e Exibição do Relógio Oficial (Segundos e Data) -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <div>
+                      <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                        <Clock size={14} class="text-primary" />
+                        Formato e Exibição do Relógio Oficial
+                      </h4>
+                      <p class="text-[11px] text-neutral-400 mt-0.5">
+                        Defina a visibilidade dos segundos e da data no rodapé do palco e na tela de descanso.
+                      </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <!-- Exibir Segundos -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-3">
+                        <div>
+                          <div class="text-xs font-semibold text-white">Exibir Segundos no Horário</div>
+                          <div class="text-[10px] text-neutral-400">
+                            {localStage.clock_show_seconds !== false ? 'Formato completo (ex: 10:42:15)' : 'Formato limpo (ex: 10:42)'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-label="Alternar exibição de segundos no relógio do palco"
+                          aria-checked={localStage.clock_show_seconds !== false}
+                          onclick={() => updateStageField('clock_show_seconds', localStage.clock_show_seconds === false ? true : false)}
+                          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localStage.clock_show_seconds !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                        >
+                          <span
+                            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localStage.clock_show_seconds !== false ? 'translate-x-5' : 'translate-x-0'}"
+                          ></span>
+                        </button>
+                      </div>
+
+                      <!-- Exibir Data -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-3">
+                        <div>
+                          <div class="text-xs font-semibold text-white">Exibir Data Abaixo do Horário</div>
+                          <div class="text-[10px] text-neutral-400">
+                            {localStage.clock_show_date !== false ? 'Data por extenso visível' : 'Data oculta'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-label="Alternar exibição da data no relógio do palco"
+                          aria-checked={localStage.clock_show_date !== false}
+                          onclick={() => updateStageField('clock_show_date', localStage.clock_show_date === false ? true : false)}
+                          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localStage.clock_show_date !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                        >
+                          <span
+                            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localStage.clock_show_date !== false ? 'translate-x-5' : 'translate-x-0'}"
+                          ></span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Tamanhos das Fontes do Palco (Timer, Relógio e Aviso) -->
                   <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
                     <div class="flex items-center justify-between">
@@ -3683,54 +3974,99 @@
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                       <!-- Tamanho do Timer -->
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between text-xs">
+                        <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-400">Timer / Cronômetro</span>
-                          <span class="font-mono text-white font-semibold">{localStage.timer_font_size ?? 56}px</span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="14"
+                              max="200"
+                              step="2"
+                              value={localStage.timer_font_size ?? 56}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 14) updateStageField('timer_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho customizado em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
-                          min="28"
-                          max="120"
+                          min="20"
+                          max={Math.max(120, localStage.timer_font_size ?? 56)}
                           step="2"
                           value={localStage.timer_font_size ?? 56}
                           oninput={(e) => updateStageField('timer_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary"
+                          class="w-full accent-primary cursor-pointer"
                         />
                         <div class="text-[9px] text-neutral-500">Contagem regressiva e tempo em palco</div>
                       </div>
 
                       <!-- Tamanho do Relógio -->
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between text-xs">
+                        <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-400">Relógio Oficial</span>
-                          <span class="font-mono text-white font-semibold">{localStage.clock_font_size ?? 48}px</span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="14"
+                              max="200"
+                              step="2"
+                              value={localStage.clock_font_size ?? 48}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 14) updateStageField('clock_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho customizado em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
-                          min="24"
-                          max="96"
+                          min="20"
+                          max={Math.max(120, localStage.clock_font_size ?? 48)}
                           step="2"
                           value={localStage.clock_font_size ?? 48}
                           oninput={(e) => updateStageField('clock_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary"
+                          class="w-full accent-primary cursor-pointer"
                         />
                         <div class="text-[9px] text-neutral-500">Horário atual de parede</div>
                       </div>
 
                       <!-- Tamanho do Aviso -->
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between text-xs">
+                        <div class="flex justify-between items-center text-xs">
                           <span class="text-neutral-400">Aviso para o Palco</span>
-                          <span class="font-mono text-white font-semibold">{localStage.alert_font_size ?? 28}px</span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="12"
+                              max="150"
+                              step="2"
+                              value={localStage.alert_font_size ?? 28}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 12) updateStageField('alert_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho customizado em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
                         </div>
                         <input
                           type="range"
-                          min="16"
-                          max="64"
+                          min="14"
+                          max={Math.max(80, localStage.alert_font_size ?? 28)}
                           step="2"
                           value={localStage.alert_font_size ?? 28}
                           oninput={(e) => updateStageField('alert_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary"
+                          class="w-full accent-primary cursor-pointer"
                         />
                         <div class="text-[9px] text-neutral-500">Mensagens enviadas pela equipe</div>
                       </div>
@@ -4440,21 +4776,21 @@
                             onclick={() => (localLowerThird.image_display_mode = 'fullscreen')}
                             class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer {(localLowerThird.image_display_mode ?? 'fullscreen') === 'fullscreen' ? 'bg-primary text-primary-foreground border-primary' : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:border-neutral-700'}"
                           >
-                            🖼️ Tela Cheia
+                            Tela Cheia
                           </button>
                           <button
                             type="button"
                             onclick={() => (localLowerThird.image_display_mode = 'lower_third')}
                             class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer {(localLowerThird.image_display_mode ?? 'fullscreen') === 'lower_third' ? 'bg-primary text-primary-foreground border-primary' : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:border-neutral-700'}"
                           >
-                            📐 Banner
+                            Banner
                           </button>
                           <button
                             type="button"
                             onclick={() => (localLowerThird.image_display_mode = 'hide')}
                             class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer {(localLowerThird.image_display_mode ?? 'fullscreen') === 'hide' ? 'bg-red-600/80 text-white border-red-500' : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:border-neutral-700'}"
                           >
-                            🚫 Ocultar
+                            Ocultar
                           </button>
                         </div>
                         <p class="text-[10px] text-neutral-500 leading-relaxed">
@@ -4505,21 +4841,21 @@
                         onclick={() => (ltPreviewMode = 'lyrics')}
                         class="px-2 py-0.5 text-[10px] font-bold rounded {ltPreviewMode === 'lyrics' ? 'bg-primary text-primary-foreground' : 'text-neutral-400'}"
                       >
-                        🎵 Louvor
+                        Louvor
                       </button>
                       <button
                         type="button"
                         onclick={() => (ltPreviewMode = 'scripture')}
                         class="px-2 py-0.5 text-[10px] font-bold rounded {ltPreviewMode === 'scripture' ? 'bg-primary text-primary-foreground' : 'text-neutral-400'}"
                       >
-                        📖 Bíblia
+                        Bíblia
                       </button>
                       <button
                         type="button"
                         onclick={() => (ltPreviewMode = 'image')}
                         class="px-2 py-0.5 text-[10px] font-bold rounded {ltPreviewMode === 'image' ? 'bg-primary text-primary-foreground' : 'text-neutral-400'}"
                       >
-                        🖼️ Imagem
+                        Imagem
                       </button>
                     </div>
                   </div>
@@ -4554,12 +4890,12 @@
                             {:else if (localLowerThird.image_display_mode ?? 'fullscreen') === 'fullscreen'}
                               <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/30">
                                 <div class="w-3/4 h-3/4 bg-gradient-to-br from-blue-900/60 via-purple-900/60 to-pink-900/60 rounded-lg border border-white/20 flex items-center justify-center">
-                                  <span class="text-[10px] text-white/80 font-bold">🖼️ Imagem em Tela Cheia</span>
+                                  <span class="text-[10px] text-white/80 font-bold">Imagem em Tela Cheia</span>
                                 </div>
                               </div>
                             {:else}
                               <div class="max-h-10 overflow-hidden rounded-lg border border-white/20 bg-black/60 flex items-center justify-center mx-auto w-2/3">
-                                <span class="text-[9px] text-white/80 font-bold py-1">🖼️ Banner Imagem</span>
+                                <span class="text-[9px] text-white/80 font-bold py-1">Banner Imagem</span>
                               </div>
                             {/if}
                           {:else}
@@ -4580,7 +4916,7 @@
                             >
                               {#if localLowerThird.show_reference}
                                 <span class="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider mb-1 bg-black/60 border border-white/20 text-white shadow">
-                                  {ltPreviewMode === 'scripture' ? '📖 João 3:16 (ARA)' : '🎵 Porque Ele Vive'}
+                                  {ltPreviewMode === 'scripture' ? 'João 3:16 (ARA)' : 'Porque Ele Vive'}
                                 </span>
                               {/if}
                               <p
@@ -4600,7 +4936,7 @@
                             >
                               {#if localLowerThird.show_reference}
                                 <span class="text-[8px] font-bold uppercase text-emerald-400 block">
-                                  {ltPreviewMode === 'scripture' ? '📖 João 3:16 (ARA)' : '🎵 Porque Ele Vive'}
+                                  {ltPreviewMode === 'scripture' ? 'João 3:16 (ARA)' : 'Porque Ele Vive'}
                                 </span>
                               {/if}
                               <p
@@ -4629,7 +4965,7 @@
                               {/if}
                               {#if localLowerThird.show_reference}
                                 <span class="text-[8px] font-bold uppercase text-white/80 block mb-0.5">
-                                  {ltPreviewMode === 'scripture' ? '📖 João 3:16' : '🎵 Porque Ele Vive'}
+                                  {ltPreviewMode === 'scripture' ? 'João 3:16' : 'Porque Ele Vive'}
                                 </span>
                               {/if}
                               <p
@@ -4647,7 +4983,7 @@
                             <div class="text-center w-full">
                               {#if localLowerThird.show_reference}
                                 <span class="text-[8px] font-bold uppercase text-amber-300 block mb-0.5 drop-shadow">
-                                  {ltPreviewMode === 'scripture' ? '📖 João 3:16' : '🎵 Porque Ele Vive'}
+                                  {ltPreviewMode === 'scripture' ? 'João 3:16' : 'Porque Ele Vive'}
                                 </span>
                               {/if}
                               <p

@@ -2309,10 +2309,10 @@
           <div class="flex items-center gap-1.5 mb-2.5 overflow-x-auto pb-1 text-xs shrink-0 select-none">
             {#each [
               { id: 'all', label: 'Todos', count: $customItemsStore.length },
-              { id: 'schedule', label: '📅 Agenda', count: $customItemsStore.filter((i) => i.kind === 'schedule').length },
-              { id: 'text', label: '📝 Textos', count: $customItemsStore.filter((i) => i.kind === 'text').length },
-              { id: 'announcement', label: '📢 Avisos', count: $customItemsStore.filter((i) => i.kind === 'announcement').length },
-              { id: 'header', label: '🔖 Seções', count: $customItemsStore.filter((i) => i.kind === 'header').length }
+              { id: 'schedule', label: 'Agenda', count: $customItemsStore.filter((i) => i.kind === 'schedule').length },
+              { id: 'text', label: 'Textos', count: $customItemsStore.filter((i) => i.kind === 'text').length },
+              { id: 'announcement', label: 'Avisos', count: $customItemsStore.filter((i) => i.kind === 'announcement').length },
+              { id: 'header', label: 'Seções', count: $customItemsStore.filter((i) => i.kind === 'header').length }
             ] as cat}
               <button
                 type="button"

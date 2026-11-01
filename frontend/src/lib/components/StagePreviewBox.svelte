@@ -78,6 +78,14 @@
   const footerRatio = $derived(stageSettings.footer_time_percent ?? 10);
 
   // Escala dinâmica de fontes para preview proporcional
+  const displayClock = $derived.by(() => {
+    if (!stageClock) return stageSettings.clock_show_seconds === false ? '00:00' : '00:00:00';
+    if (stageSettings.clock_show_seconds === false) {
+      return stageClock.length >= 5 ? stageClock.substring(0, 5) : stageClock;
+    }
+    return stageClock;
+  });
+
   const previewClockSize = $derived(
     Math.max(6, Math.min(14, Math.round(8 * ((stageSettings.clock_font_size || 48) / 48))))
   );
@@ -100,10 +108,13 @@
 <div class="w-full aspect-video rounded bg-black border border-neutral-800 p-0 flex flex-col justify-between relative overflow-hidden shadow-inner select-none font-sans text-[10px]">
   {#if !activeSlide}
     <!-- MODO DE DESCANSO NO PREVIEW -->
-    <div class="flex-1 flex flex-col items-center justify-center p-2 text-center bg-zinc-950/80 rounded-none gap-1.5 animate-in fade-in duration-200">
+    <div class="flex-1 flex flex-col items-center justify-center p-2 text-center bg-zinc-950/80 rounded-none gap-1 animate-in fade-in duration-200">
       <div class="text-2xl font-mono font-black text-white tracking-tight">
-        {stageClock || '00:00:00'}
+        {displayClock}
       </div>
+      {#if stageSettings.clock_show_date !== false}
+        <span class="text-[7px] text-zinc-400 capitalize">Domingo, 01 de Novembro</span>
+      {/if}
       {#if timer && (timer.running || timer.remaining_seconds < 0)}
         <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[9px] font-mono font-bold {timer.remaining_seconds < 0 ? 'text-rose-400' : timer.remaining_seconds <= (timer.warning_threshold_seconds || 60) && timer.running ? 'text-amber-400' : 'text-zinc-300'}">
           <Hourglass size={8} class="opacity-70" />
@@ -233,7 +244,7 @@
           >
             <span class="text-[6px] text-zinc-500 uppercase block font-sans">Hora</span>
             <span class="font-bold block my-auto" style="color: {stageSettings.clock_color || '#ffffff'}; font-size: {previewClockSize}px;">
-              {stageClock?.substring(0, 5) || '00:00'}
+              {displayClock}
             </span>
           </div>
 
@@ -370,7 +381,7 @@
           >
             <span class="text-[6px] text-zinc-500 uppercase block font-sans">Hora</span>
             <span class="font-bold block my-auto truncate" style="color: {stageSettings.clock_color || '#ffffff'}; font-size: {previewClockSize}px;">
-              {stageClock?.substring(0, 5) || '00:00'}
+              {displayClock}
             </span>
           </div>
 

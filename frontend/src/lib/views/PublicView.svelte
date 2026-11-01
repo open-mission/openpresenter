@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
   import { presentationState, mediaItemsList, initWebSocket } from '$lib/ws';
   import type { MediaItem, Slide } from '$lib/types';
   import { renderFormattedText } from '$lib/markdown';
@@ -133,6 +134,10 @@
   const marginHorizontal = $derived(Number(publicSettings?.margin_horizontal ?? 48));
 
   const isImageMedia = $derived(activeMedia?.kind === 'image');
+  const imageFadeDuration = $derived.by(() => {
+    if (publicSettings?.image_fade_enabled === false) return 0;
+    return publicSettings?.image_fade_duration_ms ?? 500;
+  });
   const applyMargins = $derived(!isImageMedia || !publicSettings.ignore_margins_for_media);
   const imageFitClass = $derived.by(() => {
     switch (publicSettings.image_fit) {
@@ -289,13 +294,18 @@
       {:else if activeSlide}
         <!-- Mídia do Tipo Imagem Direta -->
         {#if activeMedia?.kind === 'image'}
-          <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden pointer-events-none">
-            <img
-              src={resolveMediaUrl(activeSlide.content)}
-              alt={activeMedia.title}
-              class="{imageFitClass} animate-in fade-in duration-200"
-            />
-          </div>
+          {#key activeSlide.content}
+            <div
+              transition:fade={{ duration: imageFadeDuration }}
+              class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden pointer-events-none"
+            >
+              <img
+                src={resolveMediaUrl(activeSlide.content)}
+                alt={activeMedia.title}
+                class={imageFitClass}
+              />
+            </div>
+          {/key}
         {:else if isSchedule}
           <!-- Agenda / Programação de Cultos e Festividades -->
           {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}

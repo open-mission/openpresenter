@@ -265,6 +265,8 @@ export interface PublicDisplaySettings {
   margin_horizontal: number;
   image_fit?: ImageFitMode;
   ignore_margins_for_media?: boolean;
+  image_fade_enabled?: boolean;
+  image_fade_duration_ms?: number;
   darken_background?: boolean;
   text_box_background?: boolean;
   min_font_size?: number;
@@ -380,6 +382,10 @@ export interface StageDisplaySettings {
   scripture_min_font_size?: number;
   scripture_text_color?: string;
   scripture_border_color?: string;
+
+  // Exibição do Relógio (Segundos e Data)
+  clock_show_seconds?: boolean;
+  clock_show_date?: boolean;
 
   // Tamanhos de Fonte das Informações de Palco
   clock_font_size?: number;

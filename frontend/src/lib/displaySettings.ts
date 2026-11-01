@@ -18,6 +18,8 @@ export const DEFAULT_PUBLIC_SETTINGS: PublicDisplaySettings = {
   margin_bottom: 32,
   margin_horizontal: 48,
   image_fit: 'contain',
+  image_fade_enabled: true,
+  image_fade_duration_ms: 500,
   wallpaper_fit: 'contain',
   wallpaper_safe_margins: false,
   ignore_margins_for_media: true,
@@ -50,7 +52,7 @@ export const DEFAULT_PUBLIC_SETTINGS: PublicDisplaySettings = {
   schedule_title_min_font_size: 32,
   schedule_title_max_font_size: 110,
   schedule_day_font_size: 20,
-  schedule_time_font_size: 18,
+  schedule_time_font_size: 20,
   schedule_details_font_size: 20,
   schedule_show_badges: true,
   schedule_show_footer: true,
@@ -95,6 +97,10 @@ export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
   scripture_text_color: '#FFFFFF',
   scripture_border_color: '#3B82F6',
 
+  // Exibição do Relógio (Segundos e Data)
+  clock_show_seconds: true,
+  clock_show_date: true,
+
   // Tamanhos de Fonte das Informações de Palco
   clock_font_size: 48,
   timer_font_size: 56,
@@ -108,7 +114,7 @@ export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
   stage_schedule_title_min_font_size: 28,
   stage_schedule_title_max_font_size: 180,
   stage_schedule_day_font_size: 18,
-  stage_schedule_time_font_size: 16,
+  stage_schedule_time_font_size: 18,
   stage_schedule_details_font_size: 18,
   stage_schedule_next_min_font_size: 18,
   stage_schedule_next_max_font_size: 120,
