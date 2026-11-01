@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Lançamento da versão 0.4.1: unificação de versão em todo o workspace (Cargo.toml, package.json, workflows, componentes e testes), consolidação da aba Outros no painel de mídias, customizações de exibição da Agenda (Public e Stage), menus de contexto pro nos slides da apresentação, no preview e na aba Outros, fechamento da release 0.4.1 no CHANGELOG.md, spec docs/specs/2026-11-01-release-0-4-1.md, publicação da tag v0.4.1 e push para o repositório remoto. (commit 405e64b - 2026-11-01 01:36:00 -03:00)
+
 - [x] UI/Design: Remoção do rótulo de texto estático "Typeset:" na barra de formatação do SongEditorModal para uma interface mais limpa e minimalista. (commit 197bb15 - 2026-11-01 01:21:00 -03:00)
 
 - [x] Fix/Improve: Ajustar `+ Seção` no typeset para abrir via ContextMenu flutuante sem scroll/aprisionamento no container, adicionar opção `+ Nova Seção...` no menu de contexto dos slides do SongEditorModal, e adicionar ContextMenu nativo com ações relevantes na grade de slides de apresentação do AdminView. (commit 6eb2852 - 2026-11-01 01:04:00 -03:00)

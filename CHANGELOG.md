@@ -6,6 +6,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-01
+
 ### Adicionado
 - **Menu de Contexto na Grade de Slides de Apresentação (`AdminView.svelte`):**
   - Supressão do menu padrão do navegador na grade central de slides do operador (`slide-card-${idx}`) e na área vazia da grade.

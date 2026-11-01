@@ -223,6 +223,11 @@
 - [Spec — Inserção no Cursor e Menus de Contexto no Editor de Músicas e Aba Outros](specs/2026-11-01-context-menu-editor-musicas-e-aba-outros.md)
 - [Plano — Inserção no Cursor e Menus de Contexto no Editor de Músicas e Aba Outros](plans/2026-11-01-context-menu-editor-musicas-e-aba-outros.md)
 
+## Release v0.4.1: Aba Outros, Customizações de Agenda, Menus de Contexto Pro e Melhorias no Editor de Músicas
+
+- [Spec — Preparação e Lançamento da Versão 0.4.1](specs/2026-11-01-release-0-4-1.md)
+- [Plano — Preparação e Lançamento da Versão 0.4.1](plans/2026-11-01-release-0-4-1.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
