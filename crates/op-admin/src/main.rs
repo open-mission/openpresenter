@@ -1,6 +1,7 @@
 //! Binário principal do servidor OpenPresenter (Rust + Axum).
 
 mod api_docs;
+pub mod metrics;
 mod online_lyrics;
 mod routes;
 mod session;
@@ -2027,5 +2028,30 @@ mod tests {
         assert_eq!(active_roster.title, "Culto de Santa Ceia - Domingo");
         assert_eq!(active_roster.items.len(), 1);
         assert_eq!(active_roster.items[0].status, "confirmed");
+    }
+
+    #[tokio::test]
+    async fn test_system_metrics_endpoint() {
+        let (state, _dir) = mock_state_with_db();
+        let app = create_routes(state);
+
+        let resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/system/metrics")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let metrics: op_core::SystemMetrics = serde_json::from_slice(&bytes).unwrap();
+        assert!(metrics.system_memory_total_bytes > 0);
+        assert!(metrics.timestamp > 0);
     }
 }

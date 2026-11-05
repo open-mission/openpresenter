@@ -7,6 +7,19 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Telemetria de Hardware & Footer de Monitoramento do Sistema (CPU, Memória RAM e GPU):**
+  - **Coleta de Métricas em Tempo Real (`op-core`, `op-admin`):**
+    - Modelo de domínio `SystemMetrics` em `op-core::system` serializável para JSON.
+    - Módulo `metrics.rs` em `op-admin` com `MetricsCollector` integrado à biblioteca nativa `sysinfo` (features `system` e `gpu`).
+    - Coleta de memória física RSS consumida pelo processo OpenPresenter e memória RAM global do sistema operacional (MB, GB e percentual de ocupação).
+    - Carga de processamento percentual da CPU do processo da aplicação e de todos os núcleos da máquina.
+    - Detecção do modelo/fabricante da placa gráfica (GPU) e taxa de utilização percentual / VRAM dedicada.
+    - Endpoint REST `GET /api/system/metrics` com documentação na especificação OpenAPI 3.0.3 e visualização no Scalar (`/docs`) e Swagger UI (`/swagger`).
+  - **Footer de Telemetria no Painel do Operador (`SystemMetricsFooter.svelte`, `AdminView.svelte`):**
+    - Barra de status fixada no rodapé da interface principal com indicadores rápidos e discretos para CPU, RAM e GPU, com alertas cromáticos dinâmicos (verde, âmbar e vermelho).
+    - Monitoramento em tempo real do número de telas de projeção e controles remotos conectados via WebSocket.
+    - Popover interativo detalhado com diagnóstico completo do hardware, uptime contínuo do servidor e barras de progresso visual.
+    - Botão de colapso/expansão com persistência de preferência do usuário em `localStorage` (`openpresenter:system-footer-collapsed`).
 - **Funcionalidade Teams (Equipe de Mídia & Escala de Culto com Svelte Flow):**
   - **Modelagem de Domínio e Banco de Dados (`op-core`, `op-db`):**
     - Novos modelos `TeamDepartment`, `TeamMember`, `ServiceRoster`, `ServiceRosterItem` e tipos correspondentes para inserção e atualização.

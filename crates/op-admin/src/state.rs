@@ -24,6 +24,7 @@ pub struct AppState {
     pub db: Option<Arc<tokio::sync::Mutex<op_db::Database>>>,
     pub http_client: reqwest::Client,
     pub updater: crate::updater::SharedUpdater,
+    pub metrics: Arc<tokio::sync::Mutex<crate::metrics::MetricsCollector>>,
 }
 
 impl AppState {
@@ -105,6 +106,9 @@ impl AppState {
                 .build()
                 .unwrap_or_default(),
             updater,
+            metrics: Arc::new(tokio::sync::Mutex::new(
+                crate::metrics::MetricsCollector::new(),
+            )),
         };
 
         // Task de verificação automática de updates em segundo plano

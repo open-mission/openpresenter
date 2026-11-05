@@ -41,7 +41,8 @@ const wrappedToast = {
   },
 };
 
-export { wrappedToast as toast };
+const toast = wrappedToast;
+export { toast };
 
 /**
  * Notificação simples de sucesso

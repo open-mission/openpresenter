@@ -29,6 +29,7 @@ rust-embed.workspace = true
 semver.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sysinfo = "0.40.1"
 tao.workspace = true
 tar.workspace = true
 tempfile.workspace = true

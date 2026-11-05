@@ -251,6 +251,7 @@ pub fn create_routes(state: AppState) -> Router {
         // Rotas Gerais e de Mídia
         .route("/api/status", get(get_status))
         .route("/api/system/paths", get(get_system_paths))
+        .route("/api/system/metrics", get(get_system_metrics))
         .route("/api/system/pick-folder", post(pick_folder))
         .route("/api/system/open-path", post(open_system_path))
         .route("/api/system/restart", post(restart_system))
@@ -1843,6 +1844,12 @@ fn decode_base64(input: &str) -> Option<Vec<u8>> {
         }
     }
     Some(out)
+}
+
+async fn get_system_metrics(State(state): State<AppState>) -> Json<op_core::SystemMetrics> {
+    let mut collector = state.metrics.lock().await;
+    let metrics = collector.collect();
+    Json(metrics)
 }
 
 async fn get_system_paths(State(state): State<AppState>) -> Json<SystemPathsResponse> {

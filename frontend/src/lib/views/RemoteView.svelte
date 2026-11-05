@@ -23,10 +23,12 @@
     Slide,
     ServiceRoster,
     TeamDepartment,
+    TeamMember,
   } from '$lib/types';
   import {
     fetchActiveRoster,
     fetchDepartments,
+    fetchMembers,
     updateRosterItemStatus,
     getWhatsAppUrl,
   } from '$lib/teams';
@@ -51,6 +53,7 @@
     Users,
     Crown,
     Clock,
+    Calendar,
     MessageCircle,
   } from 'lucide-svelte';
 
@@ -61,6 +64,7 @@
   // Estado da Equipe / Escala
   let activeRoster = $state<ServiceRoster | null>(null);
   let teamDepartments = $state<TeamDepartment[]>([]);
+  let teamMembers = $state<TeamMember[]>([]);
   let isLoadingTeam = $state(false);
 
   // Estado da Setlist
@@ -202,12 +206,14 @@
   async function loadTeamRoster() {
     isLoadingTeam = true;
     try {
-      const [roster, depts] = await Promise.all([
+      const [roster, depts, mems] = await Promise.all([
         fetchActiveRoster(),
         fetchDepartments(),
+        fetchMembers(),
       ]);
       activeRoster = roster;
       teamDepartments = depts;
+      teamMembers = mems;
     } catch (err) {
       console.error('Erro ao carregar escala no remoto:', err);
     } finally {
@@ -1369,7 +1375,7 @@
 
           <!-- Departamentos e Voluntários -->
           <div class="space-y-3">
-            {#each teamDepartments.filter((d) => d.is_active) as dept}
+            {#each teamDepartments as dept}
               {@const deptItems = activeRoster.items.filter((it) => it.department_id === dept.id)}
               {#if deptItems.length > 0}
                 <div class="rounded-2xl bg-neutral-900/90 border border-neutral-800 overflow-hidden">
@@ -1387,12 +1393,14 @@
                   <!-- Lista de Voluntários -->
                   <div class="p-2 space-y-2">
                     {#each deptItems as item}
-                      {@const waUrl = getWhatsAppUrl(item.member_phone, `Olá ${item.member_name}, tudo bem? Sobre sua escala de ${dept.name} no culto de ${activeRoster.service_date}:`)}
+                      {@const member = teamMembers.find((m) => m.id === item.member_id)}
+                      {@const memberName = member?.name || 'Voluntário'}
+                      {@const waUrl = getWhatsAppUrl(member?.phone, `Olá ${memberName}, tudo bem? Sobre sua escala de ${dept.name} no culto de ${activeRoster.service_date}:`)}
                       <div class="p-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800/80 flex items-center justify-between gap-2">
                         <div class="min-w-0">
                           <div class="flex items-center gap-1.5">
                             <span class="text-xs font-bold text-white truncate">
-                              {item.member_name || 'Voluntário'}
+                              {memberName}
                             </span>
                             {#if item.role === 'lead'}
                               <span class="text-amber-400 shrink-0" title="Titular">

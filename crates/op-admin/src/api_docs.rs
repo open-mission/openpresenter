@@ -390,6 +390,22 @@ fn build_openapi_spec() -> Value {
             }
           }
         },
+        "/api/system/metrics": {
+          "get": {
+            "tags": ["System"],
+            "summary": "Telemetria de hardware e recursos (CPU, RAM, GPU, Uptime)",
+            "responses": {
+              "200": {
+                "description": "Métricas em tempo real do processo e da máquina anfitriã.",
+                "content": {
+                  "application/json": {
+                    "schema": { "$ref": "#/components/schemas/SystemMetrics" }
+                  }
+                }
+              }
+            }
+          }
+        },
         "/api/presentation/live": {
           "post": {
             "tags": ["Presentation"],
@@ -560,6 +576,39 @@ fn build_openapi_spec() -> Value {
               "notes": { "type": "string", "nullable": true },
               "is_active": { "type": "boolean", "example": true },
               "items": { "type": "array", "items": { "$ref": "#/components/schemas/UpsertServiceRosterItem" } }
+            }
+          },
+          "SystemMetrics": {
+            "type": "object",
+            "required": [
+              "process_memory_bytes",
+              "process_memory_mb",
+              "process_cpu_percent",
+              "system_memory_total_bytes",
+              "system_memory_used_bytes",
+              "system_memory_total_mb",
+              "system_memory_used_mb",
+              "system_memory_percent",
+              "system_cpu_percent",
+              "uptime_seconds",
+              "timestamp"
+            ],
+            "properties": {
+              "process_memory_bytes": { "type": "integer", "example": 47185920 },
+              "process_memory_mb": { "type": "number", "example": 45.0 },
+              "process_cpu_percent": { "type": "number", "example": 1.5 },
+              "system_memory_total_bytes": { "type": "integer", "example": 17179869184_i64 },
+              "system_memory_used_bytes": { "type": "integer", "example": 8589934592_i64 },
+              "system_memory_total_mb": { "type": "number", "example": 16384.0 },
+              "system_memory_used_mb": { "type": "number", "example": 8192.0 },
+              "system_memory_percent": { "type": "number", "example": 50.0 },
+              "system_cpu_percent": { "type": "number", "example": 12.4 },
+              "gpu_model": { "type": "string", "nullable": true, "example": "Apple M1" },
+              "gpu_usage_percent": { "type": "number", "nullable": true, "example": 25.0 },
+              "gpu_memory_used_mb": { "type": "number", "nullable": true, "example": 1024.0 },
+              "gpu_memory_total_mb": { "type": "number", "nullable": true, "example": 8192.0 },
+              "uptime_seconds": { "type": "integer", "example": 3600 },
+              "timestamp": { "type": "integer", "example": 1730000000000_i64 }
             }
           }
         }

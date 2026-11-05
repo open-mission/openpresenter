@@ -569,3 +569,21 @@ export interface UpsertServiceRoster {
   is_active?: boolean | null;
   items?: UpsertServiceRosterItem[];
 }
+
+export interface SystemMetrics {
+  process_memory_bytes: number;
+  process_memory_mb: number;
+  process_cpu_percent: number;
+  system_memory_total_bytes: number;
+  system_memory_used_bytes: number;
+  system_memory_total_mb: number;
+  system_memory_used_mb: number;
+  system_memory_percent: number;
+  system_cpu_percent: number;
+  gpu_model?: string | null;
+  gpu_usage_percent?: number | null;
+  gpu_memory_used_mb?: number | null;
+  gpu_memory_total_mb?: number | null;
+  uptime_seconds: number;
+  timestamp: number;
+}

@@ -44,6 +44,7 @@
   import SongEditorModal from '$lib/components/SongEditorModal.svelte';
   import SettingsModal, { type SettingsTab } from '$lib/components/SettingsModal.svelte';
   import TeamsModal from '$lib/components/TeamsModal.svelte';
+  import SystemMetricsFooter from '$lib/components/SystemMetricsFooter.svelte';
   import SetlistModal from '$lib/components/SetlistModal.svelte';
   import QuickItemModal from '$lib/components/QuickItemModal.svelte';
   import ScheduleEditorModal from '$lib/components/ScheduleEditorModal.svelte';
@@ -135,6 +136,7 @@
     Copy,
     Type,
     X,
+    Users,
   } from 'lucide-svelte';
   import { castStore } from '$lib/cast';
 
@@ -3321,6 +3323,14 @@
       quickItemMode = mode;
       editingQuickItem = null;
       isQuickItemModalOpen = true;
+    }}
+  />
+
+  <!-- Footer de Telemetria de Hardware & Recursos do Sistema (CPU, RAM, GPU, Telas) -->
+  <SystemMetricsFooter
+    onOpenSettingsAbout={() => {
+      settingsInitialTab = 'about';
+      isSettingsOpen = true;
     }}
   />
 

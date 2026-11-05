@@ -5,6 +5,8 @@ pub mod bible;
 pub use bible::*;
 pub mod teams;
 pub use teams::*;
+pub mod system;
+pub use system::*;
 
 /// Nome público do aplicativo.
 pub const APP_NAME: &str = "OpenPresenter";
