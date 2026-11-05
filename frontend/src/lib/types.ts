@@ -492,6 +492,8 @@ export interface UpsertTeamDepartment {
   display_order?: number | null;
 }
 
+export type TeamMemberRole = 'leader' | 'vice_leader' | 'member';
+
 export interface TeamMember {
   id: string;
   name: string;
@@ -499,9 +501,11 @@ export interface TeamMember {
   email?: string | null;
   avatar_url?: string | null;
   color: string;
+  role: TeamMemberRole;
   notes?: string | null;
   is_active: boolean;
   department_ids: string[];
+  departments?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -512,9 +516,11 @@ export interface UpsertTeamMember {
   email?: string | null;
   avatar_url?: string | null;
   color?: string | null;
+  role?: TeamMemberRole | null;
   notes?: string | null;
   is_active?: boolean | null;
   department_ids: string[];
+  departments?: string[];
 }
 
 export type RosterRole = 'lead' | 'assistant' | 'backup';

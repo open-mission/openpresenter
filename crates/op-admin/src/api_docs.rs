@@ -484,7 +484,7 @@ fn build_openapi_spec() -> Value {
           },
           "TeamMember": {
             "type": "object",
-            "required": ["id", "name", "color", "is_active", "department_ids", "created_at", "updated_at"],
+            "required": ["id", "name", "color", "role", "is_active", "department_ids", "created_at", "updated_at"],
             "properties": {
               "id": { "type": "string", "example": "member-1730810000" },
               "name": { "type": "string", "example": "João Silva" },
@@ -492,6 +492,7 @@ fn build_openapi_spec() -> Value {
               "email": { "type": "string", "nullable": true, "example": "joao@example.com" },
               "avatar_url": { "type": "string", "nullable": true },
               "color": { "type": "string", "example": "#10b981" },
+              "role": { "type": "string", "enum": ["leader", "vice_leader", "member"], "example": "leader", "description": "Cargo do membro na equipe (ex: leader, vice_leader, member)" },
               "notes": { "type": "string", "nullable": true },
               "is_active": { "type": "boolean", "example": true },
               "department_ids": { "type": "array", "items": { "type": "string" }, "example": ["projecao", "stories"] },
@@ -508,6 +509,7 @@ fn build_openapi_spec() -> Value {
               "email": { "type": "string", "nullable": true },
               "avatar_url": { "type": "string", "nullable": true },
               "color": { "type": "string", "example": "#ec4899" },
+              "role": { "type": "string", "enum": ["leader", "vice_leader", "member"], "example": "member", "description": "Cargo do membro na equipe" },
               "notes": { "type": "string", "nullable": true },
               "is_active": { "type": "boolean", "example": true },
               "department_ids": { "type": "array", "items": { "type": "string" }, "example": ["fotografia"] }

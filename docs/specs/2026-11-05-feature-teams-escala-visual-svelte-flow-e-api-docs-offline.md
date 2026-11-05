@@ -19,7 +19,7 @@ Introduzir no OpenPresenter o gerenciamento completo da equipe de mídia da igre
 ### 3.1 Camada de Domínio (`crates/op-core`)
 - Módulo `teams.rs` com structs serializáveis:
   - `TeamDepartment` e `UpsertTeamDepartment`: identificador, nome, descrição, cor, ícone, ordem de exibição e timestamps.
-  - `TeamMember` e `UpsertTeamMember`: identificador UUID, nome, telefone opcional, e-mail, cor de identificação, observações, status ativo e lista de `department_ids`.
+  - `TeamMember` e `UpsertTeamMember`: identificador UUID, nome, cargo na equipe (`role`: `leader`, `vice_leader`, `member`), telefone opcional, e-mail, cor de identificação, observações, status ativo e lista de `department_ids`.
   - `ServiceRosterItem` e `UpsertServiceRosterItem`: vínculo do voluntário a um departamento no culto, papel (`lead` / Titular, `assistant` / Auxiliar, `backup` / Apoio), status de confirmação (`confirmed`, `pending`, `declined`) e observações.
   - `ServiceRoster`, `ServiceRosterSummary` e `UpsertServiceRoster`: título do culto, data, horário, escala ativa (`is_active`) e lista de itens escalados.
 - Mensagem de evento WebSocket `WsMessage::TeamUpdated { entity: String, action: String }`.
@@ -31,6 +31,8 @@ Introduzir no OpenPresenter o gerenciamento completo da equipe de mídia da igre
   - `team_member_departments`: tabela associativa N:N (um membro pode atuar em múltiplos departamentos).
   - `service_rosters`: escalas de culto/eventos.
   - `service_roster_items`: membros escalados por departamento com papel e status de confirmação.
+- Nova migração aditiva numerada `0011_team_member_role.sql`:
+  - Adição da coluna `role TEXT NOT NULL DEFAULT 'member'` na tabela `team_members`.
 - Métodos CRUD completos no `Database` em `crates/op-db/src/lib.rs`.
 
 ### 3.3 API REST e Documentação Offline (`crates/op-admin`)

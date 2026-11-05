@@ -24,9 +24,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - **Modelagem de Domínio e Banco de Dados (`op-core`, `op-db`):**
     - Novos modelos `TeamDepartment`, `TeamMember`, `ServiceRoster`, `ServiceRosterItem` e tipos correspondentes para inserção e atualização.
     - Nova migração SQLite `0010_teams.sql` criando tabelas `team_departments`, `team_members`, `team_member_departments`, `service_rosters`, `service_roster_items` e índices associados, além do seed com 5 departamentos padrão (Projeção, Fotografia, Stories & Redes, Transmissão e Áudio & Som).
+    - Nova migração SQLite `0011_team_member_role.sql` adicionando a coluna `role` na tabela `team_members` para suporte a cargos na equipe (Líder, Vice-Líder, Membro).
     - Métodos CRUD completos no `Database` com suporte a ativação atômica de escala ativa para o culto e atualização rápida de status de confirmação.
   - **Rotas REST e WebSockets em tempo real (`op-admin`):**
     - Endpoints `/api/teams/departments`, `/api/teams/members`, `/api/teams/rosters`, `/api/teams/rosters/active`, `/api/teams/rosters/{id}/active` e `/api/teams/rosters/{id}/items`.
+    - Suporte a cargo (`role`) nos schemas OpenAPI de `TeamMember` e `UpsertTeamMember`.
     - Mensagens WebSocket `WsMessage::TeamUpdated` notificando clientes conectados para atualização instantânea da interface.
   - **Documentação OpenAPI 3.0 Interativa e 100% Offline (`api_docs.rs`):**
     - Endpoint `/api/openapi.json` servindo a especificação OpenAPI 3.0.3 completa de todas as rotas da aplicação.
@@ -34,6 +36,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
     - Card de acesso rápido nas configurações (`SettingsModal.svelte`) facilitando futuras integrações com plataformas externas de gestão de igrejas e escalas (estilo Voluts e Planning Center).
   - **Interface Visual de Escala com Svelte Flow (`@xyflow/svelte`, `TeamsModal.svelte`):**
     - Modal completo `TeamsModal.svelte` com 3 abas principais: *Escala do Culto*, *Membros* e *Departamentos*.
+    - Seleção de Cargo (Líder, Vice-Líder, Membro) no cadastro e edição de voluntários, com badges cromáticos destacados nos cards da equipe.
+    - Correção do erro de renderização reativa `TypeError: undefined is not an object` com mapeamento seguro de `department_ids` e atualização automática da listagem de voluntários após o cadastro.
     - Canvas interativo `RosterFlowCanvas.svelte` com nós customizados de Culto (`ServiceNode`), Departamentos (`DepartmentNode`) e Voluntários (`MemberNode`) conectados por arestas bezier informativas.
     - Modo alternativo em grade clássica responsiva (*Grade / Cards*) por departamento.
     - Suporte a múltiplos membros por departamento, distinção visual entre Titular e Auxiliar/Apoio, alternância de status de confirmação (Confirmado, Pendente, Não Comparece) com um clique e botão direto para WhatsApp com mensagem pré-formatada.

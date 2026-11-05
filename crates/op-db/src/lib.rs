@@ -71,6 +71,7 @@ impl Database {
             M::up(include_str!("../migrations/0008_action_logs.sql")),
             M::up(include_str!("../migrations/0009_song_tags.sql")),
             M::up(include_str!("../migrations/0010_teams.sql")),
+            M::up(include_str!("../migrations/0011_team_member_role.sql")),
         ]);
         migrations
             .to_latest(&mut conn)
@@ -1419,10 +1420,10 @@ impl Database {
     /// Lista os membros cadastrados na equipe de mídia.
     pub fn list_team_members(&self, include_inactive: bool) -> Result<Vec<TeamMember>, DbError> {
         let sql = if include_inactive {
-            "SELECT id, name, phone, email, avatar_url, color, notes, is_active, created_at, updated_at
+            "SELECT id, name, phone, email, avatar_url, color, role, notes, is_active, created_at, updated_at
              FROM team_members ORDER BY name ASC"
         } else {
-            "SELECT id, name, phone, email, avatar_url, color, notes, is_active, created_at, updated_at
+            "SELECT id, name, phone, email, avatar_url, color, role, notes, is_active, created_at, updated_at
              FROM team_members WHERE is_active = 1 ORDER BY name ASC"
         };
 
@@ -1436,10 +1437,11 @@ impl Database {
                     row.get::<_, Option<String>>(3)?,
                     row.get::<_, Option<String>>(4)?,
                     row.get::<_, String>(5)?,
-                    row.get::<_, Option<String>>(6)?,
-                    row.get::<_, i64>(7)? == 1,
-                    row.get::<_, String>(8)?,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                    row.get::<_, i64>(8)? == 1,
                     row.get::<_, String>(9)?,
+                    row.get::<_, String>(10)?,
                 ))
             })
             .map_err(DbError::Read)?;
@@ -1453,6 +1455,7 @@ impl Database {
                 email,
                 avatar_url,
                 color,
+                role,
                 notes,
                 is_active,
                 created_at,
@@ -1479,6 +1482,7 @@ impl Database {
                 email,
                 avatar_url,
                 color,
+                role,
                 notes,
                 is_active,
                 department_ids,
@@ -1495,7 +1499,7 @@ impl Database {
         let mut stmt = self
             .conn
             .prepare(
-                "SELECT id, name, phone, email, avatar_url, color, notes, is_active, created_at, updated_at
+                "SELECT id, name, phone, email, avatar_url, color, role, notes, is_active, created_at, updated_at
                  FROM team_members WHERE id = ?1",
             )
             .map_err(DbError::Read)?;
@@ -1509,10 +1513,11 @@ impl Database {
                     row.get::<_, Option<String>>(3)?,
                     row.get::<_, Option<String>>(4)?,
                     row.get::<_, String>(5)?,
-                    row.get::<_, Option<String>>(6)?,
-                    row.get::<_, i64>(7)? == 1,
-                    row.get::<_, String>(8)?,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                    row.get::<_, i64>(8)? == 1,
                     row.get::<_, String>(9)?,
+                    row.get::<_, String>(10)?,
                 ))
             })
             .map_err(DbError::Read)?;
@@ -1525,6 +1530,7 @@ impl Database {
                 email,
                 avatar_url,
                 color,
+                role,
                 notes,
                 is_active,
                 created_at,
@@ -1551,6 +1557,7 @@ impl Database {
                 email,
                 avatar_url,
                 color,
+                role,
                 notes,
                 is_active,
                 department_ids,
@@ -1574,23 +1581,25 @@ impl Database {
             .map(|s| s.to_string())
             .unwrap_or_else(|| format!("member-{}", Utc::now().timestamp_nanos_opt().unwrap_or(0)));
         let color = data.color.clone().unwrap_or_else(|| "#10b981".into());
+        let role = data.role.clone().unwrap_or_else(|| "member".into());
         let is_active = data.is_active.unwrap_or(true) as i64;
 
         tx.execute(
             r#"
-            INSERT INTO team_members (id, name, phone, email, avatar_url, color, notes, is_active, created_at, updated_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+            INSERT INTO team_members (id, name, phone, email, avatar_url, color, role, notes, is_active, created_at, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name,
                 phone = excluded.phone,
                 email = excluded.email,
                 avatar_url = excluded.avatar_url,
                 color = excluded.color,
+                role = excluded.role,
                 notes = excluded.notes,
                 is_active = excluded.is_active,
                 updated_at = excluded.updated_at
             "#,
-            rusqlite::params![member_id, data.name, data.phone, data.email, data.avatar_url, color, data.notes, is_active, now_str],
+            rusqlite::params![member_id, data.name, data.phone, data.email, data.avatar_url, color, role, data.notes, is_active, now_str],
         )
         .map_err(DbError::Write)?;
 
@@ -2283,7 +2292,7 @@ mod tests {
         let path = dir.path().join("open-presenter.db");
         let db = Database::open(&path).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 10);
+        assert_eq!(db.schema_version().unwrap(), 11);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -2316,11 +2325,11 @@ mod tests {
     }
 
     #[test]
-    fn open_creates_schema_v10_with_teams() {
+    fn open_creates_schema_v11_with_teams() {
         let dir = tempfile::tempdir().unwrap();
         let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 10);
+        assert_eq!(db.schema_version().unwrap(), 11);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -2551,7 +2560,7 @@ mod tests {
     }
 
     #[test]
-    fn migrates_v1_database_to_v10_preserving_app_meta() {
+    fn migrates_v1_database_to_v11_preserving_app_meta() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("open-presenter.db");
         {
@@ -2568,7 +2577,7 @@ mod tests {
         }
 
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.schema_version().unwrap(), 10);
+        assert_eq!(db.schema_version().unwrap(), 11);
         let meta = db.load_meta().unwrap().unwrap();
         assert_eq!(meta.first_run_at, ts(2026, 10, 28, 10, 0));
         let count: i64 = db
@@ -2986,16 +2995,19 @@ mod tests {
             email: Some("claudio@example.com".into()),
             avatar_url: None,
             color: Some("#3b82f6".into()),
+            role: Some("leader".into()),
             notes: Some("Disponível aos domingos".into()),
             is_active: Some(true),
             department_ids: vec!["projecao".into(), "stories".into()],
         };
         let member = db.save_team_member(None, &member_data).unwrap();
         assert_eq!(member.name, "Claudio Silva");
+        assert_eq!(member.role, "leader");
         assert_eq!(member.department_ids.len(), 2);
 
         let members = db.list_team_members(false).unwrap();
         assert_eq!(members.len(), 1);
+        assert_eq!(members[0].role, "leader");
 
         // 3. Testa Escala de Culto (Service Roster)
         let roster_data = UpsertServiceRoster {

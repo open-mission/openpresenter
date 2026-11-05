@@ -28,6 +28,10 @@ pub struct UpsertTeamDepartment {
     pub display_order: Option<i32>,
 }
 
+fn default_member_role() -> String {
+    "member".into()
+}
+
 /// Membro / voluntário da equipe de mídia.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TeamMember {
@@ -40,10 +44,13 @@ pub struct TeamMember {
     #[serde(default)]
     pub avatar_url: Option<String>,
     pub color: String,
+    /// Cargo do membro na equipe (ex.: "leader", "vice_leader", "member").
+    #[serde(default = "default_member_role")]
+    pub role: String,
     #[serde(default)]
     pub notes: Option<String>,
     pub is_active: bool,
-    #[serde(default)]
+    #[serde(default, alias = "departments")]
     pub department_ids: Vec<String>,
     pub created_at: String,
     pub updated_at: String,
@@ -61,11 +68,14 @@ pub struct UpsertTeamMember {
     pub avatar_url: Option<String>,
     #[serde(default)]
     pub color: Option<String>,
+    /// Cargo do membro na equipe (ex.: "leader", "vice_leader", "member").
+    #[serde(default)]
+    pub role: Option<String>,
     #[serde(default)]
     pub notes: Option<String>,
     #[serde(default)]
     pub is_active: Option<bool>,
-    #[serde(default)]
+    #[serde(default, alias = "departments")]
     pub department_ids: Vec<String>,
 }
 
@@ -182,6 +192,7 @@ mod tests {
             email: None,
             avatar_url: None,
             color: "#10b981".into(),
+            role: "leader".into(),
             notes: Some("Disponível aos domingos".into()),
             is_active: true,
             department_ids: vec!["projecao".into(), "stories".into()],
@@ -192,6 +203,20 @@ mod tests {
         let json = serde_json::to_string(&member).unwrap();
         let deserialized: TeamMember = serde_json::from_str(&json).unwrap();
         assert_eq!(member, deserialized);
+
+        // Testa deserialização com alias "departments" e role default
+        let json_legacy = r##"{
+            "id": "mem-2",
+            "name": "Maria Santos",
+            "color": "#ec4899",
+            "is_active": true,
+            "departments": ["fotografia"],
+            "created_at": "2026-11-05T12:00:00Z",
+            "updated_at": "2026-11-05T12:00:00Z"
+        }"##;
+        let legacy_member: TeamMember = serde_json::from_str(json_legacy).unwrap();
+        assert_eq!(legacy_member.role, "member");
+        assert_eq!(legacy_member.department_ids, vec!["fotografia"]);
 
         let roster_item = ServiceRosterItem {
             id: "item-1".into(),

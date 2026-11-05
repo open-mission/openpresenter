@@ -64,3 +64,11 @@
 - [x] Executar `cargo test --workspace`.
 - [x] Executar `cd frontend && npm run build`.
 - [x] Atualizar `docs/README.md`, `CHANGELOG.md` e `TODO.md`.
+
+### Etapa 6: Campo de Cargo (Líder, Vice-Líder, Membro) e Correção de Reatividade
+- [x] Migração SQLite `0011_team_member_role.sql` adicionando coluna `role` em `team_members`.
+- [x] Atualizar modelo de domínio `TeamMember` e `UpsertTeamMember` com `role` e alias defensivo `departments`.
+- [x] Atualizar consultas e métodos em `crates/op-db/src/lib.rs` (`list_team_members`, `get_team_member`, `save_team_member`).
+- [x] Atualizar schemas OpenAPI em `crates/op-admin/src/api_docs.rs`.
+- [x] Frontend `TeamsModal.svelte`: seletor de cargo no formulário de membros, badges visuais com ícones nos cards, correção do erro de runtime `departments.length` com fallback defensivo e recarregamento reativo automático após cadastro.
+- [x] Testes unitários atualizados e validados.

@@ -14,6 +14,8 @@
     MessageCircle,
     ExternalLink,
     Crown,
+    Shield,
+    User,
     Copy,
     Workflow,
     LayoutGrid,
@@ -33,6 +35,7 @@
     ServiceRosterSummary,
     TeamDepartment,
     TeamMember,
+    TeamMemberRole,
     UpsertServiceRoster,
     UpsertServiceRosterItem,
     UpsertTeamDepartment,
@@ -106,6 +109,7 @@
   let editingMemberId = $state<string | null>(null);
   let memberFormName = $state('');
   let memberFormPhone = $state('');
+  let memberFormRole = $state<TeamMemberRole>('member');
   let memberFormNotes = $state('');
   let memberFormDepts = $state<string[]>([]);
   let memberFormIsActive = $state(true);
@@ -314,6 +318,7 @@
     editingMemberId = null;
     memberFormName = '';
     memberFormPhone = '';
+    memberFormRole = 'member';
     memberFormNotes = '';
     memberFormDepts = [];
     memberFormIsActive = true;
@@ -324,8 +329,9 @@
     editingMemberId = m.id;
     memberFormName = m.name;
     memberFormPhone = m.phone || '';
+    memberFormRole = m.role || 'member';
     memberFormNotes = m.notes || '';
-    memberFormDepts = [...m.departments];
+    memberFormDepts = [...(m.department_ids || m.departments || [])];
     memberFormIsActive = m.is_active;
     isMemberModalOpen = true;
   }
@@ -336,7 +342,9 @@
       const payload: UpsertTeamMember = {
         name: memberFormName.trim(),
         phone: memberFormPhone.trim() || null,
+        role: memberFormRole,
         notes: memberFormNotes.trim() || null,
+        department_ids: memberFormDepts,
         departments: memberFormDepts,
         is_active: memberFormIsActive,
       };
@@ -428,7 +436,9 @@
       );
     }
     if (memberDeptFilter !== 'all') {
-      result = result.filter((m) => m.departments.includes(memberDeptFilter));
+      result = result.filter((m) =>
+        (m.department_ids || m.departments || []).includes(memberDeptFilter)
+      );
     }
     return result;
   });
@@ -918,7 +928,30 @@
                             {getInitials(member.name)}
                           </div>
                           <div>
-                            <h4 class="text-sm font-bold text-white">{member.name}</h4>
+                            <div class="flex items-center gap-2">
+                              <h4 class="text-sm font-bold text-white">{member.name}</h4>
+                              {#if member.role === 'leader'}
+                                <span
+                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                                >
+                                  <Crown size={10} />
+                                  Líder
+                                </span>
+                              {:else if member.role === 'vice_leader'}
+                                <span
+                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
+                                >
+                                  <Shield size={10} />
+                                  Vice-Líder
+                                </span>
+                              {:else}
+                                <span
+                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-800 text-neutral-400 border border-neutral-700/60"
+                                >
+                                  Membro
+                                </span>
+                              {/if}
+                            </div>
                             {#if member.phone}
                               <div class="flex items-center gap-1 text-xs text-neutral-400 mt-0.5">
                                 <span>{member.phone}</span>
@@ -965,10 +998,10 @@
 
                       <!-- Departamentos Vinculados -->
                       <div class="flex flex-wrap items-center gap-1.5 mt-3">
-                        {#if member.departments.length === 0}
+                        {#if (member.department_ids || member.departments || []).length === 0}
                           <span class="text-[10px] text-neutral-500">Sem departamentos</span>
                         {:else}
-                          {#each member.departments as dId}
+                          {#each (member.department_ids || member.departments || []) as dId}
                             {@const dept = departments.find((d) => d.id === dId)}
                             {#if dept}
                               <span
@@ -1023,7 +1056,9 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {#each departments as dept}
                 {@const DeptIcon = getDeptIconComponent(dept.icon)}
-                {@const deptMembers = members.filter((m) => m.departments.includes(dept.id))}
+                {@const deptMembers = members.filter((m) =>
+                  (m.department_ids || m.departments || []).includes(dept.id)
+                )}
                 <div
                   class="p-4 rounded-2xl bg-neutral-950/60 border-2 transition-all flex flex-col justify-between gap-4"
                   style="border-color: {dept.color}66;"
@@ -1241,7 +1276,9 @@
             >
               <option value="">Selecione um voluntário...</option>
               {#each members as m}
-                {@const isDeptMember = m.departments.includes(assignDeptId)}
+                {@const isDeptMember = (m.department_ids || m.departments || []).includes(
+                  assignDeptId
+                )}
                 <option value={m.id}>
                   {m.name} {isDeptMember ? '✓ (do departamento)' : ''}
                 </option>
@@ -1367,6 +1404,47 @@
               placeholder="Ex.: (11) 98765-4321"
               class="w-full h-9 px-3 bg-neutral-950 border border-neutral-800 rounded-lg text-white focus:outline-none focus:border-purple-500"
             />
+          </div>
+
+          <div>
+            <span class="block font-semibold text-neutral-300 mb-1.5">Cargo na Equipe</span>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onclick={() => (memberFormRole = 'leader')}
+                class="py-2 px-2.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer {memberFormRole ===
+                'leader'
+                  ? 'border-amber-500 bg-amber-500/20 text-amber-300 shadow-sm'
+                  : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}"
+              >
+                <Crown size={13} />
+                <span>Líder</span>
+              </button>
+
+              <button
+                type="button"
+                onclick={() => (memberFormRole = 'vice_leader')}
+                class="py-2 px-2.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer {memberFormRole ===
+                'vice_leader'
+                  ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 shadow-sm'
+                  : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}"
+              >
+                <Shield size={13} />
+                <span>Vice-Líder</span>
+              </button>
+
+              <button
+                type="button"
+                onclick={() => (memberFormRole = 'member')}
+                class="py-2 px-2.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer {memberFormRole ===
+                'member'
+                  ? 'border-purple-500 bg-purple-500/20 text-purple-300 shadow-sm'
+                  : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}"
+              >
+                <User size={13} />
+                <span>Membro</span>
+              </button>
+            </div>
           </div>
 
           <div>
