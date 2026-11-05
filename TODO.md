@@ -16,7 +16,7 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
-- [x] UI/UX: Permitir colapsar individualmente os monitores e previews de saída Public (Projetor) e Stage (Retorno Palco) com persistência em localStorage na barra lateral direita do operador (AdminView). (2026-11-04 23:51:00 -03:00)
+- [x] UI/UX: Permitir colapsar individualmente os monitores e previews de saída Public (Projetor) e Stage (Retorno Palco) com persistência em localStorage na barra lateral direita do operador (AdminView). (commit af665d5 - 2026-11-04 23:51:00 -03:00)
 
 - [x] UI/UX: Colapso da seção Controle de Saídas na barra lateral de previews (AdminView), agrupamento dos botões de criação da aba Outros em dropdown único "+ Adicionar ▾" (BottomPanel), abreviação da versão bíblica e prevenção de quebra de linha na aba de Bíblia do Command Palette. (commit 1b1fe88 - 2026-11-04 23:37:00 -03:00)
 
