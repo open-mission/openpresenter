@@ -26,6 +26,8 @@
     Trash2,
     Tag,
     Plus,
+    Maximize2,
+    Minimize2,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
@@ -56,6 +58,7 @@
   }: Props = $props();
 
   let id = $state('');
+  let isMaximized = $state(false);
   let title = $state('');
   let artist = $state('');
   let composer = $state('');
@@ -681,17 +684,19 @@ Traga sua família e convidados!`;
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
-    class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+    class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200 {isMaximized ? 'p-0' : 'p-3 sm:p-6'}"
     role="dialog"
     aria-modal="true"
     aria-label={mode === 'song' ? 'Editor de Música' : 'Editor de Apresentação e Texto'}
     tabindex="-1"
   >
-    <!-- Modal Container (95% da tela) -->
+    <!-- Modal Container -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="w-[95vw] h-[95vh] max-w-7xl bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl flex flex-col overflow-hidden text-neutral-100"
+      class="{isMaximized
+        ? 'w-full h-full max-w-none max-h-none rounded-none border-0'
+        : 'w-[95vw] h-[95vh] max-w-7xl rounded-xl border border-neutral-800'} bg-neutral-950 shadow-2xl flex flex-col overflow-hidden text-neutral-100 transition-all duration-150"
       onclick={(e) => e.stopPropagation()}
     >
       <!-- Cabeçalho do Modal -->
@@ -727,11 +732,27 @@ Traga sua família e convidados!`;
           <span class="text-[11px] text-neutral-500 hidden md:inline">
             Salvar: <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 font-mono text-[10px]">⌘S</kbd> / <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 font-mono text-[10px]">Ctrl+S</kbd>
           </span>
+
+          <button
+            type="button"
+            onclick={() => (isMaximized = !isMaximized)}
+            class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800/80 flex items-center justify-center transition-colors cursor-pointer"
+            title={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+            aria-label={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+          >
+            {#if isMaximized}
+              <Minimize2 size={16} />
+            {:else}
+              <Maximize2 size={16} />
+            {/if}
+          </button>
+
           <button
             type="button"
             onclick={requestClose}
             class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800/80 flex items-center justify-center transition-colors cursor-pointer"
             aria-label="Fechar"
+            title="Fechar (Esc)"
           >
             <X size={18} />
           </button>

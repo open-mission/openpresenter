@@ -11,6 +11,8 @@
     Sparkles,
     Check,
     Eye,
+    Maximize2,
+    Minimize2,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
@@ -26,6 +28,7 @@
   let { open = false, initialItem = null, onclose, onsave }: Props = $props();
 
   let title = $state('Programação Semanal');
+  let isMaximized = $state(false);
   let artistOrRef = $state('Agenda');
   let events = $state<ScheduleEvent[]>([]);
   let selectedEventIndex = $state(0);
@@ -245,12 +248,14 @@
 {#if open}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 animate-in fade-in duration-150"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-150 {isMaximized ? 'p-0' : 'p-3 sm:p-5'}"
     role="presentation"
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
-      class="w-full max-w-4xl max-h-[92vh] rounded-2xl border border-neutral-800 bg-neutral-900 shadow-2xl flex flex-col overflow-hidden text-neutral-100"
+      class="{isMaximized
+        ? 'w-full h-full max-w-none max-h-none rounded-none border-0'
+        : 'w-full max-w-4xl max-h-[92vh] rounded-2xl border border-neutral-800'} bg-neutral-900 shadow-2xl flex flex-col overflow-hidden text-neutral-100 transition-all duration-150"
       onclick={(e) => e.stopPropagation()}
       role="dialog"
       aria-modal="true"
@@ -275,14 +280,30 @@
           </div>
         </div>
 
-        <button
-          type="button"
-          onclick={requestClose}
-          class="w-9 h-9 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
-          title="Fechar (Esc)"
-        >
-          <X size={18} />
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            onclick={() => (isMaximized = !isMaximized)}
+            class="w-9 h-9 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+            title={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+            aria-label={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+          >
+            {#if isMaximized}
+              <Minimize2 size={16} />
+            {:else}
+              <Maximize2 size={16} />
+            {/if}
+          </button>
+
+          <button
+            type="button"
+            onclick={requestClose}
+            class="w-9 h-9 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+            title="Fechar (Esc)"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       <!-- Mensagem de erro caso exista -->

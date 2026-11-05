@@ -7,6 +7,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Modais Maximizáveis & Otimização de Espaço nas Configurações:**
+  - **Suporte a Maximizar e Restaurar em Todos os Modais Principais:**
+    - Botão de maximizar/restaurar (`Maximize2` / `Minimize2` da biblioteca `lucide-svelte`) incorporado no cabeçalho dos modais: `SettingsModal` (Configurações), `SongEditorModal` (Música e Texto), `ScheduleEditorModal` (Culto e Agenda), `QuickItemModal` (Texto Rápido e Avisos), `TeamsModal` (Equipes e Escala), `SetlistModal` (Edição de Setlists), `BackgroundSelectorModal` (Biblioteca de Fundos e Gradientes) e `ImageSelectorModal` (Biblioteca de Imagens).
+    - Quando maximizado, o modal preenche 100% da janela (`w-full h-full`, `rounded-none`, `border-0`) e elimina o espaçamento do backdrop (`p-0`), proporcionando ampla área de trabalho especialmente útil para edição de letras de músicas, visualização do Svelte Flow de escalas e leitura de logs e configurações.
+  - **Aproveitamento de Espaço no `SettingsModal.svelte`:**
+    - Reformulação da aba *Sobre & Updates* para grid responsivo de 2 colunas (`grid-cols-1 lg:grid-cols-2`), aproveitando toda a largura da tela para o Auto-Updater e a Documentação OpenAPI/Scalar Offline.
+    - Distribuição dos atalhos de teclado da aba *Atalhos* em 2 colunas simétricas (`grid-cols-1 md:grid-cols-2`).
+    - Remoção de limitadores estreitos (`max-w-xl`, `max-w-2xl`) nas abas de Aparência, Igreja, Bíblias, Notificações DND, Pastas e Rede, permitindo uso fluido da largura total disponível.
 - **Telemetria de Hardware & Footer de Monitoramento do Sistema (CPU, Memória RAM e GPU):**
   - **Coleta de Métricas em Tempo Real (`op-core`, `op-admin`):**
     - Modelo de domínio `SystemMetrics` em `op-core::system` serializável para JSON.

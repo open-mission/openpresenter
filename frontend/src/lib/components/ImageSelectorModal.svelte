@@ -10,6 +10,8 @@
     Layers,
     FolderPlus,
     RefreshCw,
+    Maximize2,
+    Minimize2,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
@@ -45,6 +47,7 @@
   let selectedImageIds = $state<Set<string>>(new Set());
   let selectedFolderId = $state<string>('');
   let isLoading = $state(false);
+  let isMaximized = $state(false);
 
   $effect(() => {
     if (open) {
@@ -182,13 +185,13 @@
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-100"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm {isMaximized ? 'p-0' : 'p-4'} animate-in fade-in duration-100"
     onclick={onclose}
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="w-full max-w-3xl h-[80vh] max-h-[640px] rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden text-foreground select-none"
+      class="border-border bg-card shadow-2xl flex flex-col overflow-hidden text-foreground select-none {isMaximized ? 'w-full h-full max-w-none max-h-none rounded-none border-0' : 'w-full max-w-3xl h-[80vh] max-h-[640px] rounded-2xl border'}"
       onclick={(e) => e.stopPropagation()}
     >
       <!-- Cabeçalho do Modal -->
@@ -207,14 +210,28 @@
           </div>
         </div>
 
-        <button
-          type="button"
-          onclick={onclose}
-          class="w-8 h-8 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
-          title="Fechar"
-        >
-          <X size={16} />
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            onclick={() => (isMaximized = !isMaximized)}
+            class="w-8 h-8 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+            title={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+          >
+            {#if isMaximized}
+              <Minimize2 size={16} />
+            {:else}
+              <Maximize2 size={16} />
+            {/if}
+          </button>
+          <button
+            type="button"
+            onclick={onclose}
+            class="w-8 h-8 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+            title="Fechar"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       <!-- Abas de Modo: Imagens Avulsas vs Pasta Completa -->

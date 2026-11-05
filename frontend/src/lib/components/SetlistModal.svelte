@@ -4,7 +4,7 @@
   import type { Setlist, WallpaperItem } from '$lib/types';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
-  import { X, Image, Upload, Check, Sparkles, Folder, Palette } from 'lucide-svelte';
+  import { X, Image, Upload, Check, Sparkles, Folder, Palette, Maximize2, Minimize2 } from 'lucide-svelte';
   import BackgroundSelectorModal from './BackgroundSelectorModal.svelte';
   import { resolveBackground } from '../backgrounds';
 
@@ -17,6 +17,7 @@
 
   let { open = false, initialSetlist = null, onclose, onsave }: Props = $props();
 
+  let isMaximized = $state(false);
   let title = $state('');
   let description = $state('');
   let selectedWallpaper = $state<string>('');
@@ -182,12 +183,14 @@
 {#if open}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150 {isMaximized ? 'p-0' : 'p-4'}"
     role="presentation"
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
-      class="w-full max-w-2xl rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl flex flex-col overflow-hidden text-neutral-100"
+      class="{isMaximized
+        ? 'w-full h-full max-w-none max-h-none rounded-none border-0'
+        : 'w-full max-w-2xl rounded-xl border border-neutral-800'} bg-neutral-900 shadow-2xl flex flex-col overflow-hidden text-neutral-100 transition-all duration-150"
       onclick={(e) => e.stopPropagation()}
       role="dialog"
       tabindex="-1"
@@ -208,17 +211,34 @@
           </div>
         </div>
 
-        <button
-          type="button"
-          onclick={requestClose}
-          class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
-        >
-          <X size={16} />
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            onclick={() => (isMaximized = !isMaximized)}
+            class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+            title={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+            aria-label={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+          >
+            {#if isMaximized}
+              <Minimize2 size={15} />
+            {:else}
+              <Maximize2 size={15} />
+            {/if}
+          </button>
+
+          <button
+            type="button"
+            onclick={requestClose}
+            class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+            title="Fechar (Esc)"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       <!-- Formulário -->
-      <div class="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+      <div class="p-6 space-y-5 overflow-y-auto flex-1 min-h-0 {isMaximized ? '' : 'max-h-[75vh]'}">
         {#if errorMessage}
           <div class="p-3 rounded-lg bg-red-950/40 border border-red-500/40 text-xs text-red-200">
             {errorMessage}

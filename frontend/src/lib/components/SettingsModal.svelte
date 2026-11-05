@@ -32,6 +32,7 @@
     Upload,
     Church,
     Maximize2,
+    Minimize2,
     Save,
     Image as ImageIcon,
     BookOpen,
@@ -159,6 +160,7 @@
   let { open = false, initialTab = 'appearance', onclose, onbibleschanged }: Props = $props();
 
   let activeTab = $state<SettingsTab>('appearance');
+  let isMaximized = $state(false);
   let editableSections = $state<CustomSectionConfig[]>([]);
 
   // Configurações de Telas e Marca da Igreja
@@ -1289,7 +1291,7 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
-    class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150"
+    class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-150 {isMaximized ? 'p-0' : 'p-3 sm:p-6'}"
     role="dialog"
     aria-modal="true"
     aria-label="Configurações do OpenPresenter"
@@ -1300,7 +1302,9 @@
   >
     <!-- Modal Container -->
     <div
-      class="w-[95vw] max-w-6xl 2xl:max-w-7xl h-[90vh] max-h-[860px] bg-card border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden text-foreground"
+      class="{isMaximized
+        ? 'w-full h-full max-w-none max-h-none rounded-none border-0'
+        : 'w-[95vw] max-w-6xl 2xl:max-w-7xl h-[90vh] max-h-[860px] rounded-xl border border-border'} bg-card shadow-2xl flex flex-col overflow-hidden text-foreground transition-all duration-150"
     >
       <!-- Header do Modal -->
       <div class="h-14 px-6 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-between shrink-0">
@@ -1312,14 +1316,31 @@
           </div>
         </div>
 
-        <button
-          type="button"
-          onclick={onclose}
-          class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800/80 flex items-center justify-center transition-colors cursor-pointer"
-          aria-label="Fechar"
-        >
-          <X size={18} />
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            onclick={() => (isMaximized = !isMaximized)}
+            class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800/80 flex items-center justify-center transition-colors cursor-pointer"
+            title={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+            aria-label={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+          >
+            {#if isMaximized}
+              <Minimize2 size={16} />
+            {:else}
+              <Maximize2 size={16} />
+            {/if}
+          </button>
+
+          <button
+            type="button"
+            onclick={onclose}
+            class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800/80 flex items-center justify-center transition-colors cursor-pointer"
+            aria-label="Fechar"
+            title="Fechar (Esc)"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       <!-- Corpo com Abas Verticais à Esquerda -->
@@ -1477,7 +1498,7 @@
         <main class="flex-1 p-6 overflow-y-auto">
           <!-- ABA 1: APARÊNCIA & CORES (Shadcn UI Base Color e Theme) -->
           {#if activeTab === 'appearance'}
-            <div class="space-y-6 max-w-xl">
+            <div class="space-y-6 w-full max-w-4xl">
               <div>
                 <h3 class="text-sm font-semibold text-white">Modo de Exibição</h3>
                 <p class="text-xs text-neutral-400 mt-0.5">
@@ -5311,7 +5332,7 @@
 
           <!-- ABA: MARCA DA IGREJA (CHURCH BRAND) -->
           {:else if activeTab === 'church'}
-            <div class="space-y-6 max-w-2xl">
+            <div class="space-y-6 w-full max-w-4xl">
               <div>
                 <h3 class="text-sm font-semibold text-white">Identidade Visual da Igreja</h3>
                 <p class="text-xs text-neutral-400 mt-0.5">
@@ -5549,7 +5570,7 @@
 
           <!-- ABA: BÍBLIAS (VERSÕES SQLITE) -->
           {:else if activeTab === 'bibles'}
-            <div class="space-y-6 w-full max-w-3xl">
+            <div class="space-y-6 w-full max-w-5xl">
               <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <h3 class="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -5862,7 +5883,7 @@
 
           <!-- ABA: MÚSICAS, HARPA CRISTÃ E REPERTÓRIO -->
           {:else if activeTab === 'songs'}
-            <div class="space-y-6 w-full max-w-3xl">
+            <div class="space-y-6 w-full max-w-5xl">
               <div>
                 <h3 class="text-sm font-semibold text-foreground">Catálogo de Músicas e Harpa Cristã</h3>
                 <p class="text-xs text-muted-foreground mt-0.5">
@@ -6030,7 +6051,7 @@
 
           <!-- ABA 2: ARQUIVOS E PASTAS (Mapeamento Zero-Copy e Pastas do Sistema) -->
           {:else if activeTab === 'files'}
-            <div class="space-y-6 w-full max-w-3xl">
+            <div class="space-y-6 w-full max-w-5xl">
               <div>
                 <h3 class="text-sm font-semibold text-foreground">Arquivos e Pastas do Sistema</h3>
                 <p class="text-xs text-muted-foreground mt-0.5">
@@ -6284,7 +6305,7 @@
 
           <!-- ABA 3: PARTES DA MÚSICA E CORES -->
           {:else if activeTab === 'sections'}
-            <div class="space-y-5 max-w-2xl">
+            <div class="space-y-5 w-full max-w-4xl">
               <div class="flex items-center justify-between">
                 <div>
                   <h3 class="text-sm font-semibold text-white">Partes da Música e Atalhos</h3>
@@ -6357,7 +6378,7 @@
 
           <!-- ABA 4: TELAS E SAÍDAS -->
           {:else if activeTab === 'outputs'}
-            <div class="space-y-6 max-w-xl">
+            <div class="space-y-6 w-full max-w-4xl">
               <div>
                 <h3 class="text-sm font-semibold text-white">Saídas Gráficas</h3>
                 <p class="text-xs text-neutral-400 mt-0.5">
@@ -6454,7 +6475,7 @@
 
           <!-- ABA 5: ATALHOS RÁPIDOS -->
           {:else if activeTab === 'shortcuts'}
-            <div class="space-y-4 max-w-xl">
+            <div class="space-y-4 w-full max-w-5xl">
               <div>
                 <h3 class="text-sm font-semibold text-white">Atalhos Operacionais de Teclado</h3>
                 <p class="text-xs text-neutral-400 mt-0.5">
@@ -6462,98 +6483,98 @@
                 </p>
               </div>
 
-              <div class="rounded-xl border border-neutral-800 bg-neutral-900/30 divide-y divide-neutral-800/80 text-xs">
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Apresentar slide selecionado</span>
-                  <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-emerald-400">Enter</kbd>
-                </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+                <!-- Coluna 1: Navegação e Apresentação -->
+                <div class="rounded-xl border border-neutral-800 bg-neutral-900/30 divide-y divide-neutral-800/80">
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Apresentar slide selecionado</span>
+                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-emerald-400">Enter</kbd>
+                  </div>
 
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Parar apresentação ao vivo</span>
-                  <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-red-400">Esc</kbd>
-                </div>
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Parar apresentação ao vivo</span>
+                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-red-400">Esc</kbd>
+                  </div>
 
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Avançar para o próximo slide</span>
-                  <div class="flex gap-1">
-                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">→</kbd>
-                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Espaço</kbd>
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Avançar para o próximo slide</span>
+                    <div class="flex gap-1">
+                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">→</kbd>
+                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Espaço</kbd>
+                    </div>
+                  </div>
+
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Retornar ao slide anterior</span>
+                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">←</kbd>
+                  </div>
+
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Pular direto para slide ordinal</span>
+                    <span class="text-neutral-400"><kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">[Número]</kbd> + <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Enter</kbd></span>
+                  </div>
+
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Abrir Paleta de Comandos</span>
+                    <div class="flex gap-1">
+                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">⌘K</kbd>
+                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Ctrl+K</kbd>
+                    </div>
+                  </div>
+
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Blackout (tela preta total)</span>
+                    <div class="flex gap-1.5 items-center">
+                      <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-primary font-bold">.</kbd>
+                      <span class="text-[10px] text-neutral-500">ou</span>
+                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Alt+B</kbd>
+                    </div>
                   </div>
                 </div>
 
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Retornar ao slide anterior</span>
-                  <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">←</kbd>
-                </div>
-
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Pular direto para slide ordinal</span>
-                  <span class="text-neutral-400"><kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">[Número]</kbd> + <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Enter</kbd></span>
-                </div>
-
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Pular para o Refrão</span>
-                  <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-emerald-400">R</kbd>
-                </div>
-
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Pular para o Verso</span>
-                  <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-blue-400">V</kbd>
-                </div>
-
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Pular para a Ponte</span>
-                  <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-amber-400">P</kbd>
-                </div>
-
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Pular para a Introdução</span>
-                  <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-cyan-400">I</kbd>
-                </div>
-
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Pular para o Final / Encerramento</span>
-                  <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-purple-400">F</kbd>
-                </div>
-
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Abrir Paleta de Comandos</span>
-                  <div class="flex gap-1">
-                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">⌘K</kbd>
-                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Ctrl+K</kbd>
+                <!-- Coluna 2: Seções de Música e Efeitos -->
+                <div class="rounded-xl border border-neutral-800 bg-neutral-900/30 divide-y divide-neutral-800/80">
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Pular para o Refrão</span>
+                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-emerald-400">R</kbd>
                   </div>
-                </div>
 
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Blackout (tela preta total)</span>
-                  <div class="flex gap-1.5 items-center">
-                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-primary font-bold">.</kbd>
-                    <span class="text-[10px] text-neutral-500">ou</span>
-                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Alt+B</kbd>
-                    <span class="text-[10px] text-neutral-500">ou</span>
-                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">F1</kbd>
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Pular para o Verso</span>
+                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-blue-400">V</kbd>
                   </div>
-                </div>
 
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Limpar Texto (mantém o fundo)</span>
-                  <div class="flex gap-1.5 items-center">
-                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-primary font-bold">,</kbd>
-                    <span class="text-[10px] text-neutral-500">ou</span>
-                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Alt+C</kbd>
-                    <span class="text-[10px] text-neutral-500">ou</span>
-                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">F2</kbd>
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Pular para a Ponte</span>
+                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-amber-400">P</kbd>
                   </div>
-                </div>
 
-                <div class="p-2.5 flex items-center justify-between">
-                  <span class="text-neutral-300">Papel de Parede (Tela de Repouso)</span>
-                  <div class="flex gap-1.5 items-center">
-                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-primary font-bold">/</kbd>
-                    <span class="text-[10px] text-neutral-500">ou</span>
-                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Alt+W</kbd>
-                    <span class="text-[10px] text-neutral-500">ou</span>
-                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">F3</kbd>
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Pular para a Introdução</span>
+                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-cyan-400">I</kbd>
+                  </div>
+
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Pular para o Final / Encerramento</span>
+                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-purple-400">F</kbd>
+                  </div>
+
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Limpar Texto (mantém o fundo)</span>
+                    <div class="flex gap-1.5 items-center">
+                      <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-primary font-bold">,</kbd>
+                      <span class="text-[10px] text-neutral-500">ou</span>
+                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Alt+C</kbd>
+                    </div>
+                  </div>
+
+                  <div class="p-2.5 flex items-center justify-between">
+                    <span class="text-neutral-300">Papel de Parede (Tela de Repouso)</span>
+                    <div class="flex gap-1.5 items-center">
+                      <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-primary font-bold">/</kbd>
+                      <span class="text-[10px] text-neutral-500">ou</span>
+                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Alt+W</kbd>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -6561,7 +6582,7 @@
 
           <!-- ABA: HISTÓRICO & LOGS DO SISTEMA -->
           {:else if activeTab === 'logs'}
-            <div class="space-y-6 w-full max-w-4xl">
+            <div class="space-y-6 w-full max-w-6xl">
               <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <h3 class="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -6670,7 +6691,7 @@
 
           <!-- ABA 6: SOBRE & UPDATES -->
           {:else if activeTab === 'about'}
-            <div class="space-y-6 max-w-xl">
+            <div class="space-y-6 w-full max-w-5xl">
               <!-- Banner da Marca -->
               <div class="p-6 rounded-xl border border-neutral-800 bg-neutral-900/40 text-center space-y-3">
                 <img
@@ -6690,201 +6711,204 @@
                 </div>
               </div>
 
-              <!-- Seção do Auto-Updater -->
-              <div class="p-5 rounded-xl border border-neutral-800 bg-neutral-900/30 space-y-4">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <Sparkles size={16} class="text-primary" />
-                    <h4 class="text-xs font-semibold text-white">Atualizações do Sistema</h4>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="h-7 text-xs gap-1.5"
-                    onclick={handleCheckForUpdates}
-                    disabled={isCheckingUpdate}
-                  >
-                    <RefreshCw size={12} class={isCheckingUpdate ? 'animate-spin' : ''} />
-                    <span>{isCheckingUpdate ? 'Verificando...' : 'Verificar Atualizações'}</span>
-                  </Button>
-                </div>
-
-                {#if updaterError}
-                  <div class="p-3 rounded-lg bg-rose-950/40 border border-rose-600/40 text-rose-300 text-xs flex items-start gap-2">
-                    <AlertTriangle size={15} class="shrink-0 mt-0.5 text-rose-400" />
-                    <span>{updaterError}</span>
-                  </div>
-                {/if}
-
-                {#if updaterStatus?.stage?.type === 'ReadyToRestart'}
-                  <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-600/60 text-emerald-200 text-xs space-y-3">
-                    <div class="flex items-center gap-2 font-semibold text-emerald-300">
-                      <CheckCircle2 size={16} class="text-emerald-400" />
-                      <span>Atualização Instalada com Sucesso!</span>
-                    </div>
-                    <p class="text-[11px] text-emerald-300/80">
-                      A nova versão foi gravada no executável. Reinicie o aplicativo OpenPresenter para aplicar todas as novidades.
-                    </p>
-                    <div class="pt-1">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs h-8 gap-2 shadow-sm"
-                        onclick={handleRestartApplication}
-                        disabled={isRestarting}
-                      >
-                        <RotateCcw size={14} class={isRestarting ? 'animate-spin' : ''} />
-                        <span>{isRestarting ? 'Reiniciando Servidor...' : 'Reiniciar Aplicativo Agora'}</span>
-                      </Button>
-                    </div>
-                  </div>
-                {:else if updaterStatus?.stage?.type === 'Downloading'}
-                  <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/60 space-y-3">
-                    <div class="flex items-center justify-between text-xs">
-                      <span class="text-neutral-300 font-medium flex items-center gap-1.5">
-                        <Download size={14} class="animate-pulse text-primary transition-transform duration-300" />
-                        Baixando nova versão...
-                      </span>
-                      <span class="font-mono text-primary font-bold">
-                        {updaterStatus.stage.percent}%
-                      </span>
-                    </div>
-                    <div class="w-full h-2 rounded-full bg-neutral-800 overflow-hidden">
-                      <div
-                        class="h-full bg-primary transition-all duration-200 rounded-full"
-                        style="width: {updaterStatus.stage.percent}%"
-                      ></div>
-                    </div>
-                    <div class="text-[10px] text-neutral-500 font-mono text-right">
-                      {(updaterStatus.stage.downloaded_bytes / (1024 * 1024)).toFixed(1)} MB / {(updaterStatus.stage.total_bytes / (1024 * 1024)).toFixed(1)} MB
-                    </div>
-                  </div>
-                {:else if updaterStatus?.stage?.type === 'Extracting'}
-                  <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/60 flex items-center gap-3 text-xs text-neutral-300">
-                    <RefreshCw size={16} class="animate-spin text-primary shrink-0" />
-                    <span>Extraindo arquivos e aplicando a substituição atômica no executável...</span>
-                  </div>
-                {:else if updaterStatus?.stage?.type === 'Error'}
-                  <div class="p-4 rounded-xl bg-rose-950/30 border border-rose-600/40 text-xs text-rose-300 space-y-2">
-                    <div class="flex items-center gap-2 font-semibold">
-                      <AlertTriangle size={15} class="text-rose-400" />
-                      <span>Erro ao aplicar atualização</span>
-                    </div>
-                    <p class="text-[11px] text-rose-200/80">{updaterStatus.stage.message}</p>
-                    <Button variant="outline" size="sm" class="h-7 text-xs" onclick={handleStartUpdate}>
-                      Tentar Novamente
-                    </Button>
-                  </div>
-                {:else if updateInfo?.update_available}
-                  <!-- Banner de Atualização Disponível -->
-                  <div class="p-4 rounded-xl border border-emerald-600/40 bg-emerald-950/20 space-y-3">
-                    <div class="flex items-center justify-between">
-                      <div class="flex items-center gap-2">
-                        <Badge variant="default" class="bg-emerald-600 text-white hover:bg-emerald-600 text-[10px] font-bold">
-                          NOVO
-                        </Badge>
-                        <span class="text-xs font-bold text-white">Versão {updateInfo.latest_version} disponível</span>
-                      </div>
-                      {#if updateInfo.published_at}
-                        <span class="text-[10px] text-neutral-400">
-                          {new Date(updateInfo.published_at).toLocaleDateString('pt-BR')}
-                        </span>
-                      {/if}
-                    </div>
-
-                    <div class="text-xs text-neutral-200 font-medium">
-                      {updateInfo.release_name}
-                    </div>
-
-                    {#if updateInfo.release_notes}
-                      <div class="p-2.5 rounded-lg bg-neutral-950/70 border border-neutral-800/80 max-h-36 overflow-y-auto text-[11px] text-neutral-300 font-mono whitespace-pre-wrap leading-relaxed">
-                        {updateInfo.release_notes}
-                      </div>
-                    {/if}
-
-                    <div class="flex items-center justify-between pt-1 text-[11px] text-neutral-400">
-                      <span>Arquivo: {updateInfo.asset_name || 'Pacote multiplataforma'}</span>
-                      {#if updateInfo.asset_size}
-                        <span>{(updateInfo.asset_size / (1024 * 1024)).toFixed(1)} MB</span>
-                      {/if}
-                    </div>
-
-                    <div class="pt-2 flex items-center justify-end gap-2">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        class="gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
-                        onclick={handleStartUpdate}
-                        disabled={!updateInfo.download_url}
-                      >
-                        <Download size={14} />
-                        <span>Baixar e Atualizar Agora</span>
-                      </Button>
-                    </div>
-                  </div>
-                {:else if updateInfo && !updateInfo.update_available}
-                  <div class="p-3.5 rounded-lg border border-neutral-800 bg-neutral-950/40 flex items-center gap-2.5 text-xs text-neutral-300">
-                    <CheckCircle2 size={16} class="text-emerald-400 shrink-0" />
-                    <span>O OpenPresenter está na versão mais recente (v{updateInfo.current_version}).</span>
-                  </div>
-                {:else}
-                  <div class="p-3.5 rounded-lg border border-neutral-800 bg-neutral-950/40 text-xs text-neutral-400 flex items-center justify-between">
-                    <span>Nenhuma verificação de atualização realizada nesta sessão.</span>
-                    <Button variant="ghost" size="sm" class="h-6 text-xs" onclick={handleCheckForUpdates}>
-                      Checar agora
-                    </Button>
-                  </div>
-                {/if}
-              </div>
-
-              <!-- Documentação da API & Integrações Externas (100% Offline) -->
-              <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/40 space-y-3">
-                <div class="flex items-start justify-between gap-4">
-                  <div>
+              <!-- Grid com Atualizações e Documentação Offline -->
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <!-- Seção do Auto-Updater -->
+                <div class="p-5 rounded-xl border border-neutral-800 bg-neutral-900/30 space-y-4">
+                  <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                      <h4 class="text-xs font-semibold text-neutral-200">Documentação da API & Integrações (Offline)</h4>
-                      <Badge variant="outline" class="text-[10px] text-purple-400 border-purple-500/30">
-                        Scalar & Swagger UI
-                      </Badge>
+                      <Sparkles size={16} class="text-primary" />
+                      <h4 class="text-xs font-semibold text-white">Atualizações do Sistema</h4>
                     </div>
-                    <p class="text-[11px] text-neutral-400 mt-1 leading-relaxed">
-                      O OpenPresenter embute documentação OpenAPI 3.0 completa e interativa que funciona 100% offline. Ideal para integrar com ferramentas de gestão e escalas (estilo Voluts, Planning Center) ou automações externas via REST e WebSockets.
-                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="h-7 text-xs gap-1.5"
+                      onclick={handleCheckForUpdates}
+                      disabled={isCheckingUpdate}
+                    >
+                      <RefreshCw size={12} class={isCheckingUpdate ? 'animate-spin' : ''} />
+                      <span>{isCheckingUpdate ? 'Verificando...' : 'Verificar Atualizações'}</span>
+                    </Button>
                   </div>
+
+                  {#if updaterError}
+                    <div class="p-3 rounded-lg bg-rose-950/40 border border-rose-600/40 text-rose-300 text-xs flex items-start gap-2">
+                      <AlertTriangle size={15} class="shrink-0 mt-0.5 text-rose-400" />
+                      <span>{updaterError}</span>
+                    </div>
+                  {/if}
+
+                  {#if updaterStatus?.stage?.type === 'ReadyToRestart'}
+                    <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-600/60 text-emerald-200 text-xs space-y-3">
+                      <div class="flex items-center gap-2 font-semibold text-emerald-300">
+                        <CheckCircle2 size={16} class="text-emerald-400" />
+                        <span>Atualização Instalada com Sucesso!</span>
+                      </div>
+                      <p class="text-[11px] text-emerald-300/80">
+                        A nova versão foi gravada no executável. Reinicie o aplicativo OpenPresenter para aplicar todas as novidades.
+                      </p>
+                      <div class="pt-1">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs h-8 gap-2 shadow-sm"
+                          onclick={handleRestartApplication}
+                          disabled={isRestarting}
+                        >
+                          <RotateCcw size={14} class={isRestarting ? 'animate-spin' : ''} />
+                          <span>{isRestarting ? 'Reiniciando Servidor...' : 'Reiniciar Aplicativo Agora'}</span>
+                        </Button>
+                      </div>
+                    </div>
+                  {:else if updaterStatus?.stage?.type === 'Downloading'}
+                    <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/60 space-y-3">
+                      <div class="flex items-center justify-between text-xs">
+                        <span class="text-neutral-300 font-medium flex items-center gap-1.5">
+                          <Download size={14} class="animate-pulse text-primary transition-transform duration-300" />
+                          Baixando nova versão...
+                        </span>
+                        <span class="font-mono text-primary font-bold">
+                          {updaterStatus.stage.percent}%
+                        </span>
+                      </div>
+                      <div class="w-full h-2 rounded-full bg-neutral-800 overflow-hidden">
+                        <div
+                          class="h-full bg-primary transition-all duration-200 rounded-full"
+                          style="width: {updaterStatus.stage.percent}%"
+                        ></div>
+                      </div>
+                      <div class="text-[10px] text-neutral-500 font-mono text-right">
+                        {(updaterStatus.stage.downloaded_bytes / (1024 * 1024)).toFixed(1)} MB / {(updaterStatus.stage.total_bytes / (1024 * 1024)).toFixed(1)} MB
+                      </div>
+                    </div>
+                  {:else if updaterStatus?.stage?.type === 'Extracting'}
+                    <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/60 flex items-center gap-3 text-xs text-neutral-300">
+                      <RefreshCw size={16} class="animate-spin text-primary shrink-0" />
+                      <span>Extraindo arquivos e aplicando a substituição atômica no executável...</span>
+                    </div>
+                  {:else if updaterStatus?.stage?.type === 'Error'}
+                    <div class="p-4 rounded-xl bg-rose-950/30 border border-rose-600/40 text-xs text-rose-300 space-y-2">
+                      <div class="flex items-center gap-2 font-semibold">
+                        <AlertTriangle size={15} class="text-rose-400" />
+                        <span>Erro ao aplicar atualização</span>
+                      </div>
+                      <p class="text-[11px] text-rose-200/80">{updaterStatus.stage.message}</p>
+                      <Button variant="outline" size="sm" class="h-7 text-xs" onclick={handleStartUpdate}>
+                        Tentar Novamente
+                      </Button>
+                    </div>
+                  {:else if updateInfo?.update_available}
+                    <!-- Banner de Atualização Disponível -->
+                    <div class="p-4 rounded-xl border border-emerald-600/40 bg-emerald-950/20 space-y-3">
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                          <Badge variant="default" class="bg-emerald-600 text-white hover:bg-emerald-600 text-[10px] font-bold">
+                            NOVO
+                          </Badge>
+                          <span class="text-xs font-bold text-white">Versão {updateInfo.latest_version} disponível</span>
+                        </div>
+                        {#if updateInfo.published_at}
+                          <span class="text-[10px] text-neutral-400">
+                            {new Date(updateInfo.published_at).toLocaleDateString('pt-BR')}
+                          </span>
+                        {/if}
+                      </div>
+
+                      <div class="text-xs text-neutral-200 font-medium">
+                        {updateInfo.release_name}
+                      </div>
+
+                      {#if updateInfo.release_notes}
+                        <div class="p-2.5 rounded-lg bg-neutral-950/70 border border-neutral-800/80 max-h-36 overflow-y-auto text-[11px] text-neutral-300 font-mono whitespace-pre-wrap leading-relaxed">
+                          {updateInfo.release_notes}
+                        </div>
+                      {/if}
+
+                      <div class="flex items-center justify-between pt-1 text-[11px] text-neutral-400">
+                        <span>Arquivo: {updateInfo.asset_name || 'Pacote multiplataforma'}</span>
+                        {#if updateInfo.asset_size}
+                          <span>{(updateInfo.asset_size / (1024 * 1024)).toFixed(1)} MB</span>
+                        {/if}
+                      </div>
+
+                      <div class="pt-2 flex items-center justify-end gap-2">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          class="gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
+                          onclick={handleStartUpdate}
+                          disabled={!updateInfo.download_url}
+                        >
+                          <Download size={14} />
+                          <span>Baixar e Atualizar Agora</span>
+                        </Button>
+                      </div>
+                    </div>
+                  {:else if updateInfo && !updateInfo.update_available}
+                    <div class="p-3.5 rounded-lg border border-neutral-800 bg-neutral-950/40 flex items-center gap-2.5 text-xs text-neutral-300">
+                      <CheckCircle2 size={16} class="text-emerald-400 shrink-0" />
+                      <span>O OpenPresenter está na versão mais recente (v{updateInfo.current_version}).</span>
+                    </div>
+                  {:else}
+                    <div class="p-3.5 rounded-lg border border-neutral-800 bg-neutral-950/40 text-xs text-neutral-400 flex items-center justify-between">
+                      <span>Nenhuma verificação de atualização realizada nesta sessão.</span>
+                      <Button variant="ghost" size="sm" class="h-6 text-xs" onclick={handleCheckForUpdates}>
+                        Checar agora
+                      </Button>
+                    </div>
+                  {/if}
                 </div>
 
-                <div class="flex flex-wrap items-center gap-2 pt-1">
-                  <a
-                    href="/docs"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-semibold transition-colors"
-                  >
-                    <ExternalLink size={13} />
-                    <span>Abrir Scalar (/docs)</span>
-                  </a>
-                  <a
-                    href="/swagger"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700 text-xs font-semibold transition-colors"
-                  >
-                    <ExternalLink size={13} />
-                    <span>Abrir Swagger UI (/swagger)</span>
-                  </a>
-                  <a
-                    href="/api/openapi.json"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 text-xs font-mono transition-colors"
-                  >
-                    <span>openapi.json</span>
-                  </a>
+                <!-- Documentação da API & Integrações Externas (100% Offline) -->
+                <div class="p-5 rounded-xl border border-neutral-800 bg-neutral-900/30 space-y-4">
+                  <div class="flex items-start justify-between gap-4">
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <h4 class="text-xs font-semibold text-neutral-200">Documentação da API & Integrações</h4>
+                        <Badge variant="outline" class="text-[10px] text-purple-400 border-purple-500/30">
+                          100% Offline
+                        </Badge>
+                      </div>
+                      <p class="text-[11px] text-neutral-400 mt-1 leading-relaxed">
+                        O OpenPresenter embute documentação OpenAPI 3.0 interativa que funciona 100% offline. Ideal para integrar com ferramentas de gestão e escalas (estilo Voluts, Planning Center) ou automações externas via REST e WebSockets.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-wrap items-center gap-2 pt-1">
+                    <a
+                      href="/docs"
+                      target="_blank"
+                      rel="noreferrer"
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-semibold transition-colors"
+                    >
+                      <ExternalLink size={13} />
+                      <span>Abrir Scalar (/docs)</span>
+                    </a>
+                    <a
+                      href="/swagger"
+                      target="_blank"
+                      rel="noreferrer"
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700 text-xs font-semibold transition-colors"
+                    >
+                      <ExternalLink size={13} />
+                      <span>Abrir Swagger (/swagger)</span>
+                    </a>
+                    <a
+                      href="/api/openapi.json"
+                      target="_blank"
+                      rel="noreferrer"
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 text-xs font-mono transition-colors"
+                    >
+                      <span>openapi.json</span>
+                    </a>
+                  </div>
                 </div>
               </div>
 
               <!-- Reinicialização do Servidor -->
-              <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/40 space-y-2">
+              <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-900/30 space-y-2">
                 <div class="flex items-center justify-between">
                   <div>
                     <h4 class="text-xs font-semibold text-neutral-200">Reiniciar Servidor e Aplicação</h4>

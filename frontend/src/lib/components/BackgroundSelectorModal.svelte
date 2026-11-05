@@ -11,6 +11,8 @@
     ChevronRight,
     Play,
     Film,
+    Maximize2,
+    Minimize2,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
@@ -37,6 +39,7 @@
   let searchQuery = $state('');
   let localWallpapers = $state<WallpaperItem[]>([]);
   let isLoadingLocal = $state(false);
+  let isMaximized = $state(false);
 
   onMount(() => {
     loadLocalWallpapers();
@@ -88,10 +91,10 @@
 </script>
 
 {#if open}
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+  <div class="fixed inset-0 z-50 flex items-center justify-center {isMaximized ? 'p-0' : 'p-4'} bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="bg-card border border-border w-full max-w-4xl h-[85vh] max-h-[720px] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-foreground animate-in zoom-in-95 duration-150"
+      class="bg-card border-border shadow-2xl flex flex-col overflow-hidden text-foreground animate-in zoom-in-95 duration-150 {isMaximized ? 'w-full h-full max-w-none max-h-none rounded-none border-0' : 'w-full max-w-4xl h-[85vh] max-h-[720px] rounded-2xl border'}"
       onclick={(e) => e.stopPropagation()}
       onkeydown={() => {}}
     >
@@ -107,13 +110,28 @@
           </div>
         </div>
 
-        <button
-          type="button"
-          onclick={onclose}
-          class="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-        >
-          <X size={18} />
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            onclick={() => (isMaximized = !isMaximized)}
+            class="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+            title={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+          >
+            {#if isMaximized}
+              <Minimize2 size={18} />
+            {:else}
+              <Maximize2 size={18} />
+            {/if}
+          </button>
+          <button
+            type="button"
+            onclick={onclose}
+            class="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+            title="Fechar"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       <!-- Barra de Busca e Filtros -->

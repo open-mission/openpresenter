@@ -29,6 +29,8 @@
     Radio,
     Mic,
     Music,
+    Maximize2,
+    Minimize2,
   } from 'lucide-svelte';
   import type {
     ServiceRoster,
@@ -72,6 +74,7 @@
   // Abas e visualizações
   let activeTab = $state<'roster' | 'members' | 'departments'>('roster');
   let viewMode = $state<'flow' | 'grid'>('flow');
+  let isMaximized = $state(false);
 
   // Dados principais
   let departments = $state<TeamDepartment[]>([]);
@@ -446,11 +449,13 @@
 
 {#if open}
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 {isMaximized ? 'p-0' : 'p-4'}"
     role="presentation"
   >
     <div
-      class="w-full max-w-6xl h-[90vh] rounded-2xl border border-neutral-800 bg-neutral-900 shadow-2xl flex flex-col overflow-hidden text-neutral-100"
+      class="{isMaximized
+        ? 'w-full h-full max-w-none max-h-none rounded-none border-0'
+        : 'w-full max-w-6xl h-[90vh] rounded-2xl border border-neutral-800'} bg-neutral-900 shadow-2xl flex flex-col overflow-hidden text-neutral-100 transition-all duration-150"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => {
         if (e.key === 'Escape') onclose();
@@ -522,8 +527,8 @@
           </button>
         </div>
 
-        <!-- Ações Auxiliares (Docs Offline + Fechar) -->
-        <div class="flex items-center gap-2">
+        <!-- Ações Auxiliares (Docs Offline + Maximizar + Fechar) -->
+        <div class="flex items-center gap-1.5">
           <a
             href="/docs"
             target="_blank"
@@ -532,13 +537,28 @@
             title="Documentação OpenAPI interativa (100% offline via Scalar)"
           >
             <ExternalLink size={13} />
-            <span>API Docs</span>
+            <span class="hidden sm:inline">API Docs</span>
           </a>
+
+          <button
+            type="button"
+            onclick={() => (isMaximized = !isMaximized)}
+            class="w-9 h-9 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+            title={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+            aria-label={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+          >
+            {#if isMaximized}
+              <Minimize2 size={16} />
+            {:else}
+              <Maximize2 size={16} />
+            {/if}
+          </button>
 
           <button
             type="button"
             onclick={onclose}
             class="w-9 h-9 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+            title="Fechar (Esc)"
           >
             <X size={18} />
           </button>
@@ -710,7 +730,7 @@
               <!-- Visualização Clássica em Grade / Cartões -->
               <div class="h-full overflow-x-auto overflow-y-auto pb-4">
                 <div class="flex items-start gap-4 min-w-max">
-                  {#each departments.filter((d) => d.is_active) as dept}
+                  {#each departments as dept}
                     {@const deptItems = selectedRoster.items.filter(
                       (it) => it.department_id === dept.id
                     )}
@@ -755,9 +775,12 @@
                           </div>
                         {:else}
                           {#each deptItems as item}
+                            {@const member = members.find((m) => m.id === item.member_id)}
+                            {@const memberName = member?.name || 'Voluntário'}
+                            {@const memberPhone = member?.phone}
                             {@const waUrl = getWhatsAppUrl(
-                              item.member_phone,
-                              `Olá ${item.member_name}, confirmando sua escala no culto de ${selectedRoster.service_date} em ${dept.name}!`
+                              memberPhone,
+                              `Olá ${memberName}, confirmando sua escala no culto de ${selectedRoster.service_date} em ${dept.name}!`
                             )}
                             <div
                               class="p-2.5 rounded-xl bg-neutral-900/90 border border-neutral-800 hover:border-neutral-700 transition-all flex flex-col gap-2"
@@ -768,12 +791,12 @@
                                     class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
                                     style="background-color: {dept.color}44; border: 1.5px solid {dept.color};"
                                   >
-                                    {getInitials(item.member_name)}
+                                    {getInitials(memberName)}
                                   </div>
                                   <div class="min-w-0">
                                     <div class="flex items-center gap-1">
                                       <span class="text-xs font-semibold text-white truncate">
-                                        {item.member_name || 'Voluntário'}
+                                        {memberName}
                                       </span>
                                       {#if item.role === 'lead'}
                                         <span class="text-amber-400 shrink-0" title="Titular">

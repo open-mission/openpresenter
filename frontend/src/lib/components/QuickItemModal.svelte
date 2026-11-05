@@ -2,7 +2,7 @@
   import { cn } from '$lib/utils';
   import type { MediaItem, MediaKind, Slide } from '$lib/types';
   import Button from './ui/Button.svelte';
-  import { X, FolderPlus, FileText, Bookmark } from 'lucide-svelte';
+  import { X, FolderPlus, FileText, Bookmark, Maximize2, Minimize2 } from 'lucide-svelte';
 
   interface Props {
     open: boolean;
@@ -14,6 +14,7 @@
 
   let { open = false, mode = 'header', initialItem = null, onclose, onsave }: Props = $props();
 
+  let isMaximized = $state(false);
   let title = $state('');
   let content = $state('');
   let prevOpen = false;
@@ -102,12 +103,14 @@
 {#if open}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150 {isMaximized ? 'p-0' : 'p-4'}"
     role="presentation"
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
-      class="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl flex flex-col overflow-hidden text-neutral-100"
+      class="{isMaximized
+        ? 'w-full h-full max-w-none max-h-none rounded-none border-0'
+        : 'w-full max-w-md rounded-xl border border-neutral-800'} bg-neutral-900 shadow-2xl flex flex-col overflow-hidden text-neutral-100 transition-all duration-150"
       onclick={(e) => e.stopPropagation()}
       role="dialog"
       tabindex="-1"
@@ -138,18 +141,35 @@
           </div>
         </div>
 
-        <button
-          type="button"
-          onclick={requestClose}
-          class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
-        >
-          <X size={16} />
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            onclick={() => (isMaximized = !isMaximized)}
+            class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+            title={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+            aria-label={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
+          >
+            {#if isMaximized}
+              <Minimize2 size={15} />
+            {:else}
+              <Maximize2 size={15} />
+            {/if}
+          </button>
+
+          <button
+            type="button"
+            onclick={requestClose}
+            class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
+            title="Fechar (Esc)"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       <!-- Conteúdo -->
-      <div class="p-5 space-y-4">
-        <div class="space-y-1.5">
+      <div class="p-5 space-y-4 flex-1 flex flex-col min-h-0">
+        <div class="space-y-1.5 shrink-0">
           <label for="item-title" class="text-xs font-semibold text-neutral-300">
             {mode === 'header' ? 'Nome da Seção' : 'Título do Aviso / Texto'}
           </label>
@@ -167,18 +187,18 @@
         </div>
 
         {#if mode === 'announcement'}
-          <div class="space-y-1.5">
+          <div class="space-y-1.5 flex-1 flex flex-col min-h-0">
             <label for="item-content" class="text-xs font-semibold text-neutral-300">
               Conteúdo dos Slides
             </label>
             <textarea
               id="item-content"
               bind:value={content}
-              rows="5"
+              rows={isMaximized ? undefined : 6}
               placeholder="Digite o texto do slide. Uma linha em branco separa múltiplos slides..."
-              class="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 resize-none font-mono"
+              class="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 font-mono {isMaximized ? 'flex-1 h-full resize-none' : 'resize-none'}"
             ></textarea>
-            <span class="text-[10px] text-neutral-500">
+            <span class="text-[10px] text-neutral-500 shrink-0">
               Dica: Linhas em branco criam novos slides.
             </span>
           </div>
