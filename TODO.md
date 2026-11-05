@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] UI/UX: Proteção contra fechamento acidental de modais de edição (Música, Texto, Agenda, Aviso, Setlist) com bloqueio de clique no backdrop, confirmação ao descartar alterações não salvas no Esc/Fechar, e configurações de Notificações (modo Não Perturbe e seletor de posição do Toast: top-left, top-right, bottom-right, bottom-left). (commit bcf3040 - 2026-11-05 00:15:21 -03:00)
+
 - [x] UI/UX: Separar a seção "Mensagem no Retorno (Stage)" em uma seção própria e independente do cronômetro na barra lateral, com colapso individual, chips de mensagens rápidas e badge de status ativo. (commit d0d06d4 - 2026-11-05 00:01:52 -03:00)
 
 - [x] UI/UX: Padronização visual do cabeçalho da seção "Controle de Saídas" na barra lateral de previews (AdminView) para seguir exatamente a tipografia, ícone de ação e posição do chevron das seções Public, Stage e Timer. (commit 3ed30e5 - 2026-11-04 23:56:00 -03:00)
