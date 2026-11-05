@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Lançamento da versão 0.4.4: unificação de versão em todo o workspace (Cargo.toml, Cargo.lock, package.json, workflows, componentes e testes), menus de contexto no catálogo de músicas e sheet de preview de letras com rota DELETE /api/songs/{id}, proteção contra fechamento acidental de modais de edição com dirty state guard, central de configurações de notificações com modo Não Perturbe e posicionamento customizável, mensagem no retorno autônoma na barra lateral com chips rápidos e badge de status, colapso individual dos previews Public e Stage e do Controle de Saídas, menu suspenso "+ Adicionar ▾" na aba Outros, melhorias de ergonomia no Command Palette, tamanho ampliado e configurável para avisos no palco em descanso, fechamento da release 0.4.4 no CHANGELOG.md, spec docs/specs/2026-11-05-release-0-4-4.md e publicação da tag v0.4.4. (commit 22c949a - 2026-11-05 01:23:24 -03:00)
+
 - [x] UI/UX: Adicionar menu de contexto profissional nos cards de músicas do catálogo e no sheet/gaveta de pré-visualização de letras na aba Músicas do painel inferior (BottomPanel), incluindo ações de apresentar ao vivo (do início ou no slide clicado), adicionar à setlist, copiar letra/slide, editar e excluir do catálogo com backend DELETE /api/songs/{id}. (commit 1d84bbc - 2026-11-05 00:29:23 -03:00)
 
 - [x] UI/UX: Proteção contra fechamento acidental de modais de edição (Música, Texto, Agenda, Aviso, Setlist) com bloqueio de clique no backdrop, confirmação ao descartar alterações não salvas no Esc/Fechar, e configurações de Notificações (modo Não Perturbe e seletor de posição do Toast: top-left, top-right, bottom-right, bottom-left). (commit bcf3040 - 2026-11-05 00:15:21 -03:00)

@@ -237,16 +237,21 @@
 - [Spec — Preparação e Lançamento da Versão 0.4.2](specs/2026-11-01-release-0-4-2.md)
 - [Plano — Preparação e Lançamento da Versão 0.4.2](plans/2026-11-01-release-0-4-2.md)
 
-## Release v0.4.3: Setlist em Fluxo Contínuo ProPresenter, Cores da Agenda, Relógio sem Segundos, Fade de Imagens e Refinamentos de Interface
+## Release v0.4.4: Menus de Contexto no Catálogo de Músicas, Proteção contra Perda em Modais, Notificações com Não Perturbe, Mensagem de Palco Independente e Otimizações de Interface
 
-- [Spec — Preparação e Lançamento da Versão 0.4.3](specs/2026-11-01-release-0-4-3.md)
-- [Plano — Preparação e Lançamento da Versão 0.4.3](plans/2026-11-01-release-0-4-3.md)
+- [Spec — Preparação e Lançamento da Versão 0.4.4](specs/2026-11-05-release-0-4-4.md)
+- [Plano — Preparação e Lançamento da Versão 0.4.4](plans/2026-11-05-release-0-4-4.md)
 - [Spec — Menus de Contexto na Aba de Músicas e no Sheet de Preview de Letras](specs/2026-11-05-songs-context-menu-and-preview-sheet.md)
 - [Spec — Proteção de Modais contra Fechamento Acidental e Configurações de Notificações](specs/2026-11-05-modals-dirty-guard-and-notifications-settings.md)
 - [Spec — Separação da Mensagem de Retorno em Seção Própria na Barra Lateral](specs/2026-11-04-separate-stage-message-control-section.md)
 - [Spec — Colapso dos Previews de Saída Public e Stage no Painel do Operador](specs/2026-11-04-collapse-previews-public-stage.md)
 - [Spec — Refinamentos de Interface: Colapso do Controle de Saídas, Dropdown Adicionar em Outros e Ajustes no Command Palette](specs/2026-11-04-admin-ui-collapse-saidas-dropdown-outros-biblia-palette.md)
 - [Spec — Tamanho do Aviso no Monitor de Palco em Modo de Espera e Configuração Dedicada](specs/2026-11-04-stage-standby-alert-font-size.md)
+
+## Release v0.4.3: Setlist em Fluxo Contínuo ProPresenter, Cores da Agenda, Relógio sem Segundos, Fade de Imagens e Refinamentos de Interface
+
+- [Spec — Preparação e Lançamento da Versão 0.4.3](specs/2026-11-01-release-0-4-3.md)
+- [Plano — Preparação e Lançamento da Versão 0.4.3](plans/2026-11-01-release-0-4-3.md)
 - [Spec — Fontes Customizadas da Agenda e Exibição de Segundos e Data no Relógio do Palco](specs/2026-11-01-agenda-fontes-customizadas-e-stage-relogio-segundos-data.md)
 - [Plano — Fontes Customizadas da Agenda e Exibição de Segundos e Data no Relógio do Palco](plans/2026-11-01-agenda-fontes-customizadas-e-stage-relogio-segundos-data.md)
 - [Spec — Remote iOS Safe-Area & Divisores, Fade no Lower Third e Limpeza de Emojis](specs/2026-11-01-remote-ios-safe-area-lower-third-fade-e-limpeza-emojis.md)

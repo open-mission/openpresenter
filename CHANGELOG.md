@@ -6,37 +6,56 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-11-05
+
+### Destaques da Versão
+A versão **0.4.4** eleva o padrão de ergonomia, segurança e customização do OpenPresenter para operadores ao vivo em cultos e transmissões:
+- 🎵 **Menus de Contexto no Catálogo e Letras:** Operações completas de clique direito nos cartões de músicas e na gaveta lateral de slides, incluindo exclusão segura com endpoint backend dedicado.
+- 🛡️ **Proteção Antiperda em Modais:** Fim do fechamento acidental de letras, avisos e programações por clique fora (backdrop bloqueado), com detecção inteligente de alterações não salvas (*dirty state*).
+- 🔔 **Central de Notificações & Modo Não Perturbe:** Controle total sobre notificações no painel (modo silencioso para cultos ao vivo e posicionamento customizável na tela).
+- 💬 **Mensagem no Retorno Autônoma:** Painel de avisos para o palco independente do cronômetro na barra lateral, com colapso, chips de mensagens rápidas e badge de status em tempo real.
+- 🎛️ **Barra Lateral do Operador Otimizada:** Controle de Saídas padronizado e colapsável, além de monitores de preview (Public e Stage) com colapso individual e persistência em `localStorage`.
+- ➕ **Menu Unificado "+ Adicionar ▾" na Aba Outros:** Interface compacta e organizada para criar Agendas, Textos, Avisos e Seções, ou importar da setlist ativa.
+- 📖 **Command Palette Refinado:** Seletor de versões da Bíblia compacto (siglas com tooltip explicativo) e sem quebra de linhas na barra de abas.
+- 📺 **Avisos de Palco em Espera Ultra Visíveis:** Leitura confortável de 5 a 15 metros no modo descanso, com tipografia configurável de 14px a 150px (padrão ampliado para 36px) e container expandido.
+
 ### Adicionado
-- **Menus de Contexto na Aba Músicas e Sheet de Preview (`BottomPanel.svelte`, `AdminView.svelte`, `routes.rs`):**
+- **Menus de Contexto no Catálogo de Músicas e Sheet de Preview (`BottomPanel.svelte`, `AdminView.svelte`, `routes.rs`):**
   - **Menu de Contexto nos Cards de Música:** Clique com botão direito no catálogo exibe menu contextual com opções de apresentar ao vivo, adicionar à setlist, visualizar letra/slides, editar no modal, copiar letra completa para o clipboard e excluir do catálogo.
   - **Menu de Contexto no Sheet de Preview e Slides:** Clique com botão direito em qualquer slide do sheet lateral permite apresentá-lo ao vivo diretamente a partir dele, adicionar a música à setlist, copiar o texto do slide específico ou editar a música.
-  - **Menu de Contexto no Cabeçalho e Vazio do Catálogo:** Ações agregadas para a música em exibição (com fechar visualização) e atalhos rápidos de criação, importação e recarga no espaço livre do catálogo.
-  - **Rota DELETE `/api/songs/{id}` no Backend:** Suporte à exclusão de músicas no banco de dados e índice FTS5 com auditoria de log e confirmação de segurança antes da exclusão.
+  - **Menu de Contexto no Cabeçalho e Área Livre do Catálogo:** Ações agregadas para a música em exibição (com fechar visualização) e atalhos rápidos de criação, importação e recarga no espaço livre do catálogo.
+  - **Rota DELETE `/api/songs/{id}` no Backend:** Suporte completo à exclusão física de músicas no banco de dados SQLite e no índice de busca textual FTS5, com auditoria em `action_logs` e diálogo de confirmação de segurança antes da exclusão.
 - **Proteção contra Fechamento Acidental de Modais de Edição (`SongEditorModal.svelte`, `ScheduleEditorModal.svelte`, `QuickItemModal.svelte`, `SetlistModal.svelte`):**
-  - Bloqueio de fechamento ao clicar fora do modal (área externa/backdrop), evitando a perda involuntária de letras, slides de texto, programações de cultos ou avisos durante a operação.
-  - Fechamento restrito ao botão "Fechar" (X), botão "Cancelar" ou pressionamento da tecla `Esc`.
-  - Detecção inteligente de alterações não salvas (*dirty state*): se houver conteúdo modificado, o sistema exibe alerta de confirmação antes de descartar os dados e fechar a janela.
+  - **Bloqueio de Backdrop:** Clique fora do modal (área externa translúcida) não fecha a janela, prevenindo a perda involuntária de letras, slides de texto, programações de cultos ou avisos durante a operação.
+  - **Fechamento Seguro:** Encerramento restrito ao botão "Fechar" (X), botão "Cancelar" ou pressionamento da tecla `Esc`.
+  - **Detecção de Alterações Não Salvas (*Dirty State*):** Se houver dados modificados, o sistema intercepta a ação e exibe alerta de confirmação antes de descartar as alterações e fechar o modal.
 - **Configurações de Notificações do Sistema e Modo Não Perturbe (`SettingsModal.svelte`, `settings.ts`, `toast.ts`, `App.svelte`):**
-  - Nova seção "Notificações do Sistema (Toasts)" na aba *Aparência & Interface* das Configurações.
-  - **Modo Não Perturbe (Silenciar Toasts):** Switch interativo com persistência em `localStorage` para suprimir alertas flutuantes no painel do operador durante o culto ou transmissão.
-  - **Posição Configurável dos Toasts:** Seletor em grade permitindo definir o canto da tela onde os toasts serão exibidos (*Superior Esquerdo*, *Superior Direito - Padrão*, *Inferior Esquerdo* e *Inferior Direito*).
-  - Botão interativo para disparar notificação de teste imediatamente na posição selecionada.
+  - **Nova Seção de Notificações:** Aba *Aparência & Interface* ganha grupo dedicado "Notificações do Sistema (Toasts)".
+  - **Modo Não Perturbe (Silenciar Toasts):** Switch interativo com persistência em `localStorage` para suprimir alertas flutuantes no painel do operador durante momentos solenes do culto ou transmissão.
+  - **Posição Configurável dos Toasts:** Grade visual para definir o canto da tela onde as notificações surgem (*Superior Esquerdo*, *Superior Direito - Padrão*, *Inferior Esquerdo* e *Inferior Direito*).
+  - **Notificação de Teste:** Botão para disparar um toast imediato demonstrando o posicionamento escolhido.
 - **Separação do Controle de Mensagem no Retorno em Seção Própria (`TimerControlPanel.svelte`):**
-  - Desacoplamento do envio de avisos de palco do rodapé do cronômetro, transformando a "Mensagem no Retorno" em uma seção autônoma e colapsável na barra lateral direita do painel do operador.
-  - Cabeçalho padronizado com ícone `MessageSquare` em tom esmeralda, título "Mensagem no Retorno", `ChevronDown` animado e alternador de colapso com persistência em `localStorage` (`stage_message_collapsed`).
-  - Indicador dinâmico de badge "Ativo" e botão "Limpar" no próprio cabeçalho quando houver mensagem ativa no palco, permitindo visualizar o status e remover avisos mesmo com a seção recolhida.
-  - Inclusão de chips rápidos de mensagens comuns (*5 min restantes*, *Atenção ao tempo*, *Próximo louvor*, *Encerrar*) para envio ágil com um clique durante o culto.
-- **Refinamentos de Interface no Painel do Operador (`AdminView.svelte`, `BottomPanel.svelte`, `CommandPalette.svelte`):**
-  - **Colapso e Padronização Visual de "Controle de Saídas":** Cabeçalho interativo na barra lateral direita padronizado com as seções adjacentes (`Radio` verde, tipografia font-bold e `ChevronDown` animado à direita), permitindo recolher e expandir o grid de botões de controle de saída (Ao Vivo, Parar, Black, Limpar, Fundo) com persistência no `localStorage`.
-  - **Colapso Individual dos Previews Public e Stage:** Títulos interativos com `ChevronDown` animado permitindo recolher e expandir individualmente as caixas de visualização 16:9 do projetor público e do monitor de palco no painel lateral do operador, com preferência salva no `localStorage`.
-  - **Menu Dropdown "Adicionar" na Aba Outros:** Consolidação dos botões individuais `+ Agenda`, `+ Texto` e `+ Aviso` em um botão único `+ Adicionar ▾` com menu suspenso elegante, oferecendo opções de criação rápida (Programação/Agenda, Texto Livre, Aviso/Comunicado, Divisor de Seção) e importação inteligente de itens avulsos da setlist ativa para o catálogo persistente.
-  - **Abreviação no Seletor de Bíblias do Command Palette:** Redução da largura do menu suspenso de versões da Bíblia (exibindo apenas siglas como `ARA`, `AS`, `NTLH` com título descritivo completo no tooltip), liberando espaço na barra de abas.
-  - **Prevenção de Quebra de Linha na Aba Bíblia do Command Palette:** Aplicação de `whitespace-nowrap shrink-0` e padronização do rótulo para `Bíblia`, eliminando a quebra em duas linhas e preservando a altura uniforme da barra de abas.
+  - **Seção Autônoma na Barra Lateral:** Desacoplamento do envio de avisos de palco do rodapé do cronômetro, transformando a "Mensagem no Retorno" em uma seção independente na lateral direita do painel do operador.
+  - **Cabeçalho Padronizado e Colapsável:** Ícone `MessageSquare` em tom esmeralda, título claro, `ChevronDown` animado e estado de colapso salvo em `localStorage` (`stage_message_collapsed`).
+  - **Badge de Status e Ação Rápida:** Indicador visual "Ativo" e botão "Limpar" no próprio cabeçalho quando houver mensagem ativa no palco, permitindo monitorar o status e remover avisos mesmo com a seção recolhida.
+  - **Chips Rápidos de Mensagens Frequentes:** Atalhos de um clique para mensagens habituais de palco (*5 min restantes*, *Atenção ao tempo*, *Próximo louvor*, *Encerrar*).
 - **Configuração de Tamanho do Aviso de Palco em Modo de Espera (`StageView.svelte`, `SettingsModal.svelte`, `StagePreviewBox.svelte`, `types.ts`, `displaySettings.ts`):**
-  - Nova opção configurável `standby_alert_font_size` (padrão de `36px`, escala de 14px a 150px com input numérico e controle deslizante) em *Tamanhos das Fontes de Palco* na aba *Monitor de Palco (Stage) > Layout & Tempo*.
-  - Aumento expressivo e destaque visual no banner de aviso exibido no monitor de retorno (`/stage`) quando nenhum slide está sendo apresentado (modo descanso/standby), eliminando a limitação rígida de `20px` e aplicando a tipografia configurada dinamicamente via WebSocket em tempo real.
-  - Dimensionamento proporcional do ícone de alerta e ampliação da largura máxima do container (`max-w-4xl lg:max-w-5xl`) para leitura nítida e confortável a distâncias de palco de 5 a 15 metros.
-  - Pré-visualização contextual fiel no preview do operador (`StagePreviewBox.svelte`) exibindo a mensagem em espera quando o monitor estiver em modo de descanso.
+  - **Controle Tipográfico Dedicado:** Nova configuração `standby_alert_font_size` em *Monitor de Palco (Stage) > Layout & Tempo*, com controle deslizante e input numérico (14px a 150px, padrão de 36px).
+  - **Aviso em Destaque na Espera:** O banner de aviso do monitor de retorno (`/stage`) quando nenhum slide está sendo apresentado abandona a restrição fixa de 20px, aplicando a tipografia em tempo real via WebSocket.
+  - **Visibilidade de Longo Alcance:** Ícone proporcional e container expandido (`max-w-4xl lg:max-w-5xl`) para leitura nítida e sem esforço visual a distâncias de 5 a 15 metros.
+  - **Preview Contextual Fiel:** A caixa de pré-visualização do retorno no operador (`StagePreviewBox.svelte`) exibe a mensagem de espera em escala proporcional quando o monitor estiver em descanso.
+
+### Melhorado
+- **Controle de Saídas na Barra Lateral do Operador (`AdminView.svelte`):**
+  - Padronização visual do cabeçalho com as seções adjacentes (`Radio` verde, tipografia font-bold e `ChevronDown` animado).
+  - Capacidade de colapsar e expandir o grid de botões de saída (Ao Vivo, Parar, Black, Limpar, Fundo) com persistência em `localStorage`.
+- **Previsões de Saída Public e Stage Independentes (`AdminView.svelte`):**
+  - Títulos interativos com `ChevronDown` permitindo recolher e expandir individualmente as caixas de visualização 16:9 do projetor público e do monitor de palco, com preferências lembradas no `localStorage`.
+- **Organização de Itens na Aba Outros (`BottomPanel.svelte`):**
+  - Substituição de múltiplos botões dispersos por um menu suspenso unificado e compacto `+ Adicionar ▾` (Programação/Agenda, Texto Livre, Aviso/Comunicado, Divisor de Seção e Importar Itens da Setlist Ativa).
+- **Ergonomia e Layout do Command Palette (`CommandPalette.svelte`):**
+  - Abreviação automática para siglas nos seletores de versões bíblicas (ex: `ARA`, `AS`, `NTLH`) com tooltip exibindo o nome completo, liberando espaço nas abas.
+  - Prevenção de quebra de linha com `whitespace-nowrap shrink-0` na aba Bíblia, mantendo altura simétrica e estável na barra de navegação superior.
 
 ## [0.4.3] - 2026-11-01
 
