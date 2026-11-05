@@ -790,51 +790,51 @@
       </div>
 
       <!-- Abas de Navegação -->
-      <div class="px-4 py-1.5 bg-zinc-900/40 border-b border-zinc-800/60 flex items-center justify-between text-xs">
-        <div class="flex items-center gap-1.5">
+      <div class="px-4 py-1.5 bg-zinc-900/40 border-b border-zinc-800/60 flex items-center justify-between text-xs gap-2 overflow-x-auto">
+        <div class="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             onclick={() => switchTab('local')}
-            class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {activeTab === 'local' ? 'bg-zinc-800 text-emerald-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
+            class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 {activeTab === 'local' ? 'bg-zinc-800 text-emerald-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
           >
-            <Music size={13} />
+            <Music size={13} class="shrink-0" />
             <span>Músicas ({localResults.length})</span>
           </button>
 
           <button
             type="button"
             onclick={() => switchTab('bible')}
-            class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {activeTab === 'bible' ? 'bg-zinc-800 text-amber-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
+            class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 {activeTab === 'bible' ? 'bg-zinc-800 text-amber-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
           >
-            <BookOpen size={13} />
-            <span>Bíblia Sagrada {bibleVerses.length > 0 ? `(${bibleVerses.length})` : bibleResults.length > 0 ? `(${bibleResults.length})` : ''}</span>
+            <BookOpen size={13} class="shrink-0" />
+            <span>Bíblia {bibleVerses.length > 0 ? `(${bibleVerses.length})` : bibleResults.length > 0 ? `(${bibleResults.length})` : ''}</span>
           </button>
 
           <button
             type="button"
             onclick={() => switchTab('online')}
-            class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {activeTab === 'online' ? 'bg-zinc-800 text-sky-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
+            class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 {activeTab === 'online' ? 'bg-zinc-800 text-sky-400 font-semibold' : 'text-zinc-400 hover:text-zinc-200'}"
           >
-            <Globe size={13} />
+            <Globe size={13} class="shrink-0" />
             <span>Online {onlineResults.length > 0 ? `(${onlineResults.length})` : ''}</span>
           </button>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 shrink-0">
           {#if activeTab === 'bible' && bibles.length > 0}
             <select
               bind:value={selectedBibleId}
               onchange={() => searchBible(query)}
-              class="bg-zinc-800 text-zinc-300 text-[11px] rounded px-2 py-0.5 border border-zinc-700/80 focus:outline-none cursor-pointer"
+              class="bg-zinc-800 text-zinc-300 text-[11px] font-semibold rounded px-2 py-0.5 border border-zinc-700/80 focus:outline-none cursor-pointer shrink-0"
               title="Versão da Bíblia"
             >
               {#each bibles as b (b.id)}
-                <option value={b.id}>{b.abbreviation} - {b.name}</option>
+                <option value={b.id} title="{b.abbreviation} - {b.name}">{b.abbreviation || b.name}</option>
               {/each}
             </select>
           {/if}
 
-          <span class="text-[10px] text-zinc-500 hidden sm:inline">
+          <span class="text-[10px] text-zinc-500 hidden sm:inline shrink-0">
             <kbd class="px-1 py-0.5 rounded bg-zinc-800 font-mono text-[9px]">Tab</kbd> Alternar
           </span>
         </div>

@@ -7,6 +7,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Refinamentos de Interface no Painel do Operador (`AdminView.svelte`, `BottomPanel.svelte`, `CommandPalette.svelte`):**
+  - **Colapso da Seção "Controle de Saídas":** Cabeçalho interativo na barra lateral direita de previews com ícone `ChevronDown` animado, permitindo recolher e expandir o grid de botões de controle de saída (Ao Vivo, Parar, Black, Limpar, Fundo) com persistência no `localStorage`.
+  - **Menu Dropdown "Adicionar" na Aba Outros:** Consolidação dos botões individuais `+ Agenda`, `+ Texto` e `+ Aviso` em um botão único `+ Adicionar ▾` com menu suspenso elegante, oferecendo opções de criação rápida (Programação/Agenda, Texto Livre, Aviso/Comunicado, Divisor de Seção) e importação inteligente de itens avulsos da setlist ativa para o catálogo persistente.
+  - **Abreviação no Seletor de Bíblias do Command Palette:** Redução da largura do menu suspenso de versões da Bíblia (exibindo apenas siglas como `ARA`, `AS`, `NTLH` com título descritivo completo no tooltip), liberando espaço na barra de abas.
+  - **Prevenção de Quebra de Linha na Aba Bíblia do Command Palette:** Aplicação de `whitespace-nowrap shrink-0` e padronização do rótulo para `Bíblia`, eliminando a quebra em duas linhas e preservando a altura uniforme da barra de abas.
 - **Configuração de Tamanho do Aviso de Palco em Modo de Espera (`StageView.svelte`, `SettingsModal.svelte`, `StagePreviewBox.svelte`, `types.ts`, `displaySettings.ts`):**
   - Nova opção configurável `standby_alert_font_size` (padrão de `36px`, escala de 14px a 150px com input numérico e controle deslizante) em *Tamanhos das Fontes de Palco* na aba *Monitor de Palco (Stage) > Layout & Tempo*.
   - Aumento expressivo e destaque visual no banner de aviso exibido no monitor de retorno (`/stage`) quando nenhum slide está sendo apresentado (modo descanso/standby), eliminando a limitação rígida de `20px` e aplicando a tipografia configurada dinamicamente via WebSocket em tempo real.

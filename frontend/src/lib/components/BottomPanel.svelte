@@ -622,6 +622,7 @@
   let othersKindFilter = $state<'all' | 'schedule' | 'text' | 'announcement' | 'header'>('all');
   let viewingCustomItem = $state<MediaItem | null>(null);
   let isImportingFromSetlist = $state(false);
+  let isAddOtherMenuOpen = $state(false);
 
   const filteredCustomItems = $derived.by(() => {
     return $customItemsStore.filter((item) => {
@@ -2253,55 +2254,124 @@
                 <RefreshCw size={12} />
               </Button>
 
-              {#if activeSetlistItems && activeSetlistItems.length > 0}
+              <!-- Botão Dropdown Adicionar -->
+              <div class="relative">
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="sm"
-                  onclick={handleImportFromSetlistClick}
-                  disabled={isImportingFromSetlist}
-                  title="Importar itens de agenda e texto da setlist ativa para o catálogo"
-                  class="h-7 text-xs gap-1 cursor-pointer border-primary/40 text-primary hover:bg-primary/10"
+                  onclick={() => (isAddOtherMenuOpen = !isAddOtherMenuOpen)}
+                  title="Criar novo item ou importar para a aba Outros"
+                  class="h-7 text-xs gap-1.5 cursor-pointer shadow-sm"
+                  aria-expanded={isAddOtherMenuOpen}
                 >
-                  <Upload size={12} class={isImportingFromSetlist ? 'animate-spin' : ''} />
-                  <span class="hidden md:inline">{isImportingFromSetlist ? 'Importando...' : 'Importar da Setlist'}</span>
+                  <Plus size={13} />
+                  <span>Adicionar</span>
+                  <ChevronDown size={11} class="opacity-70 transition-transform duration-200 {isAddOtherMenuOpen ? 'rotate-180' : ''}" />
                 </Button>
-              {/if}
 
-              <!-- Botão Criar Agenda -->
-              <Button
-                variant="outline"
-                size="sm"
-                onclick={onopenscheduleeditor}
-                title="Criar nova programação ou culto na Agenda"
-                class="h-7 text-xs gap-1 border-amber-500/40 text-amber-300 hover:bg-amber-500/10 cursor-pointer"
-              >
-                <CalendarDays size={12} />
-                <span>+ Agenda</span>
-              </Button>
+                {#if isAddOtherMenuOpen}
+                  <!-- svelte-ignore a11y_click_events_have_key_events -->
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+                  <div
+                    class="fixed inset-0 z-40"
+                    onclick={() => (isAddOtherMenuOpen = false)}
+                  ></div>
 
-              <!-- Botão Criar Texto -->
-              <Button
-                variant="outline"
-                size="sm"
-                onclick={onopentexteditor}
-                title="Criar nova apresentação de texto livre"
-                class="h-7 text-xs gap-1 border-blue-500/40 text-blue-300 hover:bg-blue-500/10 cursor-pointer"
-              >
-                <FileText size={12} />
-                <span>+ Texto</span>
-              </Button>
+                  <div
+                    class="absolute right-0 top-full mt-1.5 w-60 rounded-xl bg-neutral-900 border border-neutral-800 shadow-2xl p-1 z-50 animate-in fade-in zoom-in-95 duration-150 select-none text-left"
+                    role="menu"
+                  >
+                    <!-- Opção Agenda -->
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onclick={() => {
+                        isAddOtherMenuOpen = false;
+                        onopenscheduleeditor?.();
+                      }}
+                      class="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-amber-300 hover:bg-neutral-800 transition-colors text-left cursor-pointer group"
+                    >
+                      <CalendarDays size={14} class="shrink-0 text-amber-400" />
+                      <div class="flex flex-col min-w-0">
+                        <span class="font-semibold text-neutral-200 group-hover:text-amber-300 transition-colors">Programação (Agenda)</span>
+                        <span class="text-[10px] text-neutral-400 font-normal">Cultos semanais e eventos especiais</span>
+                      </div>
+                    </button>
 
-              <!-- Botão Criar Aviso -->
-              <Button
-                variant="outline"
-                size="sm"
-                onclick={() => onopenquickitemeditor?.('announcement')}
-                title="Criar novo aviso ou comunicado rápido"
-                class="h-7 text-xs gap-1 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 cursor-pointer"
-              >
-                <Bookmark size={12} />
-                <span>+ Aviso</span>
-              </Button>
+                    <!-- Opção Texto Livre -->
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onclick={() => {
+                        isAddOtherMenuOpen = false;
+                        onopentexteditor?.();
+                      }}
+                      class="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-blue-300 hover:bg-neutral-800 transition-colors text-left cursor-pointer group"
+                    >
+                      <FileText size={14} class="shrink-0 text-blue-400" />
+                      <div class="flex flex-col min-w-0">
+                        <span class="font-semibold text-neutral-200 group-hover:text-blue-300 transition-colors">Texto Livre</span>
+                        <span class="text-[10px] text-neutral-400 font-normal">Apresentação com versos ou leitura</span>
+                      </div>
+                    </button>
+
+                    <!-- Opção Aviso -->
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onclick={() => {
+                        isAddOtherMenuOpen = false;
+                        onopenquickitemeditor?.('announcement');
+                      }}
+                      class="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-emerald-300 hover:bg-neutral-800 transition-colors text-left cursor-pointer group"
+                    >
+                      <Bookmark size={14} class="shrink-0 text-emerald-400" />
+                      <div class="flex flex-col min-w-0">
+                        <span class="font-semibold text-neutral-200 group-hover:text-emerald-300 transition-colors">Aviso / Comunicado</span>
+                        <span class="text-[10px] text-neutral-400 font-normal">Avisos e comunicados da equipe</span>
+                      </div>
+                    </button>
+
+                    <!-- Opção Divisor de Seção -->
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onclick={() => {
+                        isAddOtherMenuOpen = false;
+                        onopenquickitemeditor?.('header');
+                      }}
+                      class="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-purple-300 hover:bg-neutral-800 transition-colors text-left cursor-pointer group"
+                    >
+                      <Layers size={14} class="shrink-0 text-purple-400" />
+                      <div class="flex flex-col min-w-0">
+                        <span class="font-semibold text-neutral-200 group-hover:text-purple-300 transition-colors">Divisor de Seção</span>
+                        <span class="text-[10px] text-neutral-400 font-normal">Separador visual de blocos na setlist</span>
+                      </div>
+                    </button>
+
+                    <div class="my-1 border-t border-neutral-800"></div>
+
+                    <!-- Opção Importar da Setlist -->
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onclick={() => {
+                        isAddOtherMenuOpen = false;
+                        handleImportFromSetlistClick();
+                      }}
+                      disabled={!activeSetlistItems || activeSetlistItems.length === 0 || isImportingFromSetlist}
+                      class="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-neutral-800 disabled:opacity-40 disabled:hover:bg-transparent transition-colors text-left cursor-pointer group"
+                      title="Salva itens criados avulsos na setlist ativa diretamente no catálogo para reuso"
+                    >
+                      <Upload size={14} class="shrink-0 text-primary {isImportingFromSetlist ? 'animate-spin' : ''}" />
+                      <div class="flex flex-col min-w-0">
+                        <span class="font-semibold text-neutral-200 group-hover:text-primary transition-colors">Importar da Setlist Ativa</span>
+                        <span class="text-[10px] text-neutral-400 font-normal">Salva itens avulsos da setlist no catálogo</span>
+                      </div>
+                    </button>
+                  </div>
+                {/if}
+              </div>
             </div>
           </div>
 
