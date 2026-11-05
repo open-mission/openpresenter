@@ -6,6 +6,7 @@
   import RemoteView from '$lib/views/RemoteView.svelte';
   import LowerThirdView from '$lib/views/LowerThirdView.svelte';
   import Sonner from '$lib/components/ui/Sonner.svelte';
+  import { toastPositionStore } from '$lib/settings';
 
   let currentPath = $state(window.location.pathname);
 
@@ -111,5 +112,5 @@
   <LowerThirdView />
 {:else}
   <AdminView />
-  <Sonner position="top-right" richColors closeButton />
+  <Sonner position={$toastPositionStore} richColors closeButton />
 {/if}

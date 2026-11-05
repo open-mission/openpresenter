@@ -16,9 +16,35 @@
 
   let title = $state('');
   let content = $state('');
+  let prevOpen = false;
+  let initialSnapshot = $state('');
+
+  function getFormSnapshot(): string {
+    return JSON.stringify({
+      title: title.trim(),
+      content: content.trim(),
+    });
+  }
+
+  function isDirty(): boolean {
+    if (!open) return false;
+    return getFormSnapshot() !== initialSnapshot;
+  }
+
+  function requestClose() {
+    if (isDirty()) {
+      const confirmDiscard = confirm(
+        'Existem alterações não salvas. Deseja realmente descartar e fechar?'
+      );
+      if (!confirmDiscard) {
+        return;
+      }
+    }
+    onclose();
+  }
 
   $effect(() => {
-    if (open) {
+    if (open && !prevOpen) {
       if (initialItem) {
         title = initialItem.title;
         content = initialItem.slides.map((s) => s.content).join('\n\n');
@@ -26,7 +52,9 @@
         title = '';
         content = '';
       }
+      initialSnapshot = getFormSnapshot();
     }
+    prevOpen = open;
   });
 
   function handleSave() {
@@ -61,7 +89,7 @@
     if (!open) return;
     if (e.key === 'Escape') {
       e.stopPropagation();
-      onclose();
+      requestClose();
     } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey || mode === 'header')) {
       e.preventDefault();
       handleSave();
@@ -75,7 +103,6 @@
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150"
-    onclick={onclose}
     role="presentation"
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -113,7 +140,7 @@
 
         <button
           type="button"
-          onclick={onclose}
+          onclick={requestClose}
           class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
         >
           <X size={16} />
@@ -160,7 +187,7 @@
 
       <!-- Rodapé -->
       <div class="h-14 px-5 border-t border-neutral-800 bg-neutral-900/60 flex items-center justify-end gap-2 shrink-0">
-        <Button variant="secondary" size="sm" onclick={onclose}>
+        <Button variant="secondary" size="sm" onclick={requestClose}>
           Cancelar
         </Button>
         <Button

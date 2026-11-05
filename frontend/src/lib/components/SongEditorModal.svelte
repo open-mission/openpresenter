@@ -68,6 +68,38 @@
   let isSaving = $state(false);
   let errorMessage = $state('');
   let prevOpen = false;
+  let initialSnapshot = $state('');
+
+  function getFormSnapshot(): string {
+    return JSON.stringify({
+      title: title.trim(),
+      artist: artist.trim(),
+      composer: composer.trim(),
+      songKey: songKey.trim(),
+      bpm: bpm ? Number(bpm) : undefined,
+      lyricsRaw: lyricsRaw.trim(),
+      tags: [...tags].sort(),
+      alignH,
+      alignV,
+    });
+  }
+
+  function isDirty(): boolean {
+    if (!open) return false;
+    return getFormSnapshot() !== initialSnapshot;
+  }
+
+  function requestClose() {
+    if (isDirty()) {
+      const confirmDiscard = confirm(
+        'Existem alterações não salvas. Deseja realmente descartar as alterações e sair?'
+      );
+      if (!confirmDiscard) {
+        return;
+      }
+    }
+    onclose();
+  }
 
   // Alinhamento
   let alignH = $state<'left' | 'center' | 'right' | 'justify'>('center');
@@ -165,6 +197,7 @@ Traga sua família e convidados!`;
         }
       }
       errorMessage = '';
+      initialSnapshot = getFormSnapshot();
     }
     prevOpen = open;
   });
@@ -178,7 +211,7 @@ Traga sua família e convidados!`;
     if (!open) return;
     if (e.key === 'Escape') {
       e.stopPropagation();
-      onclose();
+      requestClose();
     }
     if ((e.metaKey || e.ctrlKey) && e.key === 's') {
       e.preventDefault();
@@ -653,13 +686,13 @@ Traga sua família e convidados!`;
     aria-modal="true"
     aria-label={mode === 'song' ? 'Editor de Música' : 'Editor de Apresentação e Texto'}
     tabindex="-1"
-    onclick={(e) => {
-      if (e.target === e.currentTarget) onclose();
-    }}
   >
     <!-- Modal Container (95% da tela) -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="w-[95vw] h-[95vh] max-w-7xl bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl flex flex-col overflow-hidden text-neutral-100"
+      onclick={(e) => e.stopPropagation()}
     >
       <!-- Cabeçalho do Modal -->
       <div
@@ -696,7 +729,7 @@ Traga sua família e convidados!`;
           </span>
           <button
             type="button"
-            onclick={onclose}
+            onclick={requestClose}
             class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800/80 flex items-center justify-center transition-colors cursor-pointer"
             aria-label="Fechar"
           >
@@ -1094,7 +1127,7 @@ Traga sua família e convidados!`;
         {/if}
 
         <div class="flex items-center gap-2.5">
-          <Button variant="ghost" size="sm" onclick={onclose} disabled={isSaving}>
+          <Button variant="ghost" size="sm" onclick={requestClose} disabled={isSaving}>
             Cancelar
           </Button>
           <Button

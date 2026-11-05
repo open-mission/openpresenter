@@ -1,35 +1,78 @@
-import { toast } from 'svelte-sonner';
+import { toast as sonnerToast } from 'svelte-sonner';
 import { getInstanceId } from './instance';
 import type { ActionLog } from './types';
+import { loadInitialToastDnd, toastDndStore } from './settings';
 
-export { toast };
+let isDndActive = loadInitialToastDnd();
+if (typeof window !== 'undefined') {
+  toastDndStore.subscribe((val) => {
+    isDndActive = val;
+    if (val) {
+      sonnerToast.dismiss();
+    }
+  });
+}
+
+export function isToastDnd(): boolean {
+  return isDndActive;
+}
+
+const wrappedToast = {
+  ...sonnerToast,
+  success: (message: any, data?: any) => {
+    if (isDndActive) return '';
+    return sonnerToast.success(message, data);
+  },
+  error: (message: any, data?: any) => {
+    if (isDndActive) return '';
+    return sonnerToast.error(message, data);
+  },
+  info: (message: any, data?: any) => {
+    if (isDndActive) return '';
+    return sonnerToast.info(message, data);
+  },
+  warning: (message: any, data?: any) => {
+    if (isDndActive) return '';
+    return sonnerToast.warning(message, data);
+  },
+  message: (message: any, data?: any) => {
+    if (isDndActive) return '';
+    return sonnerToast.message(message, data);
+  },
+};
+
+export { wrappedToast as toast };
 
 /**
  * Notificação simples de sucesso
  */
 export function notifySuccess(message: string, description?: string) {
-  toast.success(message, { description, duration: 3500 });
+  if (isDndActive) return;
+  sonnerToast.success(message, { description, duration: 3500 });
 }
 
 /**
  * Notificação simples de erro
  */
 export function notifyError(message: string, description?: string) {
-  toast.error(message, { description, duration: 5000 });
+  if (isDndActive) return;
+  sonnerToast.error(message, { description, duration: 5000 });
 }
 
 /**
  * Notificação simples informativa
  */
 export function notifyInfo(message: string, description?: string) {
-  toast.info(message, { description, duration: 3500 });
+  if (isDndActive) return;
+  sonnerToast.info(message, { description, duration: 3500 });
 }
 
 /**
  * Notificação de aviso
  */
 export function notifyWarning(message: string, description?: string) {
-  toast.warning(message, { description, duration: 4000 });
+  if (isDndActive) return;
+  sonnerToast.warning(message, { description, duration: 4000 });
 }
 
 // Histórico recente para deduplicação rápida de toasts em milissegundos
@@ -40,6 +83,10 @@ const recentToasts = new Set<string>();
  * e exibe um toast contextual apropriado se relevante para o operador.
  */
 export function handleActionLogNotification(log: ActionLog) {
+  if (isDndActive) {
+    return;
+  }
+
   // Telas públicas e de palco nunca devem exibir notificações toast sobrepostas
   if (typeof window !== 'undefined') {
     const p = window.location.pathname;

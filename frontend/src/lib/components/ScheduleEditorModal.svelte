@@ -30,10 +30,42 @@
   let events = $state<ScheduleEvent[]>([]);
   let selectedEventIndex = $state(0);
   let error = $state<string | null>(null);
+  let prevOpen = false;
+  let initialSnapshot = $state('');
+
+  function getFormSnapshot(): string {
+    return JSON.stringify({
+      title: title.trim(),
+      artistOrRef: artistOrRef.trim(),
+      events: events.map((ev) => ({
+        dayOrDate: ev.dayOrDate.trim(),
+        time: ev.time.trim(),
+        title: ev.title.trim(),
+        details: ev.details.trim(),
+      })),
+    });
+  }
+
+  function isDirty(): boolean {
+    if (!open) return false;
+    return getFormSnapshot() !== initialSnapshot;
+  }
+
+  function requestClose() {
+    if (isDirty()) {
+      const confirmDiscard = confirm(
+        'Existem alterações não salvas na agenda. Deseja realmente descartar e fechar?'
+      );
+      if (!confirmDiscard) {
+        return;
+      }
+    }
+    onclose();
+  }
 
   // Inicializa o formulário com dados existentes ou template padrão
   $effect(() => {
-    if (open) {
+    if (open && !prevOpen) {
       error = null;
       if (initialItem && initialItem.kind === 'schedule') {
         title = initialItem.title || 'Programação Semanal';
@@ -78,7 +110,9 @@
         events = getDefaultEvents();
       }
       selectedEventIndex = 0;
+      initialSnapshot = getFormSnapshot();
     }
+    prevOpen = open;
   });
 
   function getDefaultEvents(): ScheduleEvent[] {
@@ -196,7 +230,7 @@
     if (!open) return;
     if (e.key === 'Escape') {
       e.stopPropagation();
-      onclose();
+      requestClose();
     } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleSave();
@@ -212,7 +246,6 @@
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 animate-in fade-in duration-150"
-    onclick={onclose}
     role="presentation"
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -244,7 +277,7 @@
 
         <button
           type="button"
-          onclick={onclose}
+          onclick={requestClose}
           class="w-9 h-9 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
           title="Fechar (Esc)"
         >
@@ -580,7 +613,7 @@
         </span>
 
         <div class="flex items-center gap-2.5 ml-auto">
-          <Button variant="ghost" size="sm" onclick={onclose} class="text-neutral-400 hover:text-white text-xs">
+          <Button variant="ghost" size="sm" onclick={requestClose} class="text-neutral-400 hover:text-white text-xs">
             Cancelar
           </Button>
           <Button

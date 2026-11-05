@@ -7,6 +7,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Proteção contra Fechamento Acidental de Modais de Edição (`SongEditorModal.svelte`, `ScheduleEditorModal.svelte`, `QuickItemModal.svelte`, `SetlistModal.svelte`):**
+  - Bloqueio de fechamento ao clicar fora do modal (área externa/backdrop), evitando a perda involuntária de letras, slides de texto, programações de cultos ou avisos durante a operação.
+  - Fechamento restrito ao botão "Fechar" (X), botão "Cancelar" ou pressionamento da tecla `Esc`.
+  - Detecção inteligente de alterações não salvas (*dirty state*): se houver conteúdo modificado, o sistema exibe alerta de confirmação antes de descartar os dados e fechar a janela.
+- **Configurações de Notificações do Sistema e Modo Não Perturbe (`SettingsModal.svelte`, `settings.ts`, `toast.ts`, `App.svelte`):**
+  - Nova seção "Notificações do Sistema (Toasts)" na aba *Aparência & Interface* das Configurações.
+  - **Modo Não Perturbe (Silenciar Toasts):** Switch interativo com persistência em `localStorage` para suprimir alertas flutuantes no painel do operador durante o culto ou transmissão.
+  - **Posição Configurável dos Toasts:** Seletor em grade permitindo definir o canto da tela onde os toasts serão exibidos (*Superior Esquerdo*, *Superior Direito - Padrão*, *Inferior Esquerdo* e *Inferior Direito*).
+  - Botão interativo para disparar notificação de teste imediatamente na posição selecionada.
 - **Separação do Controle de Mensagem no Retorno em Seção Própria (`TimerControlPanel.svelte`):**
   - Desacoplamento do envio de avisos de palco do rodapé do cronômetro, transformando a "Mensagem no Retorno" em uma seção autônoma e colapsável na barra lateral direita do painel do operador.
   - Cabeçalho padronizado com ícone `MessageSquare` em tom esmeralda, título "Mensagem no Retorno", `ChevronDown` animado e alternador de colapso com persistência em `localStorage` (`stage_message_collapsed`).

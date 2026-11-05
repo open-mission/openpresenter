@@ -24,6 +24,7 @@ export type AccentTheme =
 
 export type WallpaperFitMode = 'cover' | 'contain' | 'center' | 'repeat';
 export type SetlistViewMode = 'item' | 'flow';
+export type ToastPosition = 'top-left' | 'top-right' | 'bottom-right' | 'bottom-left';
 
 export interface BaseColorPreset {
   id: BaseColor;
@@ -239,6 +240,8 @@ const STORAGE_SECTIONS_KEY = 'open_presenter_sections';
 const STORAGE_WALLPAPER_FIT_KEY = 'open_presenter_wallpaper_fit';
 const STORAGE_PREVIEW_LABELS_KEY = 'open_presenter_preview_labels';
 const STORAGE_SETLIST_VIEW_MODE_KEY = 'open_presenter_setlist_view_mode';
+const STORAGE_TOAST_DND_KEY = 'open_presenter_toast_dnd';
+const STORAGE_TOAST_POSITION_KEY = 'open_presenter_toast_position';
 
 function loadInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'system';
@@ -331,6 +334,20 @@ function loadInitialSections(): CustomSectionConfig[] {
   return DEFAULT_SECTIONS;
 }
 
+export function loadInitialToastDnd(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(STORAGE_TOAST_DND_KEY) === 'true';
+}
+
+export function loadInitialToastPosition(): ToastPosition {
+  if (typeof window === 'undefined') return 'top-right';
+  const saved = localStorage.getItem(STORAGE_TOAST_POSITION_KEY) as ToastPosition | null;
+  if (saved && ['top-left', 'top-right', 'bottom-right', 'bottom-left'].includes(saved)) {
+    return saved;
+  }
+  return 'top-right';
+}
+
 export const themeStore = writable<ThemeMode>(loadInitialTheme());
 export const baseColorStore = writable<BaseColor>(loadInitialBaseColor());
 export const neutralFamilyStore = baseColorStore; // alias
@@ -339,6 +356,22 @@ export const wallpaperFitStore = writable<WallpaperFitMode>(loadInitialWallpaper
 export const previewLabelsStore = writable<boolean>(loadInitialPreviewLabels());
 export const setlistViewModeStore = writable<SetlistViewMode>(loadInitialSetlistViewMode());
 export const sectionsStore = writable<CustomSectionConfig[]>(loadInitialSections());
+export const toastDndStore = writable<boolean>(loadInitialToastDnd());
+export const toastPositionStore = writable<ToastPosition>(loadInitialToastPosition());
+
+export function setToastDnd(enabled: boolean) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_TOAST_DND_KEY, String(enabled));
+  }
+  toastDndStore.set(enabled);
+}
+
+export function setToastPosition(position: ToastPosition) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_TOAST_POSITION_KEY, position);
+  }
+  toastPositionStore.set(position);
+}
 
 export function setSetlistViewMode(mode: SetlistViewMode) {
   setlistViewModeStore.set(mode);

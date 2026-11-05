@@ -29,9 +29,37 @@
 
   const resolvedWallpaper = $derived(resolveBackground(selectedWallpaper));
   let fileInputRef = $state<HTMLInputElement | null>(null);
+  let prevOpen = false;
+  let initialSnapshot = $state('');
+
+  function getFormSnapshot(): string {
+    return JSON.stringify({
+      title: title.trim(),
+      description: description.trim(),
+      selectedWallpaper,
+      wallpaperMode,
+    });
+  }
+
+  function isDirty(): boolean {
+    if (!open) return false;
+    return getFormSnapshot() !== initialSnapshot;
+  }
+
+  function requestClose() {
+    if (isDirty()) {
+      const confirmDiscard = confirm(
+        'Existem alterações não salvas na setlist. Deseja realmente descartar e fechar?'
+      );
+      if (!confirmDiscard) {
+        return;
+      }
+    }
+    onclose();
+  }
 
   $effect(() => {
-    if (open) {
+    if (open && !prevOpen) {
       if (initialSetlist) {
         title = initialSetlist.title;
         description = initialSetlist.description || '';
@@ -45,7 +73,9 @@
       }
       errorMessage = '';
       loadWallpapers();
+      initialSnapshot = getFormSnapshot();
     }
+    prevOpen = open;
   });
 
   async function loadWallpapers() {
@@ -142,7 +172,7 @@
     if (!open) return;
     if (e.key === 'Escape') {
       e.stopPropagation();
-      onclose();
+      requestClose();
     }
   }
 </script>
@@ -153,7 +183,6 @@
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150"
-    onclick={onclose}
     role="presentation"
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -181,7 +210,7 @@
 
         <button
           type="button"
-          onclick={onclose}
+          onclick={requestClose}
           class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-colors cursor-pointer"
         >
           <X size={16} />
@@ -379,7 +408,7 @@
 
       <!-- Rodapé -->
       <div class="h-14 px-6 border-t border-neutral-800 bg-neutral-900/60 flex items-center justify-end gap-2.5 shrink-0">
-        <Button variant="secondary" size="sm" onclick={onclose}>
+        <Button variant="secondary" size="sm" onclick={requestClose}>
           Cancelar
         </Button>
         <Button

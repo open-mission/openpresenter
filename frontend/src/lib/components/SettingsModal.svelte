@@ -12,6 +12,8 @@
     Info,
     RotateCcw,
     Check,
+    Bell,
+    BellOff,
     Tv,
     ExternalLink,
     HardDrive,
@@ -69,6 +71,10 @@
     setWallpaperFit,
     setPreviewLabels,
     setSetlistViewMode,
+    toastDndStore,
+    toastPositionStore,
+    setToastDnd,
+    setToastPosition,
     saveSections,
     resetSectionsToDefault,
     COLOR_PRESETS,
@@ -79,6 +85,7 @@
     type AccentTheme,
     type WallpaperFitMode,
     type SetlistViewMode,
+    type ToastPosition,
     type CustomSectionConfig,
   } from '../settings';
   import {
@@ -108,7 +115,7 @@
     type BackgroundStylesMap,
   } from '../backgrounds';
   import { biblesStore, refreshBibles } from '../bibles';
-  import { notifySuccess, notifyError } from '../toast';
+  import { notifySuccess, notifyError, notifyInfo } from '../toast';
   import Badge from './ui/Badge.svelte';
   import Button from './ui/Button.svelte';
   import StagePreviewBox from './StagePreviewBox.svelte';
@@ -1721,6 +1728,102 @@
                       </div>
                     </div>
                   </button>
+                </div>
+              </div>
+
+              <!-- CONTROLE DE NOTIFICAÇÕES (NÃO PERTURBE E POSIÇÃO DOS TOASTS) -->
+              <div class="pt-4 border-t border-neutral-800 space-y-4">
+                <div>
+                  <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                    <Bell size={16} class="text-primary" />
+                    Notificações do Sistema (Toasts)
+                  </h3>
+                  <p class="text-xs text-neutral-400 mt-0.5">
+                    Configure os avisos flutuantes de conexão de aparelhos, início de apresentação e operações do sistema.
+                  </p>
+                </div>
+
+                <!-- 1. MODO NÃO PERTURBE -->
+                <div class="flex items-center justify-between p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40">
+                  <div class="space-y-0.5 pr-4">
+                    <div class="text-xs font-semibold text-white flex items-center gap-1.5">
+                      {#if $toastDndStore}
+                        <BellOff size={14} class="text-amber-400" />
+                        <span>Modo Não Perturbe (Silenciar)</span>
+                      {:else}
+                        <Bell size={14} class="text-neutral-400" />
+                        <span>Modo Não Perturbe</span>
+                      {/if}
+                    </div>
+                    <div class="text-[11px] text-neutral-400">
+                      Oculta todos os toasts de notificação na tela do operador para evitar distrações durante o culto ao vivo.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-label="Alternar modo Não Perturbe"
+                    aria-checked={$toastDndStore}
+                    onclick={() => setToastDnd(!$toastDndStore)}
+                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {$toastDndStore ? 'bg-amber-600' : 'bg-neutral-800'}"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {$toastDndStore ? 'translate-x-5' : 'translate-x-0'}"
+                    ></span>
+                  </button>
+                </div>
+
+                <!-- 2. POSIÇÃO DAS NOTIFICAÇÕES -->
+                <div class="space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="block text-[11px] font-medium text-neutral-400">
+                      Posição das Notificações na Tela
+                    </span>
+                    <button
+                      type="button"
+                      onclick={() => {
+                        if ($toastDndStore) {
+                          notifyInfo('Não Perturbe ativado', 'Desative o Não Perturbe para visualizar notificações.');
+                        } else {
+                          notifyInfo('Notificação de Teste', `Exibida no canto: ${
+                            $toastPositionStore === 'top-left' ? 'Superior Esquerdo' :
+                            $toastPositionStore === 'top-right' ? 'Superior Direito' :
+                            $toastPositionStore === 'bottom-right' ? 'Inferior Direito' : 'Inferior Esquerdo'
+                          }`);
+                        }
+                      }}
+                      class="text-[11px] font-medium text-primary hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                      <Sparkles size={12} />
+                      Testar Notificação
+                    </button>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2.5">
+                    {#each [
+                      { id: 'top-left', label: 'Superior Esquerdo', hint: 'Canto alto à esquerda' },
+                      { id: 'top-right', label: 'Superior Direito', hint: 'Canto alto à direita (Padrão)' },
+                      { id: 'bottom-left', label: 'Inferior Esquerdo', hint: 'Canto baixo à esquerda' },
+                      { id: 'bottom-right', label: 'Inferior Direito', hint: 'Canto baixo à direita' },
+                    ] as pos}
+                      <button
+                        type="button"
+                        onclick={() => setToastPosition(pos.id as ToastPosition)}
+                        class="p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {$toastPositionStore === pos.id ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
+                      >
+                        <div class="flex items-center justify-between mb-1.5">
+                          <span class="text-xs font-semibold text-white">{pos.label}</span>
+                          {#if $toastPositionStore === pos.id}
+                            <Check size={14} class="text-primary" />
+                          {/if}
+                        </div>
+                        <div class="text-[10px] text-neutral-400">
+                          {pos.hint}
+                        </div>
+                      </button>
+                    {/each}
+                  </div>
                 </div>
               </div>
             </div>
