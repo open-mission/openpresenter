@@ -6837,6 +6837,52 @@
                 {/if}
               </div>
 
+              <!-- Documentação da API & Integrações Externas (100% Offline) -->
+              <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/40 space-y-3">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <h4 class="text-xs font-semibold text-neutral-200">Documentação da API & Integrações (Offline)</h4>
+                      <Badge variant="outline" class="text-[10px] text-purple-400 border-purple-500/30">
+                        Scalar & Swagger UI
+                      </Badge>
+                    </div>
+                    <p class="text-[11px] text-neutral-400 mt-1 leading-relaxed">
+                      O OpenPresenter embute documentação OpenAPI 3.0 completa e interativa que funciona 100% offline. Ideal para integrar com ferramentas de gestão e escalas (estilo Voluts, Planning Center) ou automações externas via REST e WebSockets.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 pt-1">
+                  <a
+                    href="/docs"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-semibold transition-colors"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Abrir Scalar (/docs)</span>
+                  </a>
+                  <a
+                    href="/swagger"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700 text-xs font-semibold transition-colors"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Abrir Swagger UI (/swagger)</span>
+                  </a>
+                  <a
+                    href="/api/openapi.json"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 text-xs font-mono transition-colors"
+                  >
+                    <span>openapi.json</span>
+                  </a>
+                </div>
+              </div>
+
               <!-- Reinicialização do Servidor -->
               <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/40 space-y-2">
                 <div class="flex items-center justify-between">

@@ -10,6 +10,7 @@
     setDisplayMode,
     stopPresentation,
     quickPresentMedia,
+    teamUpdatedStore,
   } from '$lib/ws';
   import type {
     MediaItem,
@@ -20,7 +21,15 @@
     BibleBook,
     BibleVerse,
     Slide,
+    ServiceRoster,
+    TeamDepartment,
   } from '$lib/types';
+  import {
+    fetchActiveRoster,
+    fetchDepartments,
+    updateRosterItemStatus,
+    getWhatsAppUrl,
+  } from '$lib/teams';
   import {
     ListMusic,
     Music,
@@ -36,13 +45,23 @@
     RefreshCw,
     X,
     Check,
+    CheckCircle2,
     Layers,
     Bookmark,
+    Users,
+    Crown,
+    Clock,
+    MessageCircle,
   } from 'lucide-svelte';
 
-  // Navegação mobile entre as 3 abas principais
-  type RemoteTab = 'setlist' | 'songs' | 'bible';
+  // Navegação mobile entre as 4 abas principais
+  type RemoteTab = 'setlist' | 'songs' | 'bible' | 'team';
   let activeTab = $state<RemoteTab>('setlist');
+
+  // Estado da Equipe / Escala
+  let activeRoster = $state<ServiceRoster | null>(null);
+  let teamDepartments = $state<TeamDepartment[]>([]);
+  let isLoadingTeam = $state(false);
 
   // Estado da Setlist
   interface SetlistListItem {
@@ -153,6 +172,24 @@
     loadSetlistsAndActive();
     loadSongs();
     loadBibles();
+    loadTeamRoster();
+
+    const unsubTeam = teamUpdatedStore.subscribe((up) => {
+      if (up) {
+        loadTeamRoster();
+      }
+    });
+
+    return () => {
+      unsubTeam();
+    };
+  });
+
+  // Reagir a mudanças na aba ativa
+  $effect(() => {
+    if (activeTab === 'team') {
+      loadTeamRoster();
+    }
   });
 
   // Reagir a mudanças no active_setlist_id do WebSocket
@@ -161,6 +198,38 @@
       loadSingleSetlistDetail($presentationState.active_setlist_id);
     }
   });
+
+  async function loadTeamRoster() {
+    isLoadingTeam = true;
+    try {
+      const [roster, depts] = await Promise.all([
+        fetchActiveRoster(),
+        fetchDepartments(),
+      ]);
+      activeRoster = roster;
+      teamDepartments = depts;
+    } catch (err) {
+      console.error('Erro ao carregar escala no remoto:', err);
+    } finally {
+      isLoadingTeam = false;
+    }
+  }
+
+  async function handleToggleMemberStatus(itemId: string, currentStatus: string) {
+    if (!activeRoster) return;
+    const nextStatus =
+      currentStatus === 'confirmed'
+        ? 'declined'
+        : currentStatus === 'declined'
+          ? 'pending'
+          : 'confirmed';
+    try {
+      await updateRosterItemStatus(activeRoster.id, itemId, nextStatus);
+      await loadTeamRoster();
+    } catch (err) {
+      console.error('Erro ao atualizar presença:', err);
+    }
+  }
 
   // Carregar lista de setlists e obter o detalhe da ativa
   async function loadSetlistsAndActive() {
@@ -1236,12 +1305,152 @@
           {/if}
         {/if}
       </div>
+
+    <!-- ABA 4: EQUIPE & ESCALA DO CULTO -->
+    {:else if activeTab === 'team'}
+      <div class="space-y-3">
+        {#if isLoadingTeam}
+          <div class="py-12 flex flex-col items-center justify-center text-neutral-400 gap-2">
+            <RefreshCw size={20} class="animate-spin text-emerald-400" />
+            <span class="text-xs">Carregando escala da equipe...</span>
+          </div>
+        {:else if !activeRoster}
+          <div class="py-12 px-6 rounded-2xl bg-neutral-900 border border-neutral-800 text-center space-y-3">
+            <div class="w-12 h-12 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center mx-auto text-neutral-400">
+              <Users size={22} />
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white">Nenhuma escala ativa</h3>
+              <p class="text-xs text-neutral-400 mt-1 max-w-xs mx-auto">
+                A escala do culto será exibida automaticamente assim que for ativada pelo operador no computador principal.
+              </p>
+            </div>
+            <button
+              type="button"
+              onclick={loadTeamRoster}
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold cursor-pointer"
+            >
+              <RefreshCw size={12} />
+              <span>Atualizar</span>
+            </button>
+          </div>
+        {:else}
+          <!-- Cabeçalho do Culto Ativo -->
+          <div class="p-4 rounded-2xl bg-neutral-900 border border-purple-500/30 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                Culto Atual
+              </span>
+              <button
+                type="button"
+                onclick={loadTeamRoster}
+                class="text-neutral-400 hover:text-white p-1 cursor-pointer"
+                title="Atualizar"
+              >
+                <RefreshCw size={13} />
+              </button>
+            </div>
+            <h3 class="text-base font-bold text-white">{activeRoster.title}</h3>
+            <div class="flex items-center gap-3 text-xs text-neutral-400">
+              {#if activeRoster.service_date}
+                <div class="flex items-center gap-1">
+                  <Calendar size={12} />
+                  <span>{activeRoster.service_date}</span>
+                </div>
+              {/if}
+              {#if activeRoster.service_time}
+                <div class="flex items-center gap-1">
+                  <Clock size={12} />
+                  <span>{activeRoster.service_time}</span>
+                </div>
+              {/if}
+            </div>
+          </div>
+
+          <!-- Departamentos e Voluntários -->
+          <div class="space-y-3">
+            {#each teamDepartments.filter((d) => d.is_active) as dept}
+              {@const deptItems = activeRoster.items.filter((it) => it.department_id === dept.id)}
+              {#if deptItems.length > 0}
+                <div class="rounded-2xl bg-neutral-900/90 border border-neutral-800 overflow-hidden">
+                  <!-- Topo do Departamento -->
+                  <div class="px-3.5 py-2.5 bg-neutral-950/60 border-b border-neutral-800/80 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="w-2.5 h-2.5 rounded-full" style="background-color: {dept.color};"></span>
+                      <span class="text-xs font-bold text-white">{dept.name}</span>
+                    </div>
+                    <span class="text-[10px] text-neutral-400 font-medium">
+                      {deptItems.length} {deptItems.length === 1 ? 'voluntário' : 'voluntários'}
+                    </span>
+                  </div>
+
+                  <!-- Lista de Voluntários -->
+                  <div class="p-2 space-y-2">
+                    {#each deptItems as item}
+                      {@const waUrl = getWhatsAppUrl(item.member_phone, `Olá ${item.member_name}, tudo bem? Sobre sua escala de ${dept.name} no culto de ${activeRoster.service_date}:`)}
+                      <div class="p-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800/80 flex items-center justify-between gap-2">
+                        <div class="min-w-0">
+                          <div class="flex items-center gap-1.5">
+                            <span class="text-xs font-bold text-white truncate">
+                              {item.member_name || 'Voluntário'}
+                            </span>
+                            {#if item.role === 'lead'}
+                              <span class="text-amber-400 shrink-0" title="Titular">
+                                <Crown size={12} />
+                              </span>
+                            {/if}
+                          </div>
+                          <span class="text-[10px] text-neutral-400 capitalize">
+                            {item.role === 'lead' ? 'Titular' : 'Auxiliar'}
+                          </span>
+                        </div>
+
+                        <div class="flex items-center gap-1.5 shrink-0">
+                          <!-- Botão de Presença Alternável -->
+                          <button
+                            type="button"
+                            onclick={() => handleToggleMemberStatus(item.id, item.status)}
+                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border cursor-pointer {item.status === 'confirmed' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : item.status === 'declined' ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' : 'bg-amber-500/15 text-amber-400 border-amber-500/30'}"
+                          >
+                            {#if item.status === 'confirmed'}
+                              <CheckCircle2 size={10} />
+                              <span>Confirmado</span>
+                            {:else if item.status === 'declined'}
+                              <X size={10} />
+                              <span>Não vai</span>
+                            {:else}
+                              <Clock size={10} />
+                              <span>Pendente</span>
+                            {/if}
+                          </button>
+
+                          {#if waUrl}
+                            <a
+                              href={waUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="w-7 h-7 rounded-lg bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white flex items-center justify-center transition-colors"
+                              title="WhatsApp"
+                            >
+                              <MessageCircle size={13} />
+                            </a>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+      </div>
     {/if}
   </main>
 
-  <!-- BOTTOM NAVIGATION BAR (Thumb-friendly, 3 abas principais com Safe-Area para iOS) -->
+  <!-- BOTTOM NAVIGATION BAR (Thumb-friendly, 4 abas principais com Safe-Area para iOS) -->
   <nav
-    class="bg-neutral-900 border-t border-neutral-800 grid grid-cols-3 shrink-0"
+    class="bg-neutral-900 border-t border-neutral-800 grid grid-cols-4 shrink-0"
     style="padding-bottom: max(env(safe-area-inset-bottom), 16px);"
   >
     <button
@@ -1269,6 +1478,15 @@
     >
       <BookOpen size={20} class={activeTab === 'bible' ? 'text-emerald-400' : 'text-neutral-400'} />
       <span class="text-[11px]">Bíblia</span>
+    </button>
+
+    <button
+      type="button"
+      onclick={() => (activeTab = 'team')}
+      class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab === 'team' ? 'text-emerald-400 font-extrabold' : 'text-neutral-400 hover:text-neutral-200'}"
+    >
+      <Users size={20} class={activeTab === 'team' ? 'text-emerald-400' : 'text-neutral-400'} />
+      <span class="text-[11px]">Equipe</span>
     </button>
   </nav>
 

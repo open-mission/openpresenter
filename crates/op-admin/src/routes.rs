@@ -7,8 +7,10 @@ use axum::{
 };
 use op_core::{
     BibleBook, BibleSearchResult, BibleVerse, BibleVersionSummary, DisplayMode, MediaItem,
-    OnlineLyricHit, OutputKind, OutputsConfig, ParsedReference, PresentationState, Setlist,
-    SetlistSummary, Song, SongSummary, VERSION, WsMessage,
+    OnlineLyricHit, OutputKind, OutputsConfig, ParsedReference, PresentationState, ServiceRoster,
+    ServiceRosterItem, ServiceRosterSummary, Setlist, SetlistSummary, Song, SongSummary,
+    TeamDepartment, TeamMember, UpsertServiceRoster, UpsertServiceRosterItem, UpsertTeamDepartment,
+    UpsertTeamMember, VERSION, WsMessage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -192,6 +194,61 @@ pub struct ExternalFileQuery {
 
 pub fn create_routes(state: AppState) -> Router {
     Router::new()
+        // Documentação da API (100% Offline via Scalar e Swagger UI)
+        .route("/api/openapi.json", get(crate::api_docs::get_openapi_spec))
+        .route("/docs", get(crate::api_docs::scalar_handler))
+        .route("/scalar", get(crate::api_docs::scalar_handler))
+        .route("/swagger", get(crate::api_docs::swagger_handler))
+        .route(
+            "/docs/assets/{*path}",
+            get(crate::api_docs::serve_api_docs_asset),
+        )
+        // Módulo Teams (Departamentos, Membros e Escalas de Culto)
+        .route(
+            "/api/teams/departments",
+            get(list_team_departments).post(create_team_department),
+        )
+        .route(
+            "/api/teams/departments/{id}",
+            get(get_team_department)
+                .put(update_team_department)
+                .delete(delete_team_department),
+        )
+        .route(
+            "/api/teams/members",
+            get(list_team_members).post(create_team_member),
+        )
+        .route(
+            "/api/teams/members/{id}",
+            get(get_team_member)
+                .put(update_team_member)
+                .delete(delete_team_member),
+        )
+        .route(
+            "/api/teams/rosters",
+            get(list_service_rosters).post(create_service_roster),
+        )
+        .route("/api/teams/rosters/active", get(get_active_service_roster))
+        .route(
+            "/api/teams/rosters/{id}",
+            get(get_service_roster)
+                .put(update_service_roster)
+                .delete(delete_service_roster),
+        )
+        .route(
+            "/api/teams/rosters/{id}/active",
+            post(set_active_service_roster),
+        )
+        .route(
+            "/api/teams/rosters/{id}/items",
+            post(add_service_roster_item),
+        )
+        .route(
+            "/api/teams/rosters/{id}/items/{item_id}",
+            axum::routing::patch(update_service_roster_item_status)
+                .delete(remove_service_roster_item),
+        )
+        // Rotas Gerais e de Mídia
         .route("/api/status", get(get_status))
         .route("/api/system/paths", get(get_system_paths))
         .route("/api/system/pick-folder", post(pick_folder))
@@ -2874,4 +2931,521 @@ async fn restart_system(State(state): State<AppState>) -> Json<serde_json::Value
         "status": "restarting",
         "message": "Reinicialização da aplicação e servidor agendada com sucesso"
     }))
+}
+
+// ==========================================
+// MÓDULO TEAMS (ROTAS & HANDLERS)
+// ==========================================
+
+#[derive(Deserialize)]
+pub struct ListMembersQuery {
+    pub include_inactive: Option<bool>,
+}
+
+#[derive(Deserialize)]
+pub struct CreateTeamDepartmentRequest {
+    pub id: Option<String>,
+    pub name: String,
+    pub description: Option<String>,
+    pub color: Option<String>,
+    pub icon: Option<String>,
+    pub display_order: Option<i32>,
+}
+
+async fn list_team_departments(State(state): State<AppState>) -> Json<Vec<TeamDepartment>> {
+    let db = match state.db.as_ref() {
+        Some(db) => db,
+        None => return Json(Vec::new()),
+    };
+    let db_guard = db.lock().await;
+    let list = db_guard.list_team_departments().unwrap_or_default();
+    Json(list)
+}
+
+async fn get_team_department(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<TeamDepartment>, StatusCode> {
+    let db = state.db.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let db_guard = db.lock().await;
+    match db_guard.get_team_department(&id) {
+        Ok(Some(dept)) => Ok(Json(dept)),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn create_team_department(
+    State(state): State<AppState>,
+    Json(payload): Json<CreateTeamDepartmentRequest>,
+) -> Result<(StatusCode, Json<TeamDepartment>), (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let id = payload.id.unwrap_or_else(|| {
+        let slug = payload.name.to_lowercase().replace(' ', "-");
+        let clean: String = slug
+            .chars()
+            .filter(|c| c.is_alphanumeric() || *c == '-')
+            .collect();
+        if clean.is_empty() {
+            format!("dept-{}", chrono::Utc::now().timestamp_millis())
+        } else {
+            clean
+        }
+    });
+
+    let upsert = UpsertTeamDepartment {
+        name: payload.name,
+        description: payload.description,
+        color: payload.color,
+        icon: payload.icon,
+        display_order: payload.display_order,
+    };
+
+    let mut db_guard = db.lock().await;
+    let dept = db_guard
+        .save_team_department(&id, &upsert)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    drop(db_guard);
+
+    let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+        entity: "department".into(),
+        action: "created".into(),
+    });
+    let _ = state
+        .log_action(
+            "department_created",
+            "teams",
+            &format!("Departamento {} criado", dept.name),
+            None,
+        )
+        .await;
+
+    Ok((StatusCode::CREATED, Json(dept)))
+}
+
+async fn update_team_department(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<UpsertTeamDepartment>,
+) -> Result<Json<TeamDepartment>, (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let mut db_guard = db.lock().await;
+    let dept = db_guard
+        .save_team_department(&id, &payload)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    drop(db_guard);
+
+    let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+        entity: "department".into(),
+        action: "updated".into(),
+    });
+    let _ = state
+        .log_action(
+            "department_updated",
+            "teams",
+            &format!("Departamento {} atualizado", dept.name),
+            None,
+        )
+        .await;
+
+    Ok(Json(dept))
+}
+
+async fn delete_team_department(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let mut db_guard = db.lock().await;
+    match db_guard.delete_team_department(&id) {
+        Ok(true) => {
+            drop(db_guard);
+            let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+                entity: "department".into(),
+                action: "deleted".into(),
+            });
+            let _ = state
+                .log_action(
+                    "department_deleted",
+                    "teams",
+                    &format!("Departamento {} excluído", id),
+                    None,
+                )
+                .await;
+            Ok(StatusCode::NO_CONTENT)
+        }
+        Ok(false) => Err((StatusCode::NOT_FOUND, "Departamento não encontrado".into())),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    }
+}
+
+async fn list_team_members(
+    State(state): State<AppState>,
+    Query(query): Query<ListMembersQuery>,
+) -> Json<Vec<TeamMember>> {
+    let db = match state.db.as_ref() {
+        Some(db) => db,
+        None => return Json(Vec::new()),
+    };
+    let db_guard = db.lock().await;
+    let list = db_guard
+        .list_team_members(query.include_inactive.unwrap_or(false))
+        .unwrap_or_default();
+    Json(list)
+}
+
+async fn get_team_member(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<TeamMember>, StatusCode> {
+    let db = state.db.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let db_guard = db.lock().await;
+    match db_guard.get_team_member(&id) {
+        Ok(Some(member)) => Ok(Json(member)),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn create_team_member(
+    State(state): State<AppState>,
+    Json(payload): Json<UpsertTeamMember>,
+) -> Result<(StatusCode, Json<TeamMember>), (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let mut db_guard = db.lock().await;
+    let member = db_guard
+        .save_team_member(None, &payload)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    drop(db_guard);
+
+    let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+        entity: "member".into(),
+        action: "created".into(),
+    });
+    let _ = state
+        .log_action(
+            "member_created",
+            "teams",
+            &format!("Voluntário {} cadastrado", member.name),
+            None,
+        )
+        .await;
+
+    Ok((StatusCode::CREATED, Json(member)))
+}
+
+async fn update_team_member(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<UpsertTeamMember>,
+) -> Result<Json<TeamMember>, (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let mut db_guard = db.lock().await;
+    let member = db_guard
+        .save_team_member(Some(&id), &payload)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    drop(db_guard);
+
+    let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+        entity: "member".into(),
+        action: "updated".into(),
+    });
+    let _ = state
+        .log_action(
+            "member_updated",
+            "teams",
+            &format!("Voluntário {} atualizado", member.name),
+            None,
+        )
+        .await;
+
+    Ok(Json(member))
+}
+
+async fn delete_team_member(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let mut db_guard = db.lock().await;
+    match db_guard.delete_team_member(&id) {
+        Ok(true) => {
+            drop(db_guard);
+            let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+                entity: "member".into(),
+                action: "deleted".into(),
+            });
+            let _ = state
+                .log_action(
+                    "member_deleted",
+                    "teams",
+                    &format!("Voluntário {} excluído", id),
+                    None,
+                )
+                .await;
+            Ok(StatusCode::NO_CONTENT)
+        }
+        Ok(false) => Err((StatusCode::NOT_FOUND, "Voluntário não encontrado".into())),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    }
+}
+
+async fn list_service_rosters(State(state): State<AppState>) -> Json<Vec<ServiceRosterSummary>> {
+    let db = match state.db.as_ref() {
+        Some(db) => db,
+        None => return Json(Vec::new()),
+    };
+    let db_guard = db.lock().await;
+    let list = db_guard.list_service_rosters().unwrap_or_default();
+    Json(list)
+}
+
+async fn get_active_service_roster(
+    State(state): State<AppState>,
+) -> Result<Json<ServiceRoster>, StatusCode> {
+    let db = state.db.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let db_guard = db.lock().await;
+    match db_guard.get_active_service_roster() {
+        Ok(Some(roster)) => Ok(Json(roster)),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn get_service_roster(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<ServiceRoster>, StatusCode> {
+    let db = state.db.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let db_guard = db.lock().await;
+    match db_guard.get_service_roster(&id) {
+        Ok(Some(roster)) => Ok(Json(roster)),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn create_service_roster(
+    State(state): State<AppState>,
+    Json(payload): Json<UpsertServiceRoster>,
+) -> Result<(StatusCode, Json<ServiceRoster>), (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let mut db_guard = db.lock().await;
+    let roster = db_guard
+        .save_service_roster(None, &payload)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    drop(db_guard);
+
+    let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+        entity: "roster".into(),
+        action: "created".into(),
+    });
+    let _ = state
+        .log_action(
+            "roster_created",
+            "teams",
+            &format!("Escala {} criada", roster.title),
+            None,
+        )
+        .await;
+
+    Ok((StatusCode::CREATED, Json(roster)))
+}
+
+async fn update_service_roster(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<UpsertServiceRoster>,
+) -> Result<Json<ServiceRoster>, (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let mut db_guard = db.lock().await;
+    let roster = db_guard
+        .save_service_roster(Some(&id), &payload)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    drop(db_guard);
+
+    let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+        entity: "roster".into(),
+        action: "updated".into(),
+    });
+    let _ = state
+        .log_action(
+            "roster_updated",
+            "teams",
+            &format!("Escala {} atualizada", roster.title),
+            None,
+        )
+        .await;
+
+    Ok(Json(roster))
+}
+
+async fn delete_service_roster(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let mut db_guard = db.lock().await;
+    match db_guard.delete_service_roster(&id) {
+        Ok(true) => {
+            drop(db_guard);
+            let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+                entity: "roster".into(),
+                action: "deleted".into(),
+            });
+            let _ = state
+                .log_action(
+                    "roster_deleted",
+                    "teams",
+                    &format!("Escala {} excluída", id),
+                    None,
+                )
+                .await;
+            Ok(StatusCode::NO_CONTENT)
+        }
+        Ok(false) => Err((StatusCode::NOT_FOUND, "Escala não encontrada".into())),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    }
+}
+
+async fn set_active_service_roster(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let mut db_guard = db.lock().await;
+    db_guard
+        .set_active_service_roster(&id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    drop(db_guard);
+
+    let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+        entity: "roster".into(),
+        action: "activated".into(),
+    });
+    let _ = state
+        .log_action(
+            "roster_activated",
+            "teams",
+            &format!("Escala {} ativada para o culto corrente", id),
+            None,
+        )
+        .await;
+
+    Ok(StatusCode::OK)
+}
+
+async fn add_service_roster_item(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<UpsertServiceRosterItem>,
+) -> Result<(StatusCode, Json<ServiceRosterItem>), (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let mut db_guard = db.lock().await;
+    let item = db_guard
+        .assign_service_roster_item(&id, &payload)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+        entity: "roster".into(),
+        action: "item_added".into(),
+    });
+
+    Ok((StatusCode::CREATED, Json(item)))
+}
+
+async fn remove_service_roster_item(
+    State(state): State<AppState>,
+    Path((id, item_id)): Path<(String, String)>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let mut db_guard = db.lock().await;
+    match db_guard.remove_service_roster_item(&id, &item_id) {
+        Ok(true) => {
+            let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+                entity: "roster".into(),
+                action: "item_removed".into(),
+            });
+            Ok(StatusCode::NO_CONTENT)
+        }
+        Ok(false) => Err((StatusCode::NOT_FOUND, "Item não encontrado".into())),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateRosterItemStatusPayload {
+    pub status: String,
+}
+
+async fn update_service_roster_item_status(
+    State(state): State<AppState>,
+    Path((id, item_id)): Path<(String, String)>,
+    Json(payload): Json<UpdateRosterItemStatusPayload>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let mut db_guard = db.lock().await;
+    match db_guard.update_service_roster_item_status(&id, &item_id, &payload.status) {
+        Ok(true) => {
+            let _ = state.broadcast_tx.send(WsMessage::TeamUpdated {
+                entity: "roster".into(),
+                action: "item_updated".into(),
+            });
+            Ok(StatusCode::OK)
+        }
+        Ok(false) => Err((StatusCode::NOT_FOUND, "Item não encontrado".into())),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    }
 }

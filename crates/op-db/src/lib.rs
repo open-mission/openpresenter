@@ -5,10 +5,12 @@ use chrono::{DateTime, SecondsFormat, Utc};
 use op_core::{
     ActionLog, AppMeta, BibleBook, BibleSearchResult, BibleVerse, BibleVersionSummary,
     CreateActionLog, DEFAULT_LOCALE, MediaFolder, MediaItem, MonitorSelection, OutputConfig,
-    OutputKind, OutputMode, OutputsConfig, SectionType, SessionInfo, Setlist, SetlistSummary, Song,
-    SongSection, SongSummary, Theme,
+    OutputKind, OutputMode, OutputsConfig, SectionType, ServiceRoster, ServiceRosterItem,
+    ServiceRosterSummary, SessionInfo, Setlist, SetlistSummary, Song, SongSection, SongSummary,
+    TeamDepartment, TeamMember, Theme, UpsertServiceRoster, UpsertServiceRosterItem,
+    UpsertTeamDepartment, UpsertTeamMember,
 };
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 use rusqlite_migration::{M, Migrations};
 use thiserror::Error;
 
@@ -68,6 +70,7 @@ impl Database {
             M::up(include_str!("../migrations/0007_bibles.sql")),
             M::up(include_str!("../migrations/0008_action_logs.sql")),
             M::up(include_str!("../migrations/0009_song_tags.sql")),
+            M::up(include_str!("../migrations/0010_teams.sql")),
         ]);
         migrations
             .to_latest(&mut conn)
@@ -1303,6 +1306,604 @@ impl Database {
             .map_err(DbError::Write)?;
         Ok(())
     }
+
+    // ==========================================
+    // MÓDULO TEAMS (DEPARTAMENTOS, MEMBROS, ESCALAS)
+    // ==========================================
+
+    /// Retorna todos os departamentos cadastrados, ordenados por prioridade e nome.
+    pub fn list_team_departments(&self) -> Result<Vec<TeamDepartment>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, name, description, color, icon, display_order, created_at, updated_at
+                 FROM team_departments ORDER BY display_order ASC, name ASC",
+            )
+            .map_err(DbError::Read)?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(TeamDepartment {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    description: row.get(2)?,
+                    color: row.get(3)?,
+                    icon: row.get(4)?,
+                    display_order: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
+            })
+            .map_err(DbError::Read)?;
+
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r.map_err(DbError::Read)?);
+        }
+        Ok(list)
+    }
+
+    /// Retorna um departamento específico pelo identificador.
+    pub fn get_team_department(&self, id: &str) -> Result<Option<TeamDepartment>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, name, description, color, icon, display_order, created_at, updated_at
+                 FROM team_departments WHERE id = ?1",
+            )
+            .map_err(DbError::Read)?;
+
+        let mut rows = stmt
+            .query_map([id], |row| {
+                Ok(TeamDepartment {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    description: row.get(2)?,
+                    color: row.get(3)?,
+                    icon: row.get(4)?,
+                    display_order: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
+            })
+            .map_err(DbError::Read)?;
+
+        if let Some(r) = rows.next() {
+            Ok(Some(r.map_err(DbError::Read)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Cria ou atualiza um departamento.
+    pub fn save_team_department(
+        &mut self,
+        id: &str,
+        data: &UpsertTeamDepartment,
+    ) -> Result<TeamDepartment, DbError> {
+        let now_str = format_timestamp(Utc::now());
+        let color = data.color.clone().unwrap_or_else(|| "#3b82f6".into());
+        let icon = data.icon.clone().unwrap_or_else(|| "Users".into());
+        let display_order = data.display_order.unwrap_or(0);
+
+        self.conn
+            .execute(
+                r#"
+                INSERT INTO team_departments (id, name, description, color, icon, display_order, created_at, updated_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)
+                ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    description = excluded.description,
+                    color = excluded.color,
+                    icon = excluded.icon,
+                    display_order = excluded.display_order,
+                    updated_at = excluded.updated_at
+                "#,
+                rusqlite::params![id, data.name, data.description, color, icon, display_order, now_str],
+            )
+            .map_err(DbError::Write)?;
+
+        self.get_team_department(id)?
+            .ok_or_else(|| DbError::Read(rusqlite::Error::QueryReturnedNoRows))
+    }
+
+    /// Exclui um departamento pelo identificador.
+    pub fn delete_team_department(&mut self, id: &str) -> Result<bool, DbError> {
+        let affected = self
+            .conn
+            .execute("DELETE FROM team_departments WHERE id = ?1", [id])
+            .map_err(DbError::Write)?;
+        Ok(affected > 0)
+    }
+
+    /// Lista os membros cadastrados na equipe de mídia.
+    pub fn list_team_members(&self, include_inactive: bool) -> Result<Vec<TeamMember>, DbError> {
+        let sql = if include_inactive {
+            "SELECT id, name, phone, email, avatar_url, color, notes, is_active, created_at, updated_at
+             FROM team_members ORDER BY name ASC"
+        } else {
+            "SELECT id, name, phone, email, avatar_url, color, notes, is_active, created_at, updated_at
+             FROM team_members WHERE is_active = 1 ORDER BY name ASC"
+        };
+
+        let mut stmt = self.conn.prepare(sql).map_err(DbError::Read)?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, String>(5)?,
+                    row.get::<_, Option<String>>(6)?,
+                    row.get::<_, i64>(7)? == 1,
+                    row.get::<_, String>(8)?,
+                    row.get::<_, String>(9)?,
+                ))
+            })
+            .map_err(DbError::Read)?;
+
+        let mut members = Vec::new();
+        for r in rows {
+            let (
+                id,
+                name,
+                phone,
+                email,
+                avatar_url,
+                color,
+                notes,
+                is_active,
+                created_at,
+                updated_at,
+            ) = r.map_err(DbError::Read)?;
+
+            let mut dept_stmt = self
+                .conn
+                .prepare("SELECT department_id FROM team_member_departments WHERE member_id = ?1")
+                .map_err(DbError::Read)?;
+            let dept_rows = dept_stmt
+                .query_map([&id], |row| row.get::<_, String>(0))
+                .map_err(DbError::Read)?;
+
+            let mut department_ids = Vec::new();
+            for dr in dept_rows {
+                department_ids.push(dr.map_err(DbError::Read)?);
+            }
+
+            members.push(TeamMember {
+                id,
+                name,
+                phone,
+                email,
+                avatar_url,
+                color,
+                notes,
+                is_active,
+                department_ids,
+                created_at,
+                updated_at,
+            });
+        }
+
+        Ok(members)
+    }
+
+    /// Retorna um membro específico pelo identificador.
+    pub fn get_team_member(&self, id: &str) -> Result<Option<TeamMember>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, name, phone, email, avatar_url, color, notes, is_active, created_at, updated_at
+                 FROM team_members WHERE id = ?1",
+            )
+            .map_err(DbError::Read)?;
+
+        let mut rows = stmt
+            .query_map([id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, String>(5)?,
+                    row.get::<_, Option<String>>(6)?,
+                    row.get::<_, i64>(7)? == 1,
+                    row.get::<_, String>(8)?,
+                    row.get::<_, String>(9)?,
+                ))
+            })
+            .map_err(DbError::Read)?;
+
+        if let Some(r) = rows.next() {
+            let (
+                mid,
+                name,
+                phone,
+                email,
+                avatar_url,
+                color,
+                notes,
+                is_active,
+                created_at,
+                updated_at,
+            ) = r.map_err(DbError::Read)?;
+
+            let mut dept_stmt = self
+                .conn
+                .prepare("SELECT department_id FROM team_member_departments WHERE member_id = ?1")
+                .map_err(DbError::Read)?;
+            let dept_rows = dept_stmt
+                .query_map([&mid], |row| row.get::<_, String>(0))
+                .map_err(DbError::Read)?;
+
+            let mut department_ids = Vec::new();
+            for dr in dept_rows {
+                department_ids.push(dr.map_err(DbError::Read)?);
+            }
+
+            Ok(Some(TeamMember {
+                id: mid,
+                name,
+                phone,
+                email,
+                avatar_url,
+                color,
+                notes,
+                is_active,
+                department_ids,
+                created_at,
+                updated_at,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Salva ou atualiza um membro da equipe e seus vínculos com departamentos.
+    pub fn save_team_member(
+        &mut self,
+        id: Option<&str>,
+        data: &UpsertTeamMember,
+    ) -> Result<TeamMember, DbError> {
+        let tx = self.conn.transaction().map_err(DbError::Write)?;
+        let now_str = format_timestamp(Utc::now());
+        let member_id = id
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("member-{}", Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        let color = data.color.clone().unwrap_or_else(|| "#10b981".into());
+        let is_active = data.is_active.unwrap_or(true) as i64;
+
+        tx.execute(
+            r#"
+            INSERT INTO team_members (id, name, phone, email, avatar_url, color, notes, is_active, created_at, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                phone = excluded.phone,
+                email = excluded.email,
+                avatar_url = excluded.avatar_url,
+                color = excluded.color,
+                notes = excluded.notes,
+                is_active = excluded.is_active,
+                updated_at = excluded.updated_at
+            "#,
+            rusqlite::params![member_id, data.name, data.phone, data.email, data.avatar_url, color, data.notes, is_active, now_str],
+        )
+        .map_err(DbError::Write)?;
+
+        tx.execute(
+            "DELETE FROM team_member_departments WHERE member_id = ?1",
+            [&member_id],
+        )
+        .map_err(DbError::Write)?;
+
+        for dept_id in &data.department_ids {
+            tx.execute(
+                "INSERT OR IGNORE INTO team_member_departments (member_id, department_id, created_at) VALUES (?1, ?2, ?3)",
+                rusqlite::params![member_id, dept_id, now_str],
+            )
+            .map_err(DbError::Write)?;
+        }
+
+        tx.commit().map_err(DbError::Write)?;
+
+        self.get_team_member(&member_id)?
+            .ok_or_else(|| DbError::Read(rusqlite::Error::QueryReturnedNoRows))
+    }
+
+    /// Exclui um membro da equipe pelo identificador.
+    pub fn delete_team_member(&mut self, id: &str) -> Result<bool, DbError> {
+        let affected = self
+            .conn
+            .execute("DELETE FROM team_members WHERE id = ?1", [id])
+            .map_err(DbError::Write)?;
+        Ok(affected > 0)
+    }
+
+    /// Lista os resumos das escalas cadastradas ordenadas por data descrescente.
+    pub fn list_service_rosters(&self) -> Result<Vec<ServiceRosterSummary>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT r.id, r.title, r.service_date, r.service_time, r.is_active, r.updated_at,
+                        (SELECT COUNT(*) FROM service_roster_items i WHERE i.roster_id = r.id) AS item_count
+                 FROM service_rosters r
+                 ORDER BY r.service_date DESC, r.created_at DESC",
+            )
+            .map_err(DbError::Read)?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(ServiceRosterSummary {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    service_date: row.get(2)?,
+                    service_time: row.get(3)?,
+                    is_active: row.get::<_, i64>(4)? == 1,
+                    updated_at: row.get(5)?,
+                    item_count: row.get::<_, i64>(6)? as usize,
+                })
+            })
+            .map_err(DbError::Read)?;
+
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r.map_err(DbError::Read)?);
+        }
+        Ok(list)
+    }
+
+    /// Retorna a escala completa com seus itens de alocação.
+    pub fn get_service_roster(&self, id: &str) -> Result<Option<ServiceRoster>, DbError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, title, service_date, service_time, notes, is_active, created_at, updated_at
+                 FROM service_rosters WHERE id = ?1",
+            )
+            .map_err(DbError::Read)?;
+
+        let mut rows = stmt
+            .query_map([id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, i64>(5)? == 1,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, String>(7)?,
+                ))
+            })
+            .map_err(DbError::Read)?;
+
+        if let Some(r) = rows.next() {
+            let (rid, title, service_date, service_time, notes, is_active, created_at, updated_at) =
+                r.map_err(DbError::Read)?;
+
+            let mut item_stmt = self
+                .conn
+                .prepare(
+                    "SELECT id, roster_id, department_id, member_id, role, status, role_notes, created_at
+                     FROM service_roster_items WHERE roster_id = ?1 ORDER BY created_at ASC",
+                )
+                .map_err(DbError::Read)?;
+
+            let item_rows = item_stmt
+                .query_map([&rid], |row| {
+                    Ok(ServiceRosterItem {
+                        id: row.get(0)?,
+                        roster_id: row.get(1)?,
+                        department_id: row.get(2)?,
+                        member_id: row.get(3)?,
+                        role: row.get(4)?,
+                        status: row.get(5)?,
+                        role_notes: row.get(6)?,
+                        created_at: row.get(7)?,
+                    })
+                })
+                .map_err(DbError::Read)?;
+
+            let mut items = Vec::new();
+            for ir in item_rows {
+                items.push(ir.map_err(DbError::Read)?);
+            }
+
+            Ok(Some(ServiceRoster {
+                id: rid,
+                title,
+                service_date,
+                service_time,
+                notes,
+                is_active,
+                items,
+                created_at,
+                updated_at,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Retorna a escala que estiver atualmente marcada como ativa.
+    pub fn get_active_service_roster(&self) -> Result<Option<ServiceRoster>, DbError> {
+        let active_id: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT id FROM service_rosters WHERE is_active = 1 LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(DbError::Read)?;
+
+        if let Some(id) = active_id {
+            self.get_service_roster(&id)
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Salva ou atualiza uma escala de culto e opcionalmente substitui seus itens.
+    pub fn save_service_roster(
+        &mut self,
+        id: Option<&str>,
+        data: &UpsertServiceRoster,
+    ) -> Result<ServiceRoster, DbError> {
+        let tx = self.conn.transaction().map_err(DbError::Write)?;
+        let now_str = format_timestamp(Utc::now());
+        let roster_id = id
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("roster-{}", Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        let is_active = data.is_active.unwrap_or(false);
+
+        if is_active {
+            tx.execute("UPDATE service_rosters SET is_active = 0", [])
+                .map_err(DbError::Write)?;
+        }
+
+        tx.execute(
+            r#"
+            INSERT INTO service_rosters (id, title, service_date, service_time, notes, is_active, created_at, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)
+            ON CONFLICT(id) DO UPDATE SET
+                title = excluded.title,
+                service_date = excluded.service_date,
+                service_time = excluded.service_time,
+                notes = excluded.notes,
+                is_active = excluded.is_active,
+                updated_at = excluded.updated_at
+            "#,
+            rusqlite::params![roster_id, data.title, data.service_date, data.service_time, data.notes, is_active as i64, now_str],
+        )
+        .map_err(DbError::Write)?;
+
+        if !data.items.is_empty() {
+            tx.execute(
+                "DELETE FROM service_roster_items WHERE roster_id = ?1",
+                [&roster_id],
+            )
+            .map_err(DbError::Write)?;
+
+            let mut counter: i64 = 0;
+            for item in &data.items {
+                counter += 1;
+                let item_id = format!(
+                    "item-{}-{}",
+                    Utc::now().timestamp_nanos_opt().unwrap_or(0),
+                    counter
+                );
+                let role = item.role.clone().unwrap_or_else(|| "lead".into());
+                let status = item.status.clone().unwrap_or_else(|| "pending".into());
+
+                tx.execute(
+                    r#"
+                    INSERT INTO service_roster_items (id, roster_id, department_id, member_id, role, status, role_notes, created_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                    "#,
+                    rusqlite::params![item_id, roster_id, item.department_id, item.member_id, role, status, item.role_notes, now_str],
+                )
+                .map_err(DbError::Write)?;
+            }
+        }
+
+        tx.commit().map_err(DbError::Write)?;
+
+        self.get_service_roster(&roster_id)?
+            .ok_or_else(|| DbError::Read(rusqlite::Error::QueryReturnedNoRows))
+    }
+
+    /// Define uma escala específica como ativa e desativa as demais.
+    pub fn set_active_service_roster(&mut self, id: &str) -> Result<(), DbError> {
+        let tx = self.conn.transaction().map_err(DbError::Write)?;
+        tx.execute("UPDATE service_rosters SET is_active = 0", [])
+            .map_err(DbError::Write)?;
+        tx.execute(
+            "UPDATE service_rosters SET is_active = 1, updated_at = ?2 WHERE id = ?1",
+            rusqlite::params![id, format_timestamp(Utc::now())],
+        )
+        .map_err(DbError::Write)?;
+        tx.commit().map_err(DbError::Write)?;
+        Ok(())
+    }
+
+    /// Exclui uma escala de culto pelo identificador.
+    pub fn delete_service_roster(&mut self, id: &str) -> Result<bool, DbError> {
+        let affected = self
+            .conn
+            .execute("DELETE FROM service_rosters WHERE id = ?1", [id])
+            .map_err(DbError::Write)?;
+        Ok(affected > 0)
+    }
+
+    /// Adiciona um membro a um departamento na escala.
+    pub fn assign_service_roster_item(
+        &mut self,
+        roster_id: &str,
+        item: &UpsertServiceRosterItem,
+    ) -> Result<ServiceRosterItem, DbError> {
+        let now_str = format_timestamp(Utc::now());
+        let item_id = format!("item-{}", Utc::now().timestamp_nanos_opt().unwrap_or(0));
+        let role = item.role.clone().unwrap_or_else(|| "lead".into());
+        let status = item.status.clone().unwrap_or_else(|| "pending".into());
+
+        self.conn
+            .execute(
+                r#"
+                INSERT INTO service_roster_items (id, roster_id, department_id, member_id, role, status, role_notes, created_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                "#,
+                rusqlite::params![item_id, roster_id, item.department_id, item.member_id, role, status, item.role_notes, now_str],
+            )
+            .map_err(DbError::Write)?;
+
+        Ok(ServiceRosterItem {
+            id: item_id,
+            roster_id: roster_id.to_string(),
+            department_id: item.department_id.clone(),
+            member_id: item.member_id.clone(),
+            role,
+            status,
+            role_notes: item.role_notes.clone(),
+            created_at: now_str,
+        })
+    }
+
+    /// Remove um item alocado da escala.
+    pub fn remove_service_roster_item(
+        &mut self,
+        roster_id: &str,
+        item_id: &str,
+    ) -> Result<bool, DbError> {
+        let affected = self
+            .conn
+            .execute(
+                "DELETE FROM service_roster_items WHERE roster_id = ?1 AND id = ?2",
+                rusqlite::params![roster_id, item_id],
+            )
+            .map_err(DbError::Write)?;
+        Ok(affected > 0)
+    }
+
+    pub fn update_service_roster_item_status(
+        &mut self,
+        roster_id: &str,
+        item_id: &str,
+        status: &str,
+    ) -> Result<bool, DbError> {
+        let affected = self
+            .conn
+            .execute(
+                "UPDATE service_roster_items SET status = ?1 WHERE roster_id = ?2 AND id = ?3",
+                rusqlite::params![status, roster_id, item_id],
+            )
+            .map_err(DbError::Write)?;
+        Ok(affected > 0)
+    }
 }
 
 /// Leitor otimizado de um arquivo SQLite individual de Bíblia.
@@ -1682,7 +2283,7 @@ mod tests {
         let path = dir.path().join("open-presenter.db");
         let db = Database::open(&path).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 9);
+        assert_eq!(db.schema_version().unwrap(), 10);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -1715,20 +2316,31 @@ mod tests {
     }
 
     #[test]
-    fn open_creates_schema_v9_with_song_tags() {
+    fn open_creates_schema_v10_with_teams() {
         let dir = tempfile::tempdir().unwrap();
         let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 9);
+        assert_eq!(db.schema_version().unwrap(), 10);
         let table_count: i64 = db
             .conn
             .query_row(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists', 'media_folders', 'app_settings', 'bibles', 'action_logs', 'song_tags')",
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('output_config', 'songs', 'songs_fts', 'setlists', 'media_folders', 'app_settings', 'bibles', 'action_logs', 'song_tags', 'team_departments', 'team_members', 'team_member_departments', 'service_rosters', 'service_roster_items')",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(table_count, 9);
+        assert_eq!(table_count, 14);
+
+        // Verifica os 5 departamentos padrão iniciais (sem iluminação)
+        let depts = db.list_team_departments().unwrap();
+        assert_eq!(depts.len(), 5);
+        let dept_ids: Vec<String> = depts.iter().map(|d| d.id.clone()).collect();
+        assert!(dept_ids.contains(&"projecao".to_string()));
+        assert!(dept_ids.contains(&"fotografia".to_string()));
+        assert!(dept_ids.contains(&"stories".to_string()));
+        assert!(dept_ids.contains(&"transmissao".to_string()));
+        assert!(dept_ids.contains(&"som".to_string()));
+        assert!(!dept_ids.contains(&"iluminacao".to_string()));
     }
 
     #[test]
@@ -1939,7 +2551,7 @@ mod tests {
     }
 
     #[test]
-    fn migrates_v1_database_to_v9_preserving_app_meta() {
+    fn migrates_v1_database_to_v10_preserving_app_meta() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("open-presenter.db");
         {
@@ -1956,7 +2568,7 @@ mod tests {
         }
 
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.schema_version().unwrap(), 9);
+        assert_eq!(db.schema_version().unwrap(), 10);
         let meta = db.load_meta().unwrap().unwrap();
         assert_eq!(meta.first_run_at, ts(2026, 10, 28, 10, 0));
         let count: i64 = db
@@ -2344,5 +2956,93 @@ mod tests {
 
         assert!(db.delete_media_folder("folder-1").unwrap());
         assert_eq!(db.list_media_folders().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_teams_crud_and_roster_management_works() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
+
+        // 1. Testa Departamentos
+        let depts = db.list_team_departments().unwrap();
+        assert_eq!(depts.len(), 5);
+
+        // Cria novo departamento
+        let new_dept = UpsertTeamDepartment {
+            name: "Recepção / Apoio".into(),
+            description: Some("Recepção de novos membros".into()),
+            color: Some("#ec4899".into()),
+            icon: Some("HeartHandshake".into()),
+            display_order: Some(6),
+        };
+        let created_dept = db.save_team_department("recepcao", &new_dept).unwrap();
+        assert_eq!(created_dept.name, "Recepção / Apoio");
+        assert_eq!(db.list_team_departments().unwrap().len(), 6);
+
+        // 2. Testa Membros
+        let member_data = UpsertTeamMember {
+            name: "Claudio Silva".into(),
+            phone: Some("11988887777".into()),
+            email: Some("claudio@example.com".into()),
+            avatar_url: None,
+            color: Some("#3b82f6".into()),
+            notes: Some("Disponível aos domingos".into()),
+            is_active: Some(true),
+            department_ids: vec!["projecao".into(), "stories".into()],
+        };
+        let member = db.save_team_member(None, &member_data).unwrap();
+        assert_eq!(member.name, "Claudio Silva");
+        assert_eq!(member.department_ids.len(), 2);
+
+        let members = db.list_team_members(false).unwrap();
+        assert_eq!(members.len(), 1);
+
+        // 3. Testa Escala de Culto (Service Roster)
+        let roster_data = UpsertServiceRoster {
+            title: "Culto de Celebração - Domingo".into(),
+            service_date: "2026-11-08".into(),
+            service_time: Some("19:00".into()),
+            notes: Some("Culto especial de ceia".into()),
+            is_active: Some(true),
+            items: vec![UpsertServiceRosterItem {
+                department_id: "projecao".into(),
+                member_id: member.id.clone(),
+                role: Some("lead".into()),
+                status: Some("confirmed".into()),
+                role_notes: Some("Operador principal".into()),
+            }],
+        };
+
+        let roster = db.save_service_roster(None, &roster_data).unwrap();
+        assert_eq!(roster.title, "Culto de Celebração - Domingo");
+        assert!(roster.is_active);
+        assert_eq!(roster.items.len(), 1);
+        assert_eq!(roster.items[0].status, "confirmed");
+
+        // Escala ativa
+        let active = db.get_active_service_roster().unwrap().unwrap();
+        assert_eq!(active.id, roster.id);
+
+        // Adiciona segundo voluntário como auxiliar
+        let item2 = UpsertServiceRosterItem {
+            department_id: "projecao".into(),
+            member_id: member.id.clone(),
+            role: Some("assistant".into()),
+            status: Some("pending".into()),
+            role_notes: Some("Apoio na mesa".into()),
+        };
+        let added_item = db.assign_service_roster_item(&roster.id, &item2).unwrap();
+        assert_eq!(added_item.role, "assistant");
+
+        let updated_roster = db.get_service_roster(&roster.id).unwrap().unwrap();
+        assert_eq!(updated_roster.items.len(), 2);
+
+        // Remove item
+        assert!(
+            db.remove_service_roster_item(&roster.id, &added_item.id)
+                .unwrap()
+        );
+        let updated_roster2 = db.get_service_roster(&roster.id).unwrap().unwrap();
+        assert_eq!(updated_roster2.items.len(), 1);
     }
 }

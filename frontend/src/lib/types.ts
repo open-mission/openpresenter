@@ -250,6 +250,7 @@ export type WsMessage =
   | { type: 'media_items_updated'; payload: { media_items: MediaItem[] } }
   | { type: 'setlist_updated'; payload: { setlist: Setlist } }
   | { type: 'setting_updated'; payload: { key: string; value: string | null } }
+  | { type: 'team_updated'; payload: { entity: string; action: string } }
   | { type: 'reload_clients'; payload: { target?: string } }
   | { type: 'ping' }
   | { type: 'pong' };
@@ -466,4 +467,105 @@ export interface OnlineLyricHit {
   album_name?: string;
   provider?: string;
   provider_id?: string;
+}
+
+// ==========================================
+// MÓDULO TEAMS (DEPARTAMENTOS, MEMBROS, ESCALAS)
+// ==========================================
+
+export interface TeamDepartment {
+  id: string;
+  name: string;
+  description?: string | null;
+  color: string;
+  icon: string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpsertTeamDepartment {
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  icon?: string | null;
+  display_order?: number | null;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+  color: string;
+  notes?: string | null;
+  is_active: boolean;
+  department_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpsertTeamMember {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+  color?: string | null;
+  notes?: string | null;
+  is_active?: boolean | null;
+  department_ids: string[];
+}
+
+export type RosterRole = 'lead' | 'assistant' | 'backup';
+export type RosterStatus = 'confirmed' | 'pending' | 'declined';
+
+export interface ServiceRosterItem {
+  id: string;
+  roster_id: string;
+  department_id: string;
+  member_id: string;
+  role: string;
+  status: string;
+  role_notes?: string | null;
+  created_at: string;
+}
+
+export interface UpsertServiceRosterItem {
+  department_id: string;
+  member_id: string;
+  role?: string | null;
+  status?: string | null;
+  role_notes?: string | null;
+}
+
+export interface ServiceRoster {
+  id: string;
+  title: string;
+  service_date: string;
+  service_time?: string | null;
+  notes?: string | null;
+  is_active: boolean;
+  items: ServiceRosterItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServiceRosterSummary {
+  id: string;
+  title: string;
+  service_date: string;
+  service_time?: string | null;
+  is_active: boolean;
+  item_count: number;
+  updated_at: string;
+}
+
+export interface UpsertServiceRoster {
+  title: string;
+  service_date: string;
+  service_time?: string | null;
+  notes?: string | null;
+  is_active?: boolean | null;
+  items?: UpsertServiceRosterItem[];
 }

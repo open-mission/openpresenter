@@ -43,6 +43,7 @@
   import CommandPalette from '$lib/components/CommandPalette.svelte';
   import SongEditorModal from '$lib/components/SongEditorModal.svelte';
   import SettingsModal, { type SettingsTab } from '$lib/components/SettingsModal.svelte';
+  import TeamsModal from '$lib/components/TeamsModal.svelte';
   import SetlistModal from '$lib/components/SetlistModal.svelte';
   import QuickItemModal from '$lib/components/QuickItemModal.svelte';
   import ScheduleEditorModal from '$lib/components/ScheduleEditorModal.svelte';
@@ -145,6 +146,7 @@
   let isCommandPaletteOpen = $state(false);
   let isSongEditorOpen = $state(false);
   let isSettingsOpen = $state(false);
+  let isTeamsModalOpen = $state(false);
   let isSetlistModalOpen = $state(false);
   let isQuickItemModalOpen = $state(false);
   let isScheduleEditorOpen = $state(false);
@@ -746,6 +748,7 @@
       isCommandPaletteOpen ||
       isSongEditorOpen ||
       isSettingsOpen ||
+      isTeamsModalOpen ||
       isSetlistModalOpen ||
       isQuickItemModalOpen ||
       isScheduleEditorOpen ||
@@ -757,6 +760,7 @@
         isCommandPaletteOpen = false;
         isSongEditorOpen = false;
         isSettingsOpen = false;
+        isTeamsModalOpen = false;
         isSetlistModalOpen = false;
         isQuickItemModalOpen = false;
         isScheduleEditorOpen = false;
@@ -2049,6 +2053,20 @@
           </div>
         {/if}
       </div>
+
+      <!-- Botão Equipe & Escala (Teams) -->
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={() => (isTeamsModalOpen = true)}
+        class="gap-1.5 text-xs border-purple-500/30 hover:border-purple-500/60 hover:bg-purple-500/10 text-purple-300"
+        title="Equipe de Mídia & Escala de Culto"
+      >
+        <Users size={14} class="text-purple-400" />
+        {#if $previewLabelsStore}
+          <span class="hidden md:inline">Equipe</span>
+        {/if}
+      </Button>
 
       <!-- Botão Configurações -->
       <Button
@@ -3418,6 +3436,11 @@
       editingScheduleItem = null;
     }}
     onsave={handleSaveSchedule}
+  />
+
+  <TeamsModal
+    open={isTeamsModalOpen}
+    onclose={() => (isTeamsModalOpen = false)}
   />
 
   <SettingsModal

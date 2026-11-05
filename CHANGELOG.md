@@ -6,6 +6,28 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Funcionalidade Teams (Equipe de Mídia & Escala de Culto com Svelte Flow):**
+  - **Modelagem de Domínio e Banco de Dados (`op-core`, `op-db`):**
+    - Novos modelos `TeamDepartment`, `TeamMember`, `ServiceRoster`, `ServiceRosterItem` e tipos correspondentes para inserção e atualização.
+    - Nova migração SQLite `0010_teams.sql` criando tabelas `team_departments`, `team_members`, `team_member_departments`, `service_rosters`, `service_roster_items` e índices associados, além do seed com 5 departamentos padrão (Projeção, Fotografia, Stories & Redes, Transmissão e Áudio & Som).
+    - Métodos CRUD completos no `Database` com suporte a ativação atômica de escala ativa para o culto e atualização rápida de status de confirmação.
+  - **Rotas REST e WebSockets em tempo real (`op-admin`):**
+    - Endpoints `/api/teams/departments`, `/api/teams/members`, `/api/teams/rosters`, `/api/teams/rosters/active`, `/api/teams/rosters/{id}/active` e `/api/teams/rosters/{id}/items`.
+    - Mensagens WebSocket `WsMessage::TeamUpdated` notificando clientes conectados para atualização instantânea da interface.
+  - **Documentação OpenAPI 3.0 Interativa e 100% Offline (`api_docs.rs`):**
+    - Endpoint `/api/openapi.json` servindo a especificação OpenAPI 3.0.3 completa de todas as rotas da aplicação.
+    - Interfaces gráficas Scalar (`/docs`, `/scalar`) e Swagger UI (`/swagger`) com todos os bundles estáticos de JavaScript e CSS embutidos diretamente no binário Rust via `rust-embed`, garantindo funcionamento 100% local sem dependência de internet ou CDN.
+    - Card de acesso rápido nas configurações (`SettingsModal.svelte`) facilitando futuras integrações com plataformas externas de gestão de igrejas e escalas (estilo Voluts e Planning Center).
+  - **Interface Visual de Escala com Svelte Flow (`@xyflow/svelte`, `TeamsModal.svelte`):**
+    - Modal completo `TeamsModal.svelte` com 3 abas principais: *Escala do Culto*, *Membros* e *Departamentos*.
+    - Canvas interativo `RosterFlowCanvas.svelte` com nós customizados de Culto (`ServiceNode`), Departamentos (`DepartmentNode`) e Voluntários (`MemberNode`) conectados por arestas bezier informativas.
+    - Modo alternativo em grade clássica responsiva (*Grade / Cards*) por departamento.
+    - Suporte a múltiplos membros por departamento, distinção visual entre Titular e Auxiliar/Apoio, alternância de status de confirmação (Confirmado, Pendente, Não Comparece) com um clique e botão direto para WhatsApp com mensagem pré-formatada.
+    - Exportação e cópia de escala para o WhatsApp com formatação elegante em Markdown/Emojis (`formatRosterWhatsApp`).
+  - **Visualização de Escala no Controle Remoto Mobile (`RemoteView.svelte`):**
+    - Nova 4ª aba "Equipe" na barra de navegação inferior do `/remote`, exibindo o culto ativo, departamentos, voluntários escalados e status de confirmação com suporte a alternância em tempo real pelo próprio voluntário em dispositivos móveis.
+
 ## [0.4.4] - 2026-11-05
 
 ### Destaques da Versão

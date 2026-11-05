@@ -28,6 +28,7 @@ export const activeSetlist = writable<Setlist | null>(null);
 export const isWsConnected = writable<boolean>(false);
 export const connectedClients = writable<ClientConnection[]>([]);
 export const actionLogsStore = writable<ActionLog[]>([]);
+export const teamUpdatedStore = writable<{ entity: string; action: string; timestamp: number } | null>(null);
 
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -119,6 +120,12 @@ function handleIncomingMessage(msg: WsMessage) {
   } else if (msg.type === 'action_logged') {
     actionLogsStore.update((logs) => [msg.payload.log, ...logs.slice(0, 99)]);
     handleActionLogNotification(msg.payload.log);
+  } else if (msg.type === 'team_updated') {
+    teamUpdatedStore.set({
+      entity: msg.payload.entity,
+      action: msg.payload.action,
+      timestamp: Date.now(),
+    });
   } else if (msg.type === 'reload_clients') {
     const target = msg.payload?.target || 'all';
     if (typeof window !== 'undefined') {

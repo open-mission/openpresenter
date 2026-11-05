@@ -1,5 +1,6 @@
 //! Binário principal do servidor OpenPresenter (Rust + Axum).
 
+mod api_docs;
 mod online_lyrics;
 mod routes;
 mod session;
@@ -1832,5 +1833,199 @@ mod tests {
             pres.lyrics_background_path.as_deref(),
             Some("/api/media/files/wallpapers/dark-ambient.svg")
         );
+    }
+
+    #[tokio::test]
+    async fn test_api_docs_and_offline_assets_work() {
+        let (state, _dir) = mock_state_with_db();
+        let app = create_routes(state);
+
+        // 1. Testa GET /api/openapi.json
+        let openapi_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/openapi.json")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(openapi_resp.status(), StatusCode::OK);
+        let openapi_bytes = axum::body::to_bytes(openapi_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let openapi_json: serde_json::Value = serde_json::from_slice(&openapi_bytes).unwrap();
+        assert_eq!(openapi_json["openapi"], "3.0.3");
+        assert_eq!(openapi_json["info"]["title"], "OpenPresenter Minimal API");
+        assert!(openapi_json["paths"]["/api/teams/departments"].is_object());
+
+        // 2. Testa GET /docs e GET /scalar (Scalar 100% offline)
+        let scalar_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/docs")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(scalar_resp.status(), StatusCode::OK);
+        let scalar_html = axum::body::to_bytes(scalar_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let scalar_str = String::from_utf8_lossy(&scalar_html);
+        assert!(scalar_str.contains("/docs/assets/scalar.standalone.js"));
+
+        // 3. Testa GET /swagger (Swagger UI 100% offline)
+        let swagger_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/swagger")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(swagger_resp.status(), StatusCode::OK);
+        let swagger_html = axum::body::to_bytes(swagger_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let swagger_str = String::from_utf8_lossy(&swagger_html);
+        assert!(swagger_str.contains("/docs/assets/swagger-ui-bundle.js"));
+
+        // 4. Testa asset estático embutido
+        let asset_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/docs/assets/swagger-ui.css")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(asset_resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_teams_endpoints_work() {
+        let (state, _dir) = mock_state_with_db();
+        let app = create_routes(state);
+
+        // 1. Testa GET /api/teams/departments (5 departamentos padrão, sem iluminação)
+        let depts_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/teams/departments")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(depts_resp.status(), StatusCode::OK);
+        let depts_bytes = axum::body::to_bytes(depts_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let depts: Vec<op_core::TeamDepartment> = serde_json::from_slice(&depts_bytes).unwrap();
+        assert_eq!(depts.len(), 5);
+        let names: Vec<String> = depts.iter().map(|d| d.name.clone()).collect();
+        assert!(names.contains(&"Projeção".to_string()));
+        assert!(names.contains(&"Fotografia".to_string()));
+        assert!(names.contains(&"Stories & Redes".to_string()));
+        assert!(names.contains(&"Transmissão (Live)".to_string()));
+        assert!(names.contains(&"Áudio & Som".to_string()));
+        assert!(!names.contains(&"Iluminação".to_string()));
+
+        // 2. Cadastra membro via POST /api/teams/members
+        let member_payload = serde_json::json!({
+            "name": "Lucas Santos",
+            "phone": "11987654321",
+            "email": "lucas@example.com",
+            "color": "#3b82f6",
+            "department_ids": ["projecao", "stories"]
+        });
+        let member_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/api/teams/members")
+                    .body(axum::body::Body::from(
+                        serde_json::to_vec(&member_payload).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(member_resp.status(), StatusCode::CREATED);
+        let member_bytes = axum::body::to_bytes(member_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let member: op_core::TeamMember = serde_json::from_slice(&member_bytes).unwrap();
+        assert_eq!(member.name, "Lucas Santos");
+        assert_eq!(member.department_ids.len(), 2);
+
+        // 3. Cria escala via POST /api/teams/rosters
+        let roster_payload = serde_json::json!({
+            "title": "Culto de Santa Ceia - Domingo",
+            "service_date": "2026-11-08",
+            "service_time": "19:00",
+            "is_active": true,
+            "items": [
+                {
+                    "department_id": "projecao",
+                    "member_id": member.id,
+                    "role": "lead",
+                    "status": "confirmed",
+                    "role_notes": "Operador principal"
+                }
+            ]
+        });
+        let roster_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/api/teams/rosters")
+                    .body(axum::body::Body::from(
+                        serde_json::to_vec(&roster_payload).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(roster_resp.status(), StatusCode::CREATED);
+
+        // 4. Consulta escala ativa via GET /api/teams/rosters/active
+        let active_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/teams/rosters/active")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(active_resp.status(), StatusCode::OK);
+        let active_bytes = axum::body::to_bytes(active_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let active_roster: op_core::ServiceRoster = serde_json::from_slice(&active_bytes).unwrap();
+        assert_eq!(active_roster.title, "Culto de Santa Ceia - Domingo");
+        assert_eq!(active_roster.items.len(), 1);
+        assert_eq!(active_roster.items[0].status, "confirmed");
     }
 }

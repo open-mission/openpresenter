@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 pub mod bible;
 pub use bible::*;
+pub mod teams;
+pub use teams::*;
 
 /// Nome público do aplicativo.
 pub const APP_NAME: &str = "OpenPresenter";
@@ -938,6 +940,11 @@ pub enum WsMessage {
     SettingUpdated {
         key: String,
         value: Option<String>,
+    },
+    /// Notificação de atualização nas equipes, membros ou escalas.
+    TeamUpdated {
+        entity: String,
+        action: String,
     },
     /// Comando para forçar recarga das telas conectadas (ex: /public ou /stage).
     ReloadClients {
