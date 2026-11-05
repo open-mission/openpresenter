@@ -1313,10 +1313,25 @@
     }
   }
 
-  async function handlePresentSong(songId: string) {
+  async function handlePresentSong(songId: string, slideIndex = 0) {
     await handleAddSongToSetlist(songId);
-    focusedSlideIndex = 0;
-    selectSlide(songId, 0);
+    focusedSlideIndex = slideIndex;
+    selectSlide(songId, slideIndex);
+  }
+
+  async function handleEditSong(songId: string) {
+    songEditorMode = 'song';
+    try {
+      const res = await fetch(`/api/songs/${songId}`);
+      if (res.ok) {
+        editingSong = await res.json();
+        editingItem = null;
+        isSongEditorOpen = true;
+        return;
+      }
+    } catch (err) {
+      console.error('Erro ao carregar música para edição:', err);
+    }
   }
 
   function handlePresentImage(image: ImageMediaItem) {
@@ -3260,6 +3275,7 @@
     onpreviewimage={handleOpenPreviewImage}
     onaddimagetosetlist={handleAddImageToSetlist}
     onopensongeditor={handleOpenCreate}
+    onopeneditsong={handleEditSong}
     onopenfolderconfig={() => {
       settingsInitialTab = 'files';
       isSettingsOpen = true;

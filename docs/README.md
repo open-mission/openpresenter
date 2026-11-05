@@ -241,6 +241,7 @@
 
 - [Spec — Preparação e Lançamento da Versão 0.4.3](specs/2026-11-01-release-0-4-3.md)
 - [Plano — Preparação e Lançamento da Versão 0.4.3](plans/2026-11-01-release-0-4-3.md)
+- [Spec — Menus de Contexto na Aba de Músicas e no Sheet de Preview de Letras](specs/2026-11-05-songs-context-menu-and-preview-sheet.md)
 - [Spec — Proteção de Modais contra Fechamento Acidental e Configurações de Notificações](specs/2026-11-05-modals-dirty-guard-and-notifications-settings.md)
 - [Spec — Separação da Mensagem de Retorno em Seção Própria na Barra Lateral](specs/2026-11-04-separate-stage-message-control-section.md)
 - [Spec — Colapso dos Previews de Saída Public e Stage no Painel do Operador](specs/2026-11-04-collapse-previews-public-stage.md)

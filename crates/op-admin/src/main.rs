@@ -677,6 +677,7 @@ mod tests {
 
         // Lista tags
         let tags_list_resp = app
+            .clone()
             .oneshot(
                 axum::http::Request::builder()
                     .method("GET")
@@ -692,6 +693,19 @@ mod tests {
             .unwrap();
         let all_tags: Vec<String> = serde_json::from_slice(&tags_body).unwrap();
         assert_eq!(all_tags, vec!["Hinos"]);
+
+        // Exclui música via DELETE /api/songs/{id}
+        let delete_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("DELETE")
+                    .uri("/api/songs/song-test-1")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(delete_resp.status(), StatusCode::NO_CONTENT);
     }
 
     #[tokio::test]

@@ -83,11 +83,12 @@
 
   interface Props {
     onaddsongtosetlist?: (songId: string) => void;
-    onpresentsong?: (songId: string) => void;
+    onpresentsong?: (songId: string, slideIndex?: number) => void;
     onpresentimage?: (image: ImageMediaItem) => void;
     onaddimagetosetlist?: (image: ImageMediaItem) => void;
     onpreviewimage?: (image: ImageMediaItem) => void;
     onopensongeditor?: () => void;
+    onopeneditsong?: (songId: string) => void;
     onopenfolderconfig?: () => void;
     onpresentscripture?: (item: MediaItem, slideIndex: number) => void;
     onaddscripturetosetlist?: (item: MediaItem) => void;
@@ -110,6 +111,7 @@
     onaddimagetosetlist,
     onpreviewimage,
     onopensongeditor,
+    onopeneditsong,
     onopenfolderconfig,
     onpresentscripture,
     onaddscripturetosetlist,
@@ -1016,6 +1018,273 @@
 
     contextMenuOpen = true;
   }
+
+  async function handleCopySongLyrics(songId: string) {
+    try {
+      let lyrics = '';
+      if (viewingSong && viewingSong.id === songId) {
+        lyrics = viewingSong.lyrics_raw;
+      } else {
+        const res = await fetch(`/api/songs/${songId}`);
+        if (res.ok) {
+          const s: Song = await res.json();
+          lyrics = s.lyrics_raw;
+        }
+      }
+      if (lyrics) {
+        await navigator.clipboard.writeText(lyrics);
+        notifySuccess('Letra Copiada', 'Letra da música copiada para a área de transferência.');
+      } else {
+        notifyError('Erro', 'Letra da música não encontrada.');
+      }
+    } catch {
+      notifyError('Erro', 'Falha ao copiar letra para a área de transferência.');
+    }
+  }
+
+  async function handleCopySlideContent(content: string) {
+    try {
+      await navigator.clipboard.writeText(content);
+      notifySuccess('Texto Copiado', 'Conteúdo do slide copiado para a área de transferência.');
+    } catch {
+      notifyError('Erro', 'Falha ao copiar texto do slide.');
+    }
+  }
+
+  async function handleDeleteSongClick(song: SongSummary | Song, e?: MouseEvent) {
+    if (e) e.stopPropagation();
+    const confirmed = confirm(
+      `Deseja realmente excluir a música "${song.title}" do catálogo de músicas?\nEsta ação não poderá ser desfeita.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/songs/${song.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        notifySuccess('Música Excluída', `"${song.title}" foi removida do catálogo.`);
+        if (viewingSong?.id === song.id) {
+          viewingSong = null;
+        }
+        await loadSongs();
+        await loadSongTags();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('openpresenter:songs-changed'));
+        }
+      } else {
+        const txt = await res.text();
+        notifyError('Erro ao Excluir', txt || 'Não foi possível excluir a música.');
+      }
+    } catch {
+      notifyError('Erro de Conexão', 'Falha ao se comunicar com o servidor.');
+    }
+  }
+
+  function handleSongContextMenu(e: MouseEvent, song: SongSummary) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    const artistText = song.artist ? ` • ${song.artist}` : '';
+    const keyText = song.song_key ? ` (${song.song_key})` : '';
+
+    contextMenuItems = [
+      {
+        id: 'song-header',
+        label: `${song.title}${artistText}${keyText}`,
+        disabled: true,
+      },
+      { id: 'div-song-0', divider: true },
+      {
+        id: 'song-present-live',
+        label: 'Apresentar Agora (Ao Vivo)',
+        icon: Play,
+        onclick: () => onpresentsong?.(song.id, 0),
+      },
+      {
+        id: 'song-add-setlist',
+        label: 'Adicionar à Setlist',
+        icon: ListPlus,
+        onclick: () => onaddsongtosetlist?.(song.id),
+      },
+      {
+        id: 'song-view-lyrics',
+        label: viewingSong?.id === song.id ? 'Visualizando Letra' : 'Ver Letra / Slides',
+        icon: FileText,
+        onclick: () => handleViewSongLyrics(song.id),
+      },
+      { id: 'div-song-1', divider: true },
+      {
+        id: 'song-edit',
+        label: 'Editar Música',
+        icon: Pencil,
+        onclick: () => onopeneditsong?.(song.id),
+      },
+      {
+        id: 'song-copy-lyrics',
+        label: 'Copiar Letra Completa',
+        icon: Copy,
+        onclick: () => handleCopySongLyrics(song.id),
+      },
+      { id: 'div-song-2', divider: true },
+      {
+        id: 'song-delete',
+        label: 'Excluir do Catálogo',
+        icon: Trash2,
+        destructive: true,
+        onclick: () => handleDeleteSongClick(song, e),
+      },
+    ];
+
+    contextMenuOpen = true;
+  }
+
+  function handleViewingSongSlideContextMenu(e: MouseEvent, song: Song, slide: Slide, idx: number) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    contextMenuItems = [
+      {
+        id: 'slide-header',
+        label: `${song.title} — ${slide.label || `Slide ${idx + 1}`}`,
+        disabled: true,
+      },
+      { id: 'div-slide-0', divider: true },
+      {
+        id: 'slide-present-live',
+        label: 'Apresentar Este Slide Ao Vivo',
+        icon: Play,
+        onclick: () => onpresentsong?.(song.id, idx),
+      },
+      {
+        id: 'slide-add-setlist',
+        label: 'Adicionar Música à Setlist',
+        icon: ListPlus,
+        onclick: () => onaddsongtosetlist?.(song.id),
+      },
+      { id: 'div-slide-1', divider: true },
+      {
+        id: 'slide-copy-text',
+        label: 'Copiar Texto Deste Slide',
+        icon: Copy,
+        onclick: () => handleCopySlideContent(slide.content),
+      },
+      {
+        id: 'slide-edit-song',
+        label: 'Editar Música',
+        icon: Pencil,
+        onclick: () => onopeneditsong?.(song.id),
+      },
+    ];
+
+    contextMenuOpen = true;
+  }
+
+  function handleViewingSongSheetContextMenu(e: MouseEvent, song: Song) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    const artistText = song.artist ? ` • ${song.artist}` : '';
+    const keyText = song.song_key ? ` (${song.song_key})` : '';
+
+    contextMenuItems = [
+      {
+        id: 'sheet-header',
+        label: `${song.title}${artistText}${keyText}`,
+        disabled: true,
+      },
+      { id: 'div-sheet-0', divider: true },
+      {
+        id: 'sheet-present-start',
+        label: 'Apresentar do Início (Ao Vivo)',
+        icon: Play,
+        onclick: () => onpresentsong?.(song.id, 0),
+      },
+      {
+        id: 'sheet-add-setlist',
+        label: 'Adicionar à Setlist',
+        icon: ListPlus,
+        onclick: () => onaddsongtosetlist?.(song.id),
+      },
+      { id: 'div-sheet-1', divider: true },
+      {
+        id: 'sheet-edit-song',
+        label: 'Editar Música',
+        icon: Pencil,
+        onclick: () => onopeneditsong?.(song.id),
+      },
+      {
+        id: 'sheet-copy-full-lyrics',
+        label: 'Copiar Letra Completa',
+        icon: Copy,
+        onclick: () => handleCopySongLyrics(song.id),
+      },
+      { id: 'div-sheet-2', divider: true },
+      {
+        id: 'sheet-delete-song',
+        label: 'Excluir do Catálogo',
+        icon: Trash2,
+        destructive: true,
+        onclick: () => handleDeleteSongClick(song, e),
+      },
+      {
+        id: 'sheet-close',
+        label: 'Fechar Visualização',
+        icon: X,
+        onclick: () => (viewingSong = null),
+      },
+    ];
+
+    contextMenuOpen = true;
+  }
+
+  function handleSongsEmptyContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+
+    contextMenuItems = [
+      {
+        id: 'songs-empty-header',
+        label: 'Catálogo de Músicas',
+        disabled: true,
+      },
+      { id: 'div-songs-empty-0', divider: true },
+      {
+        id: 'songs-new',
+        label: 'Nova Música',
+        icon: Plus,
+        onclick: () => onopensongeditor?.(),
+      },
+      {
+        id: 'songs-import',
+        label: 'Importar Músicas (.json, .txt, .md)...',
+        icon: Upload,
+        onclick: () => triggerSongImport(),
+      },
+      { id: 'div-songs-empty-1', divider: true },
+      {
+        id: 'songs-reload',
+        label: 'Recarregar Catálogo',
+        icon: RefreshCw,
+        onclick: () => {
+          loadSongs();
+          loadSongTags();
+        },
+      },
+    ];
+
+    contextMenuOpen = true;
+  }
 </script>
 
 <!-- Input Oculto de Arquivo de Imagem -->
@@ -1324,6 +1593,7 @@
           <div
             onclick={() => handleViewSongLyrics(song.id)}
             onkeydown={(e) => { if (e.key === 'Enter') handleViewSongLyrics(song.id); }}
+            oncontextmenu={(e) => handleSongContextMenu(e, song)}
             role="button"
             tabindex="0"
             class="p-2.5 rounded-lg border border-border bg-card/60 hover:bg-muted/40 transition-all flex flex-col justify-between group cursor-pointer {viewingSong?.id === song.id ? 'ring-1 ring-primary border-primary bg-primary/10' : ''}"
@@ -1397,7 +1667,11 @@
 
         {#snippet viewingSongSheet()}
           {#if viewingSong}
-            <div class="flex-1 min-w-0 border border-border bg-card/60 rounded-xl flex flex-col p-3.5 h-full overflow-hidden shadow-md animate-in slide-in-from-right duration-150">
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              oncontextmenu={(e) => viewingSong && handleViewingSongSheetContextMenu(e, viewingSong)}
+              class="flex-1 min-w-0 border border-border bg-card/60 rounded-xl flex flex-col p-3.5 h-full overflow-hidden shadow-md animate-in slide-in-from-right duration-150"
+            >
               <!-- Cabeçalho do Sheet -->
               <div class="flex items-center justify-between pb-2.5 border-b border-border shrink-0">
                 <div class="min-w-0 mr-3">
@@ -1473,7 +1747,11 @@
                   <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
                     {#each viewingSongSlides as slide, idx (slide.id || idx)}
                       {@const color = getSectionColor(slide.label)}
-                      <div class="rounded-xl border border-border bg-background/60 overflow-hidden flex flex-col shadow-xs transition-all hover:border-primary/50">
+                      <!-- svelte-ignore a11y_no_static_element_interactions -->
+                      <div
+                        oncontextmenu={(e) => viewingSong && handleViewingSongSlideContextMenu(e, viewingSong, slide, idx)}
+                        class="rounded-xl border border-border bg-background/60 overflow-hidden flex flex-col shadow-xs transition-all hover:border-primary/50 cursor-pointer"
+                      >
                         <!-- Topo do Slide -->
                         <div class="px-3 py-1.5 bg-muted/40 border-b border-border flex items-center justify-between text-[10px]">
                           <span class="uppercase font-bold text-primary flex items-center gap-1.5 truncate">
@@ -1510,7 +1788,8 @@
             <ResizablePaneGroup direction="horizontal" class="flex-1 w-full h-full min-h-0 overflow-hidden">
               <!-- Coluna do Catálogo de Músicas (Redimensionável) -->
               <ResizablePane defaultSize={35} minSize={20} maxSize={60} class="flex flex-col p-1.5 pr-2 overflow-y-auto min-h-0">
-                <div class="grid grid-cols-1 gap-2">
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div class="grid grid-cols-1 gap-2 min-h-full" oncontextmenu={handleSongsEmptyContextMenu}>
                   {#each songs as song (song.id)}
                     {@render songCard(song)}
                   {/each}
@@ -1527,7 +1806,8 @@
             </ResizablePaneGroup>
           {:else}
             <!-- Catálogo em Tela Cheia (Quando nenhum preview de música estiver aberto) -->
-            <div class="flex-1 overflow-y-auto flex flex-col p-1.5 min-h-0">
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="flex-1 overflow-y-auto flex flex-col p-1.5 min-h-0" oncontextmenu={handleSongsEmptyContextMenu}>
               {#if songs.length === 0}
                 <div class="h-32 flex flex-col items-center justify-center text-xs text-muted-foreground">
                   Nenhuma música encontrada no catálogo.

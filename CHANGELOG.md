@@ -7,6 +7,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Menus de Contexto na Aba Músicas e Sheet de Preview (`BottomPanel.svelte`, `AdminView.svelte`, `routes.rs`):**
+  - **Menu de Contexto nos Cards de Música:** Clique com botão direito no catálogo exibe menu contextual com opções de apresentar ao vivo, adicionar à setlist, visualizar letra/slides, editar no modal, copiar letra completa para o clipboard e excluir do catálogo.
+  - **Menu de Contexto no Sheet de Preview e Slides:** Clique com botão direito em qualquer slide do sheet lateral permite apresentá-lo ao vivo diretamente a partir dele, adicionar a música à setlist, copiar o texto do slide específico ou editar a música.
+  - **Menu de Contexto no Cabeçalho e Vazio do Catálogo:** Ações agregadas para a música em exibição (com fechar visualização) e atalhos rápidos de criação, importação e recarga no espaço livre do catálogo.
+  - **Rota DELETE `/api/songs/{id}` no Backend:** Suporte à exclusão de músicas no banco de dados e índice FTS5 com auditoria de log e confirmação de segurança antes da exclusão.
 - **Proteção contra Fechamento Acidental de Modais de Edição (`SongEditorModal.svelte`, `ScheduleEditorModal.svelte`, `QuickItemModal.svelte`, `SetlistModal.svelte`):**
   - Bloqueio de fechamento ao clicar fora do modal (área externa/backdrop), evitando a perda involuntária de letras, slides de texto, programações de cultos ou avisos durante a operação.
   - Fechamento restrito ao botão "Fechar" (X), botão "Cancelar" ou pressionamento da tecla `Esc`.

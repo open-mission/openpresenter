@@ -226,7 +226,7 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/church/upload-logo", post(upload_church_logo))
         .route("/api/outputs/{kind}/toggle", post(toggle_output))
         .route("/api/songs", get(get_songs).post(save_song))
-        .route("/api/songs/{id}", get(get_song))
+        .route("/api/songs/{id}", get(get_song).delete(delete_song))
         .route("/api/songs/tags", get(get_song_tags))
         .route("/api/songs/import", post(import_songs))
         .route("/api/songs/harpa/install", post(install_harpa_crista))
@@ -756,6 +756,30 @@ async fn get_song(
     match db_guard.get_song(&id) {
         Ok(Some(song)) => Ok(Json(song)),
         Ok(None) => Err((StatusCode::NOT_FOUND, "Música não encontrada".into())),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    }
+}
+
+async fn delete_song(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let db = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível".into(),
+    ))?;
+
+    let db_guard = db.lock().await;
+    match db_guard.delete_song(&id) {
+        Ok(true) => {
+            drop(db_guard);
+            let details = format!("Música excluída do catálogo (ID: {})", id);
+            state
+                .log_action("song_deleted", "songs", &details, None)
+                .await;
+            Ok(StatusCode::NO_CONTENT)
+        }
+        Ok(false) => Err((StatusCode::NOT_FOUND, "Música não encontrada".into())),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     }
 }
