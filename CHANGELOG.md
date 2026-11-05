@@ -7,6 +7,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Separação do Controle de Mensagem no Retorno em Seção Própria (`TimerControlPanel.svelte`):**
+  - Desacoplamento do envio de avisos de palco do rodapé do cronômetro, transformando a "Mensagem no Retorno" em uma seção autônoma e colapsável na barra lateral direita do painel do operador.
+  - Cabeçalho padronizado com ícone `MessageSquare` em tom esmeralda, título "Mensagem no Retorno", `ChevronDown` animado e alternador de colapso com persistência em `localStorage` (`stage_message_collapsed`).
+  - Indicador dinâmico de badge "Ativo" e botão "Limpar" no próprio cabeçalho quando houver mensagem ativa no palco, permitindo visualizar o status e remover avisos mesmo com a seção recolhida.
+  - Inclusão de chips rápidos de mensagens comuns (*5 min restantes*, *Atenção ao tempo*, *Próximo louvor*, *Encerrar*) para envio ágil com um clique durante o culto.
 - **Refinamentos de Interface no Painel do Operador (`AdminView.svelte`, `BottomPanel.svelte`, `CommandPalette.svelte`):**
   - **Colapso e Padronização Visual de "Controle de Saídas":** Cabeçalho interativo na barra lateral direita padronizado com as seções adjacentes (`Radio` verde, tipografia font-bold e `ChevronDown` animado à direita), permitindo recolher e expandir o grid de botões de controle de saída (Ao Vivo, Parar, Black, Limpar, Fundo) com persistência no `localStorage`.
   - **Colapso Individual dos Previews Public e Stage:** Títulos interativos com `ChevronDown` animado permitindo recolher e expandir individualmente as caixas de visualização 16:9 do projetor público e do monitor de palco no painel lateral do operador, com preferência salva no `localStorage`.

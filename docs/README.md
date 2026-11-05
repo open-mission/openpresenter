@@ -241,6 +241,7 @@
 
 - [Spec — Preparação e Lançamento da Versão 0.4.3](specs/2026-11-01-release-0-4-3.md)
 - [Plano — Preparação e Lançamento da Versão 0.4.3](plans/2026-11-01-release-0-4-3.md)
+- [Spec — Separação da Mensagem de Retorno em Seção Própria na Barra Lateral](specs/2026-11-04-separate-stage-message-control-section.md)
 - [Spec — Colapso dos Previews de Saída Public e Stage no Painel do Operador](specs/2026-11-04-collapse-previews-public-stage.md)
 - [Spec — Refinamentos de Interface: Colapso do Controle de Saídas, Dropdown Adicionar em Outros e Ajustes no Command Palette](specs/2026-11-04-admin-ui-collapse-saidas-dropdown-outros-biblia-palette.md)
 - [Spec — Tamanho do Aviso no Monitor de Palco em Modo de Espera e Configuração Dedicada](specs/2026-11-04-stage-standby-alert-font-size.md)
