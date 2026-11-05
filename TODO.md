@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] UI/UX: Separar a seção "Mensagem no Retorno (Stage)" em uma seção própria e independente do cronômetro na barra lateral, com colapso individual, chips de mensagens rápidas e badge de status ativo. (commit d0d06d4 - 2026-11-05 00:01:52 -03:00)
+
 - [x] UI/UX: Padronização visual do cabeçalho da seção "Controle de Saídas" na barra lateral de previews (AdminView) para seguir exatamente a tipografia, ícone de ação e posição do chevron das seções Public, Stage e Timer. (commit 3ed30e5 - 2026-11-04 23:56:00 -03:00)
 
 - [x] UI/UX: Permitir colapsar individualmente os monitores e previews de saída Public (Projetor) e Stage (Retorno Palco) com persistência em localStorage na barra lateral direita do operador (AdminView). (commit af665d5 - 2026-11-04 23:51:00 -03:00)
