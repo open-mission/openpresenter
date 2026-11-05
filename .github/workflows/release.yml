@@ -104,12 +104,34 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
+      - name: Extract Release Notes from CHANGELOG.md
+        run: |
+          TAG="${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.tag || 'v0.4.4' }}"
+          VERSION="${TAG#v}"
+          python3 -c "
+          import re, sys
+          version = sys.argv[1]
+          with open('CHANGELOG.md', 'r', encoding='utf-8') as f:
+              content = f.read()
+          pattern = r'## \[' + re.escape(version) + r'\][^\n]*\n(.*?)(?=\n## \[|\Z)'
+          m = re.search(pattern, content, re.DOTALL)
+          if m:
+              notes = m.group(1).strip()
+              with open('RELEASE_NOTES.md', 'w', encoding='utf-8') as out:
+                  out.write(notes + '\n')
+          else:
+              print(f'Warning: Release notes for version {version} not found in CHANGELOG.md')
+              with open('RELEASE_NOTES.md', 'w', encoding='utf-8') as out:
+                  out.write(f'Release {version}\n')
+          " "$VERSION"
+
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.tag || 'v0.4.4' }}
+          body_path: RELEASE_NOTES.md
           files: release-artifacts/*
-          generate_release_notes: true
+          generate_release_notes: false
           draft: false
           prerelease: false
         env:
