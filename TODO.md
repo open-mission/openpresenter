@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] UI/UX: Adicionar menu de contexto profissional nos cards de músicas do catálogo e no sheet/gaveta de pré-visualização de letras na aba Músicas do painel inferior (BottomPanel), incluindo ações de apresentar ao vivo (do início ou no slide clicado), adicionar à setlist, copiar letra/slide, editar e excluir do catálogo com backend DELETE /api/songs/{id}. (commit 1d84bbc - 2026-11-05 00:29:23 -03:00)
+
 - [x] UI/UX: Proteção contra fechamento acidental de modais de edição (Música, Texto, Agenda, Aviso, Setlist) com bloqueio de clique no backdrop, confirmação ao descartar alterações não salvas no Esc/Fechar, e configurações de Notificações (modo Não Perturbe e seletor de posição do Toast: top-left, top-right, bottom-right, bottom-left). (commit bcf3040 - 2026-11-05 00:15:21 -03:00)
 
 - [x] UI/UX: Separar a seção "Mensagem no Retorno (Stage)" em uma seção própria e independente do cronômetro na barra lateral, com colapso individual, chips de mensagens rápidas e badge de status ativo. (commit d0d06d4 - 2026-11-05 00:01:52 -03:00)
