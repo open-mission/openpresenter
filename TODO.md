@@ -16,7 +16,7 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
-- [x] UI/UX: Colapso da seção Controle de Saídas na barra lateral de previews (AdminView), agrupamento dos botões de criação da aba Outros em dropdown único "+ Adicionar ▾" (BottomPanel), abreviação da versão bíblica e prevenção de quebra de linha na aba de Bíblia do Command Palette. (2026-11-04 23:37:00 -03:00)
+- [x] UI/UX: Colapso da seção Controle de Saídas na barra lateral de previews (AdminView), agrupamento dos botões de criação da aba Outros em dropdown único "+ Adicionar ▾" (BottomPanel), abreviação da versão bíblica e prevenção de quebra de linha na aba de Bíblia do Command Palette. (commit 1b1fe88 - 2026-11-04 23:37:00 -03:00)
 
 - [x] Fix/UI: Ajuste e ampliação do tamanho do texto de aviso no monitor de palco (/stage) no modo descanso/standby (padrão 36px, container ampliado para max-w-5xl e ícone proporcional), e nova opção dedicada de configuração de tamanho de fonte (standby_alert_font_size) em SettingsModal com range slider e input numérico. (commit fc7cc8f - 2026-11-04 23:28:00 -03:00)
 
