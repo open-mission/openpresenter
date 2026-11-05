@@ -178,6 +178,28 @@
     }
   }
 
+  let isPublicPreviewCollapsed = $state(
+    typeof window !== 'undefined' && localStorage.getItem('public_preview_collapsed') === 'true'
+  );
+
+  function togglePublicPreviewCollapse() {
+    isPublicPreviewCollapsed = !isPublicPreviewCollapsed;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('public_preview_collapsed', String(isPublicPreviewCollapsed));
+    }
+  }
+
+  let isStagePreviewCollapsed = $state(
+    typeof window !== 'undefined' && localStorage.getItem('stage_preview_collapsed') === 'true'
+  );
+
+  function toggleStagePreviewCollapse() {
+    isStagePreviewCollapsed = !isStagePreviewCollapsed;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('stage_preview_collapsed', String(isStagePreviewCollapsed));
+    }
+  }
+
   // Modo do Editor e Mídia em Edição
   let songEditorMode = $state<'song' | 'text'>('song');
   let editingSong = $state<Song | null>(null);
@@ -3106,12 +3128,18 @@
         </div>
 
         <!-- PREVIEW PUBLIC (16:9) -->
-        <div class="p-3 border-b border-border space-y-2">
+        <div class="p-3 border-b border-border {isPublicPreviewCollapsed ? 'py-2.5' : 'space-y-2'} transition-all">
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5">
-              <MonitorPlay size={14} class="text-emerald-400" />
-              <span class="text-xs font-bold text-foreground">Public (Projetor)</span>
-            </div>
+            <button
+              type="button"
+              onclick={togglePublicPreviewCollapse}
+              class="flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors cursor-pointer select-none group"
+              title={isPublicPreviewCollapsed ? 'Expandir preview da tela pública' : 'Recolher preview da tela pública'}
+            >
+              <MonitorPlay size={14} class="text-emerald-400 group-hover:text-primary transition-colors" />
+              <span>Public (Projetor)</span>
+              <ChevronDown size={13} class="text-muted-foreground group-hover:text-foreground transition-transform duration-200 {isPublicPreviewCollapsed ? '-rotate-90' : ''}" />
+            </button>
 
             <div class="flex items-center gap-1">
               <button
@@ -3129,26 +3157,36 @@
             </div>
           </div>
 
-          <!-- Preview Fiel do Public (16:9) Espelhando a Projeção Real -->
-          <PublicPreviewBox
-            publicSettings={$publicSettingsStore}
-            churchBrand={$churchBrandStore}
-            activeSlide={liveSlide}
-            activeMedia={liveMedia}
-            displayMode={$presentationState.display_mode}
-            wallpaperPath={$presentationState.wallpaper_path}
-            wallpaperMode={$presentationState.wallpaper_mode}
-            resolvedWallpaper={resolvedWallpaper}
-          />
+          {#if !isPublicPreviewCollapsed}
+            <!-- Preview Fiel do Public (16:9) Espelhando a Projeção Real -->
+            <div class="animate-in fade-in duration-150">
+              <PublicPreviewBox
+                publicSettings={$publicSettingsStore}
+                churchBrand={$churchBrandStore}
+                activeSlide={liveSlide}
+                activeMedia={liveMedia}
+                displayMode={$presentationState.display_mode}
+                wallpaperPath={$presentationState.wallpaper_path}
+                wallpaperMode={$presentationState.wallpaper_mode}
+                resolvedWallpaper={resolvedWallpaper}
+              />
+            </div>
+          {/if}
         </div>
 
         <!-- PREVIEW STAGE (16:9) -->
-        <div class="p-3 space-y-2">
+        <div class="p-3 border-b border-border {isStagePreviewCollapsed ? 'py-2.5' : 'space-y-2'} transition-all">
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5">
-              <Tv size={14} class="text-emerald-400" />
-              <span class="text-xs font-bold text-foreground">Stage (Retorno Palco)</span>
-            </div>
+            <button
+              type="button"
+              onclick={toggleStagePreviewCollapse}
+              class="flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors cursor-pointer select-none group"
+              title={isStagePreviewCollapsed ? 'Expandir preview do monitor de palco' : 'Recolher preview do monitor de palco'}
+            >
+              <Tv size={14} class="text-emerald-400 group-hover:text-primary transition-colors" />
+              <span>Stage (Retorno Palco)</span>
+              <ChevronDown size={13} class="text-muted-foreground group-hover:text-foreground transition-transform duration-200 {isStagePreviewCollapsed ? '-rotate-90' : ''}" />
+            </button>
 
             <div class="flex items-center gap-1">
               <button
@@ -3166,15 +3204,19 @@
             </div>
           </div>
 
-          <!-- Preview Fiel do Stage com Preset, Cores e Proporções em Tempo Real -->
-          <StagePreviewBox
-            stageSettings={$stageSettingsStore}
-            activeSlide={liveSlide}
-            nextSlide={nextLiveSlide}
-            activeMedia={liveMedia}
-            timer={$presentationState.timer}
-            stageClock={stageClock}
-          />
+          {#if !isStagePreviewCollapsed}
+            <!-- Preview Fiel do Stage com Preset, Cores e Proporções em Tempo Real -->
+            <div class="animate-in fade-in duration-150">
+              <StagePreviewBox
+                stageSettings={$stageSettingsStore}
+                activeSlide={liveSlide}
+                nextSlide={nextLiveSlide}
+                activeMedia={liveMedia}
+                timer={$presentationState.timer}
+                stageClock={stageClock}
+              />
+            </div>
+          {/if}
         </div>
 
         <!-- Painel de Controle de Timer & Mensagens de Palco -->
