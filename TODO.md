@@ -16,7 +16,7 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
-- [x] UI/UX: Padronização visual do cabeçalho da seção "Controle de Saídas" na barra lateral de previews (AdminView) para seguir exatamente a tipografia, ícone de ação e posição do chevron das seções Public, Stage e Timer. (2026-11-04 23:56:00 -03:00)
+- [x] UI/UX: Padronização visual do cabeçalho da seção "Controle de Saídas" na barra lateral de previews (AdminView) para seguir exatamente a tipografia, ícone de ação e posição do chevron das seções Public, Stage e Timer. (commit 3ed30e5 - 2026-11-04 23:56:00 -03:00)
 
 - [x] UI/UX: Permitir colapsar individualmente os monitores e previews de saída Public (Projetor) e Stage (Retorno Palco) com persistência em localStorage na barra lateral direita do operador (AdminView). (commit af665d5 - 2026-11-04 23:51:00 -03:00)
 
