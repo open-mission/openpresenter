@@ -3035,11 +3035,12 @@
             <button
               type="button"
               onclick={toggleOutputControlsCollapse}
-              class="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground uppercase tracking-wider transition-colors cursor-pointer select-none group"
+              class="flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors cursor-pointer select-none group"
               title={isOutputControlsCollapsed ? 'Expandir controle de saídas' : 'Recolher controle de saídas'}
             >
-              <ChevronDown size={13} class="text-muted-foreground group-hover:text-foreground transition-transform duration-200 {isOutputControlsCollapsed ? '-rotate-90' : ''}" />
+              <Radio size={14} class="text-emerald-400 group-hover:text-primary transition-colors" />
               <span>Controle de Saídas</span>
+              <ChevronDown size={13} class="text-muted-foreground group-hover:text-foreground transition-transform duration-200 {isOutputControlsCollapsed ? '-rotate-90' : ''}" />
             </button>
             <button
               type="button"
