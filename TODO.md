@@ -16,6 +16,10 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Feat: Modais Maximizáveis e Otimização de Espaço nas Configurações: botão de maximizar/restaurar nos modais SettingsModal, SongEditorModal, ScheduleEditorModal, QuickItemModal, TeamsModal, SetlistModal, BackgroundSelectorModal e ImageSelectorModal preenchendo 100% da viewport (w-full h-full, p-0 no backdrop); e aproveitamento total de espaço no SettingsModal com novo layout em 2 colunas para Sobre & Updates e Atalhos e remoção de restrições estreitas nas demais seções. (commit 4491d64 - 2026-11-05 15:40:16 -03:00)
+
+- [x] Fix: Atualização Reativa do Fluxo de Escala (Svelte Flow) e Renderização da Visão em Grade: remoção de filtro inexistente de is_active em departamentos que ocultava cartões, mapeamento reativo de membros escalados por ID e sincronização de nodes e edges no RosterFlowCanvas. (commit a672a20 - 2026-11-05 15:40:01 -03:00)
+
 - [x] Fix/Feat: Adição de Cargo (Líder, Vice-Líder, Membro) na Equipe de Mídia e Correção de Atualização Reativa: migração SQLite 0011_team_member_role.sql adicionando coluna role em team_members, persistência e schemas OpenAPI atualizados, seletor de cargo no modal de membros com badges cromáticos nos cards, e resolução do erro TypeError: undefined is not an object (evaluating 'U(t).departments.length') com suporte defensivo a department_ids || departments || [] e recarregamento automático após inserção/edição. (commit 2695727 - 2026-11-05 14:59:37 -03:00)
 
 - [x] Feat: Telemetria de Hardware & Footer de Monitoramento do Sistema (CPU, Memória RAM e GPU): modelagem de SystemMetrics em op-core, coletor contínuo com sysinfo (processo da aplicação + sistema operacional + GPU dedicada/integrada) em op-admin, endpoint REST /api/system/metrics documentado em OpenAPI, componente SystemMetricsFooter.svelte no painel do operador com indicadores visuais em tempo real, popover detalhado de diagnósticos de hardware e opção de colapso com persistência em localStorage. (commit 51b6932 - 2026-11-05 14:40:23 -03:00)
