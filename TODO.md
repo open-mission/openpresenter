@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Fix/UI: Ajuste e ampliação do tamanho do texto de aviso no monitor de palco (/stage) no modo descanso/standby (padrão 36px, container ampliado para max-w-5xl e ícone proporcional), e nova opção dedicada de configuração de tamanho de fonte (standby_alert_font_size) em SettingsModal com range slider e input numérico. (2026-11-04 23:28:00 -03:00)
+
 - [x] Lançamento da versão 0.4.3: unificação de versão em todo o workspace (Cargo.toml, Cargo.lock, package.json, workflows, componentes e testes), Setlist em fluxo contínuo estilo ProPresenter (Show Flow) com seções, colapso e super-apresentação agregada, cores e fundo de badges da Agenda (Public e Stage), fontes customizadas com input numérico, relógio sem segundos e sem data no monitor de palco, fade de imagens na tela pública e transições suaves no lower third, melhorias no remote mobile (ícone oficial, iOS safe-area e divisores visuais), agrupamento temático de configurações e limpeza global de emojis na interface, fechamento da release 0.4.3 no CHANGELOG.md, spec docs/specs/2026-11-01-release-0-4-3.md e publicação da tag v0.4.3. (commit d9a1f34 - 2026-11-01 14:21:36 -03:00)
 
 - [x] Feat/UI: Customização de cores e visibilidade de fundo da Agenda (Public e Stage), e Modo de Visualização de Setlist em Fluxo Contínuo estilo ProPresenter com seções agrupadoras, colapso/expansão individual e global, marcação de conclusão e apresentação de seção inteira contínua. (commit c3d70ef - 2026-11-01 14:08:39 -03:00)

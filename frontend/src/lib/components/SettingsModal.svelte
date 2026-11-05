@@ -4122,6 +4122,7 @@
                             clock_font_size: DEFAULT_STAGE_SETTINGS.clock_font_size,
                             timer_font_size: DEFAULT_STAGE_SETTINGS.timer_font_size,
                             alert_font_size: DEFAULT_STAGE_SETTINGS.alert_font_size,
+                            standby_alert_font_size: DEFAULT_STAGE_SETTINGS.standby_alert_font_size,
                           };
                           saveStageDisplaySettings(localStage);
                         }}
@@ -4130,7 +4131,7 @@
                       </Button>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                       <!-- Tamanho do Timer -->
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between items-center text-xs">
@@ -4197,10 +4198,10 @@
                         <div class="text-[9px] text-neutral-500">Horário atual de parede</div>
                       </div>
 
-                      <!-- Tamanho do Aviso -->
+                      <!-- Tamanho do Aviso no Grid (Ao Vivo) -->
                       <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
                         <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-400">Aviso para o Palco</span>
+                          <span class="text-neutral-400">Aviso (Ao Vivo)</span>
                           <div class="flex items-center gap-1.5">
                             <input
                               type="number"
@@ -4227,7 +4228,40 @@
                           oninput={(e) => updateStageField('alert_font_size', Number((e.target as HTMLInputElement).value))}
                           class="w-full accent-primary cursor-pointer"
                         />
-                        <div class="text-[9px] text-neutral-500">Mensagens enviadas pela equipe</div>
+                        <div class="text-[9px] text-neutral-500">Rodapé do grid durante slides</div>
+                      </div>
+
+                      <!-- Tamanho do Aviso na Espera (Standby) -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-400">Aviso (Espera)</span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="14"
+                              max="150"
+                              step="2"
+                              value={localStage.standby_alert_font_size ?? 36}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 14) updateStageField('standby_alert_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                              title="Tamanho customizado em pixels"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="16"
+                          max={Math.max(100, localStage.standby_alert_font_size ?? 36)}
+                          step="2"
+                          value={localStage.standby_alert_font_size ?? 36}
+                          oninput={(e) => updateStageField('standby_alert_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                        <div class="text-[9px] text-neutral-500">Banner na tela sem slide ativo</div>
                       </div>
                     </div>
                   </div>

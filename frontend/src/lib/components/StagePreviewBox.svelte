@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { MediaItem, Slide, StageDisplaySettings, TimerState } from '$lib/types';
-  import { Clock, Hourglass, ArrowRight, MessageSquare } from 'lucide-svelte';
+  import { Clock, Hourglass, ArrowRight, MessageSquare, AlertTriangle } from 'lucide-svelte';
 
   let {
     stageSettings,
@@ -95,6 +95,9 @@
   const previewAlertSize = $derived(
     Math.max(6, Math.min(13, Math.round(7.5 * ((stageSettings.alert_font_size || 28) / 28))))
   );
+  const previewStandbyAlertSize = $derived(
+    Math.max(6, Math.min(14, Math.round(8 * ((stageSettings.standby_alert_font_size || stageSettings.alert_font_size || 36) / 36))))
+  );
 
   function formatTime(sec: number): string {
     const isNeg = sec < 0;
@@ -109,6 +112,12 @@
   {#if !activeSlide}
     <!-- MODO DE DESCANSO NO PREVIEW -->
     <div class="flex-1 flex flex-col items-center justify-center p-2 text-center bg-zinc-950/80 rounded-none gap-1 animate-in fade-in duration-200">
+      {#if timer?.stage_message}
+        <div class="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/50 text-amber-200 font-bold flex items-center gap-1 max-w-[90%] truncate mb-1 shadow-sm" style="font-size: {previewStandbyAlertSize}px;">
+          <AlertTriangle size={Math.max(8, previewStandbyAlertSize - 1)} class="shrink-0 text-amber-300" />
+          <span class="truncate">{timer.stage_message}</span>
+        </div>
+      {/if}
       <div class="text-2xl font-mono font-black text-white tracking-tight">
         {displayClock}
       </div>

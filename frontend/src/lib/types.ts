@@ -394,6 +394,7 @@ export interface StageDisplaySettings {
   clock_font_size?: number;
   timer_font_size?: number;
   alert_font_size?: number;
+  standby_alert_font_size?: number;
 
   // Aviso para o Palco em Tela Cheia Temporária
   alert_fullscreen_flash?: boolean;

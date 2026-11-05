@@ -241,6 +241,7 @@
 
 - [Spec — Preparação e Lançamento da Versão 0.4.3](specs/2026-11-01-release-0-4-3.md)
 - [Plano — Preparação e Lançamento da Versão 0.4.3](plans/2026-11-01-release-0-4-3.md)
+- [Spec — Tamanho do Aviso no Monitor de Palco em Modo de Espera e Configuração Dedicada](specs/2026-11-04-stage-standby-alert-font-size.md)
 - [Spec — Fontes Customizadas da Agenda e Exibição de Segundos e Data no Relógio do Palco](specs/2026-11-01-agenda-fontes-customizadas-e-stage-relogio-segundos-data.md)
 - [Plano — Fontes Customizadas da Agenda e Exibição de Segundos e Data no Relógio do Palco](plans/2026-11-01-agenda-fontes-customizadas-e-stage-relogio-segundos-data.md)
 - [Spec — Remote iOS Safe-Area & Divisores, Fade no Lower Third e Limpeza de Emojis](specs/2026-11-01-remote-ios-safe-area-lower-third-fade-e-limpeza-emojis.md)

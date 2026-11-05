@@ -108,6 +108,7 @@ export const DEFAULT_STAGE_SETTINGS: StageDisplaySettings = {
   clock_font_size: 48,
   timer_font_size: 56,
   alert_font_size: 28,
+  standby_alert_font_size: 36,
 
   // Aviso para o Palco em Tela Cheia Temporária
   alert_fullscreen_flash: true,

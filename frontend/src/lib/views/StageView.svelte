@@ -267,9 +267,20 @@
 
       <!-- Mensagem de Palco em Destaque (se houver) -->
       {#if stageMessage}
-        <div class="w-full max-w-3xl mb-8 p-3 sm:p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-base sm:text-lg md:text-xl font-bold text-center shadow-lg animate-pulse shrink-0 flex items-center justify-center gap-2">
-          <AlertTriangle size={20} class="shrink-0 text-amber-300" />
-          <span>{stageMessage}</span>
+        {@const standbyAlertSize = stageSettings.standby_alert_font_size ?? stageSettings.alert_font_size ?? 36}
+        <div
+          class="w-full max-w-4xl lg:max-w-5xl mb-8 p-4 sm:p-5 md:p-6 rounded-2xl bg-amber-500/15 border-2 border-amber-500/50 text-amber-100 font-bold text-center shadow-2xl animate-pulse shrink-0 flex items-center justify-center gap-3 sm:gap-4 transition-all"
+        >
+          <AlertTriangle
+            size={Math.max(22, Math.min(48, Math.round(standbyAlertSize * 0.9)))}
+            class="shrink-0 text-amber-300"
+          />
+          <span
+            class="leading-snug break-words tracking-tight"
+            style="font-size: {standbyAlertSize}px; line-height: 1.2;"
+          >
+            {stageMessage}
+          </span>
         </div>
       {/if}
 

@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Configuração de Tamanho do Aviso de Palco em Modo de Espera (`StageView.svelte`, `SettingsModal.svelte`, `StagePreviewBox.svelte`, `types.ts`, `displaySettings.ts`):**
+  - Nova opção configurável `standby_alert_font_size` (padrão de `36px`, escala de 14px a 150px com input numérico e controle deslizante) em *Tamanhos das Fontes de Palco* na aba *Monitor de Palco (Stage) > Layout & Tempo*.
+  - Aumento expressivo e destaque visual no banner de aviso exibido no monitor de retorno (`/stage`) quando nenhum slide está sendo apresentado (modo descanso/standby), eliminando a limitação rígida de `20px` e aplicando a tipografia configurada dinamicamente via WebSocket em tempo real.
+  - Dimensionamento proporcional do ícone de alerta e ampliação da largura máxima do container (`max-w-4xl lg:max-w-5xl`) para leitura nítida e confortável a distâncias de palco de 5 a 15 metros.
+  - Pré-visualização contextual fiel no preview do operador (`StagePreviewBox.svelte`) exibindo a mensagem em espera quando o monitor estiver em modo de descanso.
+
 ## [0.4.3] - 2026-11-01
 
 ### Adicionado
