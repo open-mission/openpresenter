@@ -37,6 +37,9 @@
     member: MemberNode,
   };
 
+  let nodes = $state.raw<Node[]>([]);
+  let edges = $state.raw<Edge[]>([]);
+
   // Calcula os nós e arestas de forma reativa a partir da escala atual
   const flowElements = $derived.by(() => {
     if (!roster) {
@@ -46,7 +49,7 @@
     const calculatedNodes: Node[] = [];
     const calculatedEdges: Edge[] = [];
 
-    const activeDepts = departments.filter((d) => d.is_active);
+    const activeDepts = departments;
     const deptCount = Math.max(activeDepts.length, 1);
     const colSpacing = 270;
     const totalWidth = deptCount * colSpacing;
@@ -104,6 +107,7 @@
       deptItems.forEach((item, itemIdx) => {
         const memberY = 280 + itemIdx * 86;
         const memberX = deptX + 5;
+        const member = allMembers.find((m) => m.id === item.member_id);
 
         calculatedNodes.push({
           id: `item-${item.id}`,
@@ -112,8 +116,8 @@
           data: {
             id: item.id,
             memberId: item.member_id,
-            memberName: item.member_name,
-            memberPhone: item.member_phone,
+            memberName: member?.name || 'Voluntário',
+            memberPhone: member?.phone,
             role: item.role,
             status: item.status,
             departmentColor: dept.color,
@@ -136,8 +140,10 @@
     return { nodes: calculatedNodes, edges: calculatedEdges };
   });
 
-  const nodes = $derived(flowElements.nodes);
-  const edges = $derived(flowElements.edges);
+  $effect(() => {
+    nodes = flowElements.nodes;
+    edges = flowElements.edges;
+  });
 </script>
 
 <div class="w-full h-full min-h-[520px] rounded-2xl overflow-hidden bg-neutral-950/80 border border-neutral-800/80 relative">
@@ -147,8 +153,8 @@
     </div>
   {:else}
     <SvelteFlow
-      {nodes}
-      {edges}
+      bind:nodes
+      bind:edges
       {nodeTypes}
       fitView
       fitViewOptions={{ padding: 0.2 }}
