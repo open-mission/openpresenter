@@ -256,6 +256,19 @@ export function stopTrack() {
   clearAudioPlayback();
 }
 
+export function resetTrack() {
+  if (audioElement) {
+    audioElement.pause();
+    audioElement.removeAttribute('src');
+    audioElement.load();
+  }
+  isAudioPlayingStore.set(false);
+  audioCurrentTimeStore.set(0);
+  audioDurationStore.set(0);
+  currentTrackStore.set(null);
+  clearAudioPlayback();
+}
+
 export function seekTrack(seconds: number) {
   if (!audioElement) return;
   const clamped = Math.max(0, Math.min(seconds, audioElement.duration || 0));

@@ -21,6 +21,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Card integrado de playback ao expandir a música, com botões de Play/Pause/Stop, barra de progresso e timecode sincronizados.
   - Roteamento do comando WebSocket `ControlAudioPlayback` para que o operador remoto pelo celular dispare a reprodução do áudio diretamente na máquina principal da igreja conectada ao sistema de som.
   - Banner global de áudio no topo da aba Setlist do `/remote` durante qualquer reprodução sonora em andamento.
+- **Opção de Fechar Widget de Áudio com Confirmação em Reprodução Ativa (`AdminView.svelte`, `audioPlayer.ts`):**
+  - Adicionado botão de fechar (`X`) no widget de áudio superior do painel do operador.
+  - Fechamento imediato e silencioso caso a faixa não esteja em reprodução (áudio pausado ou apenas pré-carregado), resetando o elemento de áudio via `resetTrack()`.
+  - Diálogo modal de confirmação com aviso visual elegante caso haja áudio em reprodução ativa: alerta ao operador que fechar o player interromperá a reprodução sonora imediatamente, oferecendo opções de "Cancelar" (mantendo a música tocando) ou "Parar e Fechar".
+  - Reabertura automática e transparente do player caso uma nova música com áudio seja selecionada ou caso uma nova reprodução seja iniciada.
 
 ### Corrigido
 - **Execução Independente de Áudio, Pré-carregamento de Metadados e Repetir Único (`AdminView.svelte`, `audioPlayer.ts`):**

@@ -145,6 +145,7 @@
     VolumeX,
     Repeat1,
     Hourglass,
+    AlertTriangle,
   } from 'lucide-svelte';
   import {
     initAudioPlayer,
@@ -152,6 +153,7 @@
     playTrack,
     togglePlayTrack,
     stopTrack,
+    resetTrack,
     seekTrack,
     setTrackVolume,
     toggleTrackMute,
@@ -181,6 +183,9 @@
   let editingScheduleItem = $state<MediaItem | null>(null);
   let quickItemMode = $state<'header' | 'announcement'>('header');
   let isRenameModalOpen = $state(false);
+  let isConfirmCloseAudioOpen = $state(false);
+  let isAudioWidgetDismissed = $state(false);
+  let lastActivePlaybackUrl = $state('');
   let isSetlistSelectorOpen = $state(false);
   let isAddMenuOpen = $state(false);
   let isImageSelectorOpen = $state(false);
@@ -431,13 +436,31 @@
         ''
   );
 
+  // Reabre o widget caso a URL da faixa mude (ex: seleção de outra música com áudio)
+  $effect(() => {
+    if (activePlaybackUrl && activePlaybackUrl !== lastActivePlaybackUrl) {
+      lastActivePlaybackUrl = activePlaybackUrl;
+      isAudioWidgetDismissed = false;
+    } else if (!activePlaybackUrl) {
+      lastActivePlaybackUrl = '';
+    }
+  });
+
+  // Garante que o widget reabra sempre que o áudio começar a reproduzir
+  $effect(() => {
+    if ($isAudioPlayingStore) {
+      isAudioWidgetDismissed = false;
+    }
+  });
+
   const showHeaderAudioWidget = $derived(
-    !!activePlaybackUrl || $isAudioPlayingStore || !!$currentTrackStore
+    !isAudioWidgetDismissed && (!!activePlaybackUrl || $isAudioPlayingStore || !!$currentTrackStore)
   );
 
   // Pré-carrega metadados e duração automaticamente quando uma música com áudio é selecionada
   $effect(() => {
     if (
+      !isAudioWidgetDismissed &&
       activePlaybackUrl &&
       !$isAudioPlayingStore &&
       (!$currentTrackStore || $currentTrackStore.url !== activePlaybackUrl)
@@ -456,6 +479,20 @@
 
   function handleStopHeaderAudio() {
     stopTrack();
+  }
+
+  function handleCloseAudioWidget() {
+    if ($isAudioPlayingStore) {
+      isConfirmCloseAudioOpen = true;
+    } else {
+      executeCloseAudioWidget();
+    }
+  }
+
+  function executeCloseAudioWidget() {
+    isAudioWidgetDismissed = true;
+    isConfirmCloseAudioOpen = false;
+    resetTrack();
   }
 
   // Próximo slide para o preview do stage
@@ -853,6 +890,7 @@
       isQuickItemModalOpen ||
       isScheduleEditorOpen ||
       isRenameModalOpen ||
+      isConfirmCloseAudioOpen ||
       isConnectionsDropdownOpen ||
       isOutputsMenuOpen
     ) {
@@ -865,6 +903,7 @@
         isQuickItemModalOpen = false;
         isScheduleEditorOpen = false;
         isRenameModalOpen = false;
+        isConfirmCloseAudioOpen = false;
         isSetlistSelectorOpen = false;
         isAddMenuOpen = false;
         isConnectionsDropdownOpen = false;
@@ -1854,6 +1893,16 @@
             title={`Volume: ${Math.round($audioVolumeStore * 100)}%`}
           />
         </div>
+
+        <!-- Botão Fechar Widget -->
+        <button
+          type="button"
+          onclick={handleCloseAudioWidget}
+          class="p-1 rounded-md text-neutral-400 hover:text-white hover:bg-neutral-800/80 transition-colors cursor-pointer shrink-0 ml-0.5"
+          title="Fechar player de áudio"
+        >
+          <X size={12} />
+        </button>
       </div>
     {/if}
 
@@ -3637,6 +3686,55 @@
           </Button>
           <Button variant="default" size="sm" onclick={handleSaveRename} class="bg-emerald-500 hover:bg-emerald-400 text-black font-semibold">
             Salvar
+          </Button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Modal de Confirmação para Fechar Player com Áudio em Reprodução -->
+  {#if isConfirmCloseAudioOpen}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-100"
+      onclick={() => (isConfirmCloseAudioOpen = false)}
+    >
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl space-y-4"
+        onclick={(e) => e.stopPropagation()}
+      >
+        <div class="flex items-start gap-3">
+          <div class="p-2.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
+            <AlertTriangle size={20} />
+          </div>
+          <div class="space-y-1">
+            <h3 class="text-sm font-bold text-white">Parar reprodução de áudio?</h3>
+            <p class="text-xs text-neutral-300 leading-relaxed">
+              A faixa <strong class="text-white font-semibold">"{activePlaybackTitle}"</strong> está sendo reproduzida no momento. Fechar o player irá parar a reprodução do áudio imediatamente.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-neutral-800/80">
+          <Button
+            variant="secondary"
+            size="sm"
+            onclick={() => (isConfirmCloseAudioOpen = false)}
+            class="text-neutral-300 hover:text-white"
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onclick={executeCloseAudioWidget}
+            class="bg-rose-600 hover:bg-rose-500 text-white font-semibold flex items-center gap-1.5"
+          >
+            <Square size={12} class="fill-current" />
+            Parar e Fechar
           </Button>
         </div>
       </div>
