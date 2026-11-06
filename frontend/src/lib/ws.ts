@@ -29,6 +29,14 @@ export const isWsConnected = writable<boolean>(false);
 export const connectedClients = writable<ClientConnection[]>([]);
 export const actionLogsStore = writable<ActionLog[]>([]);
 export const teamUpdatedStore = writable<{ entity: string; action: string; timestamp: number } | null>(null);
+export const audioControlCommandStore = writable<{
+  action: 'play' | 'pause' | 'stop' | 'seek';
+  url?: string;
+  title?: string;
+  artist_or_ref?: string;
+  seek_seconds?: number;
+  timestamp: number;
+} | null>(null);
 
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -124,6 +132,11 @@ function handleIncomingMessage(msg: WsMessage) {
     teamUpdatedStore.set({
       entity: msg.payload.entity,
       action: msg.payload.action,
+      timestamp: Date.now(),
+    });
+  } else if (msg.type === 'control_audio_playback') {
+    audioControlCommandStore.set({
+      ...msg.payload,
       timestamp: Date.now(),
     });
   } else if (msg.type === 'reload_clients') {
@@ -376,4 +389,25 @@ export function clearAudioPlayback() {
   fetch('/api/presentation/audio-playback/clear', {
     method: 'POST',
   }).catch(() => {});
+}
+
+export function controlAudioPlayback(
+  action: 'play' | 'pause' | 'stop' | 'seek',
+  options?: {
+    url?: string;
+    title?: string;
+    artist_or_ref?: string;
+    seek_seconds?: number;
+  }
+) {
+  sendWsMessage({
+    type: 'control_audio_playback',
+    payload: {
+      action,
+      url: options?.url,
+      title: options?.title,
+      artist_or_ref: options?.artist_or_ref,
+      seek_seconds: options?.seek_seconds ? Math.round(options.seek_seconds) : undefined,
+    },
+  });
 }

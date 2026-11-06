@@ -292,6 +292,8 @@
 - [Plano — Ajustes de Timer da Setlist, Customização de Aparência, Áudio no Stage/Public com Waveforms e Pastas Mapeadas](plans/2026-11-05-ajustes-timer-setlist-audio-stage-waveforms-e-pastas-mapeadas.md)
 - [Spec — Ocultação de Timer ao Terminar com Papel de Parede Limpo, Parada na Apresentação e Reset ao Reiniciar](specs/2026-11-06-timer-public-wallpaper-ao-terminar-e-reset-apresentacao.md)
 - [Plano — Ocultação de Timer ao Terminar com Papel de Parede Limpo, Parada na Apresentação e Reset ao Reiniciar](plans/2026-11-06-timer-public-wallpaper-ao-terminar-e-reset-apresentacao.md)
+- [Spec — Playback de Áudio Vinculado a Músicas, Widget de Player Superior/Remoto e Ajustes no Monitor de Palco](specs/2026-11-06-audio-playback-vinculado-a-musica-e-ajustes-stage-timer.md)
+- [Plano — Playback de Áudio Vinculado a Músicas, Widget de Player Superior/Remoto e Ajustes no Monitor de Palco](plans/2026-11-06-audio-playback-vinculado-a-musica-e-ajustes-stage-timer.md)
 
 ## Arquitetura e decisões
 

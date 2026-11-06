@@ -75,6 +75,7 @@ impl Database {
             M::up(include_str!(
                 "../migrations/0012_team_member_remote_access.sql"
             )),
+            M::up(include_str!("../migrations/0013_song_audio_url.sql")),
         ]);
         migrations
             .to_latest(&mut conn)
@@ -260,8 +261,8 @@ impl Database {
         let now_str = format_timestamp(now);
 
         tx.execute(
-            "INSERT INTO songs (id, title, artist, album, composer, song_key, bpm, lyrics_raw, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+            "INSERT INTO songs (id, title, artist, album, composer, song_key, bpm, lyrics_raw, audio_url, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)
              ON CONFLICT(id) DO UPDATE SET
                  title = excluded.title,
                  artist = excluded.artist,
@@ -270,6 +271,7 @@ impl Database {
                  song_key = excluded.song_key,
                  bpm = excluded.bpm,
                  lyrics_raw = excluded.lyrics_raw,
+                 audio_url = excluded.audio_url,
                  updated_at = excluded.updated_at",
             rusqlite::params![
                 song.id,
@@ -280,6 +282,7 @@ impl Database {
                 song.song_key.as_deref().unwrap_or(""),
                 song.bpm,
                 song.lyrics_raw,
+                song.audio_url.as_deref().unwrap_or(""),
                 now_str,
             ],
         )
@@ -364,8 +367,8 @@ impl Database {
 
         for song in songs {
             tx.execute(
-                "INSERT INTO songs (id, title, artist, album, composer, song_key, bpm, lyrics_raw, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+                "INSERT INTO songs (id, title, artist, album, composer, song_key, bpm, lyrics_raw, audio_url, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)
                  ON CONFLICT(id) DO UPDATE SET
                      title = excluded.title,
                      artist = excluded.artist,
@@ -374,6 +377,7 @@ impl Database {
                      song_key = excluded.song_key,
                      bpm = excluded.bpm,
                      lyrics_raw = excluded.lyrics_raw,
+                     audio_url = excluded.audio_url,
                      updated_at = excluded.updated_at",
                 rusqlite::params![
                     song.id,
@@ -384,6 +388,7 @@ impl Database {
                     song.song_key.as_deref().unwrap_or(""),
                     song.bpm,
                     song.lyrics_raw,
+                    song.audio_url.as_deref().unwrap_or(""),
                     now_str,
                 ],
             )
@@ -464,7 +469,7 @@ impl Database {
         let mut stmt = self
             .conn
             .prepare(
-                "SELECT title, artist, album, composer, song_key, bpm, lyrics_raw
+                "SELECT title, artist, album, composer, song_key, bpm, lyrics_raw, audio_url
                  FROM songs WHERE id = ?1",
             )
             .map_err(DbError::Read)?;
@@ -481,6 +486,7 @@ impl Database {
         let song_key: Option<String> = row.get(4).map_err(DbError::Read)?;
         let bpm: Option<i32> = row.get(5).map_err(DbError::Read)?;
         let lyrics_raw: String = row.get(6).map_err(DbError::Read)?;
+        let audio_url: Option<String> = row.get(7).map_err(DbError::Read)?;
 
         // Carrega seções
         let mut sec_stmt = self
@@ -547,6 +553,7 @@ impl Database {
             sections,
             lyrics_raw,
             tags,
+            audio_url: audio_url.filter(|s| !s.is_empty()),
         }))
     }
 
@@ -582,13 +589,15 @@ impl Database {
                 .conn
                 .prepare(
                     "SELECT s.id, s.title, s.artist, s.song_key, s.bpm, s.composer, s.album,
-                            (SELECT GROUP_CONCAT(tag, '|||') FROM song_tags WHERE song_id = s.id)
+                            (SELECT GROUP_CONCAT(tag, '|||') FROM song_tags WHERE song_id = s.id),
+                            s.audio_url
                      FROM songs s ORDER BY s.title COLLATE NOCASE ASC",
                 )
                 .map_err(DbError::Read)?;
             let summaries = stmt
                 .query_map([], |r| {
                     let tags_raw: Option<String> = r.get(7)?;
+                    let audio_url: Option<String> = r.get(8)?;
                     Ok(SongSummary {
                         id: r.get(0)?,
                         title: r.get(1)?,
@@ -599,6 +608,7 @@ impl Database {
                         album: r.get(6)?,
                         preview_snippet: None,
                         tags: parse_tags(tags_raw),
+                        audio_url: audio_url.filter(|s| !s.is_empty()),
                     })
                 })
                 .map_err(DbError::Read)?
@@ -611,7 +621,8 @@ impl Database {
         let fts_query = format!("\"{}\"*", clean.replace('"', "\"\""));
         let fts_sql = "SELECT s.id, s.title, s.artist, s.song_key, s.bpm, s.composer, s.album,
                               snippet(songs_fts, 3, '<b>', '</b>', '...', 8),
-                              (SELECT GROUP_CONCAT(tag, '|||') FROM song_tags WHERE song_id = s.id)
+                              (SELECT GROUP_CONCAT(tag, '|||') FROM song_tags WHERE song_id = s.id),
+                              s.audio_url
                        FROM songs_fts f
                        JOIN songs s ON s.id = f.song_id
                        WHERE songs_fts MATCH ?1
@@ -621,6 +632,7 @@ impl Database {
         if let Ok(mut stmt) = self.conn.prepare(fts_sql)
             && let Ok(summaries) = stmt.query_map(rusqlite::params![fts_query], |r| {
                 let tags_raw: Option<String> = r.get(8)?;
+                let audio_url: Option<String> = r.get(9)?;
                 Ok(SongSummary {
                     id: r.get(0)?,
                     title: r.get(1)?,
@@ -631,6 +643,7 @@ impl Database {
                     album: r.get(6)?,
                     preview_snippet: r.get(7)?,
                     tags: parse_tags(tags_raw),
+                    audio_url: audio_url.filter(|s| !s.is_empty()),
                 })
             })
         {
@@ -652,7 +665,8 @@ impl Database {
             .conn
             .prepare(
                 "SELECT s.id, s.title, s.artist, s.song_key, s.bpm, s.composer, s.album,
-                        (SELECT GROUP_CONCAT(tag, '|||') FROM song_tags WHERE song_id = s.id)
+                        (SELECT GROUP_CONCAT(tag, '|||') FROM song_tags WHERE song_id = s.id),
+                        s.audio_url
                  FROM songs s
                  WHERE s.title LIKE ?1 ESCAPE '\\'
                     OR s.artist LIKE ?1 ESCAPE '\\'
@@ -664,6 +678,7 @@ impl Database {
         let list = fallback_stmt
             .query_map(rusqlite::params![pattern], |r| {
                 let tags_raw: Option<String> = r.get(7)?;
+                let audio_url: Option<String> = r.get(8)?;
                 Ok(SongSummary {
                     id: r.get(0)?,
                     title: r.get(1)?,
@@ -674,6 +689,7 @@ impl Database {
                     album: r.get(6)?,
                     preview_snippet: None,
                     tags: parse_tags(tags_raw),
+                    audio_url: audio_url.filter(|s| !s.is_empty()),
                 })
             })
             .map_err(DbError::Read)?
@@ -2310,7 +2326,7 @@ mod tests {
         let path = dir.path().join("open-presenter.db");
         let db = Database::open(&path).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 12);
+        assert_eq!(db.schema_version().unwrap(), 13);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -2343,11 +2359,11 @@ mod tests {
     }
 
     #[test]
-    fn open_creates_schema_v12_with_teams() {
+    fn open_creates_schema_v13_with_song_audio() {
         let dir = tempfile::tempdir().unwrap();
         let db = Database::open(&dir.path().join("open-presenter.db")).unwrap();
 
-        assert_eq!(db.schema_version().unwrap(), 12);
+        assert_eq!(db.schema_version().unwrap(), 13);
         let table_count: i64 = db
             .conn
             .query_row(
@@ -2595,7 +2611,7 @@ mod tests {
         }
 
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.schema_version().unwrap(), 12);
+        assert_eq!(db.schema_version().unwrap(), 13);
         let meta = db.load_meta().unwrap().unwrap();
         assert_eq!(meta.first_run_at, ts(2026, 10, 28, 10, 0));
         let count: i64 = db
@@ -2843,22 +2859,31 @@ mod tests {
             ],
             lyrics_raw: "## Verso 1\nDeus enviou Seu Filho amado\nPara morrer em meu lugar\n\n## Refrão\nPorque Ele vive, posso crer no amanhã\nPorque Ele vive, temor não há".into(),
             tags: vec!["Harpa Cristã".into(), "Louvor".into()],
+            audio_url: Some("/api/media/files/audios/porque_ele_vive.mp3".into()),
         };
 
         db.save_song(&song, ts(2026, 10, 28, 20, 0)).unwrap();
 
-        // 1. Busca por ID e verificação de tags
+        // 1. Busca por ID e verificação de tags e audio_url
         let loaded = db.get_song("song-123").unwrap().expect("encontra música");
         assert_eq!(loaded.title, "Porque Ele Vive");
         assert_eq!(loaded.sections.len(), 2);
         assert_eq!(loaded.sections[0].lines.len(), 2);
         assert_eq!(loaded.tags, vec!["Harpa Cristã", "Louvor"]);
+        assert_eq!(
+            loaded.audio_url,
+            Some("/api/media/files/audios/porque_ele_vive.mp3".into())
+        );
 
         // 2. Busca por termo no título
         let by_title = db.search_songs("porque").unwrap();
         assert_eq!(by_title.len(), 1);
         assert_eq!(by_title[0].id, "song-123");
         assert_eq!(by_title[0].tags, vec!["Harpa Cristã", "Louvor"]);
+        assert_eq!(
+            by_title[0].audio_url,
+            Some("/api/media/files/audios/porque_ele_vive.mp3".into())
+        );
 
         // 2.1 Lista todas as tags
         let all_tags = db.list_all_song_tags().unwrap();
@@ -2876,6 +2901,7 @@ mod tests {
             sections: vec![],
             lyrics_raw: "Senhor meu Deus".into(),
             tags: vec!["Harpa Cristã".into(), "Adoração".into()],
+            audio_url: None,
         };
         db.save_songs_batch(&[song2], ts(2026, 10, 28, 21, 0))
             .unwrap();
@@ -2921,6 +2947,7 @@ mod tests {
                 align_h: None,
                 align_v: None,
                 lower_image_url: None,
+                audio_url: None,
             }],
             is_active: true,
             created_at: "".into(),

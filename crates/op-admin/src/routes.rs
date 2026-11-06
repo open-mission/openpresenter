@@ -1061,6 +1061,7 @@ fn parse_imported_text_song(
         sections,
         lyrics_raw,
         tags,
+        audio_url: None,
     }
 }
 
@@ -1171,6 +1172,7 @@ async fn install_harpa_crista(
             sections,
             lyrics_raw: raw_lyrics,
             tags: vec!["Harpa Cristã".into()],
+            audio_url: None,
         });
     }
 
@@ -1337,6 +1339,7 @@ async fn import_songs(
                         sections,
                         lyrics_raw: raw_lyrics,
                         tags,
+                        audio_url: None,
                     });
                 }
             } else if let Ok(generic_list) =
@@ -1386,6 +1389,11 @@ async fn import_songs(
                             }
                         }
                     }
+                    let audio_url = item
+                        .get("audio_url")
+                        .or_else(|| item.get("audio"))
+                        .and_then(|v| v.as_str())
+                        .map(String::from);
                     songs_to_save.push(Song {
                         id: format!("song-{}", crate::online_lyrics::uuid_simple()),
                         title,
@@ -1397,6 +1405,7 @@ async fn import_songs(
                         sections,
                         lyrics_raw,
                         tags,
+                        audio_url,
                     });
                 }
             } else {

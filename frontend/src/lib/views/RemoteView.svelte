@@ -11,7 +11,9 @@
     stopPresentation,
     quickPresentMedia,
     teamUpdatedStore,
+    controlAudioPlayback,
   } from '$lib/ws';
+  import { formatDuration } from '$lib/media';
   import type {
     MediaItem,
     Setlist,
@@ -55,6 +57,8 @@
     EyeOff,
     Search,
     Play,
+    Pause,
+    Volume2,
     RefreshCw,
     X,
     Check,
@@ -180,6 +184,7 @@
       ? currentMediaSlides[currentSlideIndex]
       : null
   );
+  const audioPlayback = $derived($presentationState.audio);
 
   // Sigla da Bíblia ativa para o Input Group
   const activeBibleSummary = $derived(
@@ -1372,6 +1377,51 @@
           </button>
         </div>
 
+        <!-- Banner de Playback Ativo Global -->
+        {#if audioPlayback && (audioPlayback.is_playing || audioPlayback.current_time_seconds > 0)}
+          <div class="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/50 flex items-center justify-between gap-2 text-xs shadow-md">
+            <div class="flex items-center gap-2 min-w-0 flex-1">
+              <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <Volume2 size={14} class={audioPlayback.is_playing ? 'animate-pulse' : ''} />
+              </div>
+              <div class="min-w-0 truncate">
+                <p class="font-bold text-white text-xs truncate">{audioPlayback.title || 'Playback'}</p>
+                <p class="font-mono text-[10px] text-emerald-400">
+                  {formatDuration(audioPlayback.current_time_seconds)} / {formatDuration(audioPlayback.duration_seconds)}
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onclick={() => {
+                  if (audioPlayback?.is_playing) {
+                    controlAudioPlayback('pause');
+                  } else {
+                    controlAudioPlayback('play', audioPlayback?.url, audioPlayback?.title, audioPlayback?.artist_or_ref);
+                  }
+                }}
+                class="p-1.5 rounded-lg bg-emerald-500 text-black font-bold cursor-pointer"
+                title={audioPlayback.is_playing ? "Pausar" : "Tocar"}
+              >
+                {#if audioPlayback.is_playing}
+                  <Pause size={12} class="fill-current" />
+                {:else}
+                  <Play size={12} class="fill-current" />
+                {/if}
+              </button>
+              <button
+                type="button"
+                onclick={() => controlAudioPlayback('stop')}
+                class="p-1.5 rounded-lg bg-neutral-800 text-neutral-300 hover:text-white cursor-pointer"
+                title="Parar"
+              >
+                <Square size={12} class="fill-current" />
+              </button>
+            </div>
+          </div>
+        {/if}
+
         {#if !activeSetlistData || (activeSetlistData.items ?? []).length === 0}
           <div class="p-8 text-center text-neutral-500 text-xs">
             <ListMusic size={32} class="mx-auto mb-2 opacity-40" />
@@ -1428,6 +1478,12 @@
                     </div>
 
                     <div class="flex items-center gap-1.5 shrink-0">
+                      {#if item.audio_url}
+                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-950/70 text-emerald-400 border border-emerald-500/40">
+                          <Music size={10} />
+                          Playback
+                        </span>
+                      {/if}
                       {#if isItemActive}
                         <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse">
                           Ao Vivo
@@ -1442,6 +1498,67 @@
                   <!-- Slides expandidos com toque direto para projetar -->
                   {#if isExpanded}
                     <div class="px-2 pb-2 pt-1 border-t border-neutral-800/60 space-y-1 bg-black/40">
+                      {#if item.audio_url}
+                        {@const isThisTrackPlaying = audioPlayback?.is_playing && (audioPlayback?.url === item.audio_url || audioPlayback?.title === item.title)}
+                        {@const cur = audioPlayback?.url === item.audio_url ? (audioPlayback?.current_time_seconds || 0) : 0}
+                        {@const dur = audioPlayback?.url === item.audio_url ? (audioPlayback?.duration_seconds || 1) : 1}
+                        <div class="mb-2 p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/40 flex flex-col gap-2">
+                          <div class="flex items-center justify-between text-xs">
+                            <div class="flex items-center gap-1.5 text-emerald-300 font-bold truncate">
+                              <Music size={13} class="text-emerald-400 shrink-0" />
+                              <span class="truncate">Playback de Áudio</span>
+                            </div>
+                            <div class="font-mono text-[10px] text-neutral-300 tabular-nums">
+                              {formatDuration(cur)} / {formatDuration(dur)}
+                            </div>
+                          </div>
+
+                          <!-- Barra de progresso -->
+                          <div class="w-full h-1.5 bg-neutral-800 rounded-full overflow-hidden">
+                            <div
+                              class="h-full bg-emerald-500 transition-all"
+                              style="width: {dur > 0 ? Math.min(100, Math.max(0, (cur / dur) * 100)) : 0}%;"
+                            ></div>
+                          </div>
+
+                          <div class="flex items-center justify-between gap-2 pt-0.5">
+                            <button
+                              type="button"
+                              onclick={(e) => {
+                                e.stopPropagation();
+                                if (isThisTrackPlaying) {
+                                  controlAudioPlayback('pause');
+                                } else {
+                                  controlAudioPlayback('play', item.audio_url, item.title, item.artist_or_ref);
+                                }
+                              }}
+                              class="flex-1 py-1.5 px-3 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer {isThisTrackPlaying ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-emerald-500 text-black shadow'}"
+                            >
+                              {#if isThisTrackPlaying}
+                                <Pause size={13} class="fill-current" />
+                                <span>Pausar Playback</span>
+                              {:else}
+                                <Play size={13} class="fill-current" />
+                                <span>Tocar Playback</span>
+                              {/if}
+                            </button>
+
+                            {#if isThisTrackPlaying || audioPlayback?.url === item.audio_url}
+                              <button
+                                type="button"
+                                onclick={(e) => {
+                                  e.stopPropagation();
+                                  controlAudioPlayback('stop');
+                                }}
+                                class="p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
+                                title="Parar Playback"
+                              >
+                                <Square size={13} class="fill-current" />
+                              </button>
+                            {/if}
+                          </div>
+                        </div>
+                      {/if}
                       {#each item.slides as slide, sIdx}
                         {@const isCurrentSlideLive = isItemActive && currentSlideIndex === sIdx && isLive}
                         <button

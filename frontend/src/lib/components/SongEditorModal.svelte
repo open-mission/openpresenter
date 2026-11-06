@@ -28,13 +28,17 @@
     Plus,
     Maximize2,
     Minimize2,
+    Play,
+    Square,
+    Upload,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte';
   import { parseRawLyrics, getSectionColor, formatLyricsLinesPerSlide } from '../songParser';
   import { renderFormattedText } from '../markdown';
-  import type { Song, Slide, MediaItem } from '../types';
+  import type { Song, Slide, MediaItem, AudioMediaItem } from '../types';
+  import { fetchAudios, uploadAudio } from '../media';
   import { toast } from '$lib/toast';
 
   interface Props {
@@ -67,6 +71,11 @@
   let lyricsRaw = $state('');
   let tags = $state<string[]>([]);
   let tagInput = $state('');
+  let audioUrl = $state('');
+  let availableAudios = $state<AudioMediaItem[]>([]);
+  let isUploadingAudio = $state(false);
+  let previewAudioEl: HTMLAudioElement | null = null;
+  let isPreviewPlaying = $state(false);
   let addToSetlist = $state(true);
   let isSaving = $state(false);
   let errorMessage = $state('');
@@ -82,6 +91,7 @@
       bpm: bpm ? Number(bpm) : undefined,
       lyricsRaw: lyricsRaw.trim(),
       tags: [...tags].sort(),
+      audioUrl: audioUrl.trim(),
       alignH,
       alignV,
     });
@@ -90,6 +100,80 @@
   function isDirty(): boolean {
     if (!open) return false;
     return getFormSnapshot() !== initialSnapshot;
+  }
+
+  function stopPreview() {
+    if (previewAudioEl) {
+      previewAudioEl.pause();
+      previewAudioEl.currentTime = 0;
+      isPreviewPlaying = false;
+    }
+  }
+
+  function toggleAudioPreview() {
+    if (!audioUrl) return;
+    if (isPreviewPlaying && previewAudioEl) {
+      previewAudioEl.pause();
+      isPreviewPlaying = false;
+    } else {
+      if (!previewAudioEl) {
+        previewAudioEl = new Audio(audioUrl);
+        previewAudioEl.onended = () => {
+          isPreviewPlaying = false;
+        };
+        previewAudioEl.onerror = () => {
+          isPreviewPlaying = false;
+          toast.error('Não foi possível reproduzir o áudio selecionado.');
+        };
+      } else {
+        previewAudioEl.src = audioUrl;
+      }
+      previewAudioEl
+        .play()
+        .then(() => {
+          isPreviewPlaying = true;
+        })
+        .catch(() => {
+          isPreviewPlaying = false;
+          toast.error('Erro ao reproduzir preview de áudio.');
+        });
+    }
+  }
+
+  async function loadAudios() {
+    try {
+      availableAudios = await fetchAudios();
+    } catch (err) {
+      console.error('Falha ao listar áudios:', err);
+    }
+  }
+
+  async function handleAudioFileUpload(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    isUploadingAudio = true;
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const b64 = (reader.result as string).split(',')[1];
+          const res = await uploadAudio(file.name, b64);
+          audioUrl = res.url;
+          await loadAudios();
+          toast.success(`Áudio "${file.name}" carregado e vinculado!`);
+        } catch (err: any) {
+          toast.error('Falha ao enviar áudio: ' + (err.message || 'Erro desconhecido'));
+        } finally {
+          isUploadingAudio = false;
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      isUploadingAudio = false;
+      toast.error('Erro ao ler arquivo: ' + err.message);
+    }
   }
 
   function requestClose() {
@@ -101,6 +185,7 @@
         return;
       }
     }
+    stopPreview();
     onclose();
   }
 
@@ -146,6 +231,8 @@
   // Sincroniza estado apenas na abertura do modal
   $effect(() => {
     if (open && !prevOpen) {
+      stopPreview();
+      loadAudios();
       if (mode === 'song') {
         if (initialSong) {
           id = initialSong.id || `song-${Date.now()}`;
@@ -156,6 +243,7 @@
           bpm = initialSong.bpm;
           lyricsRaw = initialSong.lyrics_raw || '';
           tags = initialSong.tags ? [...initialSong.tags] : [];
+          audioUrl = initialSong.audio_url || '';
         } else {
           id = `song-${Date.now()}`;
           title = '';
@@ -164,6 +252,7 @@
           songKey = '';
           bpm = undefined;
           tags = [];
+          audioUrl = '';
           lyricsRaw = `## Verso 1
 Primeira estrofe da canção
 Segunda linha aqui
@@ -183,6 +272,7 @@ Porque Ele vive, temor não há`;
           artist = initialItem.artist_or_ref || '';
           alignH = initialItem.align_h || 'center';
           alignV = initialItem.align_v || 'center';
+          audioUrl = initialItem.audio_url || '';
           lyricsRaw = initialItem.slides?.map((s) => s.content).join('\n\n') || '';
         } else {
           id = `text-${Date.now()}`;
@@ -190,6 +280,7 @@ Porque Ele vive, temor não há`;
           artist = 'Avisos da Semana';
           alignH = 'center';
           alignV = 'center';
+          audioUrl = '';
           lyricsRaw = `## Boas-vindas
 Sejam bem-vindos à nossa reunião!
 Estamos felizes com sua presença.
@@ -282,6 +373,7 @@ Traga sua família e convidados!`;
         sections: parsed.sections,
         lyrics_raw: lyricsRaw,
         tags,
+        audio_url: audioUrl.trim() || undefined,
       };
 
       try {
@@ -304,6 +396,7 @@ Traga sua família e convidados!`;
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('openpresenter:songs-changed'));
         }
+        stopPreview();
         onsave?.(saved);
         onclose();
       } catch (err: any) {
@@ -328,6 +421,7 @@ Traga sua família e convidados!`;
         slides: slidesPayload,
         align_h: alignH,
         align_v: alignV,
+        audio_url: audioUrl.trim() || undefined,
       };
 
       try {
@@ -345,6 +439,7 @@ Traga sua família e convidados!`;
         }
 
         toast.success('Apresentação rápida adicionada à setlist!');
+        stopPreview();
         onsaveItem?.(mediaItemPayload);
         onclose();
       } catch (err: any) {
@@ -872,6 +967,85 @@ Traga sua família e convidados!`;
                     class="flex-1 min-w-[120px] bg-transparent border-0 text-xs text-white placeholder-neutral-500 focus:outline-none focus:ring-0 p-0.5"
                   />
                 </div>
+              </div>
+
+              <!-- Áudio / Playback Vinculado -->
+              <div class="p-3 bg-neutral-900/60 border border-neutral-800 rounded-lg space-y-2">
+                <div class="flex items-center justify-between">
+                  <label for="song-audio-select" class="text-[11px] font-semibold text-neutral-300 flex items-center gap-1.5">
+                    <Music size={13} class="text-emerald-400" />
+                    Áudio / Playback Vinculado (Opcional)
+                  </label>
+                  {#if audioUrl}
+                    <span class="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+                      <Check size={11} /> Áudio configurado
+                    </span>
+                  {/if}
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <div class="relative flex-1">
+                    <select
+                      id="song-audio-select"
+                      bind:value={audioUrl}
+                      class="w-full h-8 pl-2.5 pr-8 bg-neutral-900 border border-neutral-700/80 rounded-md text-xs text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors appearance-none cursor-pointer"
+                    >
+                      <option value="">Nenhum playback vinculado</option>
+                      {#each availableAudios as aud}
+                        <option value={aud.url}>{aud.name}</option>
+                      {/each}
+                    </select>
+                    <ChevronDown size={14} class="absolute right-2.5 top-2 text-neutral-400 pointer-events-none" />
+                  </div>
+
+                  {#if audioUrl}
+                    <button
+                      type="button"
+                      onclick={toggleAudioPreview}
+                      class="h-8 px-2.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-md text-xs font-medium text-white flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                      title={isPreviewPlaying ? "Pausar Preview" : "Ouvir Preview"}
+                    >
+                      {#if isPreviewPlaying}
+                        <Square size={12} class="text-amber-400 fill-amber-400" />
+                        <span>Pausar</span>
+                      {:else}
+                        <Play size={12} class="text-emerald-400 fill-emerald-400" />
+                        <span>Ouvir</span>
+                      {/if}
+                    </button>
+
+                    <button
+                      type="button"
+                      onclick={() => { stopPreview(); audioUrl = ''; }}
+                      class="h-8 px-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-md text-neutral-400 hover:text-red-400 transition-colors cursor-pointer shrink-0"
+                      title="Remover áudio vinculado"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  {/if}
+
+                  <label
+                    class="h-8 px-3 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-md text-xs font-medium text-neutral-200 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 {isUploadingAudio ? 'opacity-50 pointer-events-none' : ''}"
+                    title="Enviar arquivo de áudio (MP3, WAV, etc.)"
+                  >
+                    <Upload size={12} />
+                    <span>{isUploadingAudio ? 'Enviando...' : 'Enviar Áudio'}</span>
+                    <input
+                      type="file"
+                      accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac"
+                      class="hidden"
+                      onchange={handleAudioFileUpload}
+                      disabled={isUploadingAudio}
+                    />
+                  </label>
+                </div>
+
+                {#if audioUrl}
+                  <div class="text-[11px] text-neutral-400 truncate flex items-center gap-1.5">
+                    <span class="text-neutral-500 font-mono">Arquivo:</span>
+                    <span class="font-mono text-neutral-300 truncate">{audioUrl}</span>
+                  </div>
+                {/if}
               </div>
             {:else}
               <!-- Metadados do Modo Texto -->

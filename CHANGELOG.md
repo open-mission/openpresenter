@@ -7,6 +7,25 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Áudio / Playback Vinculado a Músicas (`SongEditorModal.svelte`, `0013_song_audio_url.sql`, `op-core`, `op-db`, `op-admin`):**
+  - Adicionada coluna `audio_url` na tabela `songs` com migração incremental versionada `0013_song_audio_url.sql`.
+  - No editor de músicas (`SongEditorModal.svelte`), adicionada seção para vincular faixas de áudio ou playback à canção, com menu seletor de arquivos da biblioteca de áudios (`/api/media/audios`), upload direto de arquivos e botão de preview de reprodução sonora com parada automática ao fechar.
+  - Persistência e recuperação completa do áudio vinculado no SQLite, com suporte nos modelos `Song`, `SongSummary` e `MediaItem`.
+- **Widget de Player de Áudio no Cabeçalho Superior do Operador (`AdminView.svelte`, `audioPlayer.ts`):**
+  - Player de áudio compacto exibido no cabeçalho superior do painel do operador, imediatamente ao lado da busca global (`⌘K`).
+  - Apresentação inteligente automática: ativa-se quando uma música com áudio vinculado é selecionada, quando um item de áudio é focado ou sempre que uma faixa de áudio estiver em reprodução ativa.
+  - Controles integrados completos: botões de Play/Pause, Parar (Stop), título e artista da faixa com ícone sonoro, barra de progresso interativa (scrubber de seek), timecode de reprodução decorrido e total (`MM:SS / MM:SS`), controle de volume e botão de silenciar (mute).
+  - Permite disparar e controlar a trilha de playback enquanto o operador navega e projeta as letras da música na tela pública.
+- **Controle de Playback no Controle Remoto Mobile (`RemoteView.svelte`, `ws.ts`, `op-admin/ws.rs`):**
+  - Na aba Setlist do `/remote`, exibição de badge "Playback" nos itens que possuem áudio vinculado.
+  - Card integrado de playback ao expandir a música, com botões de Play/Pause/Stop, barra de progresso e timecode sincronizados.
+  - Roteamento do comando WebSocket `ControlAudioPlayback` para que o operador remoto pelo celular dispare a reprodução do áudio diretamente na máquina principal da igreja conectada ao sistema de som.
+  - Banner global de áudio no topo da aba Setlist do `/remote` durante qualquer reprodução sonora em andamento.
+
+### Corrigido
+- **Correção da Visualização de Áudio e Timer no Monitor de Palco (`StageView.svelte`):**
+  - Corrigido problema onde arquivos de áudio eram renderizados como tags `<img>` quebradas devido à verificação genérica de URLs de mídia. Agora o áudio é priorizado com visualização de tela inteira sem slide secundário vazio, exibindo ícone sonoro pulsante, nome da faixa, tempo decorrido (`MM:SS`) e tempo restante (`-MM:SS`).
+  - Durante a apresentação de cronômetros/timers na tela pública, o monitor de retorno (`/stage`) agora preserva a tela de descanso/standby padrão, exibindo o relógio de parede em destaque, data e o cronômetro centralizado.
 - **Customização de Aparência do Cronômetro / Timer na Tela Pública (`SettingsModal.svelte`, `PublicView.svelte`, `PublicPreviewBox.svelte`):**
   - Nova sub-seção *Timer & Áudio* nas configurações de Projeção Pública (`SettingsModal.svelte`) com controle completo da renderização visual:
     - Ativação ou desativação da caixa de fundo translúcida (*glassmorphism*).

@@ -437,6 +437,8 @@ pub struct Song {
     pub lyrics_raw: String,
     #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default)]
+    pub audio_url: Option<String>,
 }
 
 impl Song {
@@ -455,6 +457,7 @@ impl Song {
             align_h: None,
             align_v: None,
             lower_image_url: None,
+            audio_url: self.audio_url,
         }
     }
 }
@@ -472,6 +475,8 @@ pub struct SongSummary {
     pub preview_snippet: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default)]
+    pub audio_url: Option<String>,
 }
 
 /// Resultado de busca de letra em provedores online (Holyrics, Vagalume).
@@ -661,6 +666,8 @@ pub struct MediaItem {
     pub align_v: Option<String>,
     #[serde(default)]
     pub lower_image_url: Option<String>,
+    #[serde(default)]
+    pub audio_url: Option<String>,
 }
 
 /// Sub-pasta descoberta no sistema de arquivos local.
@@ -969,6 +976,18 @@ pub enum WsMessage {
     },
     /// Comando para limpar o estado de reprodução de áudio.
     ClearAudioPlayback,
+    /// Comando para controlar reprodução de áudio remotamente (play, pause, stop, seek).
+    ControlAudioPlayback {
+        action: String,
+        #[serde(default)]
+        url: Option<String>,
+        #[serde(default)]
+        title: Option<String>,
+        #[serde(default)]
+        artist_or_ref: Option<String>,
+        #[serde(default)]
+        seek_seconds: Option<i64>,
+    },
     /// Identificação do cliente ao se conectar (admin, public, stage) e rota ativa.
     Identify {
         client_type: String,
@@ -1129,6 +1148,7 @@ mod tests {
             align_h: None,
             align_v: None,
             lower_image_url: None,
+            audio_url: None,
         };
 
         let json = serde_json::to_string(&media).expect("serializes");
@@ -1155,6 +1175,7 @@ mod tests {
             align_h: None,
             align_v: None,
             lower_image_url: None,
+            audio_url: None,
         };
         let sched_json = serde_json::to_string(&schedule).expect("serializes");
         assert!(sched_json.contains(r#""kind":"schedule""#));
@@ -1180,6 +1201,7 @@ mod tests {
             align_h: None,
             align_v: None,
             lower_image_url: Some("/media/banner-lower.png".into()),
+            audio_url: None,
         };
 
         let json = serde_json::to_string(&media).expect("serializes");

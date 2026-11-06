@@ -953,6 +953,7 @@ fn create_sample_media() -> Vec<MediaItem> {
             align_h: None,
             align_v: None,
             lower_image_url: None,
+            audio_url: None,
         },
         MediaItem {
             id: "song-2".into(),
@@ -979,6 +980,7 @@ fn create_sample_media() -> Vec<MediaItem> {
             align_h: None,
             align_v: None,
             lower_image_url: None,
+            audio_url: None,
         },
         MediaItem {
             id: "bible-1".into(),
@@ -1010,6 +1012,7 @@ fn create_sample_media() -> Vec<MediaItem> {
             align_h: None,
             align_v: None,
             lower_image_url: None,
+            audio_url: None,
         },
         MediaItem {
             id: "notice-1".into(),
@@ -1036,6 +1039,7 @@ fn create_sample_media() -> Vec<MediaItem> {
             align_h: None,
             align_v: None,
             lower_image_url: None,
+            audio_url: None,
         },
     ]
 }

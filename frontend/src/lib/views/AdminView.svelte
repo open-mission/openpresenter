@@ -142,8 +142,24 @@
     Users,
     Film,
     Volume2,
+    VolumeX,
     Hourglass,
   } from 'lucide-svelte';
+  import {
+    initAudioPlayer,
+    playTrack,
+    togglePlayTrack,
+    stopTrack,
+    seekTrack,
+    setTrackVolume,
+    toggleTrackMute,
+    currentTrackStore,
+    isAudioPlayingStore,
+    audioCurrentTimeStore,
+    audioDurationStore,
+    audioVolumeStore,
+    isAudioMutedStore,
+  } from '$lib/audioPlayer';
   import { castStore } from '$lib/cast';
 
   let selectedMediaId = $state<string>('song-1');
@@ -247,6 +263,7 @@
 
   onMount(() => {
     initWebSocket('admin');
+    initAudioPlayer();
     initAppTheme();
     syncDisplaySettingsFromBackend();
     loadSetlists();
@@ -379,6 +396,45 @@
     }
     return liveMedia.slides[p.active_slide_index];
   });
+
+  // Playback vinculado à música selecionada ou mídia ativa
+  const activePlaybackUrl = $derived(
+    $currentTrackStore?.url ||
+      selectedMedia?.audio_url ||
+      (selectedMedia?.kind === 'audio' ? selectedMedia.slides[0]?.content : '') ||
+      liveMedia?.audio_url ||
+      ''
+  );
+
+  const activePlaybackTitle = $derived(
+    $currentTrackStore?.title ||
+      selectedMedia?.title ||
+      liveMedia?.title ||
+      'Playback de Áudio'
+  );
+
+  const activePlaybackArtist = $derived(
+    $currentTrackStore?.artist ||
+      selectedMedia?.artist_or_ref ||
+      liveMedia?.artist_or_ref ||
+      ''
+  );
+
+  const showHeaderAudioWidget = $derived(
+    !!activePlaybackUrl || $isAudioPlayingStore || !!$currentTrackStore
+  );
+
+  function handleToggleHeaderAudio() {
+    if ($currentTrackStore && (!activePlaybackUrl || $currentTrackStore.url === activePlaybackUrl)) {
+      togglePlayTrack();
+    } else if (activePlaybackUrl) {
+      playTrack(activePlaybackUrl, activePlaybackTitle, activePlaybackArtist);
+    }
+  }
+
+  function handleStopHeaderAudio() {
+    stopTrack();
+  }
 
   // Próximo slide para o preview do stage
   const nextLiveSlide = $derived.by<Slide | undefined>(() => {
@@ -1687,6 +1743,86 @@
         ⌘K
       </kbd>
     </button>
+
+    <!-- Player de Playback / Áudio Superior -->
+    {#if showHeaderAudioWidget}
+      <div
+        class="flex items-center gap-2 h-8 px-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/50 text-xs text-foreground transition-all shrink-0 max-w-xs sm:max-w-sm md:max-w-md shadow-sm mr-auto"
+        title={`Playback: ${activePlaybackTitle}`}
+      >
+        <button
+          type="button"
+          onclick={handleToggleHeaderAudio}
+          class="p-1.5 rounded-md bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold transition-all cursor-pointer shrink-0 shadow-sm"
+          title={$isAudioPlayingStore ? "Pausar Playback" : "Reproduzir Playback"}
+        >
+          {#if $isAudioPlayingStore}
+            <Pause size={12} class="fill-current" />
+          {:else}
+            <Play size={12} class="fill-current" />
+          {/if}
+        </button>
+
+        <button
+          type="button"
+          onclick={handleStopHeaderAudio}
+          class="p-1.5 rounded-md bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
+          title="Parar Playback"
+        >
+          <Square size={11} class="fill-current" />
+        </button>
+
+        <div class="flex items-center gap-1.5 min-w-0 max-w-[110px] sm:max-w-[140px] truncate">
+          <Music size={12} class="text-emerald-400 shrink-0" />
+          <span class="font-semibold text-xs text-emerald-100 truncate">
+            {activePlaybackTitle}
+          </span>
+        </div>
+
+        <!-- Scrubber Progress Bar -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <input
+            type="range"
+            min="0"
+            max={$audioDurationStore > 0 ? $audioDurationStore : 100}
+            step="1"
+            value={$audioCurrentTimeStore}
+            oninput={(e) => seekTrack(Number((e.target as HTMLInputElement).value))}
+            class="w-14 sm:w-20 md:w-24 h-1 accent-emerald-500 bg-neutral-700 rounded cursor-pointer"
+            title="Avançar / Retroceder áudio"
+          />
+          <span class="font-mono text-[10px] text-neutral-300 tabular-nums shrink-0">
+            {formatDuration($audioCurrentTimeStore)}/{formatDuration($audioDurationStore)}
+          </span>
+        </div>
+
+        <!-- Volume e Mute -->
+        <div class="hidden md:flex items-center gap-1 pl-1 border-l border-emerald-900/60 shrink-0">
+          <button
+            type="button"
+            onclick={toggleTrackMute}
+            class="p-0.5 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+            title={$isAudioMutedStore ? "Ativar som" : "Silenciar áudio"}
+          >
+            {#if $isAudioMutedStore}
+              <VolumeX size={12} class="text-rose-400" />
+            {:else}
+              <Volume2 size={12} class="text-neutral-400" />
+            {/if}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={$audioVolumeStore}
+            oninput={(e) => setTrackVolume(Number((e.target as HTMLInputElement).value))}
+            class="w-10 h-1 accent-emerald-500 bg-neutral-700 rounded cursor-pointer"
+            title={`Volume: ${Math.round($audioVolumeStore * 100)}%`}
+          />
+        </div>
+      </div>
+    {/if}
 
     <!-- Status e Ações Rápidas -->
     <div class="flex items-center gap-2 sm:gap-2.5">

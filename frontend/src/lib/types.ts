@@ -37,6 +37,7 @@ export interface MediaItem {
   align_h?: 'left' | 'center' | 'right' | 'justify';
   align_v?: 'top' | 'center' | 'bottom';
   lower_image_url?: string;
+  audio_url?: string;
 }
 
 export interface MediaSubfolder {
@@ -297,6 +298,7 @@ export type WsMessage =
   | { type: 'team_updated'; payload: { entity: string; action: string } }
   | { type: 'update_audio_playback'; payload: { is_playing: boolean; current_time_seconds: number; duration_seconds: number; title: string; artist_or_ref?: string } }
   | { type: 'clear_audio_playback' }
+  | { type: 'control_audio_playback'; payload: { action: 'play' | 'pause' | 'stop' | 'seek'; url?: string; title?: string; artist_or_ref?: string; seek_seconds?: number } }
   | { type: 'reload_clients'; payload: { target?: string } }
   | { type: 'ping' }
   | { type: 'pong' };
@@ -500,6 +502,7 @@ export interface Song {
   sections: SongSection[];
   lyrics_raw: string;
   tags?: string[];
+  audio_url?: string;
 }
 
 export interface SongSummary {
@@ -512,6 +515,7 @@ export interface SongSummary {
   album?: string;
   preview_snippet?: string;
   tags?: string[];
+  audio_url?: string;
 }
 
 export interface SongSettings {

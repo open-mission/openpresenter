@@ -95,6 +95,7 @@ impl FetchedOnlineSong {
             sections,
             lyrics_raw: self.lyrics_raw,
             tags: Vec::new(),
+            audio_url: None,
         }
     }
 }

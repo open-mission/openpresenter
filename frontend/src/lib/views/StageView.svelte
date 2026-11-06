@@ -126,27 +126,33 @@
 
   const isCurrentImage = $derived(
     activeMedia?.kind === 'image' ||
-      (activeSlide?.content &&
-        (activeSlide.content.startsWith('/media/') ||
-          activeSlide.content.startsWith('/api/media/') ||
-          activeSlide.content.startsWith('http://') ||
-          activeSlide.content.startsWith('https://') ||
-          activeSlide.content.startsWith('data:image/') ||
-          /\.(jpg|jpeg|png|webp|gif|svg|bmp|tiff)$/i.test(activeSlide.content)))
+      (activeMedia?.kind !== 'audio' &&
+        activeMedia?.kind !== 'video' &&
+        activeMedia?.kind !== 'timer' &&
+        activeSlide?.content &&
+        (activeSlide.content.startsWith('data:image/') ||
+          /\.(jpg|jpeg|png|webp|gif|svg|bmp|tiff)$/i.test(activeSlide.content) ||
+          ((activeSlide.content.startsWith('/media/') ||
+            activeSlide.content.startsWith('/api/media/') ||
+            activeSlide.content.startsWith('http://') ||
+            activeSlide.content.startsWith('https://')) &&
+            !/\.(mp3|wav|m4a|aac|ogg|flac|mp4|webm|mov|mkv)$/i.test(activeSlide.content))))
   );
 
   const isNextImage = $derived(
     nextSlide?.content &&
-      (nextSlide.content.startsWith('/media/') ||
-        nextSlide.content.startsWith('/api/media/') ||
-        nextSlide.content.startsWith('http://') ||
-        nextSlide.content.startsWith('https://') ||
-        nextSlide.content.startsWith('data:image/') ||
-        /\.(jpg|jpeg|png|webp|gif|svg|bmp|tiff)$/i.test(nextSlide.content))
+      (nextSlide.content.startsWith('data:image/') ||
+        /\.(jpg|jpeg|png|webp|gif|svg|bmp|tiff)$/i.test(nextSlide.content) ||
+        ((nextSlide.content.startsWith('/media/') ||
+          nextSlide.content.startsWith('/api/media/') ||
+          nextSlide.content.startsWith('http://') ||
+          nextSlide.content.startsWith('https://')) &&
+          !/\.(mp3|wav|m4a|aac|ogg|flac|mp4|webm|mov|mkv)$/i.test(nextSlide.content)))
   );
 
   const isScripture = $derived(activeMedia?.kind === 'scripture');
   const isSchedule = $derived(activeMedia?.kind === 'schedule');
+  const isFullViewSlide = $derived(isCurrentImage || activeMedia?.kind === 'audio');
 
   function parseScheduleContent(label: string, content: string) {
     const lines = (content || '').split('\n').map((l) => l.trim()).filter(Boolean);
@@ -290,9 +296,9 @@
   {/if}
 
   <!-- ========================================================================= -->
-  <!-- MODO DE DESCANSO / STANDBY (Quando não há slide ativo em apresentação)   -->
+  <!-- MODO DE DESCANSO / STANDBY (Quando não há slide ativo ou apresentando timer) -->
   <!-- ========================================================================= -->
-  {#if !activeSlide}
+  {#if !activeSlide || activeMedia?.kind === 'timer'}
     <div class="flex-1 flex flex-col justify-center items-center text-center p-6 sm:p-10 md:p-14 animate-in fade-in zoom-in-95 duration-200 min-h-0 relative">
       <!-- Botão Discreto de Alternar Tela Cheia no Canto Superior Direito -->
       <button
@@ -341,18 +347,19 @@
           </div>
         {/if}
 
-        <!-- Bloco do Cronômetro / Timer Centralizado (Apenas se estiver rodando ou em overtime) -->
-        {#if timer && (timer.running || timerIsOvertime)}
+        <!-- Bloco do Cronômetro / Timer Centralizado (Apenas se estiver rodando, em overtime ou timer ativo) -->
+        {#if (timer && (timer.running || timerIsOvertime || timer.duration_seconds > 0)) || activeMedia?.kind === 'timer'}
+          {@const durSecs = timer && timer.duration_seconds > 0 ? timer.remaining_seconds : (parseInt(activeSlide?.content || '300', 10) || 300)}
           <div
             class="mt-6 sm:mt-8 px-8 sm:px-12 py-4 sm:py-6 rounded-3xl bg-zinc-900/70 border-2 transition-all flex flex-col items-center gap-1.5 shadow-2xl {timerIsOvertime ? 'border-rose-500/80 bg-rose-950/40 animate-pulse' : timerIsNearEnd ? 'border-amber-500/80 bg-amber-950/40' : 'border-zinc-800'}"
           >
             <div class="text-xs sm:text-sm uppercase tracking-widest font-bold flex items-center gap-2 {timerIsOvertime ? 'text-rose-300' : timerIsNearEnd ? 'text-amber-300' : 'text-zinc-400'}">
-              <Hourglass size={14} class={timer.running ? 'animate-spin' : ''} />
-              <span>{timer.label || 'Cronômetro'} {timer.running ? '(Em andamento)' : ''}</span>
+              <Hourglass size={14} class={timer?.running ? 'animate-spin' : ''} />
+              <span>{activeMedia?.title || timer?.label || 'Cronômetro'} {timer?.running ? '(Em andamento)' : ''}</span>
             </div>
 
             <div class="text-5xl sm:text-6xl md:text-7xl font-mono font-black tracking-tight {timerColorClass}">
-              {formatTime(timer.remaining_seconds, timerIsOvertime)}
+              {formatTime(durSecs, timerIsOvertime)}
             </div>
 
             {#if timerIsOvertime}
@@ -373,7 +380,7 @@
       <!-- Slide Atual Grande com Rótulo Flutuante em Absolute para Espaço Máximo -->
       <div
         class="relative flex flex-col rounded-none bg-zinc-950/80 overflow-hidden border-b transition-all min-h-0"
-        style="flex: {isCurrentImage ? (currentRatio + nextRatio) : currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
+        style="flex: {isFullViewSlide ? (currentRatio + nextRatio) : currentRatio}; border-color: {isScripture ? (stageSettings.scripture_border_color || stageSettings.current_border_color || '#3b82f6') : (stageSettings.current_border_color || '#3b82f6')};"
       >
         <!-- Rótulo Flutuante em Absolute (não ocupa espaço vertical das letras) -->
         <div class="absolute top-2 left-3 right-3 flex items-center justify-between pointer-events-none z-10 opacity-75 hover:opacity-100 transition-opacity">
@@ -405,8 +412,42 @@
           {/if}
         </div>
 
-        <div class="w-full h-full flex-1 min-h-0 flex items-center justify-center overflow-hidden {isCurrentImage ? 'p-1' : 'p-3 sm:p-5 md:p-6'}">
-          {#if isCurrentImage && activeSlide}
+        <div class="w-full h-full flex-1 min-h-0 flex items-center justify-center overflow-hidden {isFullViewSlide ? 'p-1' : 'p-3 sm:p-5 md:p-6'}">
+          {#if activeMedia?.kind === 'audio'}
+            {@const cur = audioPlayback?.current_time_seconds || 0}
+            {@const dur = audioPlayback?.duration_seconds || 1}
+            {@const rem = Math.max(0, dur - cur)}
+            <div class="w-full h-full flex flex-col items-center justify-center text-center gap-4 p-4 select-none">
+              <div class="w-20 h-20 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-lg">
+                <Volume2 size={42} class={audioPlayback?.is_playing ? 'animate-pulse' : ''} />
+              </div>
+              <div class="space-y-1.5 max-w-xl">
+                <div class="text-2xl sm:text-4xl font-black text-white truncate">
+                  {audioPlayback?.title || activeMedia?.title || 'Trilha de Áudio'}
+                </div>
+                {#if activeMedia?.artist_or_ref}
+                  <div class="text-base text-zinc-400 font-medium truncate">
+                    {activeMedia.artist_or_ref}
+                  </div>
+                {/if}
+              </div>
+              <div class="flex items-center gap-8 font-mono bg-zinc-900/90 border border-zinc-800 px-8 py-4 rounded-2xl shadow-xl">
+                <div class="text-left">
+                  <div class="text-xs text-zinc-400 uppercase tracking-widest font-semibold">Decorrido</div>
+                  <div class="text-3xl sm:text-4xl font-black text-white">
+                    {Math.floor(cur / 60)}:{String(Math.floor(cur % 60)).padStart(2, '0')}
+                  </div>
+                </div>
+                <div class="w-px h-10 bg-zinc-800"></div>
+                <div class="text-right">
+                  <div class="text-xs text-zinc-400 uppercase tracking-widest font-semibold">Restante</div>
+                  <div class="text-3xl sm:text-4xl font-black text-emerald-400">
+                    -{Math.floor(rem / 60)}:{String(Math.floor(rem % 60)).padStart(2, '0')}
+                  </div>
+                </div>
+              </div>
+            </div>
+          {:else if isCurrentImage && activeSlide}
             <div class="w-full h-full flex flex-col items-center justify-center min-h-0 overflow-hidden relative">
               <img
                 src={activeSlide.content}
@@ -461,40 +502,6 @@
                   {ev.details}
                 </p>
               {/if}
-            </div>
-          {:else if activeMedia?.kind === 'audio'}
-            {@const cur = audioPlayback?.current_time_seconds || 0}
-            {@const dur = audioPlayback?.duration_seconds || 1}
-            {@const rem = Math.max(0, dur - cur)}
-            <div class="w-full h-full flex flex-col items-center justify-center text-center gap-4 p-4 select-none">
-              <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-lg">
-                <Volume2 size={36} class={audioPlayback?.is_playing ? 'animate-pulse' : ''} />
-              </div>
-              <div class="space-y-1 max-w-xl">
-                <div class="text-2xl sm:text-3xl font-black text-white truncate">
-                  {audioPlayback?.title || activeMedia?.title || 'Trilha de Áudio'}
-                </div>
-                {#if activeMedia?.artist_or_ref}
-                  <div class="text-sm text-zinc-400 font-medium truncate">
-                    {activeMedia.artist_or_ref}
-                  </div>
-                {/if}
-              </div>
-              <div class="flex items-center gap-6 font-mono bg-zinc-900/80 border border-zinc-800 px-6 py-3 rounded-2xl shadow-xl">
-                <div class="text-left">
-                  <div class="text-[10px] text-zinc-400 uppercase tracking-widest font-semibold">Decorrido</div>
-                  <div class="text-2xl sm:text-3xl font-black text-white">
-                    {Math.floor(cur / 60)}:{String(Math.floor(cur % 60)).padStart(2, '0')}
-                  </div>
-                </div>
-                <div class="w-px h-8 bg-zinc-800"></div>
-                <div class="text-right">
-                  <div class="text-[10px] text-zinc-400 uppercase tracking-widest font-semibold">Restante</div>
-                  <div class="text-2xl sm:text-3xl font-black text-emerald-400">
-                    -{Math.floor(rem / 60)}:{String(Math.floor(rem % 60)).padStart(2, '0')}
-                  </div>
-                </div>
-              </div>
             </div>
           {:else if activeMedia?.kind === 'timer'}
             {@const dur = timer && timer.duration_seconds > 0 ? timer.duration_seconds : parseInt(activeSlide.content || '300', 10) || 300}
@@ -749,7 +756,7 @@
           style="flex: {100 - (footerRatio * 2.2)}; min-width: 0;"
         >
           {@render currentSlideBlock()}
-          {#if !isCurrentImage}
+          {#if !isFullViewSlide}
             {@render nextSlideBlock()}
           {/if}
         </div>
@@ -770,8 +777,8 @@
         <!-- Linha 1: Slide Atual (Expande totalmente quando for imagem) -->
         {@render currentSlideBlock()}
 
-        <!-- Linha 2: Próximo Slide (Ocultado quando for imagem para que ela ocupe todo o espaço) -->
-        {#if !isCurrentImage}
+        <!-- Linha 2: Próximo Slide (Ocultado quando for imagem ou áudio para que ocupe todo o espaço) -->
+        {#if !isFullViewSlide}
           {@render nextSlideBlock()}
         {/if}
 
