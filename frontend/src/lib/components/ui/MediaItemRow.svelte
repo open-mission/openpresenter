@@ -121,7 +121,7 @@
     ondragleave={handleDragLeave}
     ondrop={handleDrop}
     class={cn(
-      'w-full text-left p-2.5 rounded-lg border transition-all duration-150 flex items-center justify-between gap-2 group relative overflow-hidden select-none',
+      'w-full text-left p-2.5 rounded-lg border transition-all duration-150 flex flex-col gap-1.5 group relative overflow-hidden select-none',
       isDragOver ? 'border-primary ring-2 ring-primary/40 bg-neutral-800' : '',
       isLive
         ? 'border-emerald-500 ring-1 ring-emerald-500/50 bg-emerald-950/20 text-neutral-100 shadow-sm'
@@ -140,78 +140,86 @@
       if (e.key === 'Enter') onclick?.();
     }}
   >
-    <div class="flex items-center gap-2.5 min-w-0 flex-1">
-      <!-- Drag Handle -->
-      <div
-        class="cursor-grab active:cursor-grabbing text-neutral-600 group-hover:text-neutral-400 p-0.5 hover:bg-neutral-800 rounded transition-colors shrink-0"
-        title="Arrastar para reordenar"
-      >
-        <GripVertical size={14} />
-      </div>
+    <!-- Linha 1: Drag handle, Ícone, Título/Artista e Indicador Ao Vivo + Chevron -->
+    <div class="flex items-start justify-between gap-2 min-w-0 w-full">
+      <div class="flex items-center gap-2 min-w-0 flex-1">
+        <!-- Drag Handle -->
+        <div
+          class="cursor-grab active:cursor-grabbing text-neutral-600 group-hover:text-neutral-400 p-0.5 hover:bg-neutral-800 rounded transition-colors shrink-0"
+          title="Arrastar para reordenar"
+        >
+          <GripVertical size={13} />
+        </div>
 
-      <div
-        class={cn(
-          'w-8 h-8 rounded-md flex items-center justify-center shrink-0 border transition-colors',
-          isLive
-            ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
-            : selected
-              ? 'bg-primary/10 border-primary/30 text-primary'
-              : 'bg-neutral-800/80 border-neutral-700/50 text-neutral-400 group-hover:text-neutral-200'
-        )}
-      >
-        <Icon size={16} />
-      </div>
+        <div
+          class={cn(
+            'w-7 h-7 rounded-md flex items-center justify-center shrink-0 border transition-colors',
+            isLive
+              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+              : selected
+                ? 'bg-primary/10 border-primary/30 text-primary'
+                : 'bg-neutral-800/80 border-neutral-700/50 text-neutral-400 group-hover:text-neutral-200'
+          )}
+        >
+          <Icon size={14} />
+        </div>
 
-      <div class="min-w-0 flex-1">
-        <div class="flex items-center gap-1.5">
-          <h4 class="text-sm font-medium truncate {isLive ? 'text-white font-semibold' : 'text-neutral-100'} leading-tight">
+        <div class="min-w-0 flex-1">
+          <h4 class="text-xs font-bold truncate {isLive ? 'text-white' : 'text-neutral-100'} leading-tight">
             {item.title}
           </h4>
+          {#if item.artist_or_ref}
+            <p class="text-[11px] text-neutral-400 truncate mt-0.5 leading-tight">
+              {item.artist_or_ref}
+            </p>
+          {/if}
         </div>
-        {#if item.artist_or_ref}
-          <p class="text-xs text-neutral-400 truncate mt-0.5">
-            {item.artist_or_ref}
-          </p>
+      </div>
+
+      <div class="flex items-center gap-1 shrink-0 pt-0.5">
+        {#if isLive}
+          <Badge variant="success" class="text-[9px] uppercase font-bold tracking-wider py-0 px-1.5 bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse">
+            Ao Vivo
+          </Badge>
         {/if}
+        <ChevronRight
+          size={14}
+          class={cn(
+            'transition-transform text-neutral-500 group-hover:text-neutral-300',
+            isLive ? 'text-emerald-400' : selected ? 'text-primary translate-x-0.5' : ''
+          )}
+        />
       </div>
     </div>
 
-    <div class="flex items-center gap-1.5 shrink-0">
-      {#if item.audio_url}
-        <Badge
-          variant="outline"
-          class="text-[9px] py-0 px-1 text-emerald-400 border-emerald-500/40 bg-emerald-950/40 gap-1 flex items-center"
-          title="Possui áudio / playback vinculado"
-        >
-          <Music size={10} />
-          <span>Playback</span>
-        </Badge>
-      {/if}
-      {#if item.lower_image_url}
-        <Badge
-          variant="outline"
-          class="text-[9px] py-0 px-1 text-emerald-400 border-emerald-500/40 bg-emerald-950/40 gap-1 flex items-center"
-          title="Possui imagem alternativa para Lower Third"
-        >
-          <ImageIcon size={10} />
-          <span>Lower</span>
-        </Badge>
-      {/if}
-      {#if isLive}
-        <Badge variant="success" class="text-[10px] uppercase font-bold tracking-wider py-0 px-1.5 bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
-          Ao Vivo
-        </Badge>
-      {/if}
-      <Badge variant="secondary" class="text-[11px] py-0 px-1.5">
+    <!-- Linha 2: Badges informativos (Playback, Lower, Quantidade de slides) organizados sem encavalar -->
+    <div class="flex items-center justify-between gap-1.5 pl-8 w-full text-[10px]">
+      <div class="flex items-center gap-1 flex-wrap min-w-0">
+        {#if item.audio_url}
+          <Badge
+            variant="outline"
+            class="text-[9px] py-0 px-1 text-emerald-400 border-emerald-500/40 bg-emerald-950/60 gap-1 flex items-center shrink-0 font-medium"
+            title="Possui áudio / playback vinculado"
+          >
+            <Music size={10} />
+            <span>Playback</span>
+          </Badge>
+        {/if}
+        {#if item.lower_image_url}
+          <Badge
+            variant="outline"
+            class="text-[9px] py-0 px-1 text-emerald-400 border-emerald-500/40 bg-emerald-950/60 gap-1 flex items-center shrink-0 font-medium"
+            title="Possui imagem alternativa para Lower Third"
+          >
+            <ImageIcon size={10} />
+            <span>Lower</span>
+          </Badge>
+        {/if}
+      </div>
+
+      <Badge variant="secondary" class="text-[10px] py-0 px-1.5 shrink-0 font-mono">
         {item.slides.length} {item.slides.length === 1 ? 'slide' : 'slides'}
       </Badge>
-      <ChevronRight
-        size={14}
-        class={cn(
-          'transition-transform text-neutral-500 group-hover:text-neutral-300',
-          isLive ? 'text-emerald-400' : selected ? 'text-primary translate-x-0.5' : ''
-        )}
-      />
     </div>
   </div>
 {/if}

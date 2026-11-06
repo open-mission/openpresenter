@@ -143,22 +143,26 @@
     Film,
     Volume2,
     VolumeX,
+    Repeat1,
     Hourglass,
   } from 'lucide-svelte';
   import {
     initAudioPlayer,
+    prepareTrack,
     playTrack,
     togglePlayTrack,
     stopTrack,
     seekTrack,
     setTrackVolume,
     toggleTrackMute,
+    toggleTrackLoop,
     currentTrackStore,
     isAudioPlayingStore,
     audioCurrentTimeStore,
     audioDurationStore,
     audioVolumeStore,
     isAudioMutedStore,
+    isAudioLoopingStore,
   } from '$lib/audioPlayer';
   import { castStore } from '$lib/cast';
 
@@ -398,31 +402,49 @@
   });
 
   // Playback vinculado à música selecionada ou mídia ativa
+  // Se estiver tocando ativamente, preserva a faixa em execução independente da seleção
   const activePlaybackUrl = $derived(
-    $currentTrackStore?.url ||
-      selectedMedia?.audio_url ||
-      (selectedMedia?.kind === 'audio' ? selectedMedia.slides[0]?.content : '') ||
-      liveMedia?.audio_url ||
-      ''
+    $isAudioPlayingStore && $currentTrackStore?.url
+      ? $currentTrackStore.url
+      : selectedMedia?.audio_url ||
+        (selectedMedia?.kind === 'audio' ? selectedMedia.slides[0]?.content : '') ||
+        liveMedia?.audio_url ||
+        $currentTrackStore?.url ||
+        ''
   );
 
   const activePlaybackTitle = $derived(
-    $currentTrackStore?.title ||
-      selectedMedia?.title ||
-      liveMedia?.title ||
-      'Playback de Áudio'
+    $isAudioPlayingStore && $currentTrackStore?.title
+      ? $currentTrackStore.title
+      : selectedMedia?.title ||
+        liveMedia?.title ||
+        $currentTrackStore?.title ||
+        'Playback de Áudio'
   );
 
   const activePlaybackArtist = $derived(
-    $currentTrackStore?.artist ||
-      selectedMedia?.artist_or_ref ||
-      liveMedia?.artist_or_ref ||
-      ''
+    $isAudioPlayingStore && $currentTrackStore?.artist
+      ? $currentTrackStore.artist
+      : selectedMedia?.artist_or_ref ||
+        liveMedia?.artist_or_ref ||
+        $currentTrackStore?.artist ||
+        ''
   );
 
   const showHeaderAudioWidget = $derived(
     !!activePlaybackUrl || $isAudioPlayingStore || !!$currentTrackStore
   );
+
+  // Pré-carrega metadados e duração automaticamente quando uma música com áudio é selecionada
+  $effect(() => {
+    if (
+      activePlaybackUrl &&
+      !$isAudioPlayingStore &&
+      (!$currentTrackStore || $currentTrackStore.url !== activePlaybackUrl)
+    ) {
+      prepareTrack(activePlaybackUrl, activePlaybackTitle, activePlaybackArtist);
+    }
+  });
 
   function handleToggleHeaderAudio() {
     if ($currentTrackStore && (!activePlaybackUrl || $currentTrackStore.url === activePlaybackUrl)) {
@@ -1771,6 +1793,16 @@
           title="Parar Playback"
         >
           <Square size={11} class="fill-current" />
+        </button>
+
+        <!-- Botão Repetir Único (Loop) -->
+        <button
+          type="button"
+          onclick={toggleTrackLoop}
+          class="p-1.5 rounded-md transition-colors cursor-pointer shrink-0 {$isAudioLoopingStore ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white'}"
+          title={$isAudioLoopingStore ? "Repetir Único: Ativado (Loop)" : "Repetir Único: Desativado"}
+        >
+          <Repeat1 size={11} class={$isAudioLoopingStore ? 'text-emerald-400' : 'text-neutral-400'} />
         </button>
 
         <div class="flex items-center gap-1.5 min-w-0 max-w-[110px] sm:max-w-[140px] truncate">

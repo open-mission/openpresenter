@@ -30,6 +30,7 @@ function ensureAudioElement(): HTMLAudioElement {
   if (!audioElement && typeof window !== 'undefined') {
     audioElement = new Audio();
     audioElement.preload = 'metadata';
+    audioElement.loop = get(isAudioLoopingStore);
 
     audioElement.ontimeupdate = () => {
       if (!audioElement) return;
@@ -56,7 +57,14 @@ function ensureAudioElement(): HTMLAudioElement {
 
     audioElement.onloadedmetadata = () => {
       if (!audioElement) return;
-      audioDurationStore.set(audioElement.duration || 0);
+      const dur = audioElement.duration || 0;
+      audioDurationStore.set(dur);
+    };
+
+    audioElement.ondurationchange = () => {
+      if (!audioElement) return;
+      const dur = audioElement.duration || 0;
+      audioDurationStore.set(dur);
     };
 
     audioElement.onplay = () => {
@@ -115,11 +123,7 @@ export function initAudioPlayer() {
 
     if (cmd.action === 'play') {
       if (cmd.url) {
-        playTrack({
-          url: cmd.url,
-          title: cmd.title || 'Playback',
-          artist_or_ref: cmd.artist_or_ref,
-        });
+        playTrack(cmd.url, cmd.title || 'Playback', cmd.artist_or_ref);
       } else {
         resumeTrack();
       }
@@ -133,12 +137,60 @@ export function initAudioPlayer() {
   });
 }
 
-export function playTrack(track: AudioTrack) {
+export function prepareTrack(
+  trackOrUrl: AudioTrack | string,
+  title?: string,
+  artist_or_ref?: string
+) {
   const el = ensureAudioElement();
+  if (get(isAudioPlayingStore)) return; // não interrompe áudio em reprodução
+
+  const track: AudioTrack =
+    typeof trackOrUrl === 'string'
+      ? {
+          url: trackOrUrl,
+          title: title || trackOrUrl.split('/').pop() || 'Áudio',
+          artist_or_ref,
+        }
+      : trackOrUrl;
+
+  if (!track.url) return;
+
+  const current = get(currentTrackStore);
+  if (current?.url === track.url && (el.src === track.url || el.src.endsWith(track.url))) {
+    return;
+  }
+
+  currentTrackStore.set(track);
+  el.src = track.url;
+  el.currentTime = 0;
+  audioCurrentTimeStore.set(0);
+}
+
+export function playTrack(
+  trackOrUrl: AudioTrack | string,
+  title?: string,
+  artist_or_ref?: string
+) {
+  const el = ensureAudioElement();
+  const track: AudioTrack =
+    typeof trackOrUrl === 'string'
+      ? {
+          url: trackOrUrl,
+          title: title || trackOrUrl.split('/').pop() || 'Áudio',
+          artist_or_ref,
+        }
+      : trackOrUrl;
+
+  if (!track.url) {
+    console.warn('URL de áudio inválida para reprodução:', track);
+    return;
+  }
+
   const current = get(currentTrackStore);
 
   // Se já for a mesma faixa e estiver pausada, retoma
-  if (current?.url === track.url && el.src.endsWith(track.url)) {
+  if (current?.url === track.url && (el.src === track.url || el.src.endsWith(track.url))) {
     el.play().catch((err) => console.warn('Falha ao reproduzir áudio:', err));
     return;
   }
@@ -158,14 +210,21 @@ export function playTrack(track: AudioTrack) {
     });
 }
 
-export function togglePlayTrack(track?: AudioTrack) {
+export function togglePlayTrack(
+  trackOrUrl?: AudioTrack | string,
+  title?: string,
+  artist_or_ref?: string
+) {
   const el = ensureAudioElement();
   const isPlaying = get(isAudioPlayingStore);
   const current = get(currentTrackStore);
 
-  if (track && (!current || current.url !== track.url)) {
-    playTrack(track);
-    return;
+  if (trackOrUrl) {
+    const trackUrl = typeof trackOrUrl === 'string' ? trackOrUrl : trackOrUrl.url;
+    if (!current || current.url !== trackUrl) {
+      playTrack(trackOrUrl, title, artist_or_ref);
+      return;
+    }
   }
 
   if (isPlaying) {
@@ -233,7 +292,11 @@ export function toggleTrackMute() {
   isAudioMutedStore.set(muted);
 }
 
-export function toggleTrackLoop() {
+export function toggleTrackLoop(): boolean {
   const nextLoop = !get(isAudioLoopingStore);
   isAudioLoopingStore.set(nextLoop);
+  if (audioElement) {
+    audioElement.loop = nextLoop;
+  }
+  return nextLoop;
 }

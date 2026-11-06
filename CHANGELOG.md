@@ -23,6 +23,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Banner global de áudio no topo da aba Setlist do `/remote` durante qualquer reprodução sonora em andamento.
 
 ### Corrigido
+- **Execução Independente de Áudio, Pré-carregamento de Metadados e Repetir Único (`AdminView.svelte`, `audioPlayer.ts`):**
+  - Ajustada a assinatura flexível de `playTrack` e `togglePlayTrack` para suportar tanto objeto `AudioTrack` quanto argumentos posicionais (`url, title, artist`), corrigindo a inicialização do áudio e leitura de metadados.
+  - Implementada a função `prepareTrack` que pré-carrega os metadados e duração total do áudio automaticamente ao focar a música, permitindo exibir imediatamente os tempos reais na barra superior antes mesmo do primeiro clique de reprodução.
+  - O áudio agora opera de forma 100% autônoma e desacoplada da projeção de slides: a faixa continua tocando normalmente enquanto o operador navega por outros itens, apresenta avisos ou projeta passagens bíblicas.
+  - Novo botão de **Repetir Único (`Repeat1`)** no player superior para ativar ou desativar o loop contínuo da faixa com indicação visual de status ativo.
+- **Layout Multilinha na Lista da Setlist (`MediaItemRow.svelte`):**
+  - Reestruturado o card de itens da setlist em duas linhas harmônicas (`flex-col`): linha superior com drag handle, ícone, título espaçoso, artista e badge "Ao Vivo" + chevron; linha inferior dedicada com badges ("Playback", "Lower") e contagem de slides, eliminando encavalamento de textos na barra lateral.
 - **Persistência e Seleção de Áudio Vinculado no Editor de Músicas (`SongEditorModal.svelte`, `routes.rs`, `AdminView.svelte`, `BottomPanel.svelte`, `MediaItemRow.svelte`):**
   - Resolvido problema em que o valor do áudio vinculado era resetado para vazio no `<select>` do `SongEditorModal` devido à renderização assíncrona da lista de áudios antes da resposta HTTP; agora o modal inclui opção imediata para o `audioUrl` ativo e pré-carrega os áudios no `onMount`.
   - Atualização atômica na rota `POST /api/songs` para refletir imediatamente as alterações de áudio e letra no item ativo da setlist caso a música já esteja em exibição.
