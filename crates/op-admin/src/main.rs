@@ -985,6 +985,72 @@ mod tests {
         assert_eq!(pres.active_slide_index, None);
         // Ao parar, o wallpaper deve retornar para o setlist_wallpaper_path (repouso)
         assert_eq!(pres.wallpaper_path, pres.setlist_wallpaper_path);
+        assert!(!pres.timer.running);
+    }
+
+    #[tokio::test]
+    async fn test_timer_presentation_reset_and_stop_behavior() {
+        let state = mock_state();
+        let timer_item = op_core::MediaItem {
+            id: "timer-culto".into(),
+            title: "Contagem Regressiva".into(),
+            artist_or_ref: None,
+            kind: op_core::MediaKind::Timer,
+            slides: vec![op_core::Slide::new("s1", "Timer 3m", "180")],
+            align_v: None,
+            align_h: None,
+            lower_image_url: None,
+        };
+        state.add_media_item(timer_item).await;
+
+        // 1. Ao selecionar/apresentar o timer, inicia contagem e reseta tempo
+        state.select_slide("timer-culto".into(), 0).await;
+        {
+            let pres = state.presentation.read().await;
+            assert_eq!(pres.active_media_id, Some("timer-culto".into()));
+            assert_eq!(pres.timer.duration_seconds, 180);
+            assert_eq!(pres.timer.remaining_seconds, 180);
+            assert!(pres.timer.running);
+            assert!(!pres.timer.allow_overtime);
+        }
+
+        // 2. Decrementa 1 segundo
+        state.tick_timer().await;
+        {
+            let pres = state.presentation.read().await;
+            assert_eq!(pres.timer.remaining_seconds, 179);
+        }
+
+        // 3. Ao cancelar/parar apresentação, para o timer e restaura o tempo
+        state.stop_presentation().await;
+        {
+            let pres = state.presentation.read().await;
+            assert_eq!(pres.active_media_id, None);
+            assert_eq!(pres.active_slide_index, None);
+            assert!(!pres.timer.running);
+            assert_eq!(pres.timer.remaining_seconds, 180);
+        }
+
+        // 4. Ao iniciar novamente, reseta aos 180s e volta a rodar
+        state.select_slide("timer-culto".into(), 0).await;
+        {
+            let pres = state.presentation.read().await;
+            assert_eq!(pres.active_media_id, Some("timer-culto".into()));
+            assert!(pres.timer.running);
+            assert_eq!(pres.timer.remaining_seconds, 180);
+        }
+
+        // 5. Ao atingir o final da contagem sem overtime, crava em 0 e para
+        {
+            let mut pres = state.presentation.write().await;
+            pres.timer.remaining_seconds = 1;
+        }
+        state.tick_timer().await;
+        {
+            let pres = state.presentation.read().await;
+            assert_eq!(pres.timer.remaining_seconds, 0);
+            assert!(!pres.timer.running);
+        }
     }
 
     #[tokio::test]
@@ -2063,6 +2129,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_audio_and_video_endpoints_work() {
+        let _env_guard = ENV_LOCK.lock().await;
         let (state, dir) = mock_state_with_db();
         unsafe {
             std::env::set_var("OPENPRESENTER_DATA_DIR", dir.path());

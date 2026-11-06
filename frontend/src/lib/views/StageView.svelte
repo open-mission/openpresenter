@@ -496,6 +496,30 @@
                 </div>
               </div>
             </div>
+          {:else if activeMedia?.kind === 'timer'}
+            {@const dur = timer && timer.duration_seconds > 0 ? timer.duration_seconds : parseInt(activeSlide.content || '300', 10) || 300}
+            {@const remainingSecs = timer && timer.duration_seconds > 0 ? timer.remaining_seconds : dur}
+            {@const isOvertime = !!timer && (Boolean(timer.is_overtime) || (timer.duration_seconds > 0 && timer.remaining_seconds <= 0))}
+            {@const isNearEnd = !!timer && !isOvertime && timer.duration_seconds > 0 && timer.remaining_seconds <= (timer.warning_threshold_seconds || 60) && timer.remaining_seconds > 0}
+            <div class="w-full h-full flex flex-col items-center justify-center text-center gap-4 p-4 select-none">
+              <div class="flex items-center gap-2 uppercase tracking-widest text-xs sm:text-sm font-bold {isOvertime ? 'text-rose-400' : isNearEnd ? 'text-amber-400' : 'text-zinc-400'}">
+                <Hourglass size={18} class={timer?.running ? 'animate-spin' : ''} />
+                <span>{activeMedia?.title || timer?.label || 'Contagem Regressiva'}</span>
+              </div>
+              <div class="text-7xl sm:text-9xl md:text-[130px] font-mono font-black tracking-tight leading-none drop-shadow-2xl {isOvertime ? 'text-rose-500 animate-pulse' : isNearEnd ? 'text-amber-400' : 'text-white'}">
+                {formatTime(remainingSecs, isOvertime)}
+              </div>
+              {#if activeSlide.lower_content || timer?.stage_message}
+                <div class="text-lg sm:text-2xl text-zinc-300 font-medium max-w-2xl mt-1">
+                  {activeSlide.lower_content || timer?.stage_message}
+                </div>
+              {/if}
+              {#if remainingSecs <= 0}
+                <div class="px-5 py-1.5 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300 text-sm font-black uppercase tracking-wider">
+                  Tempo Concluído
+                </div>
+              {/if}
+            </div>
           {:else if activeSlide}
             <div
               use:autoScale={{

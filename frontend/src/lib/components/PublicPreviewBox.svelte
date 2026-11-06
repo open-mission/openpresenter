@@ -316,42 +316,46 @@
             </div>
           {:else if activeMedia?.kind === 'timer'}
             {@const remainingSecs = timer && timer.duration_seconds > 0 ? timer.remaining_seconds : parseInt(activeSlide.content || '0', 10) || 0}
-            {@const isOvertime = !!timer && (Boolean(timer.is_overtime) || (timer.duration_seconds > 0 && timer.remaining_seconds <= 0))}
-            {@const isNearEnd = !!timer && !isOvertime && timer.duration_seconds > 0 && timer.remaining_seconds <= (timer.warning_threshold_seconds || 60) && timer.remaining_seconds > 0}
-            {@const showTimerBox = publicSettings.timer_box_background ?? true}
-            {@const timerBgOpacity = (publicSettings.timer_bg_opacity ?? 65) / 100}
-            {@const digitsSize = Math.max(26, Math.round((publicSettings.timer_digits_font_size ?? 130) * 0.38))}
-            {@const titleSize = Math.max(10, Math.round((publicSettings.timer_title_font_size ?? 22) * 0.5))}
-            {@const msgSize = Math.max(9, Math.round((publicSettings.timer_message_font_size ?? 18) * 0.5))}
-            {@const textColor = publicSettings.timer_text_color || '#ffffff'}
-            <div class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col items-center justify-center select-none animate-in fade-in duration-150">
-              <div
-                class="w-[85%] px-5 py-3 rounded-2xl flex flex-col items-center justify-center text-center gap-2 {showTimerBox ? (isOvertime ? 'bg-rose-950/70 border border-rose-500/80 shadow-xl animate-pulse' : isNearEnd ? 'bg-amber-950/60 border border-amber-500/80 shadow-xl' : 'border border-white/20 shadow-xl backdrop-blur-md') : 'bg-transparent border-0 shadow-none'}"
-                style={showTimerBox && !isOvertime && !isNearEnd ? `background-color: rgba(0, 0, 0, ${timerBgOpacity});` : ''}
-              >
+            {#if remainingSecs > 0}
+              {@const isNearEnd = !!timer && timer.duration_seconds > 0 && timer.remaining_seconds <= (timer.warning_threshold_seconds || 60)}
+              {@const showTimerBox = publicSettings.timer_box_background ?? true}
+              {@const timerBgOpacity = (publicSettings.timer_bg_opacity ?? 65) / 100}
+              {@const digitsSize = Math.max(26, Math.round((publicSettings.timer_digits_font_size ?? 130) * 0.38))}
+              {@const titleSize = Math.max(10, Math.round((publicSettings.timer_title_font_size ?? 22) * 0.5))}
+              {@const msgSize = Math.max(9, Math.round((publicSettings.timer_message_font_size ?? 18) * 0.5))}
+              {@const textColor = publicSettings.timer_text_color || '#ffffff'}
+              <div class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col items-center justify-center select-none animate-in fade-in duration-150">
                 <div
-                  class="flex items-center gap-1.5 font-bold uppercase tracking-wider {isOvertime ? 'text-rose-300' : isNearEnd ? 'text-amber-300' : ''}"
-                  style="font-size: {titleSize}px; color: {!isOvertime && !isNearEnd ? textColor : undefined};"
+                  class="w-[85%] px-5 py-3 rounded-2xl flex flex-col items-center justify-center text-center gap-2 {showTimerBox ? (isNearEnd ? 'bg-amber-950/60 border border-amber-500/80 shadow-xl' : 'border border-white/20 shadow-xl backdrop-blur-md') : 'bg-transparent border-0 shadow-none'}"
+                  style={showTimerBox && !isNearEnd ? `background-color: rgba(0, 0, 0, ${timerBgOpacity});` : ''}
                 >
-                  <Hourglass size={Math.round(titleSize * 0.9)} class={timer?.running ? 'animate-spin' : ''} />
-                  <span>{activeMedia?.title || timer?.label || 'Cronômetro'}</span>
-                </div>
-                <div
-                  class="font-mono font-black leading-none drop-shadow {isOvertime ? 'text-rose-400' : isNearEnd ? 'text-amber-400' : ''}"
-                  style="font-size: {digitsSize}px; color: {!isOvertime && !isNearEnd ? textColor : undefined};"
-                >
-                  {formatPreviewTimer(remainingSecs, isOvertime)}
-                </div>
-                {#if activeSlide.lower_content || timer?.stage_message}
-                  <p
-                    class="truncate max-w-full font-medium opacity-90"
-                    style="font-size: {msgSize}px; color: {!isOvertime && !isNearEnd ? textColor : undefined};"
+                  <div
+                    class="flex items-center gap-1.5 font-bold uppercase tracking-wider {isNearEnd ? 'text-amber-300' : ''}"
+                    style="font-size: {titleSize}px; color: {!isNearEnd ? textColor : undefined};"
                   >
-                    {activeSlide.lower_content || timer?.stage_message}
-                  </p>
-                {/if}
+                    <Hourglass size={Math.round(titleSize * 0.9)} class={timer?.running ? 'animate-spin' : ''} />
+                    <span>{activeMedia?.title || timer?.label || 'Cronômetro'}</span>
+                  </div>
+                  <div
+                    class="font-mono font-black leading-none drop-shadow {isNearEnd ? 'text-amber-400' : ''}"
+                    style="font-size: {digitsSize}px; color: {!isNearEnd ? textColor : undefined};"
+                  >
+                    {formatPreviewTimer(remainingSecs, false)}
+                  </div>
+                  {#if activeSlide.lower_content || timer?.stage_message}
+                    <p
+                      class="truncate max-w-full font-medium opacity-90"
+                      style="font-size: {msgSize}px; color: {!isNearEnd ? textColor : undefined};"
+                    >
+                      {activeSlide.lower_content || timer?.stage_message}
+                    </p>
+                  {/if}
+                </div>
               </div>
-            </div>
+            {:else}
+              <!-- Ao terminar o timer (00:00), oculta o card e exibe apenas o papel de parede ativo -->
+              <div class="w-full flex-1 h-full min-h-0 min-w-0"></div>
+            {/if}
           {:else if activeMedia?.kind === 'audio'}
             {#if publicSettings.audio_show_waveform_on_public}
               <div class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col items-center justify-center select-none animate-in fade-in duration-150">

@@ -377,6 +377,7 @@ impl AppState {
                     .or_else(|| m.slides.first())
                     .and_then(|s| s.lower_content.clone());
                 state.timer.running = true;
+                state.timer.allow_overtime = false;
                 state.wallpaper_path = state.setlist_wallpaper_path.clone();
                 state.wallpaper_mode = state.setlist_wallpaper_mode.clone();
             } else if m.kind == MediaKind::Image
@@ -433,6 +434,9 @@ impl AppState {
         // Ao cancelar apresentação, volta ao plano de fundo do setlist
         state.wallpaper_path = state.setlist_wallpaper_path.clone();
         state.wallpaper_mode = state.setlist_wallpaper_mode.clone();
+        // Para a contagem do timer e restaura o tempo configurado
+        state.timer.running = false;
+        state.timer.remaining_seconds = state.timer.duration_seconds;
         let updated = state.clone();
         drop(state);
 
@@ -807,6 +811,7 @@ impl AppState {
                 .or_else(|| item.slides.first())
                 .and_then(|s| s.lower_content.clone());
             state.timer.running = true;
+            state.timer.allow_overtime = false;
             state.wallpaper_path = state.setlist_wallpaper_path.clone();
             state.wallpaper_mode = state.setlist_wallpaper_mode.clone();
         } else if item.kind != op_core::MediaKind::Image

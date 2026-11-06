@@ -487,7 +487,7 @@
         10
       );
       if (!isNaN(dur) && dur > 0) {
-        setTimer(dur, selectedMedia.title, true);
+        setTimer(dur, selectedMedia.title, false);
         startTimer();
       }
     }
@@ -497,6 +497,8 @@
 
   function stopPresentation() {
     wsStopPresentation();
+    pauseTimer();
+    resetTimer();
   }
 
   // Controle de Seções e Itens no Fluxo Contínuo ProPresenter
@@ -1602,7 +1604,7 @@
         10
       );
       if (!isNaN(dur) && dur > 0) {
-        setTimer(dur, item.title, true);
+        setTimer(dur, item.title, false);
         startTimer();
       }
     }

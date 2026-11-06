@@ -330,54 +330,51 @@
         {:else if activeMedia?.kind === 'timer'}
           <!-- Contagem Regressiva Sincronizada com o Palco (Stage) -->
           {@const remainingSecs = timer && timer.duration_seconds > 0 ? timer.remaining_seconds : parseInt(activeSlide.content || '0', 10) || 0}
-          {@const isOvertime = !!timer && (Boolean(timer.is_overtime) || (timer.duration_seconds > 0 && timer.remaining_seconds <= 0))}
-          {@const isNearEnd = !!timer && !isOvertime && timer.duration_seconds > 0 && timer.remaining_seconds <= (timer.warning_threshold_seconds || 60) && timer.remaining_seconds > 0}
-          {@const showTimerBox = publicSettings.timer_box_background ?? true}
-          {@const timerBgOpacity = (publicSettings.timer_bg_opacity ?? 65) / 100}
-          {@const digitsSize = publicSettings.timer_digits_font_size ?? 130}
-          {@const titleSize = publicSettings.timer_title_font_size ?? 22}
-          {@const msgSize = publicSettings.timer_message_font_size ?? 18}
-          {@const textColor = publicSettings.timer_text_color || '#ffffff'}
-          <div class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col items-center justify-center select-none animate-in fade-in duration-200">
-            <div
-              class="max-w-4xl w-full mx-auto px-8 sm:px-14 py-8 sm:py-12 rounded-3xl flex flex-col items-center justify-center text-center gap-4 transition-all duration-300 {showTimerBox ? (isOvertime ? 'bg-rose-950/70 border border-rose-500/80 shadow-2xl shadow-rose-900/50 animate-pulse' : isNearEnd ? 'bg-amber-950/60 border border-amber-500/80 shadow-2xl shadow-amber-900/40' : 'border border-white/20 shadow-2xl backdrop-blur-xl') : 'bg-transparent border-0 shadow-none'}"
-              style={showTimerBox && !isOvertime && !isNearEnd ? `background-color: rgba(0, 0, 0, ${timerBgOpacity});` : ''}
-            >
-              <!-- Título do Cronômetro -->
+          {#if remainingSecs > 0}
+            {@const isNearEnd = !!timer && timer.duration_seconds > 0 && timer.remaining_seconds <= (timer.warning_threshold_seconds || 60)}
+            {@const showTimerBox = publicSettings.timer_box_background ?? true}
+            {@const timerBgOpacity = (publicSettings.timer_bg_opacity ?? 65) / 100}
+            {@const digitsSize = publicSettings.timer_digits_font_size ?? 130}
+            {@const titleSize = publicSettings.timer_title_font_size ?? 22}
+            {@const msgSize = publicSettings.timer_message_font_size ?? 18}
+            {@const textColor = publicSettings.timer_text_color || '#ffffff'}
+            <div class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col items-center justify-center select-none animate-in fade-in duration-200">
               <div
-                class="flex items-center gap-2.5 uppercase tracking-widest font-bold {isOvertime ? 'text-rose-300' : isNearEnd ? 'text-amber-300' : ''}"
-                style="font-size: {titleSize}px; color: {!isOvertime && !isNearEnd ? textColor : undefined};"
+                class="max-w-4xl w-full mx-auto px-8 sm:px-14 py-8 sm:py-12 rounded-3xl flex flex-col items-center justify-center text-center gap-4 transition-all duration-300 {showTimerBox ? (isNearEnd ? 'bg-amber-950/60 border border-amber-500/80 shadow-2xl shadow-amber-900/40' : 'border border-white/20 shadow-2xl backdrop-blur-xl') : 'bg-transparent border-0 shadow-none'}"
+                style={showTimerBox && !isNearEnd ? `background-color: rgba(0, 0, 0, ${timerBgOpacity});` : ''}
               >
-                <Hourglass size={Math.round(titleSize * 0.9)} class={timer?.running ? 'animate-spin' : ''} />
-                <span>{activeMedia.title || timer?.label || 'Contagem Regressiva'}</span>
-              </div>
-
-              <!-- Dígitos Gigantes da Contagem -->
-              <div
-                class="font-mono font-black tracking-tight leading-none drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)] {isOvertime ? 'text-rose-400' : isNearEnd ? 'text-amber-400' : ''}"
-                style="font-size: {digitsSize}px; color: {!isOvertime && !isNearEnd ? textColor : undefined};"
-              >
-                {formatPublicTimer(remainingSecs, isOvertime)}
-              </div>
-
-              <!-- Mensagem ou Subtítulo -->
-              {#if activeSlide.lower_content || timer?.stage_message}
-                <p
-                  class="font-medium max-w-2xl mt-1 drop-shadow leading-relaxed opacity-90"
-                  style="font-size: {msgSize}px; color: {!isOvertime && !isNearEnd ? textColor : undefined};"
+                <!-- Título do Cronômetro -->
+                <div
+                  class="flex items-center gap-2.5 uppercase tracking-widest font-bold {isNearEnd ? 'text-amber-300' : ''}"
+                  style="font-size: {titleSize}px; color: {!isNearEnd ? textColor : undefined};"
                 >
-                  {activeSlide.lower_content || timer?.stage_message}
-                </p>
-              {/if}
-
-              <!-- Indicador de Status -->
-              {#if isOvertime}
-                <div class="px-4 py-1 rounded-full bg-rose-500/30 border border-rose-500/60 text-rose-200 text-xs sm:text-sm font-black uppercase tracking-wider">
-                  Tempo Esgotado
+                  <Hourglass size={Math.round(titleSize * 0.9)} class={timer?.running ? 'animate-spin' : ''} />
+                  <span>{activeMedia.title || timer?.label || 'Contagem Regressiva'}</span>
                 </div>
-              {/if}
+
+                <!-- Dígitos Gigantes da Contagem -->
+                <div
+                  class="font-mono font-black tracking-tight leading-none drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)] {isNearEnd ? 'text-amber-400' : ''}"
+                  style="font-size: {digitsSize}px; color: {!isNearEnd ? textColor : undefined};"
+                >
+                  {formatPublicTimer(remainingSecs, false)}
+                </div>
+
+                <!-- Mensagem ou Subtítulo -->
+                {#if activeSlide.lower_content || timer?.stage_message}
+                  <p
+                    class="font-medium max-w-2xl mt-1 drop-shadow leading-relaxed opacity-90"
+                    style="font-size: {msgSize}px; color: {!isNearEnd ? textColor : undefined};"
+                  >
+                    {activeSlide.lower_content || timer?.stage_message}
+                  </p>
+                {/if}
+              </div>
             </div>
-          </div>
+          {:else}
+            <!-- Ao terminar o timer (00:00), oculta o card e exibe apenas o papel de parede ativo -->
+            <div class="w-full flex-1 h-full min-h-0 min-w-0"></div>
+          {/if}
         {:else if activeMedia?.kind === 'audio'}
           {#if publicSettings.audio_show_waveform_on_public}
             <!-- Arte e Waveforms Animadas de Áudio na Projeção Pública -->

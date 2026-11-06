@@ -27,6 +27,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Atualização dos textos de orientação na aba *Arquivos e Pastas* para explicitar suporte unificado a imagens, vídeos e áudios.
 
 ### Corrigido
+- **Ocultação de Timer ao Terminar no Public, Parada do Timer ao Cancelar e Reset ao Reiniciar (`PublicView.svelte`, `PublicPreviewBox.svelte`, `StageView.svelte`, `AdminView.svelte`, `op-admin/state.rs`):**
+  - **Papel de Parede Limpo ao Término da Contagem:** Ao atingir zero (`remaining_seconds <= 0`), a caixa do cronômetro é ocultada imediatamente da tela pública (`PublicView.svelte`) e do preview (`PublicPreviewBox.svelte`), deixando apenas o papel de parede ativo 100% visível sem caixas ou textos residuais.
+  - **Cancelamento e Parada da Apresentação:** Ao cancelar ou parar a apresentação (via tecla Esc, botão Parar ou deseleção), o timer é pausado e restaurado ao seu tempo configurado (`state.timer.running = false; state.timer.remaining_seconds = state.timer.duration_seconds;`), e as saídas retornam ao papel de parede do setlist.
+  - **Reinício e Reset Sincronizado:** Ao reiniciar ou apresentar o timer novamente (via duplo clique, botão "Ao Vivo" ou atalho Enter), a contagem reinicia do início da duração configurada sem overtime indesejado (`allow_overtime = false`), sincronizada atomicamente entre Telão Público, Monitor de Palco e Previews.
+  - **Exibição Formatada no Palco (`StageView.svelte`):** O monitor de retorno agora renderiza o timer ativo no bloco central com dígitos grandes, título, mensagem e badge "Tempo Concluído" ao finalizar.
 - **Sincronização do Timer da Setlist com a Projeção e Palco (`op-admin/state.rs`, `AdminView.svelte`):**
   - Corrigido problema onde disparar um item de Timer presente na setlist continuava exibindo o valor anterior do painel de controle lateral. Agora, ao selecionar ou apresentar um item de Timer via duplo clique, botão "Ao Vivo", atalho de teclado ou seleção de slide, o backend e o frontend redefinem e iniciam atomicamente o cronômetro com a duração, título e mensagem exatos do item configurado, preservando o papel de parede do setlist.
 - **Abas de Vídeos e Áudios no Painel Inferior & Itens de Mídia com Reprodução (`BottomPanel.svelte`, `op-admin`, `op-core`):**
