@@ -22,6 +22,7 @@
     Sparkles,
     AlertCircle,
     MonitorPlay,
+    Lock,
     Camera,
     Smartphone,
     Video,
@@ -324,7 +325,7 @@
     memberFormName = '';
     memberFormPhone = '';
     memberFormRole = 'member';
-    memberFormCanControlRemote = true;
+    memberFormCanControlRemote = false;
     memberFormPin = '';
     memberFormNotes = '';
     memberFormDepts = [];
@@ -337,7 +338,7 @@
     memberFormName = m.name;
     memberFormPhone = m.phone || '';
     memberFormRole = m.role || 'member';
-    memberFormCanControlRemote = m.can_control_remote ?? true;
+    memberFormCanControlRemote = m.can_control_remote ?? false;
     memberFormPin = m.pin || '';
     memberFormNotes = m.notes || '';
     memberFormDepts = [...(m.department_ids || m.departments || [])];
@@ -982,6 +983,24 @@
                                   Membro
                                 </span>
                               {/if}
+
+                              {#if member.can_control_remote}
+                                <span
+                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                  title="Pode operar a apresentação pelo /remote"
+                                >
+                                  <MonitorPlay size={10} />
+                                  <span>Controle Remoto</span>
+                                </span>
+                              {:else}
+                                <span
+                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-900 text-neutral-400 border border-neutral-800"
+                                  title="Apenas visualização da escala (/remote)"
+                                >
+                                  <Lock size={10} />
+                                  <span>Sem Controle</span>
+                                </span>
+                              {/if}
                             </div>
                             {#if member.phone}
                               <div class="flex items-center gap-1 text-xs text-neutral-400 mt-0.5">
@@ -1508,30 +1527,65 @@
           </div>
 
           <!-- Controle Remoto & PIN -->
-          <div class="p-2.5 rounded-lg bg-neutral-950 border border-neutral-800 space-y-2">
-            <label class="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                bind:checked={memberFormCanControlRemote}
-                class="rounded accent-purple-500"
-              />
-              <span class="text-xs font-semibold text-neutral-200">
-                Pode operar apresentação remota (/remote)
-              </span>
-            </label>
+          <div class="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="space-y-0.5">
+                <div class="flex items-center gap-1.5">
+                  <MonitorPlay
+                    size={14}
+                    class={memberFormCanControlRemote ? 'text-emerald-400' : 'text-neutral-500'}
+                  />
+                  <span class="text-xs font-bold text-white">
+                    Acesso ao Controle Remoto (/remote)
+                  </span>
+                </div>
+                <p class="text-[11px] text-neutral-400 leading-relaxed">
+                  Permite controlar setlists, disparar músicas, bíblia e blackout pelo celular.
+                  <strong class="text-neutral-300">Desative</strong> para voluntários que não operam o telão (ex.: Fotografia, Stories).
+                </p>
+              </div>
 
-            <div>
+              <!-- Switch iOS style toggle -->
+              <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5" aria-label="Permitir controle remoto">
+                <input
+                  type="checkbox"
+                  bind:checked={memberFormCanControlRemote}
+                  class="sr-only peer"
+                />
+                <div class="w-10 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              </label>
+            </div>
+
+            <!-- Status do acesso -->
+            <div class="flex items-center gap-2 pt-0.5">
+              {#if memberFormCanControlRemote}
+                <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-md">
+                  <Check size={11} />
+                  <span>Pode controlar projeção (Setlist, Músicas e Bíblia)</span>
+                </span>
+              {:else}
+                <span class="inline-flex items-center gap-1 text-[10px] font-medium text-neutral-400 bg-neutral-900 border border-neutral-800 px-2 py-0.5 rounded-md">
+                  <Lock size={11} />
+                  <span>Apenas visualização de escala (Sem controle de mídia)</span>
+                </span>
+              {/if}
+            </div>
+
+            <div class="pt-2 border-t border-neutral-800/80">
               <label for="member-pin" class="block font-semibold text-neutral-400 text-[10px] mb-1">
-                PIN de Acesso Remoto (opcional, ex.: 1234)
+                PIN de Acesso Pessoal (opcional, 4 dígitos)
               </label>
               <input
                 id="member-pin"
                 type="password"
                 maxlength="8"
                 bind:value={memberFormPin}
-                placeholder="Sem PIN (acesso direto ao selecionar)"
+                placeholder="Sem PIN (acesso direto com 1 toque)"
                 class="w-full h-8 px-2.5 bg-neutral-900 border border-neutral-800 rounded-lg text-white text-xs focus:outline-none focus:border-purple-500 font-mono"
               />
+              <p class="text-[10px] text-neutral-500 mt-1">
+                Protege o perfil deste voluntário no login do `/remote`.
+              </p>
             </div>
           </div>
 

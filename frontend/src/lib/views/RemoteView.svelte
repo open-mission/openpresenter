@@ -36,6 +36,7 @@
     remoteAuthStore,
     remoteOperatorUnlockedStore,
     clearRemoteSession,
+    saveRemoteSession,
     setOperatorUnlocked,
   } from '$lib/remoteAuth';
   import RemoteLogin from '$lib/components/RemoteLogin.svelte';
@@ -186,15 +187,33 @@
     activeBibleSummary?.abbreviation || activeBibleSummary?.name || 'Bíblia'
   );
 
-  // Permissão para controle de projeção
+  // Permissão para controle de projeção (definida pelo admin nas configurações da equipe ou PIN)
   const canControlRemote = $derived.by(() => {
     if (!$remoteAuthStore) return false;
-    return (
-      $remoteAuthStore.can_control_remote ||
-      $remoteAuthStore.role === 'leader' ||
-      $remoteAuthStore.role === 'vice_leader' ||
-      $remoteOperatorUnlockedStore
-    );
+    return Boolean($remoteAuthStore.can_control_remote) || Boolean($remoteOperatorUnlockedStore);
+  });
+
+  // Sincroniza a sessão local caso o admin altere a permissão do membro no banco
+  $effect(() => {
+    if ($remoteAuthStore && teamMembers.length > 0) {
+      const liveMember = teamMembers.find((m) => m.id === $remoteAuthStore?.member_id);
+      if (liveMember) {
+        const liveCanControl = Boolean(liveMember.can_control_remote);
+        if ($remoteAuthStore.can_control_remote !== liveCanControl) {
+          saveRemoteSession(liveMember);
+        }
+      }
+    }
+  });
+
+  // Guard: se não tiver permissão para controle e estiver em aba de operador, redireciona para Início
+  $effect(() => {
+    if (
+      !canControlRemote &&
+      (activeTab === 'setlist' || activeTab === 'songs' || activeTab === 'bible')
+    ) {
+      activeTab = 'home';
+    }
   });
 
   // Item de escala pessoal do membro autenticado
@@ -784,60 +803,65 @@
           </span>
         </div>
 
-        {#if canControlRemote}
-          <div class="flex items-center gap-1.5">
-            <button
-              type="button"
-              onclick={handleToggleBlackout}
-              class="h-8 px-2 text-xs font-bold rounded-lg flex items-center gap-1 transition-all active:scale-95 cursor-pointer {isBlackout
-                ? 'bg-red-600 text-white shadow-lg shadow-red-950'
-                : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'}"
-              title="Blackout (Tela Preta)"
-            >
-              <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-              <span>Preto</span>
-            </button>
+        <!-- Controles de Tela (Preto, Limpar, Parar) - Visíveis APENAS em Setlist, Músicas e Bíblia -->
+        {#if activeTab === 'setlist' || activeTab === 'songs' || activeTab === 'bible'}
+          {#if canControlRemote}
+            <div class="flex items-center gap-1.5">
+              <button
+                type="button"
+                onclick={handleToggleBlackout}
+                class="h-8 px-2 text-xs font-bold rounded-lg flex items-center gap-1 transition-all active:scale-95 cursor-pointer {isBlackout
+                  ? 'bg-red-600 text-white shadow-lg shadow-red-950'
+                  : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'}"
+                title="Blackout (Tela Preta)"
+              >
+                <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                <span>Preto</span>
+              </button>
 
-            <button
-              type="button"
-              onclick={handleToggleClear}
-              class="h-8 px-2 text-xs font-bold rounded-lg flex items-center gap-1 transition-all active:scale-95 cursor-pointer {isClear
-                ? 'bg-amber-600 text-white shadow-lg shadow-amber-950'
-                : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'}"
-              title="Limpar Texto da Tela"
-            >
-              <EyeOff size={12} />
-              <span>Limpar</span>
-            </button>
+              <button
+                type="button"
+                onclick={handleToggleClear}
+                class="h-8 px-2 text-xs font-bold rounded-lg flex items-center gap-1 transition-all active:scale-95 cursor-pointer {isClear
+                  ? 'bg-amber-600 text-white shadow-lg shadow-amber-950'
+                  : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'}"
+                title="Limpar Texto da Tela"
+              >
+                <EyeOff size={12} />
+                <span>Limpar</span>
+              </button>
 
+              <button
+                type="button"
+                onclick={handleStop}
+                class="h-8 px-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-950/50"
+                title="Parar Apresentação"
+              >
+                <Square size={11} class="fill-current" />
+                <span class="hidden min-[370px]:inline">Parar</span>
+              </button>
+            </div>
+          {:else}
             <button
               type="button"
-              onclick={handleStop}
-              class="h-8 px-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-950/50"
-              title="Parar Apresentação"
+              onclick={() => {
+                isOperatorUnlockModalOpen = true;
+                operatorPinInput = '';
+                operatorPinError = '';
+              }}
+              class="h-8 px-2.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer"
             >
-              <Square size={11} class="fill-current" />
-              <span class="hidden min-[370px]:inline">Parar</span>
+              <Lock size={12} />
+              <span>Desbloquear</span>
             </button>
-          </div>
+          {/if}
         {:else}
-          <button
-            type="button"
-            onclick={() => {
-              isOperatorUnlockModalOpen = true;
-              operatorPinInput = '';
-              operatorPinError = '';
-            }}
-            class="h-8 px-2.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer"
-          >
-            <Lock size={12} />
-            <span>Desbloquear</span>
-          </button>
+          <div class="w-6"></div>
         {/if}
       {/if}
     </header>
 
-    {#if activeTab !== 'home' && canControlRemote}
+    {#if (activeTab === 'setlist' || activeTab === 'songs' || activeTab === 'bible') && canControlRemote}
       <!-- LIVE CONTROL CARD: Fixado no topo, com Opção de Colapsar e botões para o polegar -->
       <section
         class="p-2.5 bg-neutral-900/80 border-b border-neutral-800 shrink-0 transition-all duration-200"
@@ -1148,12 +1172,28 @@
           <!-- Card Controle de Mídia / Projeção -->
           <button
             type="button"
-            onclick={() => (activeTab = 'setlist')}
+            onclick={() => {
+              if (canControlRemote) {
+                activeTab = 'setlist';
+              } else {
+                isOperatorUnlockModalOpen = true;
+                operatorPinInput = '';
+                operatorPinError = '';
+              }
+            }}
             class="w-full p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-emerald-500/40 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between gap-3 text-left group"
           >
             <div class="flex items-center gap-3 min-w-0">
-              <div class="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <MonitorPlay size={22} />
+              <div
+                class="w-11 h-11 rounded-xl {canControlRemote
+                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                  : 'bg-amber-500/15 border-amber-500/30 text-amber-400'} border flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
+              >
+                {#if canControlRemote}
+                  <MonitorPlay size={22} />
+                {:else}
+                  <Lock size={20} />
+                {/if}
               </div>
               <div class="min-w-0">
                 <div class="flex items-center gap-2">
@@ -1165,17 +1205,25 @@
                       OPERADOR
                     </span>
                   {:else}
-                    <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-neutral-800 text-neutral-400">
-                      LEITURA
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-950/80 text-amber-300 border border-amber-800/80">
+                      BLOQUEADO
                     </span>
                   {/if}
                 </div>
                 <p class="text-[11px] text-neutral-400 truncate mt-0.5">
-                  {isLive ? `● Ao vivo: ${currentMediaTitle}` : 'Navegar por setlist, slides e letras'}
+                  {#if canControlRemote}
+                    {isLive ? `● Ao vivo: ${currentMediaTitle}` : 'Navegar por setlist, slides e letras'}
+                  {:else}
+                    Acesso restrito a operadores · Toque para desbloquear
+                  {/if}
                 </p>
               </div>
             </div>
-            <ArrowRight size={16} class="text-neutral-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+            {#if canControlRemote}
+              <ArrowRight size={16} class="text-neutral-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+            {:else}
+              <Lock size={15} class="text-amber-400 shrink-0" />
+            {/if}
           </button>
 
           <!-- Card Escala da Equipe -->
@@ -1227,38 +1275,40 @@
             <Sparkles size={16} class="text-violet-400 shrink-0" />
           </button>
 
-          <!-- 2 Colunas: Músicas & Bíblia -->
-          <div class="grid grid-cols-2 gap-2 pt-0.5">
-            <button
-              type="button"
-              onclick={() => (activeTab = 'songs')}
-              class="p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 active:scale-95 text-left transition-all cursor-pointer flex flex-col justify-between h-20"
-            >
-              <div class="flex items-center justify-between">
-                <Music size={18} class="text-emerald-400" />
-                <ArrowRight size={13} class="text-neutral-500" />
-              </div>
-              <div>
-                <span class="text-xs font-bold text-white block">Músicas</span>
-                <span class="text-[10px] text-neutral-400">{songsList.length} cadastradas</span>
-              </div>
-            </button>
+          <!-- 2 Colunas: Músicas & Bíblia (Apenas se possui permissão ou desbloqueado) -->
+          {#if canControlRemote}
+            <div class="grid grid-cols-2 gap-2 pt-0.5">
+              <button
+                type="button"
+                onclick={() => (activeTab = 'songs')}
+                class="p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 active:scale-95 text-left transition-all cursor-pointer flex flex-col justify-between h-20"
+              >
+                <div class="flex items-center justify-between">
+                  <Music size={18} class="text-emerald-400" />
+                  <ArrowRight size={13} class="text-neutral-500" />
+                </div>
+                <div>
+                  <span class="text-xs font-bold text-white block">Músicas</span>
+                  <span class="text-[10px] text-neutral-400">{songsList.length} cadastradas</span>
+                </div>
+              </button>
 
-            <button
-              type="button"
-              onclick={() => (activeTab = 'bible')}
-              class="p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 active:scale-95 text-left transition-all cursor-pointer flex flex-col justify-between h-20"
-            >
-              <div class="flex items-center justify-between">
-                <BookOpen size={18} class="text-emerald-400" />
-                <ArrowRight size={13} class="text-neutral-500" />
-              </div>
-              <div>
-                <span class="text-xs font-bold text-white block">Bíblia Sagrada</span>
-                <span class="text-[10px] text-neutral-400 font-mono">{activeBibleAbbr}</span>
-              </div>
-            </button>
-          </div>
+              <button
+                type="button"
+                onclick={() => (activeTab = 'bible')}
+                class="p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 active:scale-95 text-left transition-all cursor-pointer flex flex-col justify-between h-20"
+              >
+                <div class="flex items-center justify-between">
+                  <BookOpen size={18} class="text-emerald-400" />
+                  <ArrowRight size={13} class="text-neutral-500" />
+                </div>
+                <div>
+                  <span class="text-xs font-bold text-white block">Bíblia Sagrada</span>
+                  <span class="text-[10px] text-neutral-400 font-mono">{activeBibleAbbr}</span>
+                </div>
+              </button>
+            </div>
+          {/if}
         </div>
       </div>
 
@@ -2034,55 +2084,93 @@
     {/if}
   </main>
 
-  <!-- BOTTOM NAVIGATION BAR (Thumb-friendly, 5 abas principais com Safe-Area para iOS) -->
+  <!-- BOTTOM NAVIGATION BAR (Adapta dinamicamente: 5 abas para operadores, 3 abas para voluntários) -->
   <nav
-    class="bg-neutral-900 border-t border-neutral-800 grid grid-cols-5 shrink-0"
+    class="bg-neutral-900 border-t border-neutral-800 grid {canControlRemote
+      ? 'grid-cols-5'
+      : 'grid-cols-3'} shrink-0"
     style="padding-bottom: max(env(safe-area-inset-bottom), 16px);"
   >
     <button
       type="button"
       onclick={() => (activeTab = 'home')}
-      class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab === 'home' ? 'text-emerald-400 font-extrabold' : 'text-neutral-400 hover:text-neutral-200'}"
+      class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab ===
+      'home'
+        ? 'text-emerald-400 font-extrabold'
+        : 'text-neutral-400 hover:text-neutral-200'}"
     >
       <Home size={20} class={activeTab === 'home' ? 'text-emerald-400' : 'text-neutral-400'} />
       <span class="text-[11px]">Início</span>
     </button>
 
-    <button
-      type="button"
-      onclick={() => (activeTab = 'setlist')}
-      class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab === 'setlist' ? 'text-emerald-400 font-extrabold' : 'text-neutral-400 hover:text-neutral-200'}"
-    >
-      <ListMusic size={20} class={activeTab === 'setlist' ? 'text-emerald-400' : 'text-neutral-400'} />
-      <span class="text-[11px]">Setlist</span>
-    </button>
+    {#if canControlRemote}
+      <button
+        type="button"
+        onclick={() => (activeTab = 'setlist')}
+        class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab ===
+        'setlist'
+          ? 'text-emerald-400 font-extrabold'
+          : 'text-neutral-400 hover:text-neutral-200'}"
+      >
+        <ListMusic
+          size={20}
+          class={activeTab === 'setlist' ? 'text-emerald-400' : 'text-neutral-400'}
+        />
+        <span class="text-[11px]">Setlist</span>
+      </button>
 
-    <button
-      type="button"
-      onclick={() => (activeTab = 'songs')}
-      class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab === 'songs' ? 'text-emerald-400 font-extrabold' : 'text-neutral-400 hover:text-neutral-200'}"
-    >
-      <Music size={20} class={activeTab === 'songs' ? 'text-emerald-400' : 'text-neutral-400'} />
-      <span class="text-[11px]">Músicas</span>
-    </button>
+      <button
+        type="button"
+        onclick={() => (activeTab = 'songs')}
+        class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab ===
+        'songs'
+          ? 'text-emerald-400 font-extrabold'
+          : 'text-neutral-400 hover:text-neutral-200'}"
+      >
+        <Music size={20} class={activeTab === 'songs' ? 'text-emerald-400' : 'text-neutral-400'} />
+        <span class="text-[11px]">Músicas</span>
+      </button>
 
-    <button
-      type="button"
-      onclick={() => (activeTab = 'bible')}
-      class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab === 'bible' ? 'text-emerald-400 font-extrabold' : 'text-neutral-400 hover:text-neutral-200'}"
-    >
-      <BookOpen size={20} class={activeTab === 'bible' ? 'text-emerald-400' : 'text-neutral-400'} />
-      <span class="text-[11px]">Bíblia</span>
-    </button>
+      <button
+        type="button"
+        onclick={() => (activeTab = 'bible')}
+        class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab ===
+        'bible'
+          ? 'text-emerald-400 font-extrabold'
+          : 'text-neutral-400 hover:text-neutral-200'}"
+      >
+        <BookOpen size={20} class={activeTab === 'bible' ? 'text-emerald-400' : 'text-neutral-400'} />
+        <span class="text-[11px]">Bíblia</span>
+      </button>
+    {/if}
 
     <button
       type="button"
       onclick={() => (activeTab = 'team')}
-      class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab === 'team' ? 'text-emerald-400 font-extrabold' : 'text-neutral-400 hover:text-neutral-200'}"
+      class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab ===
+      'team'
+        ? 'text-emerald-400 font-extrabold'
+        : 'text-neutral-400 hover:text-neutral-200'}"
     >
       <Users size={20} class={activeTab === 'team' ? 'text-emerald-400' : 'text-neutral-400'} />
       <span class="text-[11px]">Equipe</span>
     </button>
+
+    {#if !canControlRemote}
+      <button
+        type="button"
+        onclick={() => {
+          isOperatorUnlockModalOpen = true;
+          operatorPinInput = '';
+          operatorPinError = '';
+        }}
+        class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer text-amber-400 hover:text-amber-300"
+        title="Desbloquear Modo Operador com PIN da mesa"
+      >
+        <Lock size={19} class="text-amber-400" />
+        <span class="text-[11px]">Operador</span>
+      </button>
+    {/if}
   </nav>
 
   <!-- DRAWER SHADCN: Seleção de Tradução Bíblica -->

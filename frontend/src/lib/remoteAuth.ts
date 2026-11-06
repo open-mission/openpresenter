@@ -28,7 +28,7 @@ export function saveRemoteSession(member: TeamMember): RemoteAuthSession {
     member_id: member.id,
     name: member.name,
     role: member.role,
-    can_control_remote: member.can_control_remote ?? true,
+    can_control_remote: member.can_control_remote ?? false,
     color: member.color,
     department_ids: member.department_ids || member.departments || [],
     logged_at: Date.now(),

@@ -1597,7 +1597,7 @@ impl Database {
             .unwrap_or_else(|| format!("member-{}", Utc::now().timestamp_nanos_opt().unwrap_or(0)));
         let color = data.color.clone().unwrap_or_else(|| "#10b981".into());
         let role = data.role.clone().unwrap_or_else(|| "member".into());
-        let can_control_remote = data.can_control_remote.unwrap_or(true) as i64;
+        let can_control_remote = data.can_control_remote.unwrap_or(false) as i64;
         let is_active = data.is_active.unwrap_or(true) as i64;
 
         tx.execute(

@@ -32,8 +32,8 @@ fn default_member_role() -> String {
     "member".into()
 }
 
-fn default_true() -> bool {
-    true
+fn default_false() -> bool {
+    false
 }
 
 /// Membro / voluntário da equipe de mídia.
@@ -52,7 +52,7 @@ pub struct TeamMember {
     #[serde(default = "default_member_role")]
     pub role: String,
     /// Permissão para controlar apresentação remota de mídia.
-    #[serde(default = "default_true")]
+    #[serde(default = "default_false")]
     pub can_control_remote: bool,
     /// PIN numérico opcional para autenticação local (ex.: "1234").
     #[serde(default)]
@@ -234,7 +234,7 @@ mod tests {
         }"##;
         let legacy_member: TeamMember = serde_json::from_str(json_legacy).unwrap();
         assert_eq!(legacy_member.role, "member");
-        assert!(legacy_member.can_control_remote);
+        assert!(!legacy_member.can_control_remote);
         assert_eq!(legacy_member.pin, None);
         assert_eq!(legacy_member.department_ids, vec!["fotografia"]);
 
