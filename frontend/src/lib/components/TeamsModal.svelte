@@ -23,6 +23,8 @@
     AlertCircle,
     MonitorPlay,
     Lock,
+    KeyRound,
+    Phone,
     Camera,
     Smartphone,
     Video,
@@ -357,7 +359,6 @@
         pin: memberFormPin.trim() || null,
         notes: memberFormNotes.trim() || null,
         department_ids: memberFormDepts,
-        departments: memberFormDepts,
         is_active: memberFormIsActive,
       };
       await saveMember(editingMemberId, payload);
@@ -942,85 +943,50 @@
                 </p>
               </div>
             {:else}
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {#each filteredMembers as member}
                   {@const waUrl = getWhatsAppUrl(
                     member.phone,
                     `Olá ${member.name}! Mensagem da equipe de mídia.`
                   )}
+                  {@const deptList = member.department_ids || member.departments || []}
                   <div
-                    class="p-4 rounded-2xl bg-neutral-950/60 border border-neutral-800/80 hover:border-neutral-700 transition-all flex flex-col justify-between gap-3"
+                    class="p-4.5 rounded-2xl bg-neutral-950/70 border border-neutral-800/80 hover:border-neutral-700/80 transition-all flex flex-col justify-between gap-3.5 shadow-sm hover:shadow-md"
                   >
-                    <div>
-                      <div class="flex items-start justify-between gap-2">
-                        <div class="flex items-center gap-3">
+                    <div class="space-y-3">
+                      <!-- Linha Superior: Avatar, Identidade e Ações -->
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
                           <div
-                            class="w-10 h-10 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-sm font-bold text-white shadow-sm shrink-0"
+                            class="w-11 h-11 rounded-2xl flex items-center justify-center text-sm font-bold text-white shadow-inner shrink-0 border border-white/10"
+                            style="background-color: {member.color || '#3b82f6'};"
                           >
                             {getInitials(member.name)}
                           </div>
-                          <div>
-                            <div class="flex items-center gap-2">
-                              <h4 class="text-sm font-bold text-white">{member.name}</h4>
-                              {#if member.role === 'leader'}
-                                <span
-                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                                >
-                                  <Crown size={10} />
-                                  Líder
-                                </span>
-                              {:else if member.role === 'vice_leader'}
-                                <span
-                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
-                                >
-                                  <Shield size={10} />
-                                  Vice-Líder
-                                </span>
-                              {:else}
-                                <span
-                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-800 text-neutral-400 border border-neutral-700/60"
-                                >
-                                  Membro
-                                </span>
-                              {/if}
-
-                              {#if member.can_control_remote}
-                                <span
-                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                                  title="Pode operar a apresentação pelo /remote"
-                                >
-                                  <MonitorPlay size={10} />
-                                  <span>Controle Remoto</span>
-                                </span>
-                              {:else}
-                                <span
-                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-900 text-neutral-400 border border-neutral-800"
-                                  title="Apenas visualização da escala (/remote)"
-                                >
-                                  <Lock size={10} />
-                                  <span>Sem Controle</span>
-                                </span>
-                              {/if}
-                            </div>
+                          <div class="min-w-0">
+                            <h4 class="text-sm font-bold text-white truncate" title={member.name}>
+                              {member.name}
+                            </h4>
                             {#if member.phone}
-                              <div class="flex items-center gap-1 text-xs text-neutral-400 mt-0.5">
-                                <span>{member.phone}</span>
+                              <div class="flex items-center gap-1.5 text-xs text-neutral-400 mt-0.5">
+                                <Phone size={11} class="text-neutral-500 shrink-0" />
+                                <span class="truncate">{member.phone}</span>
                               </div>
                             {:else}
-                              <span class="text-[11px] text-neutral-500 italic">Sem telefone</span>
+                              <span class="text-[11px] text-neutral-500 italic block mt-0.5">Sem telefone</span>
                             {/if}
                           </div>
                         </div>
 
                         <!-- Ações Rápidas -->
-                        <div class="flex items-center gap-1">
+                        <div class="flex items-center gap-1 shrink-0">
                           {#if waUrl}
                             <a
                               href={waUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              class="w-7 h-7 rounded-lg bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white flex items-center justify-center transition-colors"
-                              title="Abrir no WhatsApp"
+                              class="w-7.5 h-7.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white flex items-center justify-center transition-colors"
+                              title="Conversar no WhatsApp"
                             >
                               <MessageCircle size={14} />
                             </a>
@@ -1029,7 +995,7 @@
                           <button
                             type="button"
                             onclick={() => openEditMemberModal(member)}
-                            class="w-7 h-7 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                            class="w-7.5 h-7.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-neutral-800"
                             title="Editar voluntário"
                           >
                             <Edit2 size={13} />
@@ -1038,7 +1004,7 @@
                           <button
                             type="button"
                             onclick={() => handleDeleteMember(member.id, member.name)}
-                            class="w-7 h-7 rounded-lg bg-neutral-900 hover:bg-rose-600 text-neutral-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                            class="w-7.5 h-7.5 rounded-lg bg-neutral-900 hover:bg-rose-600 text-neutral-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-neutral-800"
                             title="Excluir voluntário"
                           >
                             <Trash2 size={13} />
@@ -1046,28 +1012,88 @@
                         </div>
                       </div>
 
-                      <!-- Departamentos Vinculados -->
-                      <div class="flex flex-wrap items-center gap-1.5 mt-3">
-                        {#if (member.department_ids || member.departments || []).length === 0}
-                          <span class="text-[10px] text-neutral-500">Sem departamentos</span>
+                      <!-- Linha de Badges: Cargo, Controle Remoto e PIN -->
+                      <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {#if member.role === 'leader'}
+                          <span
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                          >
+                            <Crown size={11} />
+                            <span>Líder</span>
+                          </span>
+                        {:else if member.role === 'vice_leader'}
+                          <span
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
+                          >
+                            <Shield size={11} />
+                            <span>Vice-Líder</span>
+                          </span>
                         {:else}
-                          {#each (member.department_ids || member.departments || []) as dId}
+                          <span
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-neutral-800 text-neutral-300 border border-neutral-700/60"
+                          >
+                            <User size={11} />
+                            <span>Membro</span>
+                          </span>
+                        {/if}
+
+                        {#if member.can_control_remote}
+                          <span
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                            title="Permissão para disparar projeções e slides no /remote"
+                          >
+                            <MonitorPlay size={11} />
+                            <span>Controle Remoto</span>
+                          </span>
+                        {:else}
+                          <span
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-neutral-900 text-neutral-400 border border-neutral-800"
+                            title="Apenas visualização de escala (/remote)"
+                          >
+                            <Lock size={10} />
+                            <span>Sem Controle</span>
+                          </span>
+                        {/if}
+
+                        {#if member.pin}
+                          <span
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30"
+                            title="Possui PIN numérico cadastrado"
+                          >
+                            <KeyRound size={10} />
+                            <span>PIN Ativo</span>
+                          </span>
+                        {/if}
+                      </div>
+
+                      <!-- Departamentos Vinculados -->
+                      <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {#if deptList.length === 0}
+                          <span class="text-[10px] text-neutral-500 italic">Sem departamentos vinculados</span>
+                        {:else}
+                          {#each deptList as dId}
                             {@const dept = departments.find((d) => d.id === dId)}
                             {#if dept}
                               <span
-                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white/90"
-                                style="background-color: {dept.color}33; border: 1px solid {dept.color}88;"
+                                class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-semibold text-white/90"
+                                style="background-color: {dept.color}25; border: 1px solid {dept.color}60;"
                               >
                                 <span
-                                  class="w-1.5 h-1.5 rounded-full"
+                                  class="w-1.5 h-1.5 rounded-full shrink-0"
                                   style="background-color: {dept.color};"
                                 ></span>
-                                {dept.name}
+                                <span>{dept.name}</span>
                               </span>
                             {/if}
                           {/each}
                         {/if}
                       </div>
+
+                      {#if member.notes}
+                        <p class="text-[11px] text-neutral-400 italic bg-neutral-900/50 px-2.5 py-1.5 rounded-lg border border-neutral-800/60 line-clamp-2">
+                          "{member.notes}"
+                        </p>
+                      {/if}
                     </div>
                   </div>
                 {/each}
@@ -1408,7 +1434,7 @@
       role="presentation"
     >
       <div
-        class="w-full max-w-md rounded-2xl border border-neutral-800 bg-neutral-900 shadow-2xl p-6 text-white space-y-4"
+        class="w-full max-w-2xl md:max-w-3xl rounded-2xl border border-neutral-800 bg-neutral-900 shadow-2xl p-6 text-white flex flex-col max-h-[90vh]"
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => {
           if (e.key === 'Escape') isMemberModalOpen = false;
@@ -1416,205 +1442,222 @@
         role="dialog"
         tabindex="-1"
       >
-        <div class="flex items-center justify-between pb-2 border-b border-neutral-800">
-          <h3 class="text-sm font-bold">
-            {editingMemberId ? 'Editar Voluntário' : 'Novo Voluntário'}
-          </h3>
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-neutral-800 shrink-0">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <Users size={16} class="text-purple-400" />
+              <span>{editingMemberId ? 'Editar Voluntário' : 'Novo Voluntário'}</span>
+            </h3>
+            <p class="text-xs text-neutral-400 mt-0.5">
+              Gerencie informações pessoais, cargo, departamentos e permissões de acesso ao controle remoto.
+            </p>
+          </div>
           <button
             type="button"
             onclick={() => (isMemberModalOpen = false)}
-            class="text-neutral-400 hover:text-white"
+            class="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition-colors"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
-        <div class="space-y-3 text-xs">
-          <div>
-            <label for="member-name" class="block font-semibold text-neutral-300 mb-1">
-              Nome Completo <span class="text-purple-400">*</span>
-            </label>
-            <input
-              id="member-name"
-              type="text"
-              bind:value={memberFormName}
-              placeholder="Ex.: Claudio Silva"
-              class="w-full h-9 px-3 bg-neutral-950 border border-neutral-800 rounded-lg text-white focus:outline-none focus:border-purple-500"
-            />
-          </div>
-
-          <div>
-            <label for="member-phone" class="block font-semibold text-neutral-300 mb-1">
-              WhatsApp / Telefone (opcional)
-            </label>
-            <input
-              id="member-phone"
-              type="text"
-              bind:value={memberFormPhone}
-              placeholder="Ex.: (11) 98765-4321"
-              class="w-full h-9 px-3 bg-neutral-950 border border-neutral-800 rounded-lg text-white focus:outline-none focus:border-purple-500"
-            />
-          </div>
-
-          <div>
-            <span class="block font-semibold text-neutral-300 mb-1.5">Cargo na Equipe</span>
-            <div class="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onclick={() => (memberFormRole = 'leader')}
-                class="py-2 px-2.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer {memberFormRole ===
-                'leader'
-                  ? 'border-amber-500 bg-amber-500/20 text-amber-300 shadow-sm'
-                  : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}"
-              >
-                <Crown size={13} />
-                <span>Líder</span>
-              </button>
-
-              <button
-                type="button"
-                onclick={() => (memberFormRole = 'vice_leader')}
-                class="py-2 px-2.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer {memberFormRole ===
-                'vice_leader'
-                  ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 shadow-sm'
-                  : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}"
-              >
-                <Shield size={13} />
-                <span>Vice-Líder</span>
-              </button>
-
-              <button
-                type="button"
-                onclick={() => (memberFormRole = 'member')}
-                class="py-2 px-2.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer {memberFormRole ===
-                'member'
-                  ? 'border-purple-500 bg-purple-500/20 text-purple-300 shadow-sm'
-                  : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}"
-              >
-                <User size={13} />
-                <span>Membro</span>
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <span class="block font-semibold text-neutral-300 mb-1.5">
-              Departamentos em que atua
-            </span>
-            <div class="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto p-1 rounded-lg bg-neutral-950 border border-neutral-800">
-              {#each departments as d}
-                {@const isChecked = memberFormDepts.includes(d.id)}
-                <label
-                  class="flex items-center gap-2 p-2 rounded-md hover:bg-neutral-900 cursor-pointer select-none text-[11px]"
-                >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onchange={(e) => {
-                      if ((e.target as HTMLInputElement).checked) {
-                        memberFormDepts = [...memberFormDepts, d.id];
-                      } else {
-                        memberFormDepts = memberFormDepts.filter((id) => id !== d.id);
-                      }
-                    }}
-                    class="rounded accent-purple-500"
-                  />
-                  <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {d.color};"></span>
-                  <span class="truncate">{d.name}</span>
+        <!-- Modal Body (2 Colunas Distribuídas) -->
+        <div class="flex-1 overflow-y-auto py-4 text-xs pr-1">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+            <!-- Coluna 1: Dados Pessoais & Função -->
+            <div class="space-y-3.5">
+              <div>
+                <label for="member-name" class="block font-semibold text-neutral-300 mb-1">
+                  Nome Completo <span class="text-purple-400">*</span>
                 </label>
-              {/each}
-            </div>
-          </div>
-
-          <!-- Controle Remoto & PIN -->
-          <div class="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 space-y-3">
-            <div class="flex items-start justify-between gap-3">
-              <div class="space-y-0.5">
-                <div class="flex items-center gap-1.5">
-                  <MonitorPlay
-                    size={14}
-                    class={memberFormCanControlRemote ? 'text-emerald-400' : 'text-neutral-500'}
-                  />
-                  <span class="text-xs font-bold text-white">
-                    Acesso ao Controle Remoto (/remote)
-                  </span>
-                </div>
-                <p class="text-[11px] text-neutral-400 leading-relaxed">
-                  Permite controlar setlists, disparar músicas, bíblia e blackout pelo celular.
-                  <strong class="text-neutral-300">Desative</strong> para voluntários que não operam o telão (ex.: Fotografia, Stories).
-                </p>
+                <input
+                  id="member-name"
+                  type="text"
+                  bind:value={memberFormName}
+                  placeholder="Ex.: Claudio Silva"
+                  class="w-full h-9 px-3 bg-neutral-950 border border-neutral-800 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                />
               </div>
 
-              <!-- Switch iOS style toggle -->
-              <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5" aria-label="Permitir controle remoto">
+              <div>
+                <label for="member-phone" class="block font-semibold text-neutral-300 mb-1">
+                  WhatsApp / Telefone (com DDD)
+                </label>
                 <input
-                  type="checkbox"
-                  bind:checked={memberFormCanControlRemote}
-                  class="sr-only peer"
+                  id="member-phone"
+                  type="text"
+                  bind:value={memberFormPhone}
+                  placeholder="Ex.: (11) 98765-4321"
+                  class="w-full h-9 px-3 bg-neutral-950 border border-neutral-800 rounded-lg text-white focus:outline-none focus:border-purple-500"
                 />
-                <div class="w-10 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-              </label>
+              </div>
+
+              <div>
+                <span class="block font-semibold text-neutral-300 mb-1.5">Cargo na Equipe</span>
+                <div class="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onclick={() => (memberFormRole = 'leader')}
+                    class="py-2 px-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer {memberFormRole ===
+                    'leader'
+                      ? 'border-amber-500 bg-amber-500/20 text-amber-300 shadow-sm'
+                      : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}"
+                  >
+                    <Crown size={13} />
+                    <span>Líder</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => (memberFormRole = 'vice_leader')}
+                    class="py-2 px-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer {memberFormRole ===
+                    'vice_leader'
+                      ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 shadow-sm'
+                      : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}"
+                  >
+                    <Shield size={13} />
+                    <span>Vice-Líder</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => (memberFormRole = 'member')}
+                    class="py-2 px-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer {memberFormRole ===
+                    'member'
+                      ? 'border-purple-500 bg-purple-500/20 text-purple-300 shadow-sm'
+                      : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}"
+                  >
+                    <User size={13} />
+                    <span>Membro</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label for="member-notes" class="block font-semibold text-neutral-300 mb-1">
+                  Observações (opcional)
+                </label>
+                <textarea
+                  id="member-notes"
+                  bind:value={memberFormNotes}
+                  rows="3"
+                  placeholder="Ex.: Disponível aos domingos à noite, tem experiência com fotografia..."
+                  class="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white focus:outline-none focus:border-purple-500 resize-none text-xs"
+                ></textarea>
+              </div>
             </div>
 
-            <!-- Status do acesso -->
-            <div class="flex items-center gap-2 pt-0.5">
-              {#if memberFormCanControlRemote}
-                <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-md">
-                  <Check size={11} />
-                  <span>Pode controlar projeção (Setlist, Músicas e Bíblia)</span>
+            <!-- Coluna 2: Departamentos & Permissões -->
+            <div class="space-y-3.5">
+              <div>
+                <span class="block font-semibold text-neutral-300 mb-1.5">
+                  Departamentos em que atua
                 </span>
-              {:else}
-                <span class="inline-flex items-center gap-1 text-[10px] font-medium text-neutral-400 bg-neutral-900 border border-neutral-800 px-2 py-0.5 rounded-md">
-                  <Lock size={11} />
-                  <span>Apenas visualização de escala (Sem controle de mídia)</span>
-                </span>
-              {/if}
-            </div>
+                <div class="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto p-1.5 rounded-lg bg-neutral-950 border border-neutral-800">
+                  {#each departments as d}
+                    {@const isChecked = memberFormDepts.includes(d.id)}
+                    <label
+                      class="flex items-center gap-2 p-1.5 rounded-md hover:bg-neutral-900 cursor-pointer select-none text-[11px]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onchange={(e) => {
+                          if ((e.target as HTMLInputElement).checked) {
+                            memberFormDepts = [...memberFormDepts, d.id];
+                          } else {
+                            memberFormDepts = memberFormDepts.filter((id) => id !== d.id);
+                          }
+                        }}
+                        class="rounded accent-purple-500"
+                      />
+                      <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {d.color};"></span>
+                      <span class="truncate">{d.name}</span>
+                    </label>
+                  {/each}
+                </div>
+              </div>
 
-            <div class="pt-2 border-t border-neutral-800/80">
-              <label for="member-pin" class="block font-semibold text-neutral-400 text-[10px] mb-1">
-                PIN de Acesso Pessoal (opcional, 4 dígitos)
-              </label>
-              <input
-                id="member-pin"
-                type="password"
-                maxlength="8"
-                bind:value={memberFormPin}
-                placeholder="Sem PIN (acesso direto com 1 toque)"
-                class="w-full h-8 px-2.5 bg-neutral-900 border border-neutral-800 rounded-lg text-white text-xs focus:outline-none focus:border-purple-500 font-mono"
-              />
-              <p class="text-[10px] text-neutral-500 mt-1">
-                Protege o perfil deste voluntário no login do `/remote`.
-              </p>
-            </div>
-          </div>
+              <!-- Controle Remoto & PIN Card -->
+              <div class="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 space-y-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="space-y-0.5">
+                    <div class="flex items-center gap-1.5">
+                      <MonitorPlay
+                        size={14}
+                        class={memberFormCanControlRemote ? 'text-emerald-400' : 'text-neutral-500'}
+                      />
+                      <span class="text-xs font-bold text-white">
+                        Controle Remoto (/remote)
+                      </span>
+                    </div>
+                    <p class="text-[11px] text-neutral-400 leading-relaxed">
+                      Permite disparar slides, músicas e bíblia no celular. Desative para fotografia, stories, etc.
+                    </p>
+                  </div>
 
-          <div>
-            <label for="member-notes" class="block font-semibold text-neutral-300 mb-1">
-              Observações
-            </label>
-            <textarea
-              id="member-notes"
-              bind:value={memberFormNotes}
-              rows="2"
-              placeholder="Ex.: Disponível aos domingos à noite..."
-              class="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white focus:outline-none focus:border-purple-500"
-            ></textarea>
+                  <!-- Switch iOS style toggle -->
+                  <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5" aria-label="Permitir controle remoto">
+                    <input
+                      type="checkbox"
+                      bind:checked={memberFormCanControlRemote}
+                      class="sr-only peer"
+                    />
+                    <div class="w-10 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                <!-- Status do acesso -->
+                <div class="flex items-center gap-2 pt-0.5">
+                  {#if memberFormCanControlRemote}
+                    <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-md">
+                      <Check size={11} />
+                      <span>Operador de Projeção Liberado</span>
+                    </span>
+                  {:else}
+                    <span class="inline-flex items-center gap-1 text-[10px] font-medium text-neutral-400 bg-neutral-900 border border-neutral-800 px-2 py-0.5 rounded-md">
+                      <Lock size={11} />
+                      <span>Apenas Visualização da Escala</span>
+                    </span>
+                  {/if}
+                </div>
+
+                <div class="pt-2 border-t border-neutral-800/80">
+                  <label for="member-pin" class="block font-semibold text-neutral-400 text-[10px] mb-1">
+                    PIN de Acesso Pessoal (opcional, até 8 dígitos)
+                  </label>
+                  <input
+                    id="member-pin"
+                    type="password"
+                    maxlength="8"
+                    bind:value={memberFormPin}
+                    placeholder="Sem PIN (acesso direto com 1 toque)"
+                    class="w-full h-8 px-2.5 bg-neutral-900 border border-neutral-800 rounded-lg text-white text-xs focus:outline-none focus:border-purple-500 font-mono"
+                  />
+                  <p class="text-[10px] text-neutral-500 mt-1">
+                    Protege o perfil deste voluntário no login do `/remote`.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-2 border-t border-neutral-800">
+        <!-- Modal Footer -->
+        <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-neutral-800 shrink-0">
           <button
             type="button"
             onclick={() => (isMemberModalOpen = false)}
-            class="px-4 py-2 rounded-lg text-xs font-medium text-neutral-300 hover:bg-neutral-800"
+            class="px-4 py-2 rounded-lg text-xs font-medium text-neutral-300 hover:bg-neutral-800 transition-colors"
           >
             Cancelar
           </button>
           <button
             type="button"
+            disabled={!memberFormName.trim()}
             onclick={handleSaveMember}
-            class="px-4 py-2 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white"
+            class="px-4 py-2 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:pointer-events-none text-white shadow-sm transition-colors cursor-pointer"
           >
             Salvar Voluntário
           </button>

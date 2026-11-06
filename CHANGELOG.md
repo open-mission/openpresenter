@@ -6,6 +6,20 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Corrigido
+- **Correção na Serialização de Membros e Suporte a PIN na Equipe (`TeamsModal.svelte`, `teams.ts`):**
+  - Removido o envio redundante de chaves concomitantes (`department_ids` e `departments`) no payload JSON de cadastro e edição de voluntários, eliminando o erro de deserialização HTTP 422 (`duplicate field 'department_ids'`) do Serde ao salvar PIN e permissões no SQLite.
+  - Aprimorado o tratamento de erros em `teams.ts` (`saveMember`, `saveDepartment`, etc.) para extrair e exibir a mensagem de erro exata retornada pelo servidor no modal do usuário.
+- **Persistência Confiável de Sessão e Login no Remoto Mobile (`RemoteView.svelte`, `remoteAuth.ts`):**
+  - Validação e sincronização imediata do `localStorage` no ciclo de vida `onMount` do `/remote`, garantindo que o voluntário autenticado (inclusive com PIN ou como operador) permaneça logado entre atualizações de página, minimização ou reinício do navegador sem necessidade de reinserir o PIN repetidamente.
+- **Redesign Espaçoso dos Cards de Voluntários na Lista de Membros (`TeamsModal.svelte`):**
+  - Reestruturação completa do layout dos cards em grade fluida (`grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4`), eliminando o aperto visual anterior.
+  - Hierarquia visual refinada: linha superior com avatar cromático, nome em destaque e telefone com ícone de discagem/WhatsApp e botões de ação à direita; linha intermediária de badges dedicados para cargo (Líder, Vice-Líder, Membro), controle remoto e PIN ativo; e linha inferior com chips de departamentos vinculados e notas do membro.
+- **Redesign em Duas Colunas do Modal de Cadastro/Edição de Voluntários (`TeamsModal.svelte`):**
+  - Modal expandido de `max-w-md` (448px) para `max-w-2xl md:max-w-3xl` com altura contida (`max-h-[90vh]`), organizando o formulário em 2 colunas equilibradas.
+  - Coluna 1: Nome Completo, WhatsApp/Telefone, Seleção de Cargo com botões táteis e Observações.
+  - Coluna 2: Departamentos em que atua com lista rolável, Card de Permissões de Controle Remoto (/remote) com switch estilo iOS, status explicativo e PIN de Acesso Pessoal.
+
 ### Adicionado
 - **Página Inicial do Remoto Mobile (`/remote`), Login Local de Membros e Controle de Acesso a Operações:**
   - **Home Hub do Voluntário (`RemoteView.svelte`):** Nova página inicial no portal remoto mobile desenvolvida com alta fidelidade tátil ("impeccable shape"), apresentando o perfil do voluntário autenticado, avatar cromático com iniciais, badge oficial de cargo (Líder da Equipe, Vice-Líder, Voluntário) e tag de permissão de operador ou modo consulta.

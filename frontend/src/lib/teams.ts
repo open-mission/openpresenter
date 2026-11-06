@@ -32,7 +32,10 @@ export async function saveDepartment(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Falha ao salvar departamento');
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(errText || 'Falha ao salvar departamento');
+  }
   return res.json();
 }
 
@@ -58,7 +61,10 @@ export async function saveMember(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Falha ao salvar membro');
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(errText || 'Falha ao salvar membro');
+  }
   return res.json();
 }
 

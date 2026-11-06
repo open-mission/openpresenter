@@ -38,6 +38,8 @@
     clearRemoteSession,
     saveRemoteSession,
     setOperatorUnlocked,
+    getStoredRemoteSession,
+    getStoredOperatorUnlocked,
   } from '$lib/remoteAuth';
   import RemoteLogin from '$lib/components/RemoteLogin.svelte';
   import {
@@ -193,13 +195,17 @@
     return Boolean($remoteAuthStore.can_control_remote) || Boolean($remoteOperatorUnlockedStore);
   });
 
-  // Sincroniza a sessão local caso o admin altere a permissão do membro no banco
+  // Sincroniza a sessão local caso o admin altere a permissão ou dados do membro no banco
   $effect(() => {
     if ($remoteAuthStore && teamMembers.length > 0) {
       const liveMember = teamMembers.find((m) => m.id === $remoteAuthStore?.member_id);
       if (liveMember) {
         const liveCanControl = Boolean(liveMember.can_control_remote);
-        if ($remoteAuthStore.can_control_remote !== liveCanControl) {
+        if (
+          $remoteAuthStore.can_control_remote !== liveCanControl ||
+          $remoteAuthStore.name !== liveMember.name ||
+          $remoteAuthStore.role !== liveMember.role
+        ) {
           saveRemoteSession(liveMember);
         }
       }
@@ -292,6 +298,16 @@
   onMount(() => {
     if (typeof document !== 'undefined') {
       document.title = 'OpenPresenter — Controle Remoto';
+    }
+    // Garante que a sessão salva no localStorage seja carregada imediatamente
+    if (!$remoteAuthStore) {
+      const stored = getStoredRemoteSession();
+      if (stored) {
+        remoteAuthStore.set(stored);
+      }
+    }
+    if (!$remoteOperatorUnlockedStore && getStoredOperatorUnlocked()) {
+      remoteOperatorUnlockedStore.set(true);
     }
     initWebSocket('remote');
     loadSetlistsAndActive();
