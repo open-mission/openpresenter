@@ -41,6 +41,10 @@ A versão **0.5.0** eleva o OpenPresenter a uma plataforma integrada de ponta a 
   - Reabertura automática e transparente do player caso uma nova música com áudio seja selecionada ou caso uma nova reprodução seja iniciada.
 
 ### Corrigido
+- **Compilação e Suporte a Threads no Windows MSVC (`op-admin/src/metrics.rs`, `op-admin/src/updater.rs`, `op-admin/src/state.rs`):**
+  - Implementado `unsafe impl Send` e `unsafe impl Sync` para `MetricsCollector`, contornando a omissão dessas traits para os handles internos de query e counter PDH (`*mut c_void`) na crate `sysinfo` no Windows (`GpusInner`), restaurando o trait bound `Handler` em todos os 95 handlers Axum e a segurança entre threads no `tokio::spawn`.
+  - Movida a variável `exe_dir` em `updater.rs` para o bloco `#[cfg(unix)]`, eliminando o warning `unused_variable` no compilador de release do Windows.
+  - Adicionados testes de compilação estáticos para garantir que `MetricsCollector` e `AppState` permaneçam estritamente `Send + Sync`.
 - **Execução Independente de Áudio, Pré-carregamento de Metadados e Repetir Único (`AdminView.svelte`, `audioPlayer.ts`):**
   - Ajustada a assinatura flexível de `playTrack` e `togglePlayTrack` para suportar tanto objeto `AudioTrack` quanto argumentos posicionais (`url, title, artist`), corrigindo a inicialização do áudio e leitura de metadados.
   - Implementada a função `prepareTrack` que pré-carrega os metadados e duração total do áudio automaticamente ao focar a música, permitindo exibir imediatamente os tempos reais na barra superior antes mesmo do primeiro clique de reprodução.

@@ -1043,3 +1043,17 @@ fn create_sample_media() -> Vec<MediaItem> {
         },
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_send<T: Send>() {}
+    fn assert_sync<T: Sync>() {}
+
+    #[test]
+    fn test_app_state_is_send_and_sync() {
+        assert_send::<AppState>();
+        assert_sync::<AppState>();
+    }
+}

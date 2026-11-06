@@ -127,3 +127,24 @@ impl MetricsCollector {
         }
     }
 }
+
+// SAFETY: No Windows, `sysinfo::Gpus` contém handles de query e counter PDH (`*mut c_void`),
+// que não foram marcados como Send/Sync por omissão na crate sysinfo (diferente do módulo cpu).
+// Esses handles podem ser transferidos entre threads com segurança e todos os acessos a
+// `MetricsCollector` em `AppState` são protegidos por `tokio::sync::Mutex`.
+unsafe impl Send for MetricsCollector {}
+unsafe impl Sync for MetricsCollector {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_send<T: Send>() {}
+    fn assert_sync<T: Sync>() {}
+
+    #[test]
+    fn test_metrics_collector_is_send_and_sync() {
+        assert_send::<MetricsCollector>();
+        assert_sync::<MetricsCollector>();
+    }
+}

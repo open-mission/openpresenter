@@ -256,13 +256,14 @@ pub fn extract_binary_from_archive(bytes: &[u8], asset_name: &str) -> Result<Vec
 pub fn apply_binary_replacement(new_binary_bytes: &[u8]) -> Result<PathBuf> {
     let current_exe =
         std::env::current_exe().context("Não foi possível obter o caminho do executável atual")?;
-    let exe_dir = current_exe
-        .parent()
-        .ok_or_else(|| anyhow!("Não foi possível determinar a pasta do executável"))?;
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
+
+        let exe_dir = current_exe
+            .parent()
+            .ok_or_else(|| anyhow!("Não foi possível determinar a pasta do executável"))?;
 
         // Cria arquivo temporário no mesmo diretório para garantir mesmo sistema de arquivos
         let temp_new_path = exe_dir.join(format!(".open-presenter.new.{}", std::process::id()));
