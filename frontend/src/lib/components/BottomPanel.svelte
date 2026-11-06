@@ -34,6 +34,11 @@
     Pencil,
     Trash2,
     Copy,
+    Pause,
+    Volume2,
+    VolumeX,
+    Repeat,
+    Hourglass,
   } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
@@ -42,6 +47,14 @@
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte';
   import { renderFormattedText } from '../markdown';
   import { notifySuccess, notifyError } from '../toast';
+  import {
+    fetchVideos,
+    uploadVideo,
+    fetchAudios,
+    uploadAudio,
+    formatBytes,
+    formatDuration,
+  } from '../media';
   import {
     customItemsStore,
     loadCustomItems,
@@ -74,6 +87,8 @@
     Song,
     Slide,
     ImageMediaItem,
+    VideoMediaItem,
+    AudioMediaItem,
     MediaFolder,
     WallpaperItem,
     ImageFitMode,
@@ -99,8 +114,9 @@
     onopenscheduleeditor?: () => void;
     onopentexteditor?: () => void;
     onopenquickitemeditor?: (mode: 'header' | 'announcement') => void;
+    onopentimereditor?: (timerItem?: MediaItem) => void;
     activeSetlistItems?: MediaItem[];
-    requestedTab?: 'songs' | 'images' | 'backgrounds' | 'bible' | 'others' | null;
+    requestedTab?: 'songs' | 'images' | 'videos' | 'audios' | 'backgrounds' | 'bible' | 'others' | null;
     targetScriptureRef?: ParsedReference | null;
   }
 
@@ -122,6 +138,7 @@
     onopenscheduleeditor,
     onopentexteditor,
     onopenquickitemeditor,
+    onopentimereditor,
     activeSetlistItems = [],
     requestedTab = null,
     targetScriptureRef = null,
@@ -129,13 +146,13 @@
 
   let isCollapsed = $state(true);
   let isMaximized = $state(false);
-  let activeTab = $state<'songs' | 'images' | 'backgrounds' | 'bible' | 'others'>('songs');
+  let activeTab = $state<'songs' | 'images' | 'videos' | 'audios' | 'backgrounds' | 'bible' | 'others'>('songs');
   let panelHeight = $state(290);
   let isDragging = $state(false);
   let startY = 0;
   let startHeight = 290;
 
-  function selectTab(tab: 'songs' | 'images' | 'backgrounds' | 'bible' | 'others') {
+  function selectTab(tab: 'songs' | 'images' | 'videos' | 'audios' | 'backgrounds' | 'bible' | 'others') {
     if (tab === 'bible') {
       if (isCollapsed || activeTab !== 'bible') {
         const h75 = typeof window !== 'undefined' ? Math.round(window.innerHeight * 0.75) : 550;
@@ -143,6 +160,10 @@
         const targetH = Math.min(Math.max(panelHeight, h75), maxH);
         panelHeight = targetH;
       }
+    } else if (tab === 'videos') {
+      loadVideos();
+    } else if (tab === 'audios') {
+      loadAudios();
     } else if (tab === 'others') {
       loadCustomItems();
     }
@@ -286,9 +307,273 @@
     loadSongs();
     loadSongTags();
     loadImages();
+    loadVideos();
+    loadAudios();
     loadFolders();
     loadWallpapers();
     loadCustomItems();
+  });
+
+  // --- GALERIA DE VÍDEOS ---
+  let videos = $state<VideoMediaItem[]>([]);
+  let videoSearch = $state('');
+  let isLoadingVideos = $state(false);
+  let isUploadingVideo = $state(false);
+  let videoFileInputEl: HTMLInputElement | null = $state(null);
+
+  async function loadVideos() {
+    isLoadingVideos = true;
+    try {
+      videos = await fetchVideos();
+    } catch (err) {
+      console.error('Erro ao carregar vídeos:', err);
+    } finally {
+      isLoadingVideos = false;
+    }
+  }
+
+  async function handleVideoFilesSelected(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    isUploadingVideo = true;
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const b64 = (reader.result as string).split(',')[1];
+          await uploadVideo(file.name, b64);
+          notifySuccess('Vídeo Importado', `"${file.name}" foi salvo na biblioteca de vídeos.`);
+          await loadVideos();
+        } catch (err) {
+          notifyError('Erro no Upload', 'Falha ao salvar arquivo de vídeo.');
+        } finally {
+          isUploadingVideo = false;
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      isUploadingVideo = false;
+      notifyError('Erro no Upload', 'Falha ao processar arquivo de vídeo.');
+    }
+    input.value = '';
+  }
+
+  function handlePresentVideo(video: VideoMediaItem) {
+    const item: MediaItem = {
+      id: `video-${Date.now()}`,
+      title: video.name,
+      artist_or_ref: video.folder_name || 'Vídeo',
+      kind: 'video',
+      slides: [
+        {
+          id: 'slide-1',
+          label: 'Vídeo',
+          content: video.url,
+        },
+      ],
+    };
+    onpresentitem?.(item, 0);
+  }
+
+  function handleAddVideoToSetlist(video: VideoMediaItem) {
+    const item: MediaItem = {
+      id: `video-${Date.now()}`,
+      title: video.name,
+      artist_or_ref: video.folder_name || 'Vídeo',
+      kind: 'video',
+      slides: [
+        {
+          id: 'slide-1',
+          label: 'Vídeo',
+          content: video.url,
+        },
+      ],
+    };
+    onadditemtosetlist?.(item);
+    notifySuccess('Item Adicionado', `"${video.name}" adicionado à setlist.`);
+  }
+
+  const filteredVideos = $derived.by(() => {
+    const q = videoSearch.trim().toLowerCase();
+    if (!q) return videos;
+    return videos.filter(
+      (v) =>
+        v.name.toLowerCase().includes(q) ||
+        (v.folder_name && v.folder_name.toLowerCase().includes(q))
+    );
+  });
+
+  // --- GALERIA DE ÁUDIOS ---
+  let audios = $state<AudioMediaItem[]>([]);
+  let audioSearch = $state('');
+  let isLoadingAudios = $state(false);
+  let isUploadingAudio = $state(false);
+  let audioFileInputEl: HTMLInputElement | null = $state(null);
+
+  // Player de Áudio Embutido
+  let playingAudio = $state<AudioMediaItem | null>(null);
+  let isAudioPlaying = $state(false);
+  let audioCurrentTime = $state(0);
+  let audioDuration = $state(0);
+  let audioVolume = $state(1.0);
+  let isAudioMuted = $state(false);
+  let isAudioLoop = $state(false);
+  let audioElement: HTMLAudioElement | null = $state(null);
+
+  async function loadAudios() {
+    isLoadingAudios = true;
+    try {
+      audios = await fetchAudios();
+    } catch (err) {
+      console.error('Erro ao carregar áudios:', err);
+    } finally {
+      isLoadingAudios = false;
+    }
+  }
+
+  function handlePlayAudio(audio: AudioMediaItem) {
+    if (playingAudio?.id === audio.id) {
+      if (audioElement) {
+        if (isAudioPlaying) {
+          audioElement.pause();
+          isAudioPlaying = false;
+        } else {
+          audioElement.play().then(() => {
+            isAudioPlaying = true;
+          }).catch(console.error);
+        }
+      }
+      return;
+    }
+    playingAudio = audio;
+    if (audioElement) {
+      audioElement.src = audio.url;
+      audioElement.currentTime = 0;
+      audioElement.play().then(() => {
+        isAudioPlaying = true;
+      }).catch(console.error);
+    }
+  }
+
+  function handleStopAudio() {
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+    }
+    isAudioPlaying = false;
+    audioCurrentTime = 0;
+  }
+
+  function handleAudioTimeUpdate() {
+    if (audioElement) {
+      audioCurrentTime = audioElement.currentTime;
+      audioDuration = audioElement.duration || 0;
+    }
+  }
+
+  function handleAudioEnded() {
+    if (!isAudioLoop) {
+      isAudioPlaying = false;
+      audioCurrentTime = 0;
+    }
+  }
+
+  function handleSeekAudio(e: Event) {
+    const val = Number((e.target as HTMLInputElement).value);
+    if (audioElement) {
+      audioElement.currentTime = val;
+      audioCurrentTime = val;
+    }
+  }
+
+  function handleVolumeChange(e: Event) {
+    const val = Number((e.target as HTMLInputElement).value);
+    audioVolume = val;
+    if (audioElement) {
+      audioElement.volume = val;
+      isAudioMuted = val === 0;
+    }
+  }
+
+  function toggleAudioMute() {
+    if (audioElement) {
+      if (isAudioMuted) {
+        audioElement.muted = false;
+        isAudioMuted = false;
+        if (audioVolume === 0) {
+          audioVolume = 0.5;
+          audioElement.volume = 0.5;
+        }
+      } else {
+        audioElement.muted = true;
+        isAudioMuted = true;
+      }
+    }
+  }
+
+  function toggleAudioLoop() {
+    isAudioLoop = !isAudioLoop;
+    if (audioElement) {
+      audioElement.loop = isAudioLoop;
+    }
+  }
+
+  async function handleAudioFilesSelected(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    isUploadingAudio = true;
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const b64 = (reader.result as string).split(',')[1];
+          await uploadAudio(file.name, b64);
+          notifySuccess('Áudio Importado', `"${file.name}" foi salvo na biblioteca de áudios.`);
+          await loadAudios();
+        } catch (err) {
+          notifyError('Erro no Upload', 'Falha ao salvar arquivo de áudio.');
+        } finally {
+          isUploadingAudio = false;
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      isUploadingAudio = false;
+      notifyError('Erro no Upload', 'Falha ao processar arquivo de áudio.');
+    }
+    input.value = '';
+  }
+
+  function handleAddAudioToSetlist(audio: AudioMediaItem) {
+    const item: MediaItem = {
+      id: `audio-${Date.now()}`,
+      title: audio.name,
+      artist_or_ref: audio.folder_name || 'Áudio',
+      kind: 'audio',
+      slides: [
+        {
+          id: 'slide-1',
+          label: 'Áudio',
+          content: audio.url,
+        },
+      ],
+    };
+    onadditemtosetlist?.(item);
+    notifySuccess('Item Adicionado', `"${audio.name}" adicionado à setlist.`);
+  }
+
+  const filteredAudios = $derived.by(() => {
+    const q = audioSearch.trim().toLowerCase();
+    if (!q) return audios;
+    return audios.filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        (a.folder_name && a.folder_name.toLowerCase().includes(q))
+    );
   });
 
   async function loadSongTags() {
@@ -621,7 +906,7 @@
 
   // --- ABA OUTROS (AGENDA, TEXTOS, AVISOS, SEÇÕES) ---
   let othersSearch = $state('');
-  let othersKindFilter = $state<'all' | 'schedule' | 'text' | 'announcement' | 'header'>('all');
+  let othersKindFilter = $state<'all' | 'schedule' | 'text' | 'announcement' | 'header' | 'timer'>('all');
   let viewingCustomItem = $state<MediaItem | null>(null);
   let isImportingFromSetlist = $state(false);
   let isAddOtherMenuOpen = $state(false);
@@ -847,6 +1132,12 @@
         return { label: 'Aviso', color: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' };
       case 'header':
         return { label: 'Seção', color: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300' };
+      case 'timer':
+        return { label: 'Cronômetro', color: 'border-rose-500/40 bg-rose-500/10 text-rose-300' };
+      case 'video':
+        return { label: 'Vídeo', color: 'border-purple-500/40 bg-purple-500/10 text-purple-300' };
+      case 'audio':
+        return { label: 'Áudio', color: 'border-indigo-500/40 bg-indigo-500/10 text-indigo-300' };
       default:
         return { label: 'Outro', color: 'border-neutral-500/40 bg-neutral-500/10 text-neutral-300' };
     }
@@ -1368,6 +1659,25 @@
         </Badge>
       </button>
 
+      <!-- Aba Bíblia -->
+      <button
+        type="button"
+        role="tab"
+        id="tab-bible"
+        aria-controls="panel-bible"
+        aria-selected={activeTab === 'bible' && !isCollapsed}
+        onclick={() => selectTab('bible')}
+        class={cn(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
+          activeTab === 'bible' && !isCollapsed
+            ? 'bg-muted text-foreground shadow-xs border border-border'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+        )}
+      >
+        <BookOpen size={13} class="text-amber-400" />
+        <span>Bíblia</span>
+      </button>
+
       <!-- Aba Imagens -->
       <button
         type="button"
@@ -1387,6 +1697,50 @@
         <span>Imagens & Pastas</span>
         <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
           {visibleImagesCount}
+        </Badge>
+      </button>
+
+      <!-- Aba Vídeos -->
+      <button
+        type="button"
+        role="tab"
+        id="tab-videos"
+        aria-controls="panel-videos"
+        aria-selected={activeTab === 'videos' && !isCollapsed}
+        onclick={() => selectTab('videos')}
+        class={cn(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
+          activeTab === 'videos' && !isCollapsed
+            ? 'bg-muted text-foreground shadow-xs border border-border'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+        )}
+      >
+        <Film size={13} class="text-purple-400" />
+        <span>Vídeos</span>
+        <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+          {videos.length}
+        </Badge>
+      </button>
+
+      <!-- Aba Áudios -->
+      <button
+        type="button"
+        role="tab"
+        id="tab-audios"
+        aria-controls="panel-audios"
+        aria-selected={activeTab === 'audios' && !isCollapsed}
+        onclick={() => selectTab('audios')}
+        class={cn(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
+          activeTab === 'audios' && !isCollapsed
+            ? 'bg-muted text-foreground shadow-xs border border-border'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+        )}
+      >
+        <Volume2 size={13} class="text-indigo-400" />
+        <span>Áudios</span>
+        <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
+          {audios.length}
         </Badge>
       </button>
 
@@ -1410,25 +1764,6 @@
         <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
           {BACKGROUND_PRESETS.length + localWallpapers.length}
         </Badge>
-      </button>
-
-      <!-- Aba Bíblia -->
-      <button
-        type="button"
-        role="tab"
-        id="tab-bible"
-        aria-controls="panel-bible"
-        aria-selected={activeTab === 'bible' && !isCollapsed}
-        onclick={() => selectTab('bible')}
-        class={cn(
-          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
-          activeTab === 'bible' && !isCollapsed
-            ? 'bg-muted text-foreground shadow-xs border border-border'
-            : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
-        )}
-      >
-        <BookOpen size={13} class="text-amber-400" />
-        <span>Bíblia</span>
       </button>
 
       <!-- Aba Outros (Agenda, Textos, Avisos, Seções) -->
@@ -2198,6 +2533,397 @@
           </main>
         </div>
 
+      <!-- ================= ABA: VÍDEOS ================= -->
+      {:else if activeTab === 'videos'}
+        <div role="tabpanel" id="panel-videos" aria-labelledby="tab-videos" class="flex-1 flex flex-col overflow-hidden gap-2">
+          <!-- Barra de Ações e Filtro de Vídeos -->
+          <div class="flex items-center justify-between gap-2 pb-2 border-b border-border/60 shrink-0">
+            <div class="flex items-center gap-2 flex-1 max-w-md">
+              <div class="relative flex-1">
+                <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  bind:value={videoSearch}
+                  placeholder="Buscar vídeos por nome..."
+                  class="w-full h-8 pl-8 pr-3 rounded-lg bg-neutral-900 border border-neutral-800 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                {#if videoSearch}
+                  <button
+                    type="button"
+                    onclick={() => (videoSearch = '')}
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                {/if}
+              </div>
+              <Badge variant="secondary" class="text-[10px] font-mono py-0.5 px-2">
+                {filteredVideos.length} {filteredVideos.length === 1 ? 'vídeo' : 'vídeos'}
+              </Badge>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+              <input
+                type="file"
+                bind:this={videoFileInputEl}
+                onchange={handleVideoFilesSelected}
+                accept="video/mp4,video/webm,video/ogg,video/quicktime,video/mkv,.mp4,.webm,.mov,.mkv"
+                class="hidden"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onclick={loadVideos}
+                title="Recarregar vídeos"
+                class="h-8 text-xs px-2.5"
+              >
+                <RefreshCw size={12} class={isLoadingVideos ? 'animate-spin' : ''} />
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onclick={() => videoFileInputEl?.click()}
+                disabled={isUploadingVideo}
+                class="h-8 text-xs gap-1.5 font-semibold"
+              >
+                <Upload size={13} class={isUploadingVideo ? 'animate-spin' : ''} />
+                <span>{isUploadingVideo ? 'Enviando...' : 'Importar Vídeo'}</span>
+              </Button>
+            </div>
+          </div>
+
+          <!-- Grade de Vídeos -->
+          <div class="flex-1 overflow-y-auto pr-1">
+            {#if filteredVideos.length === 0}
+              <div class="h-44 flex flex-col items-center justify-center text-xs text-muted-foreground gap-2">
+                <Film size={28} class="text-neutral-600 opacity-60" />
+                <p>Nenhum vídeo encontrado na biblioteca.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={() => videoFileInputEl?.click()}
+                  class="text-xs gap-1 mt-1"
+                >
+                  <Upload size={12} />
+                  <span>Importar primeiro vídeo (MP4, WebM, MOV)</span>
+                </Button>
+              </div>
+            {:else}
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {#each filteredVideos as vid (vid.id)}
+                  <div
+                    ondblclick={() => handlePresentVideo(vid)}
+                    role="button"
+                    tabindex="0"
+                    onkeydown={(e) => { if (e.key === 'Enter') handlePresentVideo(vid); }}
+                    class="group relative rounded-xl border border-border bg-card overflow-hidden flex flex-col shadow-xs hover:border-purple-500/60 transition-all cursor-pointer"
+                  >
+                    <!-- Video Preview Container -->
+                    <div class="aspect-video w-full bg-black/80 relative overflow-hidden flex items-center justify-center">
+                      <!-- svelte-ignore a11y_media_has_caption -->
+                      <video
+                        src={vid.url}
+                        preload="metadata"
+                        muted
+                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 pointer-events-none"
+                      ></video>
+                      <div class="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                        <div class="w-9 h-9 rounded-full bg-purple-600/80 group-hover:bg-purple-600 text-white flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
+                          <Play size={16} class="fill-current ml-0.5" />
+                        </div>
+                      </div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[10px] text-purple-300 font-mono border border-purple-500/30">
+                        {formatBytes(vid.size_bytes)}
+                      </div>
+                    </div>
+
+                    <!-- Informações do Vídeo -->
+                    <div class="p-2 bg-neutral-900/90 border-t border-border flex flex-col gap-1.5 flex-1 justify-between">
+                      <div class="min-w-0">
+                        <p class="text-xs font-semibold text-foreground truncate" title={vid.name}>
+                          {vid.name}
+                        </p>
+                        {#if vid.folder_name}
+                          <p class="text-[10px] text-muted-foreground truncate">{vid.folder_name}</p>
+                        {/if}
+                      </div>
+
+                      <!-- Ações -->
+                      <div class="flex items-center gap-1.5 pt-1">
+                        <button
+                          type="button"
+                          onclick={() => handlePresentVideo(vid)}
+                          class="flex-1 h-7 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-purple-200 text-xs font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                          title="Apresentar Vídeo na Tela Pública"
+                        >
+                          <Play size={11} class="fill-current" />
+                          <span>Apresentar</span>
+                        </button>
+                        <button
+                          type="button"
+                          onclick={() => handleAddVideoToSetlist(vid)}
+                          class="h-7 px-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                          title="Adicionar à Setlist"
+                        >
+                          <ListPlus size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </div>
+
+      <!-- ================= ABA: ÁUDIOS ================= -->
+      {:else if activeTab === 'audios'}
+        <div role="tabpanel" id="panel-audios" aria-labelledby="tab-audios" class="flex-1 flex flex-col overflow-hidden gap-2">
+          <!-- Audio Player Embutido (Persistent Control Bar) -->
+          <audio
+            bind:this={audioElement}
+            ontimeupdate={handleAudioTimeUpdate}
+            onended={handleAudioEnded}
+            onpause={() => (isAudioPlaying = false)}
+            onplay={() => (isAudioPlaying = true)}
+            class="hidden"
+          ></audio>
+
+          <!-- Player Bar Card -->
+          <div class="p-2.5 rounded-xl bg-neutral-950/80 border border-indigo-500/30 shadow-md flex items-center justify-between gap-4 shrink-0">
+            <!-- Informações da Faixa em Reprodução -->
+            <div class="flex items-center gap-3 min-w-0 max-w-xs md:max-w-sm">
+              <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center shrink-0">
+                <Volume2 size={20} class={isAudioPlaying ? 'animate-pulse text-indigo-300' : ''} />
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-bold text-foreground truncate">
+                  {playingAudio ? playingAudio.name : 'Nenhum áudio selecionado'}
+                </p>
+                <p class="text-[10px] text-muted-foreground truncate">
+                  {playingAudio ? (isAudioPlaying ? 'Reproduzindo' : 'Pausado') : 'Escolha uma faixa abaixo para tocar'}
+                </p>
+              </div>
+            </div>
+
+            <!-- Controles de Transporte e SeekBar -->
+            <div class="flex-1 flex flex-col items-center gap-1 max-w-xl">
+              <div class="flex items-center gap-3">
+                <button
+                  type="button"
+                  onclick={toggleAudioLoop}
+                  class="p-1.5 rounded-lg text-xs transition-colors cursor-pointer {isAudioLoop ? 'text-indigo-400 bg-indigo-500/20' : 'text-neutral-400 hover:text-white'}"
+                  title={isAudioLoop ? 'Repetir ativado' : 'Repetir desativado'}
+                >
+                  <Repeat size={14} />
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => {
+                    if (playingAudio) {
+                      handlePlayAudio(playingAudio);
+                    } else if (filteredAudios.length > 0) {
+                      handlePlayAudio(filteredAudios[0]);
+                    }
+                  }}
+                  disabled={!playingAudio && filteredAudios.length === 0}
+                  class="w-8 h-8 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-105 cursor-pointer disabled:opacity-40"
+                  title={isAudioPlaying ? 'Pausar áudio' : 'Reproduzir áudio'}
+                >
+                  {#if isAudioPlaying}
+                    <Pause size={15} class="fill-current" />
+                  {:else}
+                    <Play size={15} class="fill-current ml-0.5" />
+                  {/if}
+                </button>
+
+                <button
+                  type="button"
+                  onclick={handleStopAudio}
+                  disabled={!playingAudio}
+                  class="p-1.5 rounded-lg text-neutral-400 hover:text-white transition-colors cursor-pointer disabled:opacity-40"
+                  title="Parar reprodução"
+                >
+                  <div class="w-3.5 h-3.5 bg-current rounded-xs"></div>
+                </button>
+              </div>
+
+              <!-- Seek Slider & Time -->
+              <div class="w-full flex items-center gap-2 text-[10px] font-mono text-neutral-400">
+                <span class="w-10 text-right">{formatDuration(audioCurrentTime)}</span>
+                <input
+                  type="range"
+                  min="0"
+                  max={audioDuration || 100}
+                  step="0.5"
+                  value={audioCurrentTime}
+                  oninput={handleSeekAudio}
+                  class="flex-1 h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                />
+                <span class="w-10">{formatDuration(audioDuration)}</span>
+              </div>
+            </div>
+
+            <!-- Controle de Volume -->
+            <div class="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onclick={toggleAudioMute}
+                class="text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                title={isAudioMuted ? 'Desmutar' : 'Mutar'}
+              >
+                {#if isAudioMuted || audioVolume === 0}
+                  <VolumeX size={16} />
+                {:else}
+                  <Volume2 size={16} />
+                {/if}
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isAudioMuted ? 0 : audioVolume}
+                oninput={handleVolumeChange}
+                class="w-16 h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                title="Volume"
+              />
+            </div>
+          </div>
+
+          <!-- Barra de Busca e Upload de Áudios -->
+          <div class="flex items-center justify-between gap-2 pb-2 border-b border-border/60 shrink-0">
+            <div class="flex items-center gap-2 flex-1 max-w-md">
+              <div class="relative flex-1">
+                <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  bind:value={audioSearch}
+                  placeholder="Buscar áudios por nome..."
+                  class="w-full h-8 pl-8 pr-3 rounded-lg bg-neutral-900 border border-neutral-800 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                {#if audioSearch}
+                  <button
+                    type="button"
+                    onclick={() => (audioSearch = '')}
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                {/if}
+              </div>
+              <Badge variant="secondary" class="text-[10px] font-mono py-0.5 px-2">
+                {filteredAudios.length} {filteredAudios.length === 1 ? 'faixa' : 'faixas'}
+              </Badge>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+              <input
+                type="file"
+                bind:this={audioFileInputEl}
+                onchange={handleAudioFilesSelected}
+                accept="audio/mp3,audio/wav,audio/m4a,audio/aac,audio/ogg,audio/flac,.mp3,.wav,.m4a,.aac,.ogg,.flac"
+                class="hidden"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onclick={loadAudios}
+                title="Recarregar áudios"
+                class="h-8 text-xs px-2.5"
+              >
+                <RefreshCw size={12} class={isLoadingAudios ? 'animate-spin' : ''} />
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onclick={() => audioFileInputEl?.click()}
+                disabled={isUploadingAudio}
+                class="h-8 text-xs gap-1.5 font-semibold"
+              >
+                <Upload size={13} class={isUploadingAudio ? 'animate-spin' : ''} />
+                <span>{isUploadingAudio ? 'Enviando...' : 'Importar Áudio'}</span>
+              </Button>
+            </div>
+          </div>
+
+          <!-- Lista de Faixas de Áudio -->
+          <div class="flex-1 overflow-y-auto pr-1">
+            {#if filteredAudios.length === 0}
+              <div class="h-44 flex flex-col items-center justify-center text-xs text-muted-foreground gap-2">
+                <Volume2 size={28} class="text-neutral-600 opacity-60" />
+                <p>Nenhum áudio encontrado na biblioteca.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={() => audioFileInputEl?.click()}
+                  class="text-xs gap-1 mt-1"
+                >
+                  <Upload size={12} />
+                  <span>Importar primeiro áudio (MP3, WAV, M4A)</span>
+                </Button>
+              </div>
+            {:else}
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {#each filteredAudios as aud (aud.id)}
+                  {@const isThisPlaying = playingAudio?.id === aud.id && isAudioPlaying}
+                  {@const isThisSelected = playingAudio?.id === aud.id}
+                  <div
+                    role="button"
+                    tabindex="0"
+                    onclick={() => handlePlayAudio(aud)}
+                    onkeydown={(e) => { if (e.key === 'Enter') handlePlayAudio(aud); }}
+                    class="p-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 group cursor-pointer {isThisSelected ? 'border-indigo-500 bg-indigo-950/30' : 'border-border bg-card/60 hover:bg-neutral-850'}"
+                  >
+                    <div class="flex items-center gap-3 min-w-0">
+                      <button
+                        type="button"
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          handlePlayAudio(aud);
+                        }}
+                        class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 {isThisPlaying ? 'bg-indigo-600 text-white' : 'bg-indigo-500/20 text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white'}"
+                        title={isThisPlaying ? 'Pausar' : 'Reproduzir'}
+                      >
+                        {#if isThisPlaying}
+                          <Pause size={15} class="fill-current" />
+                        {:else}
+                          <Play size={15} class="fill-current ml-0.5" />
+                        {/if}
+                      </button>
+
+                      <div class="min-w-0">
+                        <p class="text-xs font-semibold text-foreground truncate group-hover:text-indigo-300 transition-colors" title={aud.name}>
+                          {aud.name}
+                        </p>
+                        <p class="text-[10px] text-muted-foreground font-mono">
+                          {formatBytes(aud.size_bytes)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          handleAddAudioToSetlist(aud);
+                        }}
+                        class="h-7 px-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer"
+                        title="Adicionar à Setlist"
+                      >
+                        <ListPlus size={13} />
+                        <span class="text-[11px] hidden sm:inline">+ Setlist</span>
+                      </button>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </div>
+
       <!-- ================= ABA 3: FUNDOS & GRADIENTES ================= -->
       {:else if activeTab === 'backgrounds'}
         <div role="tabpanel" id="panel-backgrounds" aria-labelledby="tab-backgrounds" class="flex-1 flex overflow-hidden gap-3">
@@ -2629,6 +3355,23 @@
                       </div>
                     </button>
 
+                    <!-- Opção Cronômetro / Timer -->
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onclick={() => {
+                        isAddOtherMenuOpen = false;
+                        onopentimereditor?.();
+                      }}
+                      class="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-300 hover:bg-neutral-800 transition-colors text-left cursor-pointer group"
+                    >
+                      <Hourglass size={14} class="shrink-0 text-rose-400" />
+                      <div class="flex flex-col min-w-0">
+                        <span class="font-semibold text-neutral-200 group-hover:text-rose-300 transition-colors">Cronômetro / Timer</span>
+                        <span class="text-[10px] text-neutral-400 font-normal">Contagem regressiva sincronizada com o stage</span>
+                      </div>
+                    </button>
+
                     <div class="my-1 border-t border-neutral-800"></div>
 
                     <!-- Opção Importar da Setlist -->
@@ -2662,7 +3405,8 @@
               { id: 'schedule', label: 'Agenda', count: $customItemsStore.filter((i) => i.kind === 'schedule').length },
               { id: 'text', label: 'Textos', count: $customItemsStore.filter((i) => i.kind === 'text').length },
               { id: 'announcement', label: 'Avisos', count: $customItemsStore.filter((i) => i.kind === 'announcement').length },
-              { id: 'header', label: 'Seções', count: $customItemsStore.filter((i) => i.kind === 'header').length }
+              { id: 'header', label: 'Seções', count: $customItemsStore.filter((i) => i.kind === 'header').length },
+              { id: 'timer', label: 'Cronômetros', count: $customItemsStore.filter((i) => i.kind === 'timer').length }
             ] as cat}
               <button
                 type="button"
@@ -2703,6 +3447,12 @@
                     {:else}
                       Programação de cultos
                     {/if}
+                  </p>
+                {:else if item.kind === 'timer'}
+                  {@const dur = parseInt(item.slides[0]?.content || '0', 10)}
+                  <p class="text-[10px] text-rose-300 font-mono mt-0.5 flex items-center gap-1">
+                    <Hourglass size={10} />
+                    <span>Duração: {formatDuration(isNaN(dur) ? 0 : dur)}</span>
                   </p>
                 {:else if item.slides[0]?.content}
                   <p class="text-[10px] text-muted-foreground line-clamp-2 mt-0.5 italic">
@@ -2892,6 +3642,22 @@
                             {:else if viewingCustomItem.kind === 'header'}
                               <div class="px-3 py-1 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-200 font-bold text-xs uppercase tracking-wider">
                                 {slide.content || viewingCustomItem.title}
+                              </div>
+                            {:else if viewingCustomItem.kind === 'timer'}
+                              {@const secs = parseInt(slide.content || '0', 10)}
+                              <div class="w-full flex flex-col items-center justify-center p-2 rounded-xl bg-rose-950/40 border border-rose-500/30 gap-1">
+                                <div class="flex items-center gap-1.5 text-rose-400 font-semibold text-[10px] uppercase tracking-wider">
+                                  <Hourglass size={12} />
+                                  <span>{slide.label || 'Cronômetro'}</span>
+                                </div>
+                                <div class="text-3xl font-mono font-black text-rose-300 tracking-tight">
+                                  {formatDuration(isNaN(secs) ? 0 : secs)}
+                                </div>
+                                {#if slide.lower_content}
+                                  <p class="text-[10px] text-rose-200/80 line-clamp-2 mt-0.5 max-w-full italic">
+                                    {slide.lower_content}
+                                  </p>
+                                {/if}
                               </div>
                             {:else}
                               <!-- Conteúdo de Texto ou Aviso -->

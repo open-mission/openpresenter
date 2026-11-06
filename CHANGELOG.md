@@ -6,6 +6,18 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Abas de Vídeos e Áudios no Painel Inferior & Itens de Mídia com Reprodução (`BottomPanel.svelte`, `op-admin`, `op-core`):**
+  - **Aba Vídeos:** Nova aba dedicada para navegação, busca instantânea, pré-visualização e upload de arquivos de vídeo (MP4, WebM, MOV, MKV). Permite disparar vídeos diretamente na Projeção Pública em 1 clique ("Apresentar") ou inseri-los na setlist ativa do culto.
+  - **Aba Áudios com Player Embutido:** Nova aba dedicada para arquivos de áudio (MP3, WAV, M4A, AAC, OGG, FLAC) com player integrado completo no topo do painel: botões de Play/Pause/Stop, barra de progresso (seek slider) com tempos decorrido e total formatados (`MM:SS`), controle de volume, botão de mudo e repetição contínua (loop). Permite reproduzir trilhas sonoras durante os momentos do culto e adicioná-las à setlist.
+  - **Streaming Nativo HTTP Range (Status 206 Partial Content):** Implementado `tower_http::services::ServeFile` com `tower::ServiceExt::oneshot(req)` nas rotas `/api/media/videos`, `/api/media/audios` e `/api/media/external`, garantindo streaming eficiente de áudio e vídeo com seek instantâneo sem carregar arquivos pesados na memória RAM.
+  - **Endpoints REST e OpenAPI:** `GET/POST /api/media/videos`, `GET/POST /api/media/videos/upload`, `GET/POST /api/media/audios`, `GET/POST /api/media/audios/upload`.
+- **Item de Cronômetro / Timer com Projeção na Tela Pública Sincronizada com o Palco (`TimerEditorModal.svelte`, `PublicView.svelte`, `PublicPreviewBox.svelte`):**
+  - **Item de Cronômetro na Biblioteca Outros e Setlists:** Modal de criação e edição `TimerEditorModal` com presets rápidos (1m, 2m, 3m, 5m, 10m, 15m, 30m), customização de minutos/segundos, título do culto/momento e mensagem/subtítulo.
+  - **Projeção Sincronizada em Tempo Real:** Ao apresentar um item do tipo Timer, os comandos WebSocket `set_timer` e `start_timer` são disparados atomicamente.
+  - **Visual ProPresenter na Tela Pública (`PublicView.svelte`):** Exibição em tela cheia com card translúcido de alta elegância (glassmorphism), contagem regressiva em dígitos gigantes monoespaçados, título e mensagem complementar sobre o papel de parede ativo.
+  - **Estados Visuais de Alerta:** Transição automática de cores para âmbar no último minuto (< 60s) e modo Overtime pulsante em vermelho carmesim caso o tempo expire. Sincronização 100% fiel com o monitor de retorno (`StageView.svelte`) e com o preview do operador (`PublicPreviewBox.svelte`).
+
 ### Corrigido
 - **Correção na Serialização de Membros e Suporte a PIN na Equipe (`TeamsModal.svelte`, `teams.ts`):**
   - Removido o envio redundante de chaves concomitantes (`department_ids` e `departments`) no payload JSON de cadastro e edição de voluntários, eliminando o erro de deserialização HTTP 422 (`duplicate field 'department_ids'`) do Serde ao salvar PIN e permissões no SQLite.

@@ -186,6 +186,34 @@ pub struct ImageMediaItem {
     pub size_bytes: u64,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AudioMediaItem {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub folder_id: String,
+    pub folder_name: String,
+    #[serde(default)]
+    pub subfolder: Option<String>,
+    pub url: String,
+    pub is_external: bool,
+    pub size_bytes: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct VideoMediaItem {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub folder_id: String,
+    pub folder_name: String,
+    #[serde(default)]
+    pub subfolder: Option<String>,
+    pub url: String,
+    pub is_external: bool,
+    pub size_bytes: u64,
+}
+
 #[derive(Deserialize)]
 pub struct ExternalFileQuery {
     pub folder_id: String,
@@ -316,6 +344,10 @@ pub fn create_routes(state: AppState) -> Router {
         )
         .route("/api/media/images", get(list_images))
         .route("/api/media/images/upload", post(upload_image))
+        .route("/api/media/videos", get(list_videos))
+        .route("/api/media/videos/upload", post(upload_video))
+        .route("/api/media/audios", get(list_audios))
+        .route("/api/media/audios/upload", post(upload_audio))
         .route("/api/media/upload", post(upload_media))
         .route("/api/media/external-file", get(serve_external_file))
         .route("/api/media/files/{*subpath}", get(serve_media_file))
@@ -1710,7 +1742,10 @@ async fn delete_wallpaper(
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn serve_media_file(Path(subpath): Path<String>) -> impl IntoResponse {
+async fn serve_media_file(
+    Path(subpath): Path<String>,
+    req: axum::extract::Request,
+) -> impl IntoResponse {
     if subpath.contains("..") || subpath.starts_with('/') {
         return (
             StatusCode::BAD_REQUEST,
@@ -1746,11 +1781,13 @@ async fn serve_media_file(Path(subpath): Path<String>) -> impl IntoResponse {
         }
     };
 
-    // Suporta resolução direta ou sob subpastas conhecidas (wallpapers, images, church_brand)
+    // Suporta resolução direta ou sob subpastas conhecidas (wallpapers, images, videos, audios, church_brand)
     let candidates = [
         media_dir.join(&subpath),
         media_dir.join("wallpapers").join(&subpath),
         media_dir.join("images").join(&subpath),
+        media_dir.join("videos").join(&subpath),
+        media_dir.join("audios").join(&subpath),
         media_dir.join("church_brand").join(&subpath),
     ];
 
@@ -1775,29 +1812,24 @@ async fn serve_media_file(Path(subpath): Path<String>) -> impl IntoResponse {
         }
     };
 
-    let content_type = mime_guess::from_path(&file_path)
-        .first_or_octet_stream()
-        .to_string();
-
-    match tokio::fs::read(&file_path).await {
-        Ok(bytes) => (
-            StatusCode::OK,
-            [
-                (axum::http::header::CONTENT_TYPE, content_type),
-                (
-                    axum::http::header::CACHE_CONTROL,
-                    "public, max-age=3600".into(),
-                ),
-                (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*".into()),
-                (
-                    axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
-                    "GET, HEAD, OPTIONS".into(),
-                ),
-                (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*".into()),
-            ],
-            bytes,
-        )
-            .into_response(),
+    use tower::ServiceExt;
+    let serve_file = tower_http::services::ServeFile::new(file_path);
+    match serve_file.oneshot(req).await {
+        Ok(mut resp) => {
+            resp.headers_mut().insert(
+                axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                axum::http::HeaderValue::from_static("*"),
+            );
+            resp.headers_mut().insert(
+                axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                axum::http::HeaderValue::from_static("GET, HEAD, OPTIONS"),
+            );
+            resp.headers_mut().insert(
+                axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS,
+                axum::http::HeaderValue::from_static("*"),
+            );
+            resp.into_response()
+        }
         Err(_) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             [
@@ -1808,7 +1840,7 @@ async fn serve_media_file(Path(subpath): Path<String>) -> impl IntoResponse {
                 ),
                 (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*"),
             ],
-            "Erro ao ler arquivo",
+            "Erro ao servir arquivo",
         )
             .into_response(),
     }
@@ -2028,6 +2060,30 @@ fn is_image_file(path: &std::path::Path) -> bool {
     }
 }
 
+fn is_audio_file(path: &std::path::Path) -> bool {
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        let lower = ext.to_lowercase();
+        matches!(
+            lower.as_str(),
+            "mp3" | "wav" | "ogg" | "aac" | "m4a" | "flac" | "wma" | "weba"
+        )
+    } else {
+        false
+    }
+}
+
+fn is_video_file(path: &std::path::Path) -> bool {
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        let lower = ext.to_lowercase();
+        matches!(
+            lower.as_str(),
+            "mp4" | "webm" | "mov" | "mkv" | "avi" | "m4v"
+        )
+    } else {
+        false
+    }
+}
+
 fn url_encode(s: &str) -> String {
     let mut encoded = String::new();
     for b in s.bytes() {
@@ -2058,6 +2114,17 @@ fn scan_images_recursively(
     max_depth: usize,
     out: &mut Vec<ScannedImage>,
 ) {
+    scan_media_recursively(root, current, depth, max_depth, is_image_file, out);
+}
+
+fn scan_media_recursively(
+    root: &std::path::Path,
+    current: &std::path::Path,
+    depth: usize,
+    max_depth: usize,
+    is_valid_file: fn(&std::path::Path) -> bool,
+    out: &mut Vec<ScannedImage>,
+) {
     if depth > max_depth {
         return;
     }
@@ -2075,8 +2142,8 @@ fn scan_images_recursively(
             continue;
         }
         if path.is_dir() {
-            scan_images_recursively(root, &path, depth + 1, max_depth, out);
-        } else if path.is_file() && is_image_file(&path) {
+            scan_media_recursively(root, &path, depth + 1, max_depth, is_valid_file, out);
+        } else if path.is_file() && is_valid_file(&path) {
             let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
             let (subfolder, rel_path) = if let Ok(rel) = path.strip_prefix(root) {
                 let sub = rel.parent().and_then(|p| {
@@ -2267,9 +2334,238 @@ async fn upload_image(
     }))
 }
 
+async fn list_videos(State(state): State<AppState>) -> Json<Vec<VideoMediaItem>> {
+    let mut items = Vec::new();
+
+    // 1. Vídeos internos do app (<data_dir>/media/videos)
+    if let Ok(media_dir) = crate::session::resolve_media_dir() {
+        let app_video_dir = media_dir.join("videos");
+        let _ = std::fs::create_dir_all(&app_video_dir);
+        let mut scanned = Vec::new();
+        scan_media_recursively(
+            &app_video_dir,
+            &app_video_dir,
+            1,
+            5,
+            is_video_file,
+            &mut scanned,
+        );
+        for item in scanned {
+            let enc_rel = item
+                .rel_path
+                .split('/')
+                .map(url_encode)
+                .collect::<Vec<_>>()
+                .join("/");
+            items.push(VideoMediaItem {
+                id: format!("app-video-{}", item.rel_path.replace('/', "-")),
+                name: item.filename,
+                path: item.path.display().to_string(),
+                folder_id: "app".to_string(),
+                folder_name: "Pasta do App".to_string(),
+                subfolder: item.subfolder,
+                url: format!("/api/media/files/videos/{enc_rel}"),
+                is_external: false,
+                size_bytes: item.size_bytes,
+            });
+        }
+    }
+
+    // 2. Pastas externas mapeadas
+    if let Some(ref db) = state.db {
+        let db_guard = db.lock().await;
+        if let Ok(folders) = db_guard.list_media_folders() {
+            for f in folders {
+                let p = std::path::Path::new(&f.path);
+                if p.is_dir() {
+                    let mut scanned = Vec::new();
+                    scan_media_recursively(p, p, 1, 5, is_video_file, &mut scanned);
+                    for item in scanned {
+                        let enc_rel = item
+                            .rel_path
+                            .split('/')
+                            .map(url_encode)
+                            .collect::<Vec<_>>()
+                            .join("/");
+                        items.push(VideoMediaItem {
+                            id: format!("ext-video-{}-{}", f.id, item.rel_path.replace('/', "-")),
+                            name: item.filename,
+                            path: item.path.display().to_string(),
+                            folder_id: f.id.clone(),
+                            folder_name: f.name.clone(),
+                            subfolder: item.subfolder,
+                            url: format!(
+                                "/api/media/external-file?folder_id={}&file={enc_rel}",
+                                f.id
+                            ),
+                            is_external: true,
+                            size_bytes: item.size_bytes,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    items.sort_by_key(|a| a.name.to_lowercase());
+    Json(items)
+}
+
+async fn upload_video(
+    Json(payload): Json<UploadMediaPayload>,
+) -> Result<Json<UploadMediaResponse>, (StatusCode, String)> {
+    let media_dir = crate::session::resolve_media_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let videos_dir = media_dir.join("videos");
+    let _ = std::fs::create_dir_all(&videos_dir);
+
+    let bytes = decode_base64(&payload.content_base64)
+        .ok_or((StatusCode::BAD_REQUEST, "Base64 inválido".into()))?;
+
+    let raw_name = std::path::Path::new(&payload.filename)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("video.mp4");
+    let sanitized_name: String = raw_name
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+
+    let target_path = videos_dir.join(&sanitized_name);
+    tokio::fs::write(&target_path, bytes)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(UploadMediaResponse {
+        url: format!("/api/media/files/videos/{sanitized_name}"),
+        filename: sanitized_name,
+    }))
+}
+
+async fn list_audios(State(state): State<AppState>) -> Json<Vec<AudioMediaItem>> {
+    let mut items = Vec::new();
+
+    // 1. Áudios internos do app (<data_dir>/media/audios)
+    if let Ok(media_dir) = crate::session::resolve_media_dir() {
+        let app_audio_dir = media_dir.join("audios");
+        let _ = std::fs::create_dir_all(&app_audio_dir);
+        let mut scanned = Vec::new();
+        scan_media_recursively(
+            &app_audio_dir,
+            &app_audio_dir,
+            1,
+            5,
+            is_audio_file,
+            &mut scanned,
+        );
+        for item in scanned {
+            let enc_rel = item
+                .rel_path
+                .split('/')
+                .map(url_encode)
+                .collect::<Vec<_>>()
+                .join("/");
+            items.push(AudioMediaItem {
+                id: format!("app-audio-{}", item.rel_path.replace('/', "-")),
+                name: item.filename,
+                path: item.path.display().to_string(),
+                folder_id: "app".to_string(),
+                folder_name: "Pasta do App".to_string(),
+                subfolder: item.subfolder,
+                url: format!("/api/media/files/audios/{enc_rel}"),
+                is_external: false,
+                size_bytes: item.size_bytes,
+            });
+        }
+    }
+
+    // 2. Pastas externas mapeadas
+    if let Some(ref db) = state.db {
+        let db_guard = db.lock().await;
+        if let Ok(folders) = db_guard.list_media_folders() {
+            for f in folders {
+                let p = std::path::Path::new(&f.path);
+                if p.is_dir() {
+                    let mut scanned = Vec::new();
+                    scan_media_recursively(p, p, 1, 5, is_audio_file, &mut scanned);
+                    for item in scanned {
+                        let enc_rel = item
+                            .rel_path
+                            .split('/')
+                            .map(url_encode)
+                            .collect::<Vec<_>>()
+                            .join("/");
+                        items.push(AudioMediaItem {
+                            id: format!("ext-audio-{}-{}", f.id, item.rel_path.replace('/', "-")),
+                            name: item.filename,
+                            path: item.path.display().to_string(),
+                            folder_id: f.id.clone(),
+                            folder_name: f.name.clone(),
+                            subfolder: item.subfolder,
+                            url: format!(
+                                "/api/media/external-file?folder_id={}&file={enc_rel}",
+                                f.id
+                            ),
+                            is_external: true,
+                            size_bytes: item.size_bytes,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    items.sort_by_key(|a| a.name.to_lowercase());
+    Json(items)
+}
+
+async fn upload_audio(
+    Json(payload): Json<UploadMediaPayload>,
+) -> Result<Json<UploadMediaResponse>, (StatusCode, String)> {
+    let media_dir = crate::session::resolve_media_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let audios_dir = media_dir.join("audios");
+    let _ = std::fs::create_dir_all(&audios_dir);
+
+    let bytes = decode_base64(&payload.content_base64)
+        .ok_or((StatusCode::BAD_REQUEST, "Base64 inválido".into()))?;
+
+    let raw_name = std::path::Path::new(&payload.filename)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("audio.mp3");
+    let sanitized_name: String = raw_name
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+
+    let target_path = audios_dir.join(&sanitized_name);
+    tokio::fs::write(&target_path, bytes)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(UploadMediaResponse {
+        url: format!("/api/media/files/audios/{sanitized_name}"),
+        filename: sanitized_name,
+    }))
+}
+
 async fn serve_external_file(
     State(state): State<AppState>,
     Query(query): Query<ExternalFileQuery>,
+    req: axum::extract::Request,
 ) -> impl IntoResponse {
     let clean_file = query.file.replace('\\', "/");
     if clean_file.contains("..") || clean_file.starts_with('/') {
@@ -2347,29 +2643,24 @@ async fn serve_external_file(
             .into_response();
     }
 
-    let content_type = mime_guess::from_path(&file_path)
-        .first_or_octet_stream()
-        .to_string();
-
-    match tokio::fs::read(&file_path).await {
-        Ok(bytes) => (
-            StatusCode::OK,
-            [
-                (axum::http::header::CONTENT_TYPE, content_type),
-                (
-                    axum::http::header::CACHE_CONTROL,
-                    "public, max-age=3600".into(),
-                ),
-                (axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*".into()),
-                (
-                    axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
-                    "GET, HEAD, OPTIONS".into(),
-                ),
-                (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*".into()),
-            ],
-            bytes,
-        )
-            .into_response(),
+    use tower::ServiceExt;
+    let serve_file = tower_http::services::ServeFile::new(file_path);
+    match serve_file.oneshot(req).await {
+        Ok(mut resp) => {
+            resp.headers_mut().insert(
+                axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                axum::http::HeaderValue::from_static("*"),
+            );
+            resp.headers_mut().insert(
+                axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
+                axum::http::HeaderValue::from_static("GET, HEAD, OPTIONS"),
+            );
+            resp.headers_mut().insert(
+                axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS,
+                axum::http::HeaderValue::from_static("*"),
+            );
+            resp.into_response()
+        }
         Err(_) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             [
@@ -2380,7 +2671,7 @@ async fn serve_external_file(
                 ),
                 (axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "*"),
             ],
-            "Erro ao ler arquivo",
+            "Erro ao servir arquivo",
         )
             .into_response(),
     }

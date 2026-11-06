@@ -453,6 +453,36 @@ fn build_openapi_spec() -> Value {
             "summary": "Listar versões da Bíblia importadas",
             "responses": { "200": { "description": "Versões bíblicas disponíveis." } }
           }
+        },
+        "/api/media/audios": {
+          "get": {
+            "tags": ["Media"],
+            "summary": "Listar faixas de áudio",
+            "description": "Retorna todos os arquivos de áudio locais da pasta interna do app e das pastas de mídia externas mapeadas.",
+            "responses": { "200": { "description": "Lista de faixas de áudio." } }
+          }
+        },
+        "/api/media/audios/upload": {
+          "post": {
+            "tags": ["Media"],
+            "summary": "Fazer upload de arquivo de áudio",
+            "responses": { "200": { "description": "Áudio salvo com sucesso." } }
+          }
+        },
+        "/api/media/videos": {
+          "get": {
+            "tags": ["Media"],
+            "summary": "Listar vídeos disponíveis",
+            "description": "Retorna todos os vídeos locais da pasta interna do app e das pastas externas mapeadas.",
+            "responses": { "200": { "description": "Lista de vídeos." } }
+          }
+        },
+        "/api/media/videos/upload": {
+          "post": {
+            "tags": ["Media"],
+            "summary": "Fazer upload de vídeo",
+            "responses": { "200": { "description": "Vídeo salvo com sucesso." } }
+          }
         }
       },
       "components": {

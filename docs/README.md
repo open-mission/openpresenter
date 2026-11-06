@@ -237,6 +237,11 @@
 - [Spec — Preparação e Lançamento da Versão 0.4.2](specs/2026-11-01-release-0-4-2.md)
 - [Plano — Preparação e Lançamento da Versão 0.4.2](plans/2026-11-01-release-0-4-2.md)
 
+## Itens e Abas de Áudio, Vídeo e Projeção de Timer na Tela Pública
+
+- [Spec — Itens e Abas de Áudio, Vídeo e Projeção de Timer na Tela Pública](specs/2026-11-05-audio-video-e-timer-publico.md)
+- [Plano — Itens e Abas de Áudio, Vídeo e Projeção de Timer na Tela Pública](plans/2026-11-05-audio-video-e-timer-publico.md)
+
 ## Home do Remote (Portal do Voluntário), Login Local e Controle de Acesso
 
 - [Spec — Home do Remote (Portal do Voluntário), Login Local e Controle de Acesso](specs/2026-11-05-remote-home-hub-login-local-e-permissoes.md)

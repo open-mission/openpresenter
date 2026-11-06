@@ -745,7 +745,7 @@ impl AppState {
         state.active_slide_index = Some(target_idx);
         state.quick_media = Some(item.clone());
         state.display_mode = DisplayMode::Live;
-        if item.kind != op_core::MediaKind::Image {
+        if item.kind != op_core::MediaKind::Image && item.kind != op_core::MediaKind::Video {
             state.wallpaper_path = state.lyrics_background_path.clone();
             state.wallpaper_mode = state.lyrics_background_mode.clone();
         }

@@ -2060,4 +2060,129 @@ mod tests {
         assert!(metrics.system_memory_total_bytes > 0);
         assert!(metrics.timestamp > 0);
     }
+
+    #[tokio::test]
+    async fn test_audio_and_video_endpoints_work() {
+        let (state, dir) = mock_state_with_db();
+        let app = create_routes(state);
+
+        // 1. List initial videos
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/media/videos")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // 2. Upload video
+        let video_upload_payload = serde_json::json!({
+            "filename": "sample_intro.mp4",
+            "content_base64": "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQ=="
+        });
+        let upload_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/media/videos/upload")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(
+                        serde_json::to_vec(&video_upload_payload).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(upload_resp.status(), StatusCode::OK);
+        let upload_bytes = axum::body::to_bytes(upload_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let upload_json: serde_json::Value = serde_json::from_slice(&upload_bytes).unwrap();
+        assert_eq!(upload_json["filename"], "sample_intro.mp4");
+
+        // 3. Verify video is listed
+        let list_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/media/videos")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list_resp.status(), StatusCode::OK);
+        let list_bytes = axum::body::to_bytes(list_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let videos: Vec<routes::VideoMediaItem> = serde_json::from_slice(&list_bytes).unwrap();
+        assert!(videos.iter().any(|v| v.name == "sample_intro.mp4"));
+
+        // 4. List initial audios
+        let resp_audio = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/media/audios")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp_audio.status(), StatusCode::OK);
+
+        // 5. Upload audio
+        let audio_upload_payload = serde_json::json!({
+            "filename": "background_music.mp3",
+            "content_base64": "//uQZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcAA="
+        });
+        let upload_audio_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/media/audios/upload")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(
+                        serde_json::to_vec(&audio_upload_payload).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(upload_audio_resp.status(), StatusCode::OK);
+        let audio_bytes = axum::body::to_bytes(upload_audio_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let audio_json: serde_json::Value = serde_json::from_slice(&audio_bytes).unwrap();
+        assert_eq!(audio_json["filename"], "background_music.mp3");
+
+        // 6. Verify audio is listed
+        let list_audio_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/media/audios")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list_audio_resp.status(), StatusCode::OK);
+        let audios_bytes = axum::body::to_bytes(list_audio_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let audios: Vec<routes::AudioMediaItem> = serde_json::from_slice(&audios_bytes).unwrap();
+        assert!(audios.iter().any(|a| a.name == "background_music.mp3"));
+
+        let _ = dir;
+    }
 }

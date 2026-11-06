@@ -1,4 +1,15 @@
-export type MediaKind = 'song' | 'scripture' | 'announcement' | 'media' | 'header' | 'image' | 'text' | 'schedule';
+export type MediaKind =
+  | 'song'
+  | 'scripture'
+  | 'announcement'
+  | 'media'
+  | 'header'
+  | 'image'
+  | 'text'
+  | 'schedule'
+  | 'audio'
+  | 'video'
+  | 'timer';
 
 export interface ScheduleEvent {
   id: string;
@@ -44,6 +55,30 @@ export interface MediaFolder {
 }
 
 export interface ImageMediaItem {
+  id: string;
+  name: string;
+  path: string;
+  folder_id: string;
+  folder_name: string;
+  subfolder?: string;
+  url: string;
+  is_external: boolean;
+  size_bytes: number;
+}
+
+export interface AudioMediaItem {
+  id: string;
+  name: string;
+  path: string;
+  folder_id: string;
+  folder_name: string;
+  subfolder?: string;
+  url: string;
+  is_external: boolean;
+  size_bytes: number;
+}
+
+export interface VideoMediaItem {
   id: string;
   name: string;
   path: string;

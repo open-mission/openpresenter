@@ -303,6 +303,9 @@ pub enum MediaKind {
     Image,
     Text,
     Schedule,
+    Audio,
+    Video,
+    Timer,
 }
 
 impl MediaKind {
@@ -316,6 +319,9 @@ impl MediaKind {
             Self::Image => "Imagem",
             Self::Text => "Texto",
             Self::Schedule => "Agenda",
+            Self::Audio => "Áudio",
+            Self::Video => "Vídeo",
+            Self::Timer => "Cronômetro",
         }
     }
 }
@@ -1100,6 +1106,9 @@ mod tests {
         let sched_parsed: MediaItem = serde_json::from_str(&sched_json).expect("deserializes");
         assert_eq!(sched_parsed, schedule);
         assert_eq!(MediaKind::Schedule.label_pt_br(), "Agenda");
+        assert_eq!(MediaKind::Audio.label_pt_br(), "Áudio");
+        assert_eq!(MediaKind::Video.label_pt_br(), "Vídeo");
+        assert_eq!(MediaKind::Timer.label_pt_br(), "Cronômetro");
     }
 
     #[test]

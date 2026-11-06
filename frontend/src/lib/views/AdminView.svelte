@@ -21,9 +21,11 @@
     startTimer,
     pauseTimer,
     resetTimer,
+    setTimer,
     quickPresentMedia,
     reloadOutputs,
   } from '$lib/ws';
+  import { formatDuration } from '$lib/media';
   import type {
     MediaItem,
     MediaKind,
@@ -48,6 +50,7 @@
   import SetlistModal from '$lib/components/SetlistModal.svelte';
   import QuickItemModal from '$lib/components/QuickItemModal.svelte';
   import ScheduleEditorModal from '$lib/components/ScheduleEditorModal.svelte';
+  import TimerEditorModal from '$lib/components/TimerEditorModal.svelte';
   import BottomPanel from '$lib/components/BottomPanel.svelte';
   import ImageSelectorModal from '$lib/components/ImageSelectorModal.svelte';
   import ImagePreviewModal from '$lib/components/ImagePreviewModal.svelte';
@@ -137,6 +140,9 @@
     Type,
     X,
     Users,
+    Film,
+    Volume2,
+    Hourglass,
   } from 'lucide-svelte';
   import { castStore } from '$lib/cast';
 
@@ -213,7 +219,9 @@
   let renamingItemId = $state<string>('');
   let renamingItemTitle = $state<string>('');
   let settingsInitialTab = $state<SettingsTab>('appearance');
-  let bottomPanelRequestedTab = $state<'songs' | 'images' | 'backgrounds' | 'bible' | 'others' | null>(null);
+  let isTimerEditorOpen = $state(false);
+  let editingTimerItem = $state<MediaItem | null>(null);
+  let bottomPanelRequestedTab = $state<'songs' | 'images' | 'videos' | 'audios' | 'backgrounds' | 'bible' | 'others' | null>(null);
   let targetScriptureRef = $state<ParsedReference | null>(null);
   let draggedItemIndex = $state<number | null>(null);
 
@@ -473,6 +481,16 @@
     if (!selectedMedia || selectedMedia.slides.length === 0) return;
     const clamped = Math.max(0, Math.min(idx, selectedMedia.slides.length - 1));
     focusedSlideIndex = clamped;
+    if (selectedMedia.kind === 'timer') {
+      const dur = parseInt(
+        selectedMedia.slides[clamped]?.content || selectedMedia.slides[0]?.content || '300',
+        10
+      );
+      if (!isNaN(dur) && dur > 0) {
+        setTimer(dur, selectedMedia.title, true);
+        startTimer();
+      }
+    }
     selectSlide(selectedMedia.id, clamped);
     scrollToSlideCard(clamped);
   }
@@ -1288,6 +1306,9 @@
     } else if (item.kind === 'schedule') {
       editingScheduleItem = item;
       isScheduleEditorOpen = true;
+    } else if (item.kind === 'timer') {
+      editingTimerItem = item;
+      isTimerEditorOpen = true;
     } else {
       // Apresentação de Texto Livre / Aviso
       songEditorMode = 'text';
@@ -1575,7 +1596,27 @@
   function handlePresentCustomItem(item: MediaItem, slideIndex: number = 0) {
     selectedMediaId = item.id;
     focusedSlideIndex = slideIndex;
+    if (item.kind === 'timer') {
+      const dur = parseInt(
+        item.slides[slideIndex]?.content || item.slides[0]?.content || '300',
+        10
+      );
+      if (!isNaN(dur) && dur > 0) {
+        setTimer(dur, item.title, true);
+        startTimer();
+      }
+    }
     quickPresentMedia(item, slideIndex);
+  }
+
+  async function handleSaveTimerItem(item: MediaItem) {
+    await saveOrUpdateCustomItem(item);
+    notifySuccess('Cronômetro Salvo', `"${item.title}" salvo com sucesso.`);
+  }
+
+  async function handleAddTimerItemToSetlist(item: MediaItem) {
+    await saveOrUpdateCustomItem(item);
+    await handleAddCustomItemToSetlist(item);
   }
 
   function handleOpenCreate() {
@@ -2532,6 +2573,43 @@
                 Imagem 16:9
               </span>
             </div>
+          {:else if item.kind === 'video'}
+            <div class="aspect-video w-full bg-black/80 flex items-center justify-center relative overflow-hidden group/vid">
+              <!-- svelte-ignore a11y_media_has_caption -->
+              <video src={slide.content} class="w-full h-full object-contain" preload="metadata" muted></video>
+              <div class="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
+                <div class="w-10 h-10 rounded-full bg-purple-600/80 text-white flex items-center justify-center shadow-lg">
+                  <Film size={18} />
+                </div>
+              </div>
+              <span class="absolute bottom-1.5 right-2 text-[10px] text-purple-300 font-mono bg-black/70 px-1.5 py-0.5 rounded border border-purple-500/30">
+                Vídeo 16:9
+              </span>
+            </div>
+          {:else if item.kind === 'audio'}
+            <div class="aspect-video w-full bg-indigo-950/40 border border-indigo-500/20 flex flex-col items-center justify-center relative overflow-hidden p-3 gap-2">
+              <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center shadow-md">
+                <Volume2 size={24} />
+              </div>
+              <p class="text-xs font-semibold text-indigo-200 truncate max-w-full">{item.title}</p>
+              <audio src={slide.content} controls class="w-full max-w-[220px] h-7 scale-90" preload="none"></audio>
+            </div>
+          {:else if item.kind === 'timer'}
+            {@const secs = parseInt(slide.content || '0', 10)}
+            <div class="aspect-video w-full bg-rose-950/30 border border-rose-500/20 flex flex-col items-center justify-center relative overflow-hidden p-3 gap-1">
+              <div class="flex items-center gap-1.5 text-rose-400 font-semibold text-[11px] uppercase tracking-wider">
+                <Hourglass size={12} />
+                <span>{item.title || 'Cronômetro'}</span>
+              </div>
+              <div class="text-3xl sm:text-4xl font-mono font-black text-rose-300 tracking-tight">
+                {formatDuration(isNaN(secs) ? 0 : secs)}
+              </div>
+              {#if slide.lower_content}
+                <div class="text-[10px] text-rose-300/80 truncate max-w-[90%]">
+                  {slide.lower_content}
+                </div>
+              {/if}
+            </div>
           {:else}
             <div class="aspect-video w-full p-4 flex flex-col bg-black/60 relative overflow-hidden">
               <div
@@ -2810,8 +2888,14 @@
                               <BookOpen size={12} class="text-amber-400" />
                             {:else if item.kind === 'image'}
                               <ImageIcon size={12} class="text-emerald-400" />
+                            {:else if item.kind === 'video'}
+                              <Film size={12} class="text-purple-400" />
+                            {:else if item.kind === 'audio'}
+                              <Volume2 size={12} class="text-indigo-400" />
+                            {:else if item.kind === 'timer'}
+                              <Hourglass size={12} class="text-rose-400" />
                             {:else}
-                              <FileText size={12} class="text-purple-400" />
+                              <FileText size={12} class="text-neutral-400" />
                             {/if}
                           </div>
 
@@ -3205,6 +3289,7 @@
                 wallpaperPath={$presentationState.wallpaper_path}
                 wallpaperMode={$presentationState.wallpaper_mode}
                 resolvedWallpaper={resolvedWallpaper}
+                timer={$presentationState.timer}
               />
             </div>
           {/if}
@@ -3309,6 +3394,10 @@
     onadditemtosetlist={handleAddCustomItemToSetlist}
     onpresentitem={handlePresentCustomItem}
     onopenedititem={handleEditItem}
+    onopentimereditor={(timerItem) => {
+      editingTimerItem = timerItem || null;
+      isTimerEditorOpen = true;
+    }}
     onopenscheduleeditor={() => {
       editingScheduleItem = null;
       isScheduleEditorOpen = true;
@@ -3503,5 +3592,16 @@
     }}
     onpresent={handlePresentImage}
     onaddsetlist={handleAddImageToSetlist}
+  />
+
+  <TimerEditorModal
+    open={isTimerEditorOpen}
+    initialItem={editingTimerItem}
+    onclose={() => {
+      isTimerEditorOpen = false;
+      editingTimerItem = null;
+    }}
+    onsave={handleSaveTimerItem}
+    onaddtosetlist={handleAddTimerItemToSetlist}
   />
 </div>

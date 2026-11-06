@@ -78,6 +78,20 @@ export const DEFAULT_CUSTOM_ITEMS: MediaItem[] = [
       },
     ],
   },
+  {
+    id: 'default-timer-countdown',
+    title: 'Contagem Regressiva — Início do Culto',
+    artist_or_ref: '05:00',
+    kind: 'timer',
+    slides: [
+      {
+        id: 'timer-slide-1',
+        label: 'Contagem Regressiva',
+        content: '300',
+        lower_content: 'O culto começará em instantes. Prepare o seu coração!',
+      },
+    ],
+  },
 ];
 
 export const customItemsStore = writable<MediaItem[]>([]);

@@ -13,7 +13,7 @@
     syncDisplaySettingsFromBackend,
   } from '$lib/displaySettings';
   import { resolveMediaUrl } from '$lib/cast';
-  import { Maximize, Minimize, Clock } from 'lucide-svelte';
+  import { Maximize, Minimize, Clock, Film, Hourglass } from 'lucide-svelte';
 
   let isFullscreen = $state(false);
 
@@ -187,6 +187,17 @@
     }
     return { ref, version };
   }
+
+  const timer = $derived($presentationState.timer);
+
+  function formatPublicTimer(remaining: number, isOvertime = false): string {
+    const isNeg = remaining < 0 || isOvertime;
+    const abs = Math.abs(remaining);
+    const m = Math.floor(abs / 60);
+    const s = abs % 60;
+    const str = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return isNeg ? `-${str}` : str;
+  }
 </script>
 
 <svelte:window onkeydown={(e) => { if (e.key.toLowerCase() === 'f') toggleFullscreen(); }} />
@@ -306,6 +317,53 @@
               />
             </div>
           {/key}
+        {:else if activeMedia?.kind === 'video'}
+          <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+            <!-- svelte-ignore a11y_media_has_caption -->
+            <video
+              src={resolveMediaUrl(activeSlide.content)}
+              class="w-full h-full object-contain"
+              autoplay
+              playsinline
+            ></video>
+          </div>
+        {:else if activeMedia?.kind === 'timer'}
+          <!-- Contagem Regressiva Sincronizada com o Palco (Stage) -->
+          {@const remainingSecs = timer && timer.duration_seconds > 0 ? timer.remaining_seconds : parseInt(activeSlide.content || '0', 10) || 0}
+          {@const isOvertime = !!timer && (Boolean(timer.is_overtime) || (timer.duration_seconds > 0 && timer.remaining_seconds <= 0))}
+          {@const isNearEnd = !!timer && !isOvertime && timer.duration_seconds > 0 && timer.remaining_seconds <= (timer.warning_threshold_seconds || 60) && timer.remaining_seconds > 0}
+          <div class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col items-center justify-center select-none animate-in fade-in duration-200">
+            <div
+              class="max-w-4xl w-full mx-auto px-8 sm:px-14 py-8 sm:py-12 rounded-3xl border shadow-2xl flex flex-col items-center justify-center text-center gap-4 transition-all duration-300 {isOvertime ? 'bg-rose-950/70 border-rose-500/80 shadow-rose-900/50 animate-pulse' : isNearEnd ? 'bg-amber-950/60 border-amber-500/80 shadow-amber-900/40' : 'bg-black/65 border-white/20 backdrop-blur-xl'}"
+            >
+              <!-- Título do Cronômetro -->
+              <div class="flex items-center gap-2.5 text-xs sm:text-sm uppercase tracking-widest font-bold {isOvertime ? 'text-rose-300' : isNearEnd ? 'text-amber-300' : 'text-neutral-300'}">
+                <Hourglass size={18} class={timer?.running ? 'animate-spin' : ''} />
+                <span>{activeMedia.title || timer?.label || 'Contagem Regressiva'}</span>
+              </div>
+
+              <!-- Dígitos Gigantes da Contagem -->
+              <div
+                class="font-mono font-black tracking-tight leading-none text-7xl sm:text-8xl md:text-9xl lg:text-[140px] drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)] {isOvertime ? 'text-rose-400' : isNearEnd ? 'text-amber-400' : 'text-white'}"
+              >
+                {formatPublicTimer(remainingSecs, isOvertime)}
+              </div>
+
+              <!-- Mensagem ou Subtítulo -->
+              {#if activeSlide.lower_content || timer?.stage_message}
+                <p class="text-sm sm:text-base md:text-lg font-medium text-neutral-200/90 max-w-2xl mt-1 drop-shadow leading-relaxed">
+                  {activeSlide.lower_content || timer?.stage_message}
+                </p>
+              {/if}
+
+              <!-- Indicador de Status -->
+              {#if isOvertime}
+                <div class="px-4 py-1 rounded-full bg-rose-500/30 border border-rose-500/60 text-rose-200 text-xs sm:text-sm font-black uppercase tracking-wider">
+                  Tempo Esgotado
+                </div>
+              {/if}
+            </div>
+          </div>
         {:else if isSchedule}
           <!-- Agenda / Programação de Cultos e Festividades -->
           {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}

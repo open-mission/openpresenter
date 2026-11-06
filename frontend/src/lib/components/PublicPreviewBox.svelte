@@ -15,7 +15,7 @@
   } from '$lib/backgrounds';
   import { backgroundStylesStore } from '$lib/displaySettings';
   import { autoScale } from '$lib/autoScale';
-  import { Clock } from 'lucide-svelte';
+  import { Clock, Hourglass } from 'lucide-svelte';
 
   let {
     publicSettings,
@@ -26,6 +26,7 @@
     wallpaperPath = '',
     wallpaperMode = 'cover',
     resolvedWallpaper,
+    timer = null,
   }: {
     publicSettings: PublicDisplaySettings;
     churchBrand?: ChurchBrandSettings;
@@ -35,7 +36,24 @@
     wallpaperPath?: string;
     wallpaperMode?: string;
     resolvedWallpaper?: ResolvedBackground;
+    timer?: {
+      running: boolean;
+      duration_seconds: number;
+      remaining_seconds: number;
+      label?: string;
+      stage_message?: string;
+      is_overtime?: boolean;
+      warning_threshold_seconds?: number;
+    } | null;
   } = $props();
+
+  function formatPreviewTimer(remaining: number, isOvertime = false): string {
+    const isNeg = remaining < 0 || isOvertime;
+    const abs = Math.abs(remaining);
+    const m = Math.floor(abs / 60);
+    const s = abs % 60;
+    return `${isNeg ? '-' : ''}${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
 
   let containerWidth = $state<number>(320);
   const scale = $derived(containerWidth > 0 ? containerWidth / 1920 : 0.16666);
@@ -291,6 +309,31 @@
                 <img src={resolveMediaUrl(activeSlide.content)} alt={activeMedia?.title} class={imageFitClass} />
               </div>
             {/key}
+          {:else if activeMedia?.kind === 'video'}
+            <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+              <!-- svelte-ignore a11y_media_has_caption -->
+              <video src={resolveMediaUrl(activeSlide.content)} class="w-full h-full object-contain" autoplay loop muted playsinline></video>
+            </div>
+          {:else if activeMedia?.kind === 'timer'}
+            {@const remainingSecs = timer && timer.duration_seconds > 0 ? timer.remaining_seconds : parseInt(activeSlide.content || '0', 10) || 0}
+            {@const isOvertime = !!timer && (Boolean(timer.is_overtime) || (timer.duration_seconds > 0 && timer.remaining_seconds <= 0))}
+            {@const isNearEnd = !!timer && !isOvertime && timer.duration_seconds > 0 && timer.remaining_seconds <= (timer.warning_threshold_seconds || 60) && timer.remaining_seconds > 0}
+            <div class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col items-center justify-center select-none animate-in fade-in duration-150">
+              <div class="w-[85%] px-6 py-4 rounded-2xl border shadow-xl flex flex-col items-center justify-center text-center gap-2 {isOvertime ? 'bg-rose-950/70 border-rose-500/80 animate-pulse' : isNearEnd ? 'bg-amber-950/60 border-amber-500/80' : 'bg-black/65 border-white/20'}">
+                <div class="flex items-center gap-1.5 text-xs font-bold {isOvertime ? 'text-rose-300' : isNearEnd ? 'text-amber-300' : 'text-neutral-300'}">
+                  <Hourglass size={14} class={timer?.running ? 'animate-spin' : ''} />
+                  <span>{activeMedia?.title || timer?.label || 'Cronômetro'}</span>
+                </div>
+                <div class="font-mono font-black text-5xl leading-none {isOvertime ? 'text-rose-400' : isNearEnd ? 'text-amber-400' : 'text-white'}">
+                  {formatPreviewTimer(remainingSecs, isOvertime)}
+                </div>
+                {#if activeSlide.lower_content || timer?.stage_message}
+                  <p class="text-[11px] text-neutral-300 truncate max-w-full">
+                    {activeSlide.lower_content || timer?.stage_message}
+                  </p>
+                {/if}
+              </div>
+            </div>
           {:else if isSchedule}
             <!-- Agenda / Programação de Cultos e Festividades -->
             {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}
