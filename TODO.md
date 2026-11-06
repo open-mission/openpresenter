@@ -16,6 +16,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Feat: Home do Remote Mobile (/remote), Login Local de Membros e Controle de Acesso: nova tela inicial com design impecável ("impeccable shape") para dispositivos móveis contendo perfil do voluntário (avatar cromático e badge de cargo), seção "Minha Escala" no culto ativo com botões de presença em 1 toque (Confirmar / Ausente) e parceiros de equipe, atalhos rápidos para Apresentação, Escala da Equipe, Músicas e Bíblia, teaser com modal explicativo do futuro Chat da Equipe, sistema de identificação e login local com suporte a PIN opcional por membro ou operador da mesa, controle de permissão de projeção (modo leitura para voluntários sem acesso e desbloqueio dinâmico por PIN master), migração SQLite 0012_team_member_remote_access.sql e atualização de schemas OpenAPI. (2026-11-05 21:50:00 -03:00)
+
 - [x] Feat: Modais Maximizáveis e Otimização de Espaço nas Configurações: botão de maximizar/restaurar nos modais SettingsModal, SongEditorModal, ScheduleEditorModal, QuickItemModal, TeamsModal, SetlistModal, BackgroundSelectorModal e ImageSelectorModal preenchendo 100% da viewport (w-full h-full, p-0 no backdrop); e aproveitamento total de espaço no SettingsModal com novo layout em 2 colunas para Sobre & Updates e Atalhos e remoção de restrições estreitas nas demais seções. (commit 4491d64 - 2026-11-05 15:40:16 -03:00)
 
 - [x] Fix: Atualização Reativa do Fluxo de Escala (Svelte Flow) e Renderização da Visão em Grade: remoção de filtro inexistente de is_active em departamentos que ocultava cartões, mapeamento reativo de membros escalados por ID e sincronização de nodes e edges no RosterFlowCanvas. (commit a672a20 - 2026-11-05 15:40:01 -03:00)

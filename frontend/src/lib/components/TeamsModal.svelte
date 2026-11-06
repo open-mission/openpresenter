@@ -113,6 +113,8 @@
   let memberFormName = $state('');
   let memberFormPhone = $state('');
   let memberFormRole = $state<TeamMemberRole>('member');
+  let memberFormCanControlRemote = $state(true);
+  let memberFormPin = $state('');
   let memberFormNotes = $state('');
   let memberFormDepts = $state<string[]>([]);
   let memberFormIsActive = $state(true);
@@ -322,6 +324,8 @@
     memberFormName = '';
     memberFormPhone = '';
     memberFormRole = 'member';
+    memberFormCanControlRemote = true;
+    memberFormPin = '';
     memberFormNotes = '';
     memberFormDepts = [];
     memberFormIsActive = true;
@@ -333,6 +337,8 @@
     memberFormName = m.name;
     memberFormPhone = m.phone || '';
     memberFormRole = m.role || 'member';
+    memberFormCanControlRemote = m.can_control_remote ?? true;
+    memberFormPin = m.pin || '';
     memberFormNotes = m.notes || '';
     memberFormDepts = [...(m.department_ids || m.departments || [])];
     memberFormIsActive = m.is_active;
@@ -346,6 +352,8 @@
         name: memberFormName.trim(),
         phone: memberFormPhone.trim() || null,
         role: memberFormRole,
+        can_control_remote: memberFormCanControlRemote,
+        pin: memberFormPin.trim() || null,
         notes: memberFormNotes.trim() || null,
         department_ids: memberFormDepts,
         departments: memberFormDepts,
@@ -1496,6 +1504,34 @@
                   <span class="truncate">{d.name}</span>
                 </label>
               {/each}
+            </div>
+          </div>
+
+          <!-- Controle Remoto & PIN -->
+          <div class="p-2.5 rounded-lg bg-neutral-950 border border-neutral-800 space-y-2">
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                bind:checked={memberFormCanControlRemote}
+                class="rounded accent-purple-500"
+              />
+              <span class="text-xs font-semibold text-neutral-200">
+                Pode operar apresentação remota (/remote)
+              </span>
+            </label>
+
+            <div>
+              <label for="member-pin" class="block font-semibold text-neutral-400 text-[10px] mb-1">
+                PIN de Acesso Remoto (opcional, ex.: 1234)
+              </label>
+              <input
+                id="member-pin"
+                type="password"
+                maxlength="8"
+                bind:value={memberFormPin}
+                placeholder="Sem PIN (acesso direto ao selecionar)"
+                class="w-full h-8 px-2.5 bg-neutral-900 border border-neutral-800 rounded-lg text-white text-xs focus:outline-none focus:border-purple-500 font-mono"
+              />
             </div>
           </div>
 

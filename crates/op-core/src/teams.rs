@@ -32,6 +32,10 @@ fn default_member_role() -> String {
     "member".into()
 }
 
+fn default_true() -> bool {
+    true
+}
+
 /// Membro / voluntário da equipe de mídia.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TeamMember {
@@ -47,6 +51,12 @@ pub struct TeamMember {
     /// Cargo do membro na equipe (ex.: "leader", "vice_leader", "member").
     #[serde(default = "default_member_role")]
     pub role: String,
+    /// Permissão para controlar apresentação remota de mídia.
+    #[serde(default = "default_true")]
+    pub can_control_remote: bool,
+    /// PIN numérico opcional para autenticação local (ex.: "1234").
+    #[serde(default)]
+    pub pin: Option<String>,
     #[serde(default)]
     pub notes: Option<String>,
     pub is_active: bool,
@@ -71,6 +81,12 @@ pub struct UpsertTeamMember {
     /// Cargo do membro na equipe (ex.: "leader", "vice_leader", "member").
     #[serde(default)]
     pub role: Option<String>,
+    /// Permissão para controlar apresentação remota de mídia.
+    #[serde(default)]
+    pub can_control_remote: Option<bool>,
+    /// PIN numérico opcional para autenticação local.
+    #[serde(default)]
+    pub pin: Option<String>,
     #[serde(default)]
     pub notes: Option<String>,
     #[serde(default)]
@@ -193,6 +209,8 @@ mod tests {
             avatar_url: None,
             color: "#10b981".into(),
             role: "leader".into(),
+            can_control_remote: true,
+            pin: Some("1234".into()),
             notes: Some("Disponível aos domingos".into()),
             is_active: true,
             department_ids: vec!["projecao".into(), "stories".into()],
@@ -204,7 +222,7 @@ mod tests {
         let deserialized: TeamMember = serde_json::from_str(&json).unwrap();
         assert_eq!(member, deserialized);
 
-        // Testa deserialização com alias "departments" e role default
+        // Testa deserialização com alias "departments", role default e can_control_remote default
         let json_legacy = r##"{
             "id": "mem-2",
             "name": "Maria Santos",
@@ -216,6 +234,8 @@ mod tests {
         }"##;
         let legacy_member: TeamMember = serde_json::from_str(json_legacy).unwrap();
         assert_eq!(legacy_member.role, "member");
+        assert!(legacy_member.can_control_remote);
+        assert_eq!(legacy_member.pin, None);
         assert_eq!(legacy_member.department_ids, vec!["fotografia"]);
 
         let roster_item = ServiceRosterItem {

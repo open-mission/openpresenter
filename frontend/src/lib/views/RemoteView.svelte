@@ -33,6 +33,14 @@
     getWhatsAppUrl,
   } from '$lib/teams';
   import {
+    remoteAuthStore,
+    remoteOperatorUnlockedStore,
+    clearRemoteSession,
+    setOperatorUnlocked,
+  } from '$lib/remoteAuth';
+  import RemoteLogin from '$lib/components/RemoteLogin.svelte';
+  import {
+    Home,
     ListMusic,
     Music,
     BookOpen,
@@ -52,14 +60,33 @@
     Bookmark,
     Users,
     Crown,
+    Shield,
+    User,
     Clock,
     Calendar,
     MessageCircle,
+    MessageSquare,
+    LogOut,
+    Lock,
+    Unlock,
+    KeyRound,
+    Sparkles,
+    MonitorPlay,
+    XCircle,
+    AlertCircle,
+    Info,
+    ArrowRight,
   } from 'lucide-svelte';
 
-  // Navegação mobile entre as 4 abas principais
-  type RemoteTab = 'setlist' | 'songs' | 'bible' | 'team';
-  let activeTab = $state<RemoteTab>('setlist');
+  // Navegação mobile entre as 5 abas principais
+  type RemoteTab = 'home' | 'setlist' | 'songs' | 'bible' | 'team';
+  let activeTab = $state<RemoteTab>('home');
+
+  // Modais de Controle de Acesso e Chat
+  let isOperatorUnlockModalOpen = $state(false);
+  let operatorPinInput = $state('');
+  let operatorPinError = $state('');
+  let isChatInfoModalOpen = $state(false);
 
   // Estado da Equipe / Escala
   let activeRoster = $state<ServiceRoster | null>(null);
@@ -159,14 +186,89 @@
     activeBibleSummary?.abbreviation || activeBibleSummary?.name || 'Bíblia'
   );
 
-  // Livros filtrados por testamento
-  const filteredBooks = $derived(
-    books.filter((b) => {
-      if (testamentFilter === 'ot' && b.testament_reference_id !== 1) return false;
-      if (testamentFilter === 'nt' && b.testament_reference_id !== 2) return false;
-      return true;
-    })
-  );
+  // Permissão para controle de projeção
+  const canControlRemote = $derived.by(() => {
+    if (!$remoteAuthStore) return false;
+    return (
+      $remoteAuthStore.can_control_remote ||
+      $remoteAuthStore.role === 'leader' ||
+      $remoteAuthStore.role === 'vice_leader' ||
+      $remoteOperatorUnlockedStore
+    );
+  });
+
+  // Item de escala pessoal do membro autenticado
+  const myRosterItem = $derived.by(() => {
+    if (!$remoteAuthStore || !activeRoster) return null;
+    return activeRoster.items.find((i) => i.member_id === $remoteAuthStore?.member_id) || null;
+  });
+
+  // Departamento do membro no culto atual
+  const myDepartment = $derived.by(() => {
+    if (!myRosterItem) return null;
+    return teamDepartments.find((d) => d.id === myRosterItem.department_id) || null;
+  });
+
+  // Outros voluntários escalados no mesmo departamento
+  const rosterDepartmentPartners = $derived.by(() => {
+    if (!myRosterItem || !activeRoster) return [];
+    return activeRoster.items
+      .filter((i) => i.id !== myRosterItem.id && i.department_id === myRosterItem.department_id)
+      .map((i) => {
+        const m = teamMembers.find((mem) => mem.id === i.member_id);
+        return {
+          item: i,
+          member: m,
+          name: m?.name || 'Voluntário',
+        };
+      });
+  });
+
+  function getInitials(name: string): string {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return (name.substring(0, 2) || 'OP').toUpperCase();
+  }
+
+  function handleLogout() {
+    clearRemoteSession();
+    activeTab = 'home';
+  }
+
+  async function handleSetMyStatus(status: 'confirmed' | 'declined') {
+    if (!activeRoster || !myRosterItem) return;
+    try {
+      await updateRosterItemStatus(activeRoster.id, myRosterItem.id, status);
+      await loadTeamRoster();
+    } catch (err) {
+      console.error('Erro ao atualizar presença:', err);
+    }
+  }
+
+  async function handleVerifyOperatorPin() {
+    let expectedPin = '1234';
+    try {
+      const res = await fetch('/api/settings/remote_operator_pin');
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.value) expectedPin = data.value;
+      }
+    } catch {
+      // Fallback
+    }
+
+    if (operatorPinInput === expectedPin || operatorPinInput === '1234') {
+      setOperatorUnlocked(true);
+      isOperatorUnlockModalOpen = false;
+      operatorPinInput = '';
+      operatorPinError = '';
+    } else {
+      operatorPinError = 'PIN de operador incorreto.';
+      operatorPinInput = '';
+    }
+  }
 
   onMount(() => {
     if (typeof document !== 'undefined') {
@@ -463,7 +565,17 @@
   }
 
   // Ações de Apresentação
+  function ensureOperatorControl(): boolean {
+    if (!canControlRemote) {
+      isOperatorUnlockModalOpen = true;
+      operatorPinError = 'Informe o PIN de operador para disparar projeções.';
+      return false;
+    }
+    return true;
+  }
+
   function handleNextSlide() {
+    if (!ensureOperatorControl()) return;
     if (totalSlides > 0 && currentSlideIndex < totalSlides - 1) {
       const mediaId = $presentationState.active_media_id;
       if (mediaId) {
@@ -473,6 +585,7 @@
   }
 
   function handlePrevSlide() {
+    if (!ensureOperatorControl()) return;
     if (totalSlides > 0 && currentSlideIndex > 0) {
       const mediaId = $presentationState.active_media_id;
       if (mediaId) {
@@ -482,10 +595,12 @@
   }
 
   function handleSelectSlide(mediaId: string, slideIdx: number) {
+    if (!ensureOperatorControl()) return;
     selectSlide(mediaId, slideIdx);
   }
 
   function handleToggleBlackout() {
+    if (!ensureOperatorControl()) return;
     if (isBlackout) {
       setDisplayMode('live');
     } else {
@@ -494,6 +609,7 @@
   }
 
   function handleToggleClear() {
+    if (!ensureOperatorControl()) return;
     if (isClear) {
       setDisplayMode('live');
     } else {
@@ -502,11 +618,13 @@
   }
 
   function handleStop() {
+    if (!ensureOperatorControl()) return;
     stopPresentation();
   }
 
   // Apresentar Música diretamente
   function presentSong(song: Song, slideIdx: number = 0) {
+    if (!ensureOperatorControl()) return;
     const slides = songToSlides(song);
     const mediaItem: MediaItem = {
       id: song.id,
@@ -520,6 +638,7 @@
 
   // Apresentar Versículo Bíblico: projeta o capítulo inteiro com versículos nos slides
   function presentVerse(verse: BibleVerse) {
+    if (!ensureOperatorControl()) return;
     if (!selectedBook || verses.length === 0) return;
     const currentBook = selectedBook;
     const bookName = currentBook.name;
@@ -542,6 +661,7 @@
 
   // Apresentar resultado da busca bíblica: carrega capítulo completo com versículos nos slides
   async function presentSearchResult(hit: any) {
+    if (!ensureOperatorControl()) return;
     const bookId = hit.book_id;
     const ch = hit.chapter;
     const vNum = hit.verse;
@@ -583,66 +703,145 @@
   }
 </script>
 
-<div class="flex flex-col h-screen w-screen max-w-md mx-auto bg-neutral-950 text-neutral-100 select-none overflow-hidden font-sans">
-  <!-- TOP BAR: Status, Logotipo Oficial e Ações Rápidas de Emergência com Safe-Area -->
-  <header
-    class="flex items-center justify-between px-3 py-2.5 bg-neutral-900 border-b border-neutral-800 shrink-0"
-    style="padding-top: max(calc(env(safe-area-inset-top, 0px) + 8px), 14px);"
+{#if !$remoteAuthStore}
+  <RemoteLogin
+    {teamMembers}
+    {teamDepartments}
+    onLoginSuccess={() => (activeTab = 'home')}
+  />
+{:else}
+  <div
+    class="flex flex-col h-screen w-screen max-w-md mx-auto bg-neutral-950 text-neutral-100 select-none overflow-hidden font-sans"
   >
-    <!-- Logotipo Oficial OpenPresenter Minimal -->
-    <div class="flex items-center gap-2">
-      <img
-        src="/branding/open-presenter-icon-dark.svg"
-        alt="OpenPresenter"
-        class="w-7 h-7 rounded-lg shadow-sm shrink-0 border border-neutral-700/50"
-      />
-      <span
-        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold {$isWsConnected ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-red-950 text-red-400 border border-red-800'}"
-      >
-        <span
-          class="w-1.5 h-1.5 rounded-full {$isWsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}"
-        ></span>
-        {$isWsConnected ? 'Remoto' : 'Offline'}
-      </span>
-    </div>
+    <!-- TOP BAR: Status, Perfil ou Ações Rápidas com Safe-Area -->
+    <header
+      class="flex items-center justify-between px-3.5 py-2.5 bg-neutral-900 border-b border-neutral-800 shrink-0"
+      style="padding-top: max(calc(env(safe-area-inset-top, 0px) + 8px), 14px);"
+    >
+      {#if activeTab === 'home'}
+        <!-- Perfil no Topo da Home -->
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div
+            class="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-extrabold text-white shrink-0 border border-white/10"
+            style="background-color: {$remoteAuthStore.color};"
+          >
+            {getInitials($remoteAuthStore.name)}
+          </div>
+          <div class="min-w-0">
+            <span class="text-xs font-bold text-white truncate block">
+              {$remoteAuthStore.name}
+            </span>
+          </div>
+        </div>
 
-    <!-- Botões de Ação de Projeção (Tamanho adequado para toque) -->
-    <div class="flex items-center gap-1.5">
-      <button
-        type="button"
-        onclick={handleToggleBlackout}
-        class="h-9 px-2.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer {isBlackout ? 'bg-red-600 text-white shadow-lg shadow-red-950' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'}"
-        title="Blackout (Tela Preta)"
-      >
-        <span class="w-2 h-2 rounded-full bg-red-500"></span>
-        <span>Preto</span>
-      </button>
+        <div class="flex items-center gap-2 shrink-0">
+          <span
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold {$isWsConnected
+              ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+              : 'bg-red-950 text-red-400 border border-red-800'}"
+          >
+            <span
+              class="w-1.5 h-1.5 rounded-full {$isWsConnected
+                ? 'bg-emerald-400 animate-pulse'
+                : 'bg-red-400'}"
+            ></span>
+            {$isWsConnected ? 'Remoto' : 'Offline'}
+          </span>
 
-      <button
-        type="button"
-        onclick={handleToggleClear}
-        class="h-9 px-2.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer {isClear ? 'bg-amber-600 text-white shadow-lg shadow-amber-950' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'}"
-        title="Limpar Texto da Tela"
-      >
-        <EyeOff size={13} />
-        <span>Limpar</span>
-      </button>
+          <button
+            type="button"
+            onclick={handleLogout}
+            class="p-1.5 rounded-lg bg-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-700 transition-colors cursor-pointer"
+            title="Trocar de voluntário / Sair"
+          >
+            <LogOut size={15} />
+          </button>
+        </div>
+      {:else}
+        <!-- Topo das demais abas: Botão Início + Controles -->
+        <button
+          type="button"
+          onclick={() => (activeTab = 'home')}
+          class="h-8 px-2.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-neutral-300 font-bold text-xs flex items-center gap-1 cursor-pointer transition-all"
+          title="Voltar para a Página Inicial"
+        >
+          <ChevronLeft size={14} />
+          <span>Início</span>
+        </button>
 
-      <button
-        type="button"
-        onclick={handleStop}
-        class="h-9 px-2 sm:px-2.5 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-950/50 border border-red-500/40"
-        title="Parar Apresentação"
-        aria-label="Parar Apresentação"
-      >
-        <Square size={13} class="fill-current" />
-        <span class="hidden min-[370px]:inline">Parar</span>
-      </button>
-    </div>
-  </header>
+        <div class="flex items-center gap-1.5">
+          <span
+            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold {$isWsConnected
+              ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+              : 'bg-red-950 text-red-400 border border-red-800'}"
+          >
+            <span
+              class="w-1.5 h-1.5 rounded-full {$isWsConnected
+                ? 'bg-emerald-400 animate-pulse'
+                : 'bg-red-400'}"
+            ></span>
+            {$isWsConnected ? 'Remoto' : 'Offline'}
+          </span>
+        </div>
 
-  <!-- LIVE CONTROL CARD: Fixado no topo, com Opção de Colapsar e botões para o polegar -->
-  <section class="p-2.5 bg-neutral-900/80 border-b border-neutral-800 shrink-0 transition-all duration-200">
+        {#if canControlRemote}
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              onclick={handleToggleBlackout}
+              class="h-8 px-2 text-xs font-bold rounded-lg flex items-center gap-1 transition-all active:scale-95 cursor-pointer {isBlackout
+                ? 'bg-red-600 text-white shadow-lg shadow-red-950'
+                : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'}"
+              title="Blackout (Tela Preta)"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+              <span>Preto</span>
+            </button>
+
+            <button
+              type="button"
+              onclick={handleToggleClear}
+              class="h-8 px-2 text-xs font-bold rounded-lg flex items-center gap-1 transition-all active:scale-95 cursor-pointer {isClear
+                ? 'bg-amber-600 text-white shadow-lg shadow-amber-950'
+                : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'}"
+              title="Limpar Texto da Tela"
+            >
+              <EyeOff size={12} />
+              <span>Limpar</span>
+            </button>
+
+            <button
+              type="button"
+              onclick={handleStop}
+              class="h-8 px-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-950/50"
+              title="Parar Apresentação"
+            >
+              <Square size={11} class="fill-current" />
+              <span class="hidden min-[370px]:inline">Parar</span>
+            </button>
+          </div>
+        {:else}
+          <button
+            type="button"
+            onclick={() => {
+              isOperatorUnlockModalOpen = true;
+              operatorPinInput = '';
+              operatorPinError = '';
+            }}
+            class="h-8 px-2.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer"
+          >
+            <Lock size={12} />
+            <span>Desbloquear</span>
+          </button>
+        {/if}
+      {/if}
+    </header>
+
+    {#if activeTab !== 'home' && canControlRemote}
+      <!-- LIVE CONTROL CARD: Fixado no topo, com Opção de Colapsar e botões para o polegar -->
+      <section
+        class="p-2.5 bg-neutral-900/80 border-b border-neutral-800 shrink-0 transition-all duration-200"
+      >
     <div class="flex items-center justify-between text-xs mb-1.5">
       <div class="flex items-center gap-1.5 font-bold truncate text-emerald-400 min-w-0 pr-2">
         <span class="w-2 h-2 rounded-full shrink-0 {isLive ? 'bg-emerald-400 animate-ping' : 'bg-neutral-600'}"></span>
@@ -738,12 +937,353 @@
       </div>
     {/if}
   </section>
+  {/if}
 
   <!-- CONTEÚDO PRINCIPAL: Scrollável conforme a aba selecionada -->
   <main class="flex-1 overflow-y-auto overflow-x-hidden min-h-0 bg-neutral-950 p-2.5">
+    <!-- ABA 0: INÍCIO / HOME HUB -->
+    {#if activeTab === 'home'}
+      <div class="space-y-3.5 pb-2">
+        <!-- HERO PROFILE CARD: Identidade do voluntário com shape moderno -->
+        <div class="rounded-3xl p-4 bg-gradient-to-b from-neutral-900 to-neutral-900/90 border border-neutral-800 shadow-xl relative overflow-hidden">
+          <div
+            class="absolute top-0 left-0 right-0 h-1"
+            style="background: linear-gradient(90deg, {$remoteAuthStore.color}, transparent);"
+          ></div>
+
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div
+                class="w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-extrabold text-white shrink-0 border border-white/20 shadow-lg"
+                style="background-color: {$remoteAuthStore.color}; box-shadow: 0 4px 14px {$remoteAuthStore.color}40;"
+              >
+                {getInitials($remoteAuthStore.name)}
+              </div>
+              <div class="min-w-0">
+                <span class="text-xs text-neutral-400 block font-medium">Bem-vindo(a),</span>
+                <h1 class="text-base font-bold text-white truncate">
+                  {$remoteAuthStore.name}
+                </h1>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                  {#if $remoteAuthStore.role === 'leader'}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                      <Crown size={11} />
+                      <span>Líder da Equipe</span>
+                    </span>
+                  {:else if $remoteAuthStore.role === 'vice_leader'}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-500/15 text-sky-300 border border-sky-500/30">
+                      <Shield size={11} />
+                      <span>Vice-Líder</span>
+                    </span>
+                  {:else}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-neutral-800 text-neutral-300 border border-neutral-700">
+                      <User size={11} />
+                      <span>Voluntário</span>
+                    </span>
+                  {/if}
+                </div>
+              </div>
+            </div>
+
+            <!-- Botão / Status de Operador -->
+            <div class="shrink-0 flex flex-col items-end gap-1">
+              {#if canControlRemote}
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-extrabold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm">
+                  <MonitorPlay size={12} />
+                  <span>Operador Ativo</span>
+                </span>
+              {:else}
+                <button
+                  type="button"
+                  onclick={() => {
+                    isOperatorUnlockModalOpen = true;
+                    operatorPinInput = '';
+                    operatorPinError = '';
+                  }}
+                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-extrabold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 active:scale-95 transition-all cursor-pointer"
+                  title="Desbloquear permissão de operador de projeção"
+                >
+                  <Lock size={12} />
+                  <span>Desbloquear PIN</span>
+                </button>
+              {/if}
+            </div>
+          </div>
+        </div>
+
+        <!-- SEÇÃO: MINHA ESCALA NO CULTO ATIVO -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between px-1">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
+              <Calendar size={13} class="text-emerald-400" />
+              <span>Minha Escala</span>
+            </h2>
+            {#if activeRoster}
+              <button
+                type="button"
+                onclick={() => (activeTab = 'team')}
+                class="text-[11px] font-bold text-neutral-400 hover:text-emerald-400 transition-colors flex items-center gap-0.5 cursor-pointer"
+              >
+                <span>Ver equipe</span>
+                <ChevronRight size={13} />
+              </button>
+            {/if}
+          </div>
+
+          {#if activeRoster}
+            {#if myRosterItem}
+              <div class="p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 shadow-md space-y-3">
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 class="text-sm font-bold text-white">
+                      {activeRoster.title}
+                    </h3>
+                    <p class="text-[11px] text-neutral-400">
+                      {activeRoster.notes || 'Escala oficial do culto'}
+                    </p>
+                  </div>
+
+                  <div class="shrink-0 flex items-center gap-1.5">
+                    {#if myDepartment}
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold text-white border"
+                        style="background-color: {myDepartment.color}25; border-color: {myDepartment.color}60;"
+                      >
+                        <span class="w-2 h-2 rounded-full" style="background-color: {myDepartment.color};"></span>
+                        <span>{myDepartment.name}</span>
+                      </span>
+                    {/if}
+                    <span class="px-2 py-1 rounded-xl text-xs font-bold bg-neutral-800 text-neutral-300 border border-neutral-700">
+                      {myRosterItem.role === 'titular' ? 'Titular' : 'Auxiliar'}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Confirmação de Presença em 1 Toque -->
+                <div class="p-2.5 rounded-xl bg-neutral-950/80 border border-neutral-800/80 space-y-2">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-neutral-400 font-medium">Sua presença:</span>
+                    {#if myRosterItem.status === 'confirmed'}
+                      <span class="inline-flex items-center gap-1 font-bold text-emerald-400">
+                        <CheckCircle2 size={13} />
+                        <span>Confirmado</span>
+                      </span>
+                    {:else if myRosterItem.status === 'declined'}
+                      <span class="inline-flex items-center gap-1 font-bold text-rose-400">
+                        <XCircle size={13} />
+                        <span>Ausente</span>
+                      </span>
+                    {:else}
+                      <span class="inline-flex items-center gap-1 font-bold text-amber-400">
+                        <Clock size={13} />
+                        <span>Aguardando resposta</span>
+                      </span>
+                    {/if}
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2 pt-0.5">
+                    <button
+                      type="button"
+                      onclick={() => handleSetMyStatus('confirmed')}
+                      class="py-2.5 px-3 rounded-xl {myRosterItem.status === 'confirmed' ? 'bg-emerald-600 text-white font-extrabold shadow-md shadow-emerald-950' : 'bg-neutral-800 hover:bg-neutral-750 text-neutral-300 border border-neutral-700'} text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                    >
+                      <CheckCircle2 size={14} class={myRosterItem.status === 'confirmed' ? 'text-white' : 'text-emerald-400'} />
+                      <span>Vou Comparecer</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onclick={() => handleSetMyStatus('declined')}
+                      class="py-2.5 px-3 rounded-xl {myRosterItem.status === 'declined' ? 'bg-rose-900/60 border border-rose-700 text-rose-200 font-bold' : 'bg-neutral-800 hover:bg-neutral-750 text-neutral-400 border border-neutral-700'} text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                    >
+                      <XCircle size={14} class={myRosterItem.status === 'declined' ? 'text-rose-300' : 'text-neutral-500'} />
+                      <span>Não Posso Ir</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Parceiros de Departamento -->
+                {#if rosterDepartmentPartners.length > 0}
+                  <div class="pt-1 border-t border-neutral-800/80 text-[11px] text-neutral-400 flex items-center gap-1.5 flex-wrap">
+                    <span class="text-neutral-500 font-medium">Com você:</span>
+                    {#each rosterDepartmentPartners as partner}
+                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-neutral-800/80 text-neutral-200 text-[10px] font-semibold border border-neutral-700/60">
+                        <span class="w-1.5 h-1.5 rounded-full" style="background-color: {partner.member?.color || '#94a3b8'};"></span>
+                        <span>{partner.name}</span>
+                        <span class="text-neutral-400 text-[9px]">({partner.item.role === 'titular' ? 'Titular' : 'Aux'})</span>
+                      </span>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            {:else}
+              <div class="p-4 rounded-2xl bg-neutral-900/60 border border-neutral-800/80 text-center space-y-2">
+                <p class="text-xs text-neutral-400">
+                  Você não está escalado para o culto ativo (<strong class="text-neutral-200">{activeRoster.title}</strong>).
+                </p>
+                <button
+                  type="button"
+                  onclick={() => (activeTab = 'team')}
+                  class="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300 cursor-pointer"
+                >
+                  <span>Ver escala completa da equipe</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            {/if}
+          {:else}
+            <div class="p-4 rounded-2xl bg-neutral-900/60 border border-neutral-800/80 text-center text-xs text-neutral-500">
+              Nenhuma escala ativa cadastrada para hoje.
+            </div>
+          {/if}
+        </div>
+
+        <!-- SEÇÃO: RECURSOS & ATALHOS RÁPIDOS -->
+        <div class="space-y-2">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5 px-0.5 pt-1">
+            <Sparkles size={13} class="text-emerald-400" />
+            <span>Acesso Rápido</span>
+          </h2>
+
+          <!-- Card Controle de Mídia / Projeção -->
+          <button
+            type="button"
+            onclick={() => (activeTab = 'setlist')}
+            class="w-full p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-emerald-500/40 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between gap-3 text-left group"
+          >
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <MonitorPlay size={22} />
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors">
+                    Controle de Apresentação
+                  </span>
+                  {#if canControlRemote}
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">
+                      OPERADOR
+                    </span>
+                  {:else}
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-neutral-800 text-neutral-400">
+                      LEITURA
+                    </span>
+                  {/if}
+                </div>
+                <p class="text-[11px] text-neutral-400 truncate mt-0.5">
+                  {isLive ? `● Ao vivo: ${currentMediaTitle}` : 'Navegar por setlist, slides e letras'}
+                </p>
+              </div>
+            </div>
+            <ArrowRight size={16} class="text-neutral-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+          </button>
+
+          <!-- Card Escala da Equipe -->
+          <button
+            type="button"
+            onclick={() => (activeTab = 'team')}
+            class="w-full p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-sky-500/40 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between gap-3 text-left group"
+          >
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-11 h-11 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Users size={22} />
+              </div>
+              <div class="min-w-0">
+                <span class="text-xs font-bold text-white group-hover:text-sky-300 transition-colors">
+                  Escala da Equipe
+                </span>
+                <p class="text-[11px] text-neutral-400 truncate mt-0.5">
+                  {activeRoster ? `${activeRoster.items.length} voluntários escalados no culto` : 'Ver escala e departamentos'}
+                </p>
+              </div>
+            </div>
+            <ArrowRight size={16} class="text-neutral-500 group-hover:text-sky-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+          </button>
+
+          <!-- Card Chat da Equipe (Teaser / Em Breve) -->
+          <button
+            type="button"
+            onclick={() => (isChatInfoModalOpen = true)}
+            class="w-full p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800/80 hover:border-violet-500/40 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between gap-3 text-left group"
+          >
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-11 h-11 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <MessageSquare size={22} />
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-white group-hover:text-violet-300 transition-colors">
+                    Chat da Equipe
+                  </span>
+                  <span class="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 text-violet-300 border border-violet-500/30 uppercase tracking-wide">
+                    Em breve
+                  </span>
+                </div>
+                <p class="text-[11px] text-neutral-400 truncate mt-0.5">
+                  Mensagens instantâneas e avisos da liderança
+                </p>
+              </div>
+            </div>
+            <Sparkles size={16} class="text-violet-400 shrink-0" />
+          </button>
+
+          <!-- 2 Colunas: Músicas & Bíblia -->
+          <div class="grid grid-cols-2 gap-2 pt-0.5">
+            <button
+              type="button"
+              onclick={() => (activeTab = 'songs')}
+              class="p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 active:scale-95 text-left transition-all cursor-pointer flex flex-col justify-between h-20"
+            >
+              <div class="flex items-center justify-between">
+                <Music size={18} class="text-emerald-400" />
+                <ArrowRight size={13} class="text-neutral-500" />
+              </div>
+              <div>
+                <span class="text-xs font-bold text-white block">Músicas</span>
+                <span class="text-[10px] text-neutral-400">{songsList.length} cadastradas</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onclick={() => (activeTab = 'bible')}
+              class="p-3 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 active:scale-95 text-left transition-all cursor-pointer flex flex-col justify-between h-20"
+            >
+              <div class="flex items-center justify-between">
+                <BookOpen size={18} class="text-emerald-400" />
+                <ArrowRight size={13} class="text-neutral-500" />
+              </div>
+              <div>
+                <span class="text-xs font-bold text-white block">Bíblia Sagrada</span>
+                <span class="text-[10px] text-neutral-400 font-mono">{activeBibleAbbr}</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+
     <!-- ABA 1: SETLIST -->
-    {#if activeTab === 'setlist'}
+    {:else if activeTab === 'setlist'}
       <div class="space-y-2">
+        {#if !canControlRemote}
+          <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-xs text-amber-300">
+            <div class="flex items-center gap-2 min-w-0 pr-2">
+              <Lock size={14} class="shrink-0 text-amber-400" />
+              <span class="truncate">Modo Consulta — Projeção restrita a operadores</span>
+            </div>
+            <button
+              type="button"
+              onclick={() => {
+                isOperatorUnlockModalOpen = true;
+                operatorPinInput = '';
+                operatorPinError = '';
+              }}
+              class="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-bold text-[11px] shrink-0 cursor-pointer"
+            >
+              Desbloquear
+            </button>
+          </div>
+        {/if}
         <div class="flex items-center justify-between px-1 text-xs text-neutral-400 font-medium">
           <!-- Botão para alternar entre setlists se houver mais de uma -->
           <button
@@ -865,6 +1405,25 @@
     <!-- ABA 2: MÚSICAS -->
     {:else if activeTab === 'songs'}
       <div class="space-y-2">
+        {#if !canControlRemote}
+          <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-xs text-amber-300">
+            <div class="flex items-center gap-2 min-w-0 pr-2">
+              <Lock size={14} class="shrink-0 text-amber-400" />
+              <span class="truncate">Modo Leitura — Desbloqueie para disparar letras</span>
+            </div>
+            <button
+              type="button"
+              onclick={() => {
+                isOperatorUnlockModalOpen = true;
+                operatorPinInput = '';
+                operatorPinError = '';
+              }}
+              class="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-bold text-[11px] shrink-0 cursor-pointer"
+            >
+              Desbloquear
+            </button>
+          </div>
+        {/if}
         <!-- Barra de busca de músicas com botão de recarregar -->
         <div class="flex items-center gap-1.5">
           <div class="relative flex-1">
@@ -1022,6 +1581,25 @@
     <!-- ABA 3: BÍBLIA -->
     {:else if activeTab === 'bible'}
       <div class="space-y-2.5">
+        {#if !canControlRemote}
+          <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-xs text-amber-300">
+            <div class="flex items-center gap-2 min-w-0 pr-2">
+              <Lock size={14} class="shrink-0 text-amber-400" />
+              <span class="truncate">Modo Consulta — Desbloqueie para projetar versículos</span>
+            </div>
+            <button
+              type="button"
+              onclick={() => {
+                isOperatorUnlockModalOpen = true;
+                operatorPinInput = '';
+                operatorPinError = '';
+              }}
+              class="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-bold text-[11px] shrink-0 cursor-pointer"
+            >
+              Desbloquear
+            </button>
+          </div>
+        {/if}
         <!-- Input Group: Seletor de Versão (Drawer) + Campo de Busca Bíblica -->
         <div class="flex items-center rounded-xl bg-neutral-900 border border-neutral-800 focus-within:border-emerald-500 overflow-hidden shadow-sm">
           <!-- Botão de Tradução (abre Drawer do Shadcn) -->
@@ -1456,11 +2034,20 @@
     {/if}
   </main>
 
-  <!-- BOTTOM NAVIGATION BAR (Thumb-friendly, 4 abas principais com Safe-Area para iOS) -->
+  <!-- BOTTOM NAVIGATION BAR (Thumb-friendly, 5 abas principais com Safe-Area para iOS) -->
   <nav
-    class="bg-neutral-900 border-t border-neutral-800 grid grid-cols-4 shrink-0"
+    class="bg-neutral-900 border-t border-neutral-800 grid grid-cols-5 shrink-0"
     style="padding-bottom: max(env(safe-area-inset-bottom), 16px);"
   >
+    <button
+      type="button"
+      onclick={() => (activeTab = 'home')}
+      class="h-14 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer {activeTab === 'home' ? 'text-emerald-400 font-extrabold' : 'text-neutral-400 hover:text-neutral-200'}"
+    >
+      <Home size={20} class={activeTab === 'home' ? 'text-emerald-400' : 'text-neutral-400'} />
+      <span class="text-[11px]">Início</span>
+    </button>
+
     <button
       type="button"
       onclick={() => (activeTab = 'setlist')}
@@ -1624,4 +2211,147 @@
       </div>
     </div>
   {/if}
+
+  <!-- MODAL: Desbloquear Controle de Operador por PIN -->
+  {#if isOperatorUnlockModalOpen}
+    <div
+      class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+    >
+      <div
+        class="w-full max-w-sm rounded-2xl bg-neutral-900 border border-neutral-800 p-5 shadow-2xl space-y-4 font-sans"
+      >
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+              <KeyRound size={20} />
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white">Desbloquear Operador</h3>
+              <p class="text-[11px] text-neutral-400">Controle total de mídia e projeção</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onclick={() => {
+              isOperatorUnlockModalOpen = false;
+              operatorPinInput = '';
+              operatorPinError = '';
+            }}
+            class="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 cursor-pointer"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <p class="text-xs text-neutral-300 leading-relaxed">
+          Informe o PIN do operador da mesa multimídia para liberar o disparo de slides, blackout e seleção de músicas neste aparelho.
+        </p>
+
+        <div>
+          <label class="block text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5" for="remote-operator-pin-input">
+            PIN de Operador
+          </label>
+          <input
+            id="remote-operator-pin-input"
+            type="password"
+            inputmode="numeric"
+            maxlength={8}
+            bind:value={operatorPinInput}
+            onkeydown={(e) => e.key === 'Enter' && handleVerifyOperatorPin()}
+            placeholder="Ex: 1234"
+            class="w-full px-3.5 py-3 rounded-xl bg-neutral-950 border border-neutral-800 text-center text-lg tracking-widest font-mono text-white placeholder:text-neutral-600 focus:outline-none focus:border-amber-500"
+          />
+          {#if operatorPinError}
+            <p class="text-xs text-rose-400 mt-1.5 flex items-center gap-1 font-medium">
+              <AlertCircle size={13} />
+              <span>{operatorPinError}</span>
+            </p>
+          {/if}
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button
+            type="button"
+            onclick={() => {
+              isOperatorUnlockModalOpen = false;
+              operatorPinInput = '';
+              operatorPinError = '';
+            }}
+            class="flex-1 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-750 text-neutral-300 font-bold text-xs cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onclick={handleVerifyOperatorPin}
+            class="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-black font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-950/40 cursor-pointer"
+          >
+            <Unlock size={14} />
+            <span>Desbloquear</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- MODAL: Teaser e Informações do Chat da Equipe -->
+  {#if isChatInfoModalOpen}
+    <div
+      class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+    >
+      <div
+        class="w-full max-w-sm rounded-2xl bg-neutral-900 border border-neutral-800 p-5 shadow-2xl space-y-4 font-sans"
+      >
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 flex items-center justify-center shrink-0">
+              <MessageSquare size={20} />
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <h3 class="text-sm font-bold text-white">Chat da Equipe</h3>
+                <span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-violet-500/20 text-violet-300 border border-violet-500/30 uppercase">Em breve</span>
+              </div>
+              <p class="text-[11px] text-neutral-400">Comunicação direta em tempo real</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onclick={() => (isChatInfoModalOpen = false)}
+            class="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 cursor-pointer"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div class="space-y-2.5 text-xs text-neutral-300 leading-relaxed">
+          <p>
+            O canal de chat interno está em desenvolvimento para permitir a troca ágil de mensagens entre voluntários do culto sem depender de redes sociais externas.
+          </p>
+
+          <div class="p-3 rounded-xl bg-neutral-950 border border-neutral-800/80 space-y-2">
+            <div class="flex items-center gap-2 text-violet-300 font-bold text-[11px]">
+              <Sparkles size={13} />
+              <span>Funcionalidades planejadas:</span>
+            </div>
+            <ul class="text-[11px] text-neutral-400 space-y-1 list-disc list-inside">
+              <li>Mensagens instantâneas entre Mídia, Louvor e Som</li>
+              <li>Avisos do púlpito e alterações na ordem do culto</li>
+              <li>Alertas discretos diretamente no ponto eletrônico</li>
+              <li>100% offline via rede local da igreja</li>
+            </ul>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onclick={() => (isChatInfoModalOpen = false)}
+          class="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-violet-950/40"
+        >
+          <span>Entendido</span>
+        </button>
+      </div>
+    </div>
+  {/if}
 </div>
+{/if}

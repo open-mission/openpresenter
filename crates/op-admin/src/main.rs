@@ -1953,6 +1953,8 @@ mod tests {
             "email": "lucas@example.com",
             "color": "#3b82f6",
             "role": "leader",
+            "can_control_remote": true,
+            "pin": "1234",
             "department_ids": ["projecao", "stories"]
         });
         let member_resp = app
@@ -1976,6 +1978,8 @@ mod tests {
         let member: op_core::TeamMember = serde_json::from_slice(&member_bytes).unwrap();
         assert_eq!(member.name, "Lucas Santos");
         assert_eq!(member.role, "leader");
+        assert!(member.can_control_remote);
+        assert_eq!(member.pin, Some("1234".into()));
         assert_eq!(member.department_ids.len(), 2);
 
         // 3. Cria escala via POST /api/teams/rosters

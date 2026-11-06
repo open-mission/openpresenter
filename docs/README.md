@@ -237,6 +237,11 @@
 - [Spec — Preparação e Lançamento da Versão 0.4.2](specs/2026-11-01-release-0-4-2.md)
 - [Plano — Preparação e Lançamento da Versão 0.4.2](plans/2026-11-01-release-0-4-2.md)
 
+## Home do Remote (Portal do Voluntário), Login Local e Controle de Acesso
+
+- [Spec — Home do Remote (Portal do Voluntário), Login Local e Controle de Acesso](specs/2026-11-05-remote-home-hub-login-local-e-permissoes.md)
+- [Plano — Home do Remote (Portal do Voluntário), Login Local e Controle de Acesso](plans/2026-11-05-remote-home-hub-login-local-e-permissoes.md)
+
 ## Modais Maximizáveis e Aproveitamento de 100% do Espaço em Configurações
 
 - [Spec — Modais Maximizáveis e Aproveitamento de 100% do Espaço em Configurações](specs/2026-11-05-modais-maximizaveis-e-aproveitamento-espaco-configuracoes.md)

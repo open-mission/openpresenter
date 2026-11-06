@@ -493,6 +493,8 @@ fn build_openapi_spec() -> Value {
               "avatar_url": { "type": "string", "nullable": true },
               "color": { "type": "string", "example": "#10b981" },
               "role": { "type": "string", "enum": ["leader", "vice_leader", "member"], "example": "leader", "description": "Cargo do membro na equipe (ex: leader, vice_leader, member)" },
+              "can_control_remote": { "type": "boolean", "default": true, "example": true, "description": "Permissão para operar controle remoto de apresentação" },
+              "pin": { "type": "string", "nullable": true, "example": "1234", "description": "PIN numérico opcional de 4 dígitos" },
               "notes": { "type": "string", "nullable": true },
               "is_active": { "type": "boolean", "example": true },
               "department_ids": { "type": "array", "items": { "type": "string" }, "example": ["projecao", "stories"] },
@@ -510,6 +512,8 @@ fn build_openapi_spec() -> Value {
               "avatar_url": { "type": "string", "nullable": true },
               "color": { "type": "string", "example": "#ec4899" },
               "role": { "type": "string", "enum": ["leader", "vice_leader", "member"], "example": "member", "description": "Cargo do membro na equipe" },
+              "can_control_remote": { "type": "boolean", "default": true, "example": true, "description": "Permissão para operar controle remoto" },
+              "pin": { "type": "string", "nullable": true, "example": "1234", "description": "PIN numérico opcional" },
               "notes": { "type": "string", "nullable": true },
               "is_active": { "type": "boolean", "example": true },
               "department_ids": { "type": "array", "items": { "type": "string" }, "example": ["fotografia"] }

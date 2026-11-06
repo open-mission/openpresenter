@@ -494,6 +494,16 @@ export interface UpsertTeamDepartment {
 
 export type TeamMemberRole = 'leader' | 'vice_leader' | 'member';
 
+export interface RemoteAuthSession {
+  member_id: string;
+  name: string;
+  role: TeamMemberRole;
+  can_control_remote: boolean;
+  color: string;
+  department_ids: string[];
+  logged_at: number;
+}
+
 export interface TeamMember {
   id: string;
   name: string;
@@ -502,6 +512,8 @@ export interface TeamMember {
   avatar_url?: string | null;
   color: string;
   role: TeamMemberRole;
+  can_control_remote: boolean;
+  pin?: string | null;
   notes?: string | null;
   is_active: boolean;
   department_ids: string[];
@@ -517,6 +529,8 @@ export interface UpsertTeamMember {
   avatar_url?: string | null;
   color?: string | null;
   role?: TeamMemberRole | null;
+  can_control_remote?: boolean | null;
+  pin?: string | null;
   notes?: string | null;
   is_active?: boolean | null;
   department_ids: string[];
