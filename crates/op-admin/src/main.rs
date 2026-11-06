@@ -1633,7 +1633,7 @@ mod tests {
         {
             let mut st = state.updater.write().await;
             st.stage = crate::updater::UpdateStage::ReadyToRestart {
-                new_version: "0.4.4".into(),
+                new_version: "0.5.0".into(),
             };
         }
 
@@ -1652,7 +1652,7 @@ mod tests {
             .unwrap();
         let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(status_json["stage"]["type"], "ReadyToRestart");
-        assert_eq!(status_json["stage"]["new_version"], "0.4.4");
+        assert_eq!(status_json["stage"]["new_version"], "0.5.0");
     }
 
     #[tokio::test]

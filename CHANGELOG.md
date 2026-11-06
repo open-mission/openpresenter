@@ -6,6 +6,19 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-06
+
+### Destaques da Versão
+A versão **0.5.0** eleva o OpenPresenter a uma plataforma integrada de ponta a ponta para gestão de cultos, equipes de mídia e projeção profissional:
+- 👥 **Gestão de Equipes (Teams) com Svelte Flow:** Controle visual inovador de escalas de voluntários com canvas interativo de fluxo ou modo grade, múltiplos departamentos, cargos (Líder, Vice-Líder, Membro), papéis (Titular/Auxiliar), status de presença em tempo real e integração direta com WhatsApp.
+- 📖 **Documentação de API OpenAPI 3.0 100% Offline:** Interfaces interativas Scalar (`/docs`, `/scalar`) e Swagger UI (`/swagger`) embarcadas diretamente no binário Rust via `rust-embed` para autonomia total sem conexão à internet.
+- ⚡ **Telemetria de Hardware & Monitoramento em Tempo Real:** Barra de status no rodapé do operador exibindo carga de CPU, consumo de memória RAM física do app e SO, GPU dedicada/integrada e contagem de telas conectadas com alertas cromáticos.
+- 📱 **Home Hub do Remoto Mobile (`/remote`):** Portal móvel dedicado para voluntários com resumo *"Minha Escala"*, confirmação de presença em 1 toque, login local com PIN individual ou de operador da mesa, e controle granular de permissões de projeção (modo somente leitura para voluntários vs modo operador).
+- 🎬 **Abas de Vídeos e Áudios no Painel Inferior:** Reprodução e disparo instantâneo ao vivo na saída pública com streaming nativo HTTP Range (status 206 Partial Content), pastas externas mapeadas sem duplicar arquivos e player integrado completo.
+- ⏱️ **Cronômetro / Timer na Projeção Pública:** Projeção ProPresenter com card em glassmorphism sobre o papel de parede ativo, sincronização de alta precisão com o monitor de retorno (Stage) e preview, alerta de último minuto e overtime pulsante, ocultação automática ao término e configurações detalhadas de aparência.
+- 🎵 **Playback Vinculado a Músicas & Player no Cabeçalho:** Vinculação direta de áudio a canções no catálogo, reprodução independente de trilhas sonoras e playback sem interromper a navegação ou projeção de letras, player superior com scrubber de tempo, repetição única (`Repeat1`), botão de fechar com alerta preventivo e controle remoto via WebSocket.
+- 🪟 **Modais Maximizáveis em Tela Cheia:** Expansão em 1 toque ocupando 100% da viewport para todos os modais da aplicação e aproveitamento simétrico em duas colunas nas Configurações.
+
 ### Adicionado
 - **Áudio / Playback Vinculado a Músicas (`SongEditorModal.svelte`, `0013_song_audio_url.sql`, `op-core`, `op-db`, `op-admin`):**
   - Adicionada coluna `audio_url` na tabela `songs` com migração incremental versionada `0013_song_audio_url.sql`.

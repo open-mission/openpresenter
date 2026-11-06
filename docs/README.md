@@ -237,28 +237,21 @@
 - [Spec — Preparação e Lançamento da Versão 0.4.2](specs/2026-11-01-release-0-4-2.md)
 - [Plano — Preparação e Lançamento da Versão 0.4.2](plans/2026-11-01-release-0-4-2.md)
 
-## Itens e Abas de Áudio, Vídeo e Projeção de Timer na Tela Pública
+## Release v0.5.0: Funcionalidade Teams com Svelte Flow, OpenAPI Offline, Telemetria de Hardware, Home Hub no Remoto Mobile, Abas de Vídeos/Áudios, Timer Público e Playback Vinculado
 
+- [Spec — Preparação e Lançamento da Versão 0.5.0](specs/2026-11-06-release-0-5-0.md)
+- [Plano — Preparação e Lançamento da Versão 0.5.0](plans/2026-11-06-release-0-5-0.md)
+- [Spec — Playback de Áudio Vinculado a Músicas, Player de Cabeçalho e Ajustes de Stage/Timer](specs/2026-11-06-audio-playback-vinculado-a-musica-e-ajustes-stage-timer.md)
+- [Spec — Ocultação de Timer no Public ao Terminar, Parada ao Cancelar e Reset ao Reiniciar](specs/2026-11-06-timer-public-wallpaper-ao-terminar-e-reset-apresentacao.md)
+- [Spec — Sincronização Fiel do Timer da Setlist, Customização Visual, Waveforms de Áudio e Pastas Mapeadas](specs/2026-11-05-ajustes-timer-setlist-audio-stage-waveforms-e-pastas-mapeadas.md)
 - [Spec — Itens e Abas de Áudio, Vídeo e Projeção de Timer na Tela Pública](specs/2026-11-05-audio-video-e-timer-publico.md)
 - [Plano — Itens e Abas de Áudio, Vídeo e Projeção de Timer na Tela Pública](plans/2026-11-05-audio-video-e-timer-publico.md)
-
-## Home do Remote (Portal do Voluntário), Login Local e Controle de Acesso
-
 - [Spec — Home do Remote (Portal do Voluntário), Login Local e Controle de Acesso](specs/2026-11-05-remote-home-hub-login-local-e-permissoes.md)
 - [Plano — Home do Remote (Portal do Voluntário), Login Local e Controle de Acesso](plans/2026-11-05-remote-home-hub-login-local-e-permissoes.md)
-
-## Modais Maximizáveis e Aproveitamento de 100% do Espaço em Configurações
-
 - [Spec — Modais Maximizáveis e Aproveitamento de 100% do Espaço em Configurações](specs/2026-11-05-modais-maximizaveis-e-aproveitamento-espaco-configuracoes.md)
 - [Plano — Modais Maximizáveis e Aproveitamento de 100% do Espaço em Configurações](plans/2026-11-05-modais-maximizaveis-e-aproveitamento-espaco-configuracoes.md)
-
-## Funcionalidade Teams (Equipe de Mídia, Escala Visual com Svelte Flow) e API Docs 100% Offline
-
 - [Spec — Funcionalidade Teams (Equipe de Mídia, Escala Visual com Svelte Flow) e API Docs 100% Offline](specs/2026-11-05-feature-teams-escala-visual-svelte-flow-e-api-docs-offline.md)
 - [Plano — Funcionalidade Teams (Equipe, Escala Visual com Svelte Flow) e API Docs 100% Offline](plans/2026-11-05-feature-teams-escala-visual-svelte-flow-e-api-docs-offline.md)
-
-## Telemetria de Hardware & Footer de Monitoramento do Sistema (CPU, Memória RAM e GPU)
-
 - [Spec — Telemetria de Hardware & Footer de Monitoramento do Sistema (CPU, Memória RAM e GPU)](specs/2026-11-05-footer-telemetria-sistema-cpu-ram-gpu.md)
 - [Plano — Telemetria de Hardware & Footer de Monitoramento do Sistema (CPU, Memória RAM e GPU)](plans/2026-11-05-footer-telemetria-sistema-cpu-ram-gpu.md)
 
