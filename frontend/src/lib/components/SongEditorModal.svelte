@@ -228,6 +228,10 @@
     toast.success('Letra reorganizada no padrão de 2 linhas por slide!');
   }
 
+  onMount(() => {
+    loadAudios();
+  });
+
   // Sincroniza estado apenas na abertura do modal
   $effect(() => {
     if (open && !prevOpen) {
@@ -991,6 +995,9 @@ Traga sua família e convidados!`;
                       class="w-full h-8 pl-2.5 pr-8 bg-neutral-900 border border-neutral-700/80 rounded-md text-xs text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors appearance-none cursor-pointer"
                     >
                       <option value="">Nenhum playback vinculado</option>
+                      {#if audioUrl && !availableAudios.some((a) => a.url === audioUrl)}
+                        <option value={audioUrl}>{audioUrl.split('/').pop() || audioUrl}</option>
+                      {/if}
                       {#each availableAudios as aud}
                         <option value={aud.url}>{aud.name}</option>
                       {/each}

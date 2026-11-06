@@ -2023,11 +2023,19 @@
             <div>
               <div class="flex items-center justify-between gap-1 mb-1">
                 <h4 class="text-xs font-bold text-foreground truncate">{song.title}</h4>
-                {#if song.song_key}
-                  <Badge variant="outline" class="text-[9px] py-0 px-1 font-mono text-primary shrink-0">
-                    {song.song_key}
-                  </Badge>
-                {/if}
+                <div class="flex items-center gap-1 shrink-0">
+                  {#if song.audio_url}
+                    <Badge variant="outline" class="text-[9px] py-0 px-1 font-mono text-emerald-400 border-emerald-500/40 bg-emerald-950/40 flex items-center gap-0.5">
+                      <Music size={9} />
+                      Áudio
+                    </Badge>
+                  {/if}
+                  {#if song.song_key}
+                    <Badge variant="outline" class="text-[9px] py-0 px-1 font-mono text-primary">
+                      {song.song_key}
+                    </Badge>
+                  {/if}
+                </div>
               </div>
               {#if song.artist}
                 <p class="text-[11px] text-muted-foreground truncate">{song.artist}</p>
@@ -2099,6 +2107,12 @@
                 <div class="min-w-0 mr-3">
                   <div class="flex items-center gap-2">
                     <h4 class="text-sm font-bold text-foreground truncate">{viewingSong.title}</h4>
+                    {#if viewingSong.audio_url}
+                      <Badge variant="outline" class="text-[10px] py-0 px-1.5 font-mono text-emerald-400 border-emerald-500/40 bg-emerald-950/40 flex items-center gap-1">
+                        <Music size={10} />
+                        Playback
+                      </Badge>
+                    {/if}
                     {#if viewingSongSlides.length > 0}
                       <Badge variant="secondary" class="text-[10px] font-mono">
                         {viewingSongSlides.length} slides

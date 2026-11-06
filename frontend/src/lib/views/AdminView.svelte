@@ -1354,6 +1354,7 @@
         artist: item.artist_or_ref || '',
         sections: [],
         lyrics_raw: item.slides.map((s) => s.content).join('\n\n'),
+        audio_url: item.audio_url,
       };
       editingItem = null;
       isSongEditorOpen = true;

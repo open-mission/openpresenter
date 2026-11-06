@@ -177,6 +177,16 @@
     </div>
 
     <div class="flex items-center gap-1.5 shrink-0">
+      {#if item.audio_url}
+        <Badge
+          variant="outline"
+          class="text-[9px] py-0 px-1 text-emerald-400 border-emerald-500/40 bg-emerald-950/40 gap-1 flex items-center"
+          title="Possui áudio / playback vinculado"
+        >
+          <Music size={10} />
+          <span>Playback</span>
+        </Badge>
+      {/if}
       {#if item.lower_image_url}
         <Badge
           variant="outline"

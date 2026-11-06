@@ -23,6 +23,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Banner global de áudio no topo da aba Setlist do `/remote` durante qualquer reprodução sonora em andamento.
 
 ### Corrigido
+- **Persistência e Seleção de Áudio Vinculado no Editor de Músicas (`SongEditorModal.svelte`, `routes.rs`, `AdminView.svelte`, `BottomPanel.svelte`, `MediaItemRow.svelte`):**
+  - Resolvido problema em que o valor do áudio vinculado era resetado para vazio no `<select>` do `SongEditorModal` devido à renderização assíncrona da lista de áudios antes da resposta HTTP; agora o modal inclui opção imediata para o `audioUrl` ativo e pré-carrega os áudios no `onMount`.
+  - Atualização atômica na rota `POST /api/songs` para refletir imediatamente as alterações de áudio e letra no item ativo da setlist caso a música já esteja em exibição.
+  - Adicionado badge visual de "Playback" / "Áudio" nos cards do catálogo de músicas (`BottomPanel.svelte`) e nas linhas da setlist (`MediaItemRow.svelte`).
 - **Correção da Visualização de Áudio e Timer no Monitor de Palco (`StageView.svelte`):**
   - Corrigido problema onde arquivos de áudio eram renderizados como tags `<img>` quebradas devido à verificação genérica de URLs de mídia. Agora o áudio é priorizado com visualização de tela inteira sem slide secundário vazio, exibindo ícone sonoro pulsante, nome da faixa, tempo decorrido (`MM:SS`) e tempo restante (`-MM:SS`).
   - Durante a apresentação de cronômetros/timers na tela pública, o monitor de retorno (`/stage`) agora preserva a tela de descanso/standby padrão, exibindo o relógio de parede em destaque, data e o cronômetro centralizado.

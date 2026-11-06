@@ -930,7 +930,14 @@ async fn save_song(
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     }
 
-    if payload.add_to_setlist {
+    let is_already_in_setlist = state
+        .media_items
+        .read()
+        .await
+        .iter()
+        .any(|m| m.id == payload.song.id);
+
+    if payload.add_to_setlist || is_already_in_setlist {
         let media_item = payload.song.clone().into_media_item();
         state.add_media_item(media_item).await;
     }
