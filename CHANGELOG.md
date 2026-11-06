@@ -7,6 +7,28 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Customização de Aparência do Cronômetro / Timer na Tela Pública (`SettingsModal.svelte`, `PublicView.svelte`, `PublicPreviewBox.svelte`):**
+  - Nova sub-seção *Timer & Áudio* nas configurações de Projeção Pública (`SettingsModal.svelte`) com controle completo da renderização visual:
+    - Ativação ou desativação da caixa de fundo translúcida (*glassmorphism*).
+    - Slider com controle de opacidade do fundo (10% a 100%).
+    - Seletor de cor para o texto e dígitos do timer.
+    - Sliders e inputs numéricos para tamanho de fonte dos dígitos gigantes (50px a 220px, padrão 130px), título do culto/momento (12px a 60px) e mensagem abaixo do cronômetro (10px a 48px).
+    - Botão de restauração rápida para os valores padrão.
+  - Aplicação reativa instantânea das preferências na tela pública (`PublicView.svelte`) e no monitor de preview do operador (`PublicPreviewBox.svelte`).
+- **Comportamento Padrão e Arte de Áudio na Projeção Pública e Palco (`PublicView.svelte`, `StageView.svelte`, `BottomPanel.svelte`, `op-core`, `op-admin`):**
+  - **Fundo Limpo na Projeção Pública por Padrão:** A execução ou apresentação de itens de áudio não sobrepõe gráficos à tela pública, mantendo o papel de parede ativo limpo e visível.
+  - **Arte Visual com Waveforms Sonoras Animadas:** Opção ativável nas configurações que projeta um card estilizado com ícone gradiente, título da faixa, artista/pasta, visualizador de barras equalizadoras (*waveforms*) animadas e linha de tempo com tempos decorrido e restante.
+  - **Monitor de Palco com Tempos de Áudio (`StageView.svelte`):** Barra de monitoramento no topo do monitor de palco e card central quando o áudio for o item ativo, exibindo status (Ao Vivo / Pausado), título, tempo decorrido (`MM:SS`) e tempo restante (`-MM:SS`).
+  - **Sincronização em Tempo Real via WebSocket (`op-core`, `op-admin`, `ws.ts`):** Mensagens `UpdateAudioPlayback` e `ClearAudioPlayback` e endpoints REST `/api/presentation/audio-playback` com deserialização tolerante a números inteiros ou decimais do JavaScript (`deserialize_f64_to_i64`).
+- **Mapeamento e Filtro por Pastas Externas nas Abas de Vídeos e Áudios (`BottomPanel.svelte`, `SettingsModal.svelte`):**
+  - Botão "Pastas" (`FolderPlus`) nas abas de Vídeos e Áudios permitindo acessar e gerenciar pastas locais mapeadas sem duplicar arquivos na pasta do aplicativo.
+  - Seletor por chips de pastas nas abas de Vídeos e Áudios para filtrar rapidamente entre "Todas", "Pasta do App" e diretórios externos vinculados.
+  - Ação rápida de apresentação de áudio ao vivo com duplo clique no card ou clique no botão "Apresentar".
+  - Atualização dos textos de orientação na aba *Arquivos e Pastas* para explicitar suporte unificado a imagens, vídeos e áudios.
+
+### Corrigido
+- **Sincronização do Timer da Setlist com a Projeção e Palco (`op-admin/state.rs`, `AdminView.svelte`):**
+  - Corrigido problema onde disparar um item de Timer presente na setlist continuava exibindo o valor anterior do painel de controle lateral. Agora, ao selecionar ou apresentar um item de Timer via duplo clique, botão "Ao Vivo", atalho de teclado ou seleção de slide, o backend e o frontend redefinem e iniciam atomicamente o cronômetro com a duração, título e mensagem exatos do item configurado, preservando o papel de parede do setlist.
 - **Abas de Vídeos e Áudios no Painel Inferior & Itens de Mídia com Reprodução (`BottomPanel.svelte`, `op-admin`, `op-core`):**
   - **Aba Vídeos:** Nova aba dedicada para navegação, busca instantânea, pré-visualização e upload de arquivos de vídeo (MP4, WebM, MOV, MKV). Permite disparar vídeos diretamente na Projeção Pública em 1 clique ("Apresentar") ou inseri-los na setlist ativa do culto.
   - **Aba Áudios com Player Embutido:** Nova aba dedicada para arquivos de áudio (MP3, WAV, M4A, AAC, OGG, FLAC) com player integrado completo no topo do painel: botões de Play/Pause/Stop, barra de progresso (seek slider) com tempos decorrido e total formatados (`MM:SS`), controle de volume, botão de mudo e repetição contínua (loop). Permite reproduzir trilhas sonoras durante os momentos do culto e adicioná-las à setlist.

@@ -342,16 +342,61 @@ impl AppState {
 
     /// Dispara um slide específico de uma mídia para o modo ao vivo.
     pub async fn select_slide(&self, media_id: String, slide_index: usize) -> PresentationState {
+        let media_item = {
+            let items = self.media_items.read().await;
+            items.iter().find(|m| m.id == media_id).cloned()
+        };
+
         let mut state = self.presentation.write().await;
         if state.quick_media.as_ref().is_some_and(|q| q.id != media_id) {
             state.quick_media = None;
         }
+
+        let media = media_item.or_else(|| {
+            state
+                .quick_media
+                .as_ref()
+                .filter(|m| m.id == media_id)
+                .cloned()
+        });
+
+        if let Some(ref m) = media {
+            if m.kind == MediaKind::Timer {
+                let dur = m
+                    .slides
+                    .get(slide_index)
+                    .or_else(|| m.slides.first())
+                    .and_then(|s| s.content.trim().parse::<i64>().ok())
+                    .unwrap_or(300);
+                state.timer.duration_seconds = dur;
+                state.timer.remaining_seconds = dur;
+                state.timer.label = Some(m.title.clone());
+                state.timer.stage_message = m
+                    .slides
+                    .get(slide_index)
+                    .or_else(|| m.slides.first())
+                    .and_then(|s| s.lower_content.clone());
+                state.timer.running = true;
+                state.wallpaper_path = state.setlist_wallpaper_path.clone();
+                state.wallpaper_mode = state.setlist_wallpaper_mode.clone();
+            } else if m.kind == MediaKind::Image
+                || m.kind == MediaKind::Video
+                || m.kind == MediaKind::Audio
+            {
+                state.wallpaper_path = state.setlist_wallpaper_path.clone();
+                state.wallpaper_mode = state.setlist_wallpaper_mode.clone();
+            } else {
+                state.wallpaper_path = state.lyrics_background_path.clone();
+                state.wallpaper_mode = state.lyrics_background_mode.clone();
+            }
+        } else {
+            state.wallpaper_path = state.lyrics_background_path.clone();
+            state.wallpaper_mode = state.lyrics_background_mode.clone();
+        }
+
         state.active_media_id = Some(media_id);
         state.active_slide_index = Some(slide_index);
         state.display_mode = DisplayMode::Live;
-        // Ao iniciar apresentação, aplica o fundo de apresentação/letras
-        state.wallpaper_path = state.lyrics_background_path.clone();
-        state.wallpaper_mode = state.lyrics_background_mode.clone();
         let updated = state.clone();
         drop(state);
 
@@ -383,6 +428,7 @@ impl AppState {
         state.active_media_id = None;
         state.active_slide_index = None;
         state.quick_media = None;
+        state.audio = None;
         state.display_mode = DisplayMode::Live;
         // Ao cancelar apresentação, volta ao plano de fundo do setlist
         state.wallpaper_path = state.setlist_wallpaper_path.clone();
@@ -745,10 +791,75 @@ impl AppState {
         state.active_slide_index = Some(target_idx);
         state.quick_media = Some(item.clone());
         state.display_mode = DisplayMode::Live;
-        if item.kind != op_core::MediaKind::Image && item.kind != op_core::MediaKind::Video {
+        if item.kind == op_core::MediaKind::Timer {
+            let dur = item
+                .slides
+                .get(target_idx)
+                .or_else(|| item.slides.first())
+                .and_then(|s| s.content.trim().parse::<i64>().ok())
+                .unwrap_or(300);
+            state.timer.duration_seconds = dur;
+            state.timer.remaining_seconds = dur;
+            state.timer.label = Some(item.title.clone());
+            state.timer.stage_message = item
+                .slides
+                .get(target_idx)
+                .or_else(|| item.slides.first())
+                .and_then(|s| s.lower_content.clone());
+            state.timer.running = true;
+            state.wallpaper_path = state.setlist_wallpaper_path.clone();
+            state.wallpaper_mode = state.setlist_wallpaper_mode.clone();
+        } else if item.kind != op_core::MediaKind::Image
+            && item.kind != op_core::MediaKind::Video
+            && item.kind != op_core::MediaKind::Audio
+        {
             state.wallpaper_path = state.lyrics_background_path.clone();
             state.wallpaper_mode = state.lyrics_background_mode.clone();
+        } else {
+            state.wallpaper_path = state.setlist_wallpaper_path.clone();
+            state.wallpaper_mode = state.setlist_wallpaper_mode.clone();
         }
+        let updated = state.clone();
+        drop(state);
+
+        let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
+            presentation: updated.clone(),
+        });
+
+        updated
+    }
+
+    /// Atualiza o status de reprodução de áudio ativo para exibição no palco e telas.
+    pub async fn update_audio_playback(
+        &self,
+        is_playing: bool,
+        current_time_seconds: i64,
+        duration_seconds: i64,
+        title: String,
+        artist_or_ref: Option<String>,
+    ) -> PresentationState {
+        let mut state = self.presentation.write().await;
+        state.audio = Some(op_core::AudioPlaybackState {
+            is_playing,
+            current_time_seconds,
+            duration_seconds,
+            title,
+            artist_or_ref,
+        });
+        let updated = state.clone();
+        drop(state);
+
+        let _ = self.broadcast_tx.send(WsMessage::StateUpdated {
+            presentation: updated.clone(),
+        });
+
+        updated
+    }
+
+    /// Limpa o status de reprodução de áudio ativo.
+    pub async fn clear_audio_playback(&self) -> PresentationState {
+        let mut state = self.presentation.write().await;
+        state.audio = None;
         let updated = state.clone();
         drop(state);
 

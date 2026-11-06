@@ -338,3 +338,42 @@ export function setStageMessage(message?: string) {
     body: JSON.stringify({ message }),
   }).catch(() => {});
 }
+
+export function updateAudioPlayback(
+  isPlaying: boolean,
+  currentTimeSeconds: number,
+  durationSeconds: number,
+  title: string,
+  artistOrRef?: string
+) {
+  sendWsMessage({
+    type: 'update_audio_playback',
+    payload: {
+      is_playing: isPlaying,
+      current_time_seconds: currentTimeSeconds,
+      duration_seconds: durationSeconds,
+      title,
+      artist_or_ref: artistOrRef,
+    },
+  });
+  fetch('/api/presentation/audio-playback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      is_playing: isPlaying,
+      current_time_seconds: currentTimeSeconds,
+      duration_seconds: durationSeconds,
+      title,
+      artist_or_ref: artistOrRef,
+    }),
+  }).catch(() => {});
+}
+
+export function clearAudioPlayback() {
+  sendWsMessage({
+    type: 'clear_audio_playback',
+  });
+  fetch('/api/presentation/audio-playback/clear', {
+    method: 'POST',
+  }).catch(() => {});
+}

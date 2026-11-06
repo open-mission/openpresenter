@@ -69,7 +69,7 @@
     resolveBackground,
     type BackgroundPreset,
   } from '../backgrounds';
-  import { presentationState, setPresentationWallpaper } from '../ws';
+  import { presentationState, setPresentationWallpaper, updateAudioPlayback, clearAudioPlayback } from '../ws';
   import {
     publicSettingsStore,
     savePublicDisplaySettings,
@@ -317,6 +317,7 @@
   // --- GALERIA DE VÍDEOS ---
   let videos = $state<VideoMediaItem[]>([]);
   let videoSearch = $state('');
+  let videoFolderFilter = $state<string>('all');
   let isLoadingVideos = $state(false);
   let isUploadingVideo = $state(false);
   let videoFileInputEl: HTMLInputElement | null = $state(null);
@@ -331,6 +332,30 @@
       isLoadingVideos = false;
     }
   }
+
+  const videoFoldersList = $derived.by(() => {
+    const set = new Set<string>();
+    for (const v of videos) {
+      if (v.folder_name) set.add(v.folder_name);
+    }
+    return Array.from(set);
+  });
+
+  const filteredVideos = $derived.by(() => {
+    let list = videos;
+    if (videoFolderFilter === 'app') {
+      list = list.filter((v) => !v.folder_name);
+    } else if (videoFolderFilter !== 'all') {
+      list = list.filter((v) => v.folder_name === videoFolderFilter);
+    }
+    const q = videoSearch.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(
+      (v) =>
+        v.name.toLowerCase().includes(q) ||
+        (v.folder_name && v.folder_name.toLowerCase().includes(q))
+    );
+  });
 
   async function handleVideoFilesSelected(e: Event) {
     const input = e.target as HTMLInputElement;
@@ -395,22 +420,14 @@
     notifySuccess('Item Adicionado', `"${video.name}" adicionado à setlist.`);
   }
 
-  const filteredVideos = $derived.by(() => {
-    const q = videoSearch.trim().toLowerCase();
-    if (!q) return videos;
-    return videos.filter(
-      (v) =>
-        v.name.toLowerCase().includes(q) ||
-        (v.folder_name && v.folder_name.toLowerCase().includes(q))
-    );
-  });
-
   // --- GALERIA DE ÁUDIOS ---
   let audios = $state<AudioMediaItem[]>([]);
   let audioSearch = $state('');
+  let audioFolderFilter = $state<string>('all');
   let isLoadingAudios = $state(false);
   let isUploadingAudio = $state(false);
   let audioFileInputEl: HTMLInputElement | null = $state(null);
+  let lastBroadcastAudioSec = -1;
 
   // Player de Áudio Embutido
   let playingAudio = $state<AudioMediaItem | null>(null);
@@ -433,15 +450,56 @@
     }
   }
 
+  const audioFoldersList = $derived.by(() => {
+    const set = new Set<string>();
+    for (const a of audios) {
+      if (a.folder_name) set.add(a.folder_name);
+    }
+    return Array.from(set);
+  });
+
+  const filteredAudios = $derived.by(() => {
+    let list = audios;
+    if (audioFolderFilter === 'app') {
+      list = list.filter((a) => !a.folder_name);
+    } else if (audioFolderFilter !== 'all') {
+      list = list.filter((a) => a.folder_name === audioFolderFilter);
+    }
+    const q = audioSearch.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        (a.folder_name && a.folder_name.toLowerCase().includes(q))
+    );
+  });
+
+  function syncAudioWs(playing: boolean, curTime: number, dur: number) {
+    if (!playingAudio) return;
+    const secFloor = Math.floor(curTime);
+    if (playing !== isAudioPlaying || secFloor !== lastBroadcastAudioSec) {
+      lastBroadcastAudioSec = secFloor;
+      updateAudioPlayback(
+        playing,
+        curTime,
+        dur || 0,
+        playingAudio.name,
+        playingAudio.folder_name
+      );
+    }
+  }
+
   function handlePlayAudio(audio: AudioMediaItem) {
     if (playingAudio?.id === audio.id) {
       if (audioElement) {
         if (isAudioPlaying) {
           audioElement.pause();
           isAudioPlaying = false;
+          syncAudioWs(false, audioElement.currentTime, audioElement.duration || 0);
         } else {
           audioElement.play().then(() => {
             isAudioPlaying = true;
+            syncAudioWs(true, audioElement.currentTime, audioElement.duration || 0);
           }).catch(console.error);
         }
       }
@@ -453,6 +511,7 @@
       audioElement.currentTime = 0;
       audioElement.play().then(() => {
         isAudioPlaying = true;
+        syncAudioWs(true, 0, audioElement?.duration || 0);
       }).catch(console.error);
     }
   }
@@ -464,12 +523,27 @@
     }
     isAudioPlaying = false;
     audioCurrentTime = 0;
+    lastBroadcastAudioSec = -1;
+    clearAudioPlayback();
   }
 
   function handleAudioTimeUpdate() {
     if (audioElement) {
       audioCurrentTime = audioElement.currentTime;
       audioDuration = audioElement.duration || 0;
+      if (isAudioPlaying && playingAudio) {
+        const secFloor = Math.floor(audioCurrentTime);
+        if (secFloor !== lastBroadcastAudioSec) {
+          lastBroadcastAudioSec = secFloor;
+          updateAudioPlayback(
+            true,
+            audioCurrentTime,
+            audioDuration,
+            playingAudio.name,
+            playingAudio.folder_name
+          );
+        }
+      }
     }
   }
 
@@ -477,6 +551,8 @@
     if (!isAudioLoop) {
       isAudioPlaying = false;
       audioCurrentTime = 0;
+      lastBroadcastAudioSec = -1;
+      clearAudioPlayback();
     }
   }
 
@@ -485,7 +561,28 @@
     if (audioElement) {
       audioElement.currentTime = val;
       audioCurrentTime = val;
+      if (playingAudio) {
+        syncAudioWs(isAudioPlaying, val, audioDuration);
+      }
     }
+  }
+
+  function handlePresentAudio(audio: AudioMediaItem) {
+    handlePlayAudio(audio);
+    const item: MediaItem = {
+      id: `audio-${Date.now()}`,
+      title: audio.name,
+      artist_or_ref: audio.folder_name || 'Áudio',
+      kind: 'audio',
+      slides: [
+        {
+          id: 'slide-1',
+          label: 'Áudio',
+          content: audio.url,
+        },
+      ],
+    };
+    onpresentitem?.(item, 0);
   }
 
   function handleVolumeChange(e: Event) {
@@ -565,16 +662,6 @@
     onadditemtosetlist?.(item);
     notifySuccess('Item Adicionado', `"${audio.name}" adicionado à setlist.`);
   }
-
-  const filteredAudios = $derived.by(() => {
-    const q = audioSearch.trim().toLowerCase();
-    if (!q) return audios;
-    return audios.filter(
-      (a) =>
-        a.name.toLowerCase().includes(q) ||
-        (a.folder_name && a.folder_name.toLowerCase().includes(q))
-    );
-  });
 
   async function loadSongTags() {
     try {
@@ -2580,6 +2667,16 @@
                 <RefreshCw size={12} class={isLoadingVideos ? 'animate-spin' : ''} />
               </Button>
               <Button
+                variant="outline"
+                size="sm"
+                onclick={onopenfolderconfig}
+                class="h-8 text-xs gap-1.5"
+                title="Mapear ou gerenciar pastas locais de vídeo"
+              >
+                <FolderPlus size={13} class="text-purple-400" />
+                <span>Pastas</span>
+              </Button>
+              <Button
                 variant="default"
                 size="sm"
                 onclick={() => videoFileInputEl?.click()}
@@ -2591,6 +2688,39 @@
               </Button>
             </div>
           </div>
+
+          <!-- Filtro de Pastas de Vídeo -->
+          {#if videoFoldersList.length > 0 || folders.length > 0}
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 shrink-0 text-xs">
+              <span class="text-[11px] text-muted-foreground flex items-center gap-1 mr-1">
+                <Folder size={12} class="text-purple-400" />
+                <span>Pastas:</span>
+              </span>
+              <button
+                type="button"
+                onclick={() => (videoFolderFilter = 'all')}
+                class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer {videoFolderFilter === 'all' ? 'bg-purple-600 text-white font-bold' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
+              >
+                Todas ({videos.length})
+              </button>
+              <button
+                type="button"
+                onclick={() => (videoFolderFilter = 'app')}
+                class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer {videoFolderFilter === 'app' ? 'bg-purple-600 text-white font-bold' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
+              >
+                Pasta do App ({videos.filter((v) => !v.folder_name).length})
+              </button>
+              {#each videoFoldersList as folderName}
+                <button
+                  type="button"
+                  onclick={() => (videoFolderFilter = folderName)}
+                  class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer {videoFolderFilter === folderName ? 'bg-purple-600 text-white font-bold' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
+                >
+                  {folderName} ({videos.filter((v) => v.folder_name === folderName).length})
+                </button>
+              {/each}
+            </div>
+          {/if}
 
           <!-- Grade de Vídeos -->
           <div class="flex-1 overflow-y-auto pr-1">
@@ -2836,6 +2966,16 @@
                 <RefreshCw size={12} class={isLoadingAudios ? 'animate-spin' : ''} />
               </Button>
               <Button
+                variant="outline"
+                size="sm"
+                onclick={onopenfolderconfig}
+                class="h-8 text-xs gap-1.5"
+                title="Mapear ou gerenciar pastas locais de áudio"
+              >
+                <FolderPlus size={13} class="text-indigo-400" />
+                <span>Pastas</span>
+              </Button>
+              <Button
                 variant="default"
                 size="sm"
                 onclick={() => audioFileInputEl?.click()}
@@ -2847,6 +2987,39 @@
               </Button>
             </div>
           </div>
+
+          <!-- Filtro de Pastas de Áudio -->
+          {#if audioFoldersList.length > 0 || folders.length > 0}
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 shrink-0 text-xs">
+              <span class="text-[11px] text-muted-foreground flex items-center gap-1 mr-1">
+                <Folder size={12} class="text-indigo-400" />
+                <span>Pastas:</span>
+              </span>
+              <button
+                type="button"
+                onclick={() => (audioFolderFilter = 'all')}
+                class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer {audioFolderFilter === 'all' ? 'bg-indigo-600 text-white font-bold' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
+              >
+                Todas ({audios.length})
+              </button>
+              <button
+                type="button"
+                onclick={() => (audioFolderFilter = 'app')}
+                class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer {audioFolderFilter === 'app' ? 'bg-indigo-600 text-white font-bold' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
+              >
+                Pasta do App ({audios.filter((a) => !a.folder_name).length})
+              </button>
+              {#each audioFoldersList as folderName}
+                <button
+                  type="button"
+                  onclick={() => (audioFolderFilter = folderName)}
+                  class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer {audioFolderFilter === folderName ? 'bg-indigo-600 text-white font-bold' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
+                >
+                  {folderName} ({audios.filter((a) => a.folder_name === folderName).length})
+                </button>
+              {/each}
+            </div>
+          {/if}
 
           <!-- Lista de Faixas de Áudio -->
           <div class="flex-1 overflow-y-auto pr-1">
@@ -2873,7 +3046,8 @@
                     role="button"
                     tabindex="0"
                     onclick={() => handlePlayAudio(aud)}
-                    onkeydown={(e) => { if (e.key === 'Enter') handlePlayAudio(aud); }}
+                    ondblclick={() => handlePresentAudio(aud)}
+                    onkeydown={(e) => { if (e.key === 'Enter') handlePresentAudio(aud); }}
                     class="p-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 group cursor-pointer {isThisSelected ? 'border-indigo-500 bg-indigo-950/30' : 'border-border bg-card/60 hover:bg-neutral-850'}"
                   >
                     <div class="flex items-center gap-3 min-w-0">
@@ -2897,13 +3071,30 @@
                         <p class="text-xs font-semibold text-foreground truncate group-hover:text-indigo-300 transition-colors" title={aud.name}>
                           {aud.name}
                         </p>
-                        <p class="text-[10px] text-muted-foreground font-mono">
-                          {formatBytes(aud.size_bytes)}
-                        </p>
+                        <div class="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono">
+                          <span>{formatBytes(aud.size_bytes)}</span>
+                          {#if aud.folder_name}
+                            <span>•</span>
+                            <span class="text-indigo-300/80 truncate max-w-[120px]">{aud.folder_name}</span>
+                          {/if}
+                        </div>
                       </div>
                     </div>
 
                     <div class="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          handlePresentAudio(aud);
+                        }}
+                        class="h-7 px-2 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer"
+                        title="Apresentar Áudio Imediatamente"
+                      >
+                        <Play size={11} class="fill-current" />
+                        <span class="text-[11px] hidden sm:inline">Apresentar</span>
+                      </button>
+
                       <button
                         type="button"
                         onclick={(e) => {

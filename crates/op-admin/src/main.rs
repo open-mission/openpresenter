@@ -771,7 +771,7 @@ mod tests {
     #[tokio::test]
     async fn system_paths_and_media_folders_work() {
         let (state, dir) = mock_state_with_db();
-        let app = create_routes(state);
+        let app = create_routes(state.clone());
 
         // Testa GET /api/system/paths
         let paths_resp = app
@@ -2064,7 +2064,10 @@ mod tests {
     #[tokio::test]
     async fn test_audio_and_video_endpoints_work() {
         let (state, dir) = mock_state_with_db();
-        let app = create_routes(state);
+        unsafe {
+            std::env::set_var("OPENPRESENTER_DATA_DIR", dir.path());
+        }
+        let app = create_routes(state.clone());
 
         // 1. List initial videos
         let resp = app
@@ -2167,6 +2170,7 @@ mod tests {
 
         // 6. Verify audio is listed
         let list_audio_resp = app
+            .clone()
             .oneshot(
                 axum::http::Request::builder()
                     .method("GET")
@@ -2182,6 +2186,87 @@ mod tests {
             .unwrap();
         let audios: Vec<routes::AudioMediaItem> = serde_json::from_slice(&audios_bytes).unwrap();
         assert!(audios.iter().any(|a| a.name == "background_music.mp3"));
+
+        // 7. Test audio playback update & clear
+        let audio_playback_payload = serde_json::json!({
+            "is_playing": true,
+            "current_time_seconds": 15.0,
+            "duration_seconds": 180.0,
+            "title": "background_music.mp3"
+        });
+        let pb_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/presentation/audio-playback")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(
+                        serde_json::to_vec(&audio_playback_payload).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(pb_resp.status(), StatusCode::OK);
+
+        let pb_clear_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/presentation/audio-playback/clear")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(pb_clear_resp.status(), StatusCode::OK);
+
+        // 8. Test Timer media presentation resets and starts timer
+        let timer_item_payload = serde_json::json!({
+            "item": {
+                "id": "timer-test-1",
+                "title": "Momento de Oração",
+                "kind": "timer",
+                "slides": [
+                    {
+                        "id": "s1",
+                        "label": "04:00",
+                        "content": "240",
+                        "lower_content": "Orando pelos enfermos"
+                    }
+                ]
+            },
+            "slide_index": 0
+        });
+        let timer_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/presentation/quick-media")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(
+                        serde_json::to_vec(&timer_item_payload).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(timer_resp.status(), StatusCode::OK);
+
+        let current_pres = state.presentation.read().await.clone();
+        assert_eq!(current_pres.timer.duration_seconds, 240);
+        assert_eq!(current_pres.timer.remaining_seconds, 240);
+        assert!(current_pres.timer.running);
+        assert_eq!(
+            current_pres.timer.label.as_deref(),
+            Some("Momento de Oração")
+        );
+        assert_eq!(
+            current_pres.timer.stage_message.as_deref(),
+            Some("Orando pelos enfermos")
+        );
 
         let _ = dir;
     }

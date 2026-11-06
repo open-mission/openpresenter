@@ -271,6 +271,26 @@ async fn handle_socket(socket: WebSocket, state: AppState, client_ip: String) {
                             .await;
                         state.set_stage_message(message).await;
                     }
+                    Ok(WsMessage::UpdateAudioPlayback {
+                        is_playing,
+                        current_time_seconds,
+                        duration_seconds,
+                        title,
+                        artist_or_ref,
+                    }) => {
+                        state
+                            .update_audio_playback(
+                                is_playing,
+                                current_time_seconds,
+                                duration_seconds,
+                                title,
+                                artist_or_ref,
+                            )
+                            .await;
+                    }
+                    Ok(WsMessage::ClearAudioPlayback) => {
+                        state.clear_audio_playback().await;
+                    }
                     Ok(WsMessage::ReloadClients { target }) => {
                         let _ = state.broadcast_tx.send(WsMessage::ReloadClients { target });
                     }

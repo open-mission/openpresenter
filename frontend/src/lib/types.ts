@@ -190,6 +190,14 @@ export interface TimerState {
   allow_overtime?: boolean;
 }
 
+export interface AudioPlaybackState {
+  is_playing: boolean;
+  current_time_seconds: number;
+  duration_seconds: number;
+  title: string;
+  artist_or_ref?: string;
+}
+
 export interface PresentationState {
   active_media_id: string | null;
   active_slide_index: number | null;
@@ -204,6 +212,7 @@ export interface PresentationState {
   lyrics_background_path?: string;
   lyrics_background_mode?: string;
   timer: TimerState;
+  audio?: AudioPlaybackState | null;
   stage_message?: string;
   quick_media?: MediaItem;
 }
@@ -286,6 +295,8 @@ export type WsMessage =
   | { type: 'setlist_updated'; payload: { setlist: Setlist } }
   | { type: 'setting_updated'; payload: { key: string; value: string | null } }
   | { type: 'team_updated'; payload: { entity: string; action: string } }
+  | { type: 'update_audio_playback'; payload: { is_playing: boolean; current_time_seconds: number; duration_seconds: number; title: string; artist_or_ref?: string } }
+  | { type: 'clear_audio_playback' }
   | { type: 'reload_clients'; payload: { target?: string } }
   | { type: 'ping' }
   | { type: 'pong' };
@@ -344,6 +355,17 @@ export interface PublicDisplaySettings {
   schedule_day_color?: string;
   schedule_time_color?: string;
   schedule_badge_bg?: boolean;
+
+  // Cronômetro / Timer na Tela Pública
+  timer_box_background?: boolean;
+  timer_bg_opacity?: number;
+  timer_digits_font_size?: number;
+  timer_title_font_size?: number;
+  timer_message_font_size?: number;
+  timer_text_color?: string;
+
+  // Áudio na Tela Pública
+  audio_show_waveform_on_public?: boolean;
 }
 
 export type ImageDisplayMode = 'fullscreen' | 'lower_third' | 'hide';

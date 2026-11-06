@@ -13,7 +13,7 @@
     syncDisplaySettingsFromBackend,
   } from '$lib/displaySettings';
   import { resolveMediaUrl } from '$lib/cast';
-  import { Maximize, Minimize, Clock, Film, Hourglass } from 'lucide-svelte';
+  import { Maximize, Minimize, Clock, Film, Hourglass, Volume2 } from 'lucide-svelte';
 
   let isFullscreen = $state(false);
 
@@ -332,26 +332,40 @@
           {@const remainingSecs = timer && timer.duration_seconds > 0 ? timer.remaining_seconds : parseInt(activeSlide.content || '0', 10) || 0}
           {@const isOvertime = !!timer && (Boolean(timer.is_overtime) || (timer.duration_seconds > 0 && timer.remaining_seconds <= 0))}
           {@const isNearEnd = !!timer && !isOvertime && timer.duration_seconds > 0 && timer.remaining_seconds <= (timer.warning_threshold_seconds || 60) && timer.remaining_seconds > 0}
+          {@const showTimerBox = publicSettings.timer_box_background ?? true}
+          {@const timerBgOpacity = (publicSettings.timer_bg_opacity ?? 65) / 100}
+          {@const digitsSize = publicSettings.timer_digits_font_size ?? 130}
+          {@const titleSize = publicSettings.timer_title_font_size ?? 22}
+          {@const msgSize = publicSettings.timer_message_font_size ?? 18}
+          {@const textColor = publicSettings.timer_text_color || '#ffffff'}
           <div class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col items-center justify-center select-none animate-in fade-in duration-200">
             <div
-              class="max-w-4xl w-full mx-auto px-8 sm:px-14 py-8 sm:py-12 rounded-3xl border shadow-2xl flex flex-col items-center justify-center text-center gap-4 transition-all duration-300 {isOvertime ? 'bg-rose-950/70 border-rose-500/80 shadow-rose-900/50 animate-pulse' : isNearEnd ? 'bg-amber-950/60 border-amber-500/80 shadow-amber-900/40' : 'bg-black/65 border-white/20 backdrop-blur-xl'}"
+              class="max-w-4xl w-full mx-auto px-8 sm:px-14 py-8 sm:py-12 rounded-3xl flex flex-col items-center justify-center text-center gap-4 transition-all duration-300 {showTimerBox ? (isOvertime ? 'bg-rose-950/70 border border-rose-500/80 shadow-2xl shadow-rose-900/50 animate-pulse' : isNearEnd ? 'bg-amber-950/60 border border-amber-500/80 shadow-2xl shadow-amber-900/40' : 'border border-white/20 shadow-2xl backdrop-blur-xl') : 'bg-transparent border-0 shadow-none'}"
+              style={showTimerBox && !isOvertime && !isNearEnd ? `background-color: rgba(0, 0, 0, ${timerBgOpacity});` : ''}
             >
               <!-- Título do Cronômetro -->
-              <div class="flex items-center gap-2.5 text-xs sm:text-sm uppercase tracking-widest font-bold {isOvertime ? 'text-rose-300' : isNearEnd ? 'text-amber-300' : 'text-neutral-300'}">
-                <Hourglass size={18} class={timer?.running ? 'animate-spin' : ''} />
+              <div
+                class="flex items-center gap-2.5 uppercase tracking-widest font-bold {isOvertime ? 'text-rose-300' : isNearEnd ? 'text-amber-300' : ''}"
+                style="font-size: {titleSize}px; color: {!isOvertime && !isNearEnd ? textColor : undefined};"
+              >
+                <Hourglass size={Math.round(titleSize * 0.9)} class={timer?.running ? 'animate-spin' : ''} />
                 <span>{activeMedia.title || timer?.label || 'Contagem Regressiva'}</span>
               </div>
 
               <!-- Dígitos Gigantes da Contagem -->
               <div
-                class="font-mono font-black tracking-tight leading-none text-7xl sm:text-8xl md:text-9xl lg:text-[140px] drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)] {isOvertime ? 'text-rose-400' : isNearEnd ? 'text-amber-400' : 'text-white'}"
+                class="font-mono font-black tracking-tight leading-none drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)] {isOvertime ? 'text-rose-400' : isNearEnd ? 'text-amber-400' : ''}"
+                style="font-size: {digitsSize}px; color: {!isOvertime && !isNearEnd ? textColor : undefined};"
               >
                 {formatPublicTimer(remainingSecs, isOvertime)}
               </div>
 
               <!-- Mensagem ou Subtítulo -->
               {#if activeSlide.lower_content || timer?.stage_message}
-                <p class="text-sm sm:text-base md:text-lg font-medium text-neutral-200/90 max-w-2xl mt-1 drop-shadow leading-relaxed">
+                <p
+                  class="font-medium max-w-2xl mt-1 drop-shadow leading-relaxed opacity-90"
+                  style="font-size: {msgSize}px; color: {!isOvertime && !isNearEnd ? textColor : undefined};"
+                >
                   {activeSlide.lower_content || timer?.stage_message}
                 </p>
               {/if}
@@ -364,6 +378,57 @@
               {/if}
             </div>
           </div>
+        {:else if activeMedia?.kind === 'audio'}
+          {#if publicSettings.audio_show_waveform_on_public}
+            <!-- Arte e Waveforms Animadas de Áudio na Projeção Pública -->
+            {@const audioState = $presentationState.audio}
+            {@const isPlaying = audioState?.is_playing ?? true}
+            <div class="w-full flex-1 h-full min-h-0 min-w-0 flex flex-col items-center justify-center select-none animate-in fade-in duration-300">
+              <div class="p-8 sm:p-12 rounded-3xl bg-black/60 border border-white/20 backdrop-blur-2xl shadow-2xl flex flex-col items-center gap-6 max-w-2xl w-full mx-auto text-center">
+                <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/30 text-white">
+                  <Volume2 size={40} class={isPlaying ? 'animate-pulse' : ''} />
+                </div>
+                <div class="space-y-1.5 w-full">
+                  <h3 class="text-2xl sm:text-3xl font-black text-white tracking-tight drop-shadow-md truncate">
+                    {audioState?.title || activeMedia.title || 'Faixa de Áudio'}
+                  </h3>
+                  {#if activeMedia.artist_or_ref}
+                    <p class="text-sm sm:text-base text-neutral-300 font-medium opacity-80 truncate">
+                      {activeMedia.artist_or_ref}
+                    </p>
+                  {/if}
+                </div>
+
+                <!-- Waveforms Equalizer Bars Animadas -->
+                <div class="flex items-end justify-center gap-1.5 h-16 w-full max-w-md py-2">
+                  {#each [40, 75, 55, 95, 30, 85, 60, 100, 45, 90, 70, 35, 80, 65, 90, 50, 75, 40] as baseH, i}
+                    <div
+                      class="w-2 rounded-full bg-gradient-to-t from-emerald-500 to-teal-300 transition-all duration-300 shadow-sm"
+                      style="height: {isPlaying ? `${baseH}%` : '15%'}; animation: {isPlaying ? `pulse ${(0.6 + (i % 5) * 0.15).toFixed(2)}s ease-in-out infinite alternate` : 'none'}; animation-delay: ${(i * 0.08).toFixed(2)}s;"
+                    ></div>
+                  {/each}
+                </div>
+
+                {#if audioState && audioState.duration_seconds > 0}
+                  {@const cur = audioState.current_time_seconds || 0}
+                  {@const dur = audioState.duration_seconds || 1}
+                  {@const pct = Math.min(100, Math.max(0, (cur / dur) * 100))}
+                  <div class="w-full max-w-md space-y-2">
+                    <div class="w-full bg-white/20 h-2 rounded-full overflow-hidden">
+                      <div class="bg-gradient-to-r from-emerald-400 to-teal-300 h-full rounded-full transition-all duration-200" style="width: {pct}%"></div>
+                    </div>
+                    <div class="flex justify-between text-xs font-mono text-neutral-300 font-semibold">
+                      <span>{Math.floor(cur / 60)}:{String(Math.floor(cur % 60)).padStart(2, '0')}</span>
+                      <span>-{Math.floor(Math.max(0, dur - cur) / 60)}:{String(Math.floor(Math.max(0, dur - cur) % 60)).padStart(2, '0')}</span>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            </div>
+          {:else}
+            <!-- Áudio em modo limpo padrão: mantém tela pública sem sobreposições visuais -->
+            <div class="w-full flex-1 h-full min-h-0 min-w-0"></div>
+          {/if}
         {:else if isSchedule}
           <!-- Agenda / Programação de Cultos e Festividades -->
           {@const ev = parseScheduleContent(activeSlide.label, activeSlide.content)}

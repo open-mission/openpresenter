@@ -291,6 +291,14 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/presentation/stop", post(stop_presentation))
         .route("/api/presentation/quick-media", post(quick_present_media))
         .route(
+            "/api/presentation/audio-playback",
+            post(update_audio_playback),
+        )
+        .route(
+            "/api/presentation/audio-playback/clear",
+            post(clear_audio_playback),
+        )
+        .route(
             "/api/presentation/wallpaper",
             post(set_presentation_wallpaper),
         )
@@ -675,6 +683,38 @@ async fn set_stage_message(
     Json(payload): Json<StageMessageRequest>,
 ) -> Json<PresentationState> {
     let updated = state.set_stage_message(payload.message).await;
+    Json(updated)
+}
+
+#[derive(Deserialize)]
+pub struct AudioPlaybackRequest {
+    pub is_playing: bool,
+    #[serde(deserialize_with = "op_core::deserialize_f64_to_i64")]
+    pub current_time_seconds: i64,
+    #[serde(deserialize_with = "op_core::deserialize_f64_to_i64")]
+    pub duration_seconds: i64,
+    pub title: String,
+    pub artist_or_ref: Option<String>,
+}
+
+async fn update_audio_playback(
+    State(state): State<AppState>,
+    Json(payload): Json<AudioPlaybackRequest>,
+) -> Json<PresentationState> {
+    let updated = state
+        .update_audio_playback(
+            payload.is_playing,
+            payload.current_time_seconds,
+            payload.duration_seconds,
+            payload.title,
+            payload.artist_or_ref,
+        )
+        .await;
+    Json(updated)
+}
+
+async fn clear_audio_playback(State(state): State<AppState>) -> Json<PresentationState> {
+    let updated = state.clear_audio_playback().await;
     Json(updated)
 }
 

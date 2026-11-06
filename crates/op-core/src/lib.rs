@@ -764,6 +764,45 @@ impl Default for TimerState {
     }
 }
 
+/// Deserializador tolerante que aceita inteiros ou floats (comuns em javascript) e converte para i64.
+pub fn deserialize_f64_to_i64<'de, D>(deserializer: D) -> Result<i64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct F64OrI64Visitor;
+    impl<'de> serde::de::Visitor<'de> for F64OrI64Visitor {
+        type Value = i64;
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("an integer or a float")
+        }
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E> {
+            Ok(v)
+        }
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E> {
+            Ok(v as i64)
+        }
+        fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E> {
+            Ok(v.round() as i64)
+        }
+    }
+    deserializer.deserialize_any(F64OrI64Visitor)
+}
+
+/// Estado de reprodução de áudio ativo para sincronização em tempo real entre consoles e telas.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct AudioPlaybackState {
+    #[serde(default)]
+    pub is_playing: bool,
+    #[serde(default, deserialize_with = "deserialize_f64_to_i64")]
+    pub current_time_seconds: i64,
+    #[serde(default, deserialize_with = "deserialize_f64_to_i64")]
+    pub duration_seconds: i64,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub artist_or_ref: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PresentationState {
     pub active_media_id: Option<String>,
@@ -789,6 +828,8 @@ pub struct PresentationState {
     pub timer: TimerState,
     #[serde(default)]
     pub quick_media: Option<MediaItem>,
+    #[serde(default)]
+    pub audio: Option<AudioPlaybackState>,
 }
 
 impl Default for PresentationState {
@@ -810,6 +851,7 @@ impl Default for PresentationState {
             lyrics_background_mode: Some("cover".into()),
             timer: TimerState::default(),
             quick_media: None,
+            audio: None,
         }
     }
 }
@@ -914,6 +956,19 @@ pub enum WsMessage {
     SetStageMessage {
         message: Option<String>,
     },
+    /// Atualização de reprodução de áudio para sincronização entre telas e monitor de palco.
+    UpdateAudioPlayback {
+        is_playing: bool,
+        #[serde(deserialize_with = "deserialize_f64_to_i64")]
+        current_time_seconds: i64,
+        #[serde(deserialize_with = "deserialize_f64_to_i64")]
+        duration_seconds: i64,
+        title: String,
+        #[serde(default)]
+        artist_or_ref: Option<String>,
+    },
+    /// Comando para limpar o estado de reprodução de áudio.
+    ClearAudioPlayback,
     /// Identificação do cliente ao se conectar (admin, public, stage) e rota ativa.
     Identify {
         client_type: String,

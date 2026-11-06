@@ -16,6 +16,7 @@
     Hourglass,
     MessageSquare,
     AlertTriangle,
+    Volume2,
   } from 'lucide-svelte';
 
   let currentTime = $state('');
@@ -179,6 +180,8 @@
 
   const stageSettings = $derived($stageSettingsStore);
   const timer = $derived($presentationState.timer);
+  const audioPlayback = $derived($presentationState.audio);
+  const isAudioActive = $derived(!!audioPlayback && (audioPlayback.is_playing || audioPlayback.duration_seconds > 0));
   const stageMessage = $derived($presentationState.stage_message || $presentationState.timer?.stage_message || '');
 
   // Proporções configuráveis com fallbacks inteligentes
@@ -243,6 +246,46 @@
   {:else if $presentationState.display_mode === 'cleartext'}
     <div class="bg-amber-500/20 border border-amber-500/40 text-amber-300 py-1.5 px-4 text-center text-xs font-semibold uppercase tracking-wider shrink-0">
       Texto Oculto no Público (Clear Text)
+    </div>
+  {/if}
+
+  <!-- Status de Áudio Ativo no Palco (Tempo Atual e Restante) -->
+  {#if isAudioActive && audioPlayback}
+    {@const cur = audioPlayback.current_time_seconds || 0}
+    {@const dur = audioPlayback.duration_seconds || 1}
+    {@const rem = Math.max(0, dur - cur)}
+    <div class="bg-emerald-950/80 border-b border-emerald-500/50 px-4 py-2 flex items-center justify-between gap-4 shrink-0 shadow-lg select-none z-30">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 shrink-0">
+          <Volume2 size={16} class={audioPlayback.is_playing ? 'animate-pulse' : ''} />
+        </div>
+        <div class="min-w-0">
+          <div class="text-xs font-bold text-white truncate flex items-center gap-2">
+            <span>{audioPlayback.title || 'Faixa de Áudio'}</span>
+            {#if audioPlayback.is_playing}
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-500/30 text-emerald-300 uppercase font-black">Ao Vivo</span>
+            {:else}
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-zinc-800 text-zinc-400 uppercase font-bold">Pausado</span>
+            {/if}
+          </div>
+          {#if audioPlayback.artist_or_ref}
+            <div class="text-[10px] text-zinc-400 truncate">{audioPlayback.artist_or_ref}</div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Barra de Progresso e Tempos (Tempo Atual e Tempo Restante) -->
+      <div class="flex items-center gap-3 shrink-0">
+        <div class="flex items-center gap-2 font-mono text-sm font-bold">
+          <span class="text-zinc-300" title="Tempo decorrido">
+            {Math.floor(cur / 60)}:{String(Math.floor(cur % 60)).padStart(2, '0')}
+          </span>
+          <span class="text-zinc-600">/</span>
+          <span class="text-emerald-400 font-black text-base" title="Tempo restante">
+            -{Math.floor(rem / 60)}:{String(Math.floor(rem % 60)).padStart(2, '0')}
+          </span>
+        </div>
+      </div>
     </div>
   {/if}
 
@@ -418,6 +461,40 @@
                   {ev.details}
                 </p>
               {/if}
+            </div>
+          {:else if activeMedia?.kind === 'audio'}
+            {@const cur = audioPlayback?.current_time_seconds || 0}
+            {@const dur = audioPlayback?.duration_seconds || 1}
+            {@const rem = Math.max(0, dur - cur)}
+            <div class="w-full h-full flex flex-col items-center justify-center text-center gap-4 p-4 select-none">
+              <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-lg">
+                <Volume2 size={36} class={audioPlayback?.is_playing ? 'animate-pulse' : ''} />
+              </div>
+              <div class="space-y-1 max-w-xl">
+                <div class="text-2xl sm:text-3xl font-black text-white truncate">
+                  {audioPlayback?.title || activeMedia?.title || 'Trilha de Áudio'}
+                </div>
+                {#if activeMedia?.artist_or_ref}
+                  <div class="text-sm text-zinc-400 font-medium truncate">
+                    {activeMedia.artist_or_ref}
+                  </div>
+                {/if}
+              </div>
+              <div class="flex items-center gap-6 font-mono bg-zinc-900/80 border border-zinc-800 px-6 py-3 rounded-2xl shadow-xl">
+                <div class="text-left">
+                  <div class="text-[10px] text-zinc-400 uppercase tracking-widest font-semibold">Decorrido</div>
+                  <div class="text-2xl sm:text-3xl font-black text-white">
+                    {Math.floor(cur / 60)}:{String(Math.floor(cur % 60)).padStart(2, '0')}
+                  </div>
+                </div>
+                <div class="w-px h-8 bg-zinc-800"></div>
+                <div class="text-right">
+                  <div class="text-[10px] text-zinc-400 uppercase tracking-widest font-semibold">Restante</div>
+                  <div class="text-2xl sm:text-3xl font-black text-emerald-400">
+                    -{Math.floor(rem / 60)}:{String(Math.floor(rem % 60)).padStart(2, '0')}
+                  </div>
+                </div>
+              </div>
             </div>
           {:else if activeSlide}
             <div

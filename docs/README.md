@@ -284,6 +284,13 @@
 - [Spec — Setlist em Fluxo Contínuo (Estilo ProPresenter) e Customização de Cores e Fundo da Agenda](specs/2026-11-01-setlist-propresenter-flow-e-agenda-cores-bg.md)
 - [Plano — Setlist em Fluxo Contínuo (Estilo ProPresenter) e Customização de Cores e Fundo da Agenda](plans/2026-11-01-setlist-propresenter-flow-e-agenda-cores-bg.md)
 
+## Áudio, Vídeo, Cronômetro na Tela Pública e Pastas Mapeadas
+
+- [Spec — Áudio, Vídeo e Projeção de Timer na Tela Pública](specs/2026-11-05-audio-video-e-timer-publico.md)
+- [Plano — Áudio, Vídeo e Projeção de Timer na Tela Pública](plans/2026-11-05-audio-video-e-timer-publico.md)
+- [Spec — Ajustes de Timer da Setlist, Customização de Aparência, Áudio no Stage/Public com Waveforms e Pastas Mapeadas](specs/2026-11-05-ajustes-timer-setlist-audio-stage-waveforms-e-pastas-mapeadas.md)
+- [Plano — Ajustes de Timer da Setlist, Customização de Aparência, Áudio no Stage/Public com Waveforms e Pastas Mapeadas](plans/2026-11-05-ajustes-timer-setlist-audio-stage-waveforms-e-pastas-mapeadas.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

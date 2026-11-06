@@ -60,6 +60,17 @@ export const DEFAULT_PUBLIC_SETTINGS: PublicDisplaySettings = {
   schedule_day_color: '#fcd34d',
   schedule_time_color: '#ffffff',
   schedule_badge_bg: true,
+
+  // Cronômetro / Timer na Tela Pública
+  timer_box_background: true,
+  timer_bg_opacity: 65,
+  timer_digits_font_size: 130,
+  timer_title_font_size: 22,
+  timer_message_font_size: 18,
+  timer_text_color: '#ffffff',
+
+  // Áudio na Tela Pública
+  audio_show_waveform_on_public: false,
 };
 
 export const DEFAULT_CHURCH_BRAND: ChurchBrandSettings = {

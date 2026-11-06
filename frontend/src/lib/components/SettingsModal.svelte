@@ -181,7 +181,7 @@
   let settingsSongFileInputEl: HTMLInputElement | null = $state(null);
 
   // Sub-seções internas
-  let publicSection = $state<'lyrics' | 'scripture' | 'schedule' | 'general'>('lyrics');
+  let publicSection = $state<'lyrics' | 'scripture' | 'schedule' | 'timer' | 'general'>('lyrics');
   let stageSection = $state<'lyrics' | 'scripture' | 'schedule' | 'general'>('lyrics');
   let bgPreviewMode = $state<'lyrics' | 'scripture' | 'schedule'>('lyrics');
   let ltPreviewMode = $state<'lyrics' | 'scripture' | 'image'>('lyrics');
@@ -1860,29 +1860,29 @@
               </div>
 
               <!-- Seletor de Seções da Projeção Pública -->
-              <div class="p-1 bg-neutral-950 rounded-xl border border-neutral-800 grid grid-cols-2 sm:grid-cols-4 gap-1">
+              <div class="p-1 bg-neutral-950 rounded-xl border border-neutral-800 grid grid-cols-2 sm:grid-cols-5 gap-1">
                 <button
                   type="button"
                   onclick={() => (publicSection = 'lyrics')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'lyrics' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                  class="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'lyrics' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
                 >
                   <Music size={13} />
-                  <span>Letras de Louvor</span>
+                  <span>Letras</span>
                 </button>
 
                 <button
                   type="button"
                   onclick={() => (publicSection = 'scripture')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'scripture' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                  class="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'scripture' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
                 >
                   <BookOpen size={13} />
-                  <span>Textos Bíblicos</span>
+                  <span>Bíblia</span>
                 </button>
 
                 <button
                   type="button"
                   onclick={() => (publicSection = 'schedule')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'schedule' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                  class="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'schedule' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
                 >
                   <CalendarDays size={13} />
                   <span>Agenda</span>
@@ -1890,11 +1890,20 @@
 
                 <button
                   type="button"
+                  onclick={() => (publicSection = 'timer')}
+                  class="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'timer' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                >
+                  <Clock size={13} />
+                  <span>Timer & Áudio</span>
+                </button>
+
+                <button
+                  type="button"
                   onclick={() => (publicSection = 'general')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'general' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
+                  class="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'general' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
                 >
                   <Sliders size={13} />
-                  <span>Margens & Geral</span>
+                  <span>Margens</span>
                 </button>
               </div>
 
@@ -2715,6 +2724,233 @@
                           <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.schedule_show_footer !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
                         </button>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+              {:else if publicSection === 'timer'}
+                <!-- SEÇÃO: CRONÔMETRO (TIMER) E ÁUDIO NA TELA PÚBLICA -->
+                <div class="space-y-4">
+                  <!-- Customização de Aparência do Timer -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                          <Clock size={14} class="text-primary" />
+                          Aparência do Cronômetro / Timer na Tela Pública
+                        </h4>
+                        <p class="text-[11px] text-neutral-400 mt-0.5">
+                          Personalize a caixa visual, opacidade de fundo, cores e tamanho dos textos ao projetar cronômetros e timers no telão.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-[11px] h-7 gap-1"
+                        onclick={() => {
+                          localPublic = {
+                            ...localPublic,
+                            timer_box_background: DEFAULT_PUBLIC_SETTINGS.timer_box_background,
+                            timer_bg_opacity: DEFAULT_PUBLIC_SETTINGS.timer_bg_opacity,
+                            timer_digits_font_size: DEFAULT_PUBLIC_SETTINGS.timer_digits_font_size,
+                            timer_title_font_size: DEFAULT_PUBLIC_SETTINGS.timer_title_font_size,
+                            timer_message_font_size: DEFAULT_PUBLIC_SETTINGS.timer_message_font_size,
+                            timer_text_color: DEFAULT_PUBLIC_SETTINGS.timer_text_color,
+                          };
+                          savePublicSettings();
+                        }}
+                      >
+                        <RotateCcw size={12} />
+                        <span>Padrão</span>
+                      </Button>
+                    </div>
+
+                    <!-- Caixa de Fundo (Glassmorphism) -->
+                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
+                      <div>
+                        <div class="text-[11px] font-semibold text-white">Caixa de Fundo (Placa com Efeito Vidro)</div>
+                        <p class="text-[10px] text-neutral-400 mt-0.5">
+                          Adiciona container translúcido com borda suave e desfoque atrás dos dígitos e mensagens. Se desativado, o texto fica diretamente sobre o papel de parede.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Alternar caixa de fundo do timer"
+                        onclick={() => updatePublicField('timer_box_background', localPublic.timer_box_background === false ? true : false)}
+                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.timer_box_background !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                        role="switch"
+                        aria-checked={localPublic.timer_box_background !== false}
+                      >
+                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.timer_box_background !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
+                      </button>
+                    </div>
+
+                    {#if localPublic.timer_box_background !== false}
+                      <!-- Opacidade do Fundo -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Opacidade do Fundo</span>
+                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+                            {localPublic.timer_bg_opacity ?? 65}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="10"
+                          max="100"
+                          step="5"
+                          value={localPublic.timer_bg_opacity ?? 65}
+                          oninput={(e) => updatePublicField('timer_bg_opacity', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                        <div class="flex justify-between text-[9px] text-neutral-500 font-mono">
+                          <span>10% (Sutil)</span>
+                          <span>65% (Padrão)</span>
+                          <span>100% (Sólido)</span>
+                        </div>
+                      </div>
+                    {/if}
+
+                    <!-- Cor do Texto -->
+                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
+                      <div>
+                        <div class="text-[11px] font-semibold text-white">Cor do Texto e Dígitos</div>
+                        <p class="text-[10px] text-neutral-400 mt-0.5">
+                          Cor dos números do cronômetro, título e mensagem na tela de projeção.
+                        </p>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="font-mono text-[11px] text-neutral-300 uppercase">{localPublic.timer_text_color || '#ffffff'}</span>
+                        <input
+                          type="color"
+                          value={localPublic.timer_text_color || '#ffffff'}
+                          oninput={(e) => updatePublicField('timer_text_color', (e.target as HTMLInputElement).value)}
+                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Tamanhos de Fontes -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                      <!-- Dígitos do Timer -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Dígitos do Timer</span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="50"
+                              max="240"
+                              step="5"
+                              value={localPublic.timer_digits_font_size ?? 130}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 50) updatePublicField('timer_digits_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="50"
+                          max="220"
+                          step="5"
+                          value={localPublic.timer_digits_font_size ?? 130}
+                          oninput={(e) => updatePublicField('timer_digits_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+
+                      <!-- Título do Momento/Culto -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Título do Momento</span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="12"
+                              max="80"
+                              step="2"
+                              value={localPublic.timer_title_font_size ?? 22}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 12) updatePublicField('timer_title_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="12"
+                          max="60"
+                          step="2"
+                          value={localPublic.timer_title_font_size ?? 22}
+                          oninput={(e) => updatePublicField('timer_title_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+
+                      <!-- Mensagem / Subtítulo -->
+                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-neutral-300 font-medium">Mensagem Abaixo</span>
+                          <div class="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="10"
+                              max="60"
+                              step="2"
+                              value={localPublic.timer_message_font_size ?? 18}
+                              oninput={(e) => {
+                                const val = Number((e.target as HTMLInputElement).value);
+                                if (!isNaN(val) && val >= 10) updatePublicField('timer_message_font_size', val);
+                              }}
+                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                            />
+                            <span class="text-[10px] font-mono text-neutral-400">px</span>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="10"
+                          max="48"
+                          step="2"
+                          value={localPublic.timer_message_font_size ?? 18}
+                          oninput={(e) => updatePublicField('timer_message_font_size', Number((e.target as HTMLInputElement).value))}
+                          class="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Configuração de Áudio na Tela Pública -->
+                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                    <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                      <Music size={14} class="text-primary" />
+                      Reprodução de Áudio na Projeção Pública
+                    </h4>
+
+                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
+                      <div>
+                        <div class="text-[11px] font-semibold text-white">Exibir Arte com Waveforms Sonoras Animadas</div>
+                        <p class="text-[10px] text-neutral-400 mt-0.5">
+                          Por padrão desativado: a tela pública mantém o papel de parede ativo limpo, sem elementos sobrepostos. Ative se desejar exibir um card elegante com equalizador animado e metadados da faixa.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Alternar waveforms de áudio na tela pública"
+                        onclick={() => updatePublicField('audio_show_waveform_on_public', !localPublic.audio_show_waveform_on_public)}
+                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.audio_show_waveform_on_public ? 'bg-emerald-600' : 'bg-neutral-800'}"
+                        role="switch"
+                        aria-checked={Boolean(localPublic.audio_show_waveform_on_public)}
+                      >
+                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.audio_show_waveform_on_public ? 'translate-x-5' : 'translate-x-0'}"></span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -6194,9 +6430,9 @@
               <!-- Pastas Externas Mapeadas (Zero-Copy) -->
               <div class="pt-4 border-t border-border space-y-3">
                 <div>
-                  <h3 class="text-sm font-semibold text-foreground">Pastas de Mídia Importadas</h3>
+                  <h3 class="text-sm font-semibold text-foreground">Pastas de Mídia Externas Mapeadas</h3>
                   <p class="text-xs text-muted-foreground mt-0.5">
-                    Adicione pastas do seu computador (ex.: fotos do culto, avisos). O OpenPresenter lê diretamente sem duplicar espaço em disco.
+                    Mapeie diretórios do seu computador (fotos, vídeos ou áudios). O OpenPresenter indexa os arquivos diretamente sem copiar nem duplicar espaço em disco.
                   </p>
                 </div>
 
@@ -6209,7 +6445,7 @@
                         id="folder-name-input"
                         type="text"
                         bind:value={newFolderName}
-                        placeholder="Ex: Fotos do Culto de Domingo"
+                        placeholder="Ex: Mídias do Culto (Fotos, Vídeos, Áudios)"
                         class="w-full h-8 px-2.5 rounded bg-background border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                       />
                     </div>
