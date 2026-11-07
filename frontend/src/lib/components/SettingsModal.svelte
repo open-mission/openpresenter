@@ -905,6 +905,141 @@
     }
   }
 
+  // Estado e métodos para Backup e Migração de Dados
+  let isExportingBackup = $state(false);
+  let isInspectingBackup = $state(false);
+  let isRestoringBackup = $state(false);
+  let backupFileInput: HTMLInputElement | null = $state(null);
+  let inspectedBackup = $state<any | null>(null);
+  let backupFileToRestore = $state<File | null>(null);
+  let backupError = $state<string | null>(null);
+  let backupSuccessMessage = $state<string | null>(null);
+
+  async function handleExportBackup() {
+    isExportingBackup = true;
+    backupError = null;
+    backupSuccessMessage = null;
+    try {
+      const res = await fetch('/api/backup/export');
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || 'Falha ao gerar pacote de backup');
+      }
+      const blob = await res.blob();
+      const contentDisposition = res.headers.get('content-disposition');
+      let filename = 'open-presenter-backup.opbackup';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (match && match[1]) filename = match[1];
+      }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      notifySuccess('Backup exportado com sucesso!', `Arquivo salvo como ${filename}`);
+    } catch (err: any) {
+      backupError = err.message || 'Erro ao exportar backup';
+      notifyError('Erro na exportação', backupError);
+    } finally {
+      isExportingBackup = false;
+    }
+  }
+
+  function handleSelectBackupFile() {
+    backupError = null;
+    backupSuccessMessage = null;
+    backupFileInput?.click();
+  }
+
+  async function handleBackupFileSelected(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const files = target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    backupFileToRestore = file;
+    isInspectingBackup = true;
+    backupError = null;
+    backupSuccessMessage = null;
+
+    try {
+      const res = await fetch('/api/backup/inspect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/zip' },
+        body: file,
+      });
+
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || 'Falha ao inspecionar arquivo de backup');
+      }
+
+      const inspectResult = await res.json();
+      if (!inspectResult.valid) {
+        throw new Error(inspectResult.error || 'Arquivo de backup inválido ou corrompido.');
+      }
+
+      inspectedBackup = inspectResult;
+    } catch (err: any) {
+      backupError = err.message || 'Erro ao analisar arquivo de backup';
+      inspectedBackup = null;
+      backupFileToRestore = null;
+      notifyError('Arquivo inválido', backupError);
+    } finally {
+      isInspectingBackup = false;
+      target.value = '';
+    }
+  }
+
+  async function handleConfirmRestore() {
+    if (!backupFileToRestore) return;
+
+    isRestoringBackup = true;
+    backupError = null;
+    backupSuccessMessage = null;
+
+    try {
+      const res = await fetch('/api/backup/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/zip' },
+        body: backupFileToRestore,
+      });
+
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || 'Falha ao restaurar dados');
+      }
+
+      const result = await res.json();
+      inspectedBackup = null;
+      backupFileToRestore = null;
+      backupSuccessMessage = result.message || 'Dados restaurados com sucesso!';
+      notifySuccess('Restauração concluída!', 'Os dados foram aplicados com sucesso. A página será atualizada.');
+
+      await loadSystemPaths();
+      await loadMediaFolders();
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err: any) {
+      backupError = err.message || 'Erro ao restaurar backup';
+      notifyError('Erro na restauração', backupError);
+    } finally {
+      isRestoringBackup = false;
+    }
+  }
+
+  function handleCancelRestore() {
+    inspectedBackup = null;
+    backupFileToRestore = null;
+    backupError = null;
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (!open) return;
     if (e.key === 'Escape') {
@@ -6426,6 +6561,188 @@
                   </div>
                 </div>
               {/if}
+
+              <!-- Backup & Migração de Instalação -->
+              <div class="pt-4 border-t border-border space-y-3">
+                <div>
+                  <h3 class="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <HardDrive size={16} class="text-primary" />
+                    <span>Backup & Migração de Instalação</span>
+                  </h3>
+                  <p class="text-xs text-muted-foreground mt-0.5">
+                    Mova sua instalação para outro computador ou guarde uma cópia de segurança completa contendo músicas, setlists, equipe, mídias importadas e configurações.
+                  </p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <!-- Card Exportar Dados -->
+                  <div class="p-3.5 rounded-xl border border-border bg-card/60 space-y-3 flex flex-col justify-between">
+                    <div class="space-y-1.5">
+                      <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-primary/20 text-primary flex items-center justify-center shrink-0">
+                          <Download size={14} />
+                        </div>
+                        <h4 class="text-xs font-bold text-foreground">Exportar Dados (.opbackup)</h4>
+                      </div>
+                      <p class="text-[11px] text-muted-foreground leading-relaxed">
+                        Gera um arquivo portátil contendo todo o banco SQLite e arquivos de imagens, wallpapers, vídeos, áudios, bíblias e fontes.
+                      </p>
+                    </div>
+
+                    <div class="pt-1">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onclick={handleExportBackup}
+                        disabled={isExportingBackup}
+                        class="w-full gap-2 text-xs font-semibold"
+                      >
+                        {#if isExportingBackup}
+                          <RefreshCw size={13} class="animate-spin" />
+                          <span>Gerando pacote...</span>
+                        {:else}
+                          <Download size={13} />
+                          <span>Exportar Todos os Dados</span>
+                        {/if}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <!-- Card Importar Dados -->
+                  <div class="p-3.5 rounded-xl border border-border bg-card/60 space-y-3 flex flex-col justify-between">
+                    <div class="space-y-1.5">
+                      <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                          <Upload size={14} />
+                        </div>
+                        <h4 class="text-xs font-bold text-foreground">Importar / Restaurar Instalação</h4>
+                      </div>
+                      <p class="text-[11px] text-muted-foreground leading-relaxed">
+                        Restaure os dados de outro computador a partir de um arquivo <code class="font-mono text-[10px] bg-background px-1 py-0.5 rounded border border-border">.opbackup</code> ou <code class="font-mono text-[10px] bg-background px-1 py-0.5 rounded border border-border">.zip</code>.
+                      </p>
+                    </div>
+
+                    <div class="pt-1">
+                      <input
+                        type="file"
+                        accept=".opbackup,.zip"
+                        bind:this={backupFileInput}
+                        onchange={handleBackupFileSelected}
+                        class="hidden"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onclick={handleSelectBackupFile}
+                        disabled={isInspectingBackup || isRestoringBackup}
+                        class="w-full gap-2 text-xs font-semibold hover:border-emerald-500/50 hover:text-emerald-400"
+                      >
+                        {#if isInspectingBackup}
+                          <RefreshCw size={13} class="animate-spin text-emerald-400" />
+                          <span>Analisando arquivo...</span>
+                        {:else}
+                          <Upload size={13} />
+                          <span>Selecionar Arquivo de Backup...</span>
+                        {/if}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {#if backupError}
+                  <div class="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-center gap-2">
+                    <AlertCircle size={14} class="shrink-0" />
+                    <span>{backupError}</span>
+                  </div>
+                {/if}
+
+                {#if backupSuccessMessage}
+                  <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2">
+                    <CheckCircle2 size={14} class="shrink-0" />
+                    <span>{backupSuccessMessage}</span>
+                  </div>
+                {/if}
+
+                <!-- Diálogo / Card de Confirmação e Inspeção do Backup Selecionado -->
+                {#if inspectedBackup}
+                  <div class="p-4 rounded-xl border border-amber-500/40 bg-amber-500/5 space-y-3.5">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                          <AlertTriangle size={18} />
+                        </div>
+                        <div>
+                          <h4 class="text-xs font-bold text-foreground">Confirmar Restauração de Dados</h4>
+                          <p class="text-[11px] text-muted-foreground">Revise o conteúdo do pacote antes de aplicar as alterações.</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" class="text-[10px] text-amber-400 border-amber-500/40 font-mono">
+                        {inspectedBackup.filename}
+                      </Badge>
+                    </div>
+
+                    {#if inspectedBackup.manifest}
+                      {@const m = inspectedBackup.manifest}
+                      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div class="p-2.5 rounded-lg bg-background/80 border border-border">
+                          <span class="text-[10px] text-muted-foreground block">Músicas</span>
+                          <span class="font-bold text-foreground text-sm">{m.stats.songs_count}</span>
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-background/80 border border-border">
+                          <span class="text-[10px] text-muted-foreground block">Setlists</span>
+                          <span class="font-bold text-foreground text-sm">{m.stats.setlists_count}</span>
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-background/80 border border-border">
+                          <span class="text-[10px] text-muted-foreground block">Voluntários</span>
+                          <span class="font-bold text-foreground text-sm">{m.stats.team_members_count}</span>
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-background/80 border border-border">
+                          <span class="text-[10px] text-muted-foreground block">Mídias (Arquivos)</span>
+                          <span class="font-bold text-foreground text-sm">
+                            {m.stats.images_count + m.stats.videos_count + m.stats.audios_count + m.stats.wallpapers_count}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div class="text-[11px] text-muted-foreground flex items-center justify-between px-1">
+                        <span>Criado em: {new Date(m.created_at).toLocaleString('pt-BR')} (OpenPresenter v{m.app_version})</span>
+                        <span>Tamanho: {(inspectedBackup.file_size_bytes / (1024 * 1024)).toFixed(1)} MB</span>
+                      </div>
+                    {/if}
+
+                    <div class="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 leading-relaxed">
+                      <strong>Aviso:</strong> A restauração substituirá os dados atuais do banco de dados SQLite e sincronizará os arquivos de mídia. A aplicação será recarregada automaticamente após a conclusão.
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onclick={handleCancelRestore}
+                        disabled={isRestoringBackup}
+                        class="text-xs"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onclick={handleConfirmRestore}
+                        disabled={isRestoringBackup}
+                        class="gap-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white"
+                      >
+                        {#if isRestoringBackup}
+                          <RefreshCw size={13} class="animate-spin" />
+                          <span>Restaurando dados...</span>
+                        {:else}
+                          <CheckCircle2 size={13} />
+                          <span>Substituir e Restaurar Dados</span>
+                        {/if}
+                      </Button>
+                    </div>
+                  </div>
+                {/if}
+              </div>
 
               <!-- Pastas Externas Mapeadas (Zero-Copy) -->
               <div class="pt-4 border-t border-border space-y-3">

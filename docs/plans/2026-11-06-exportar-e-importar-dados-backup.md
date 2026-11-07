@@ -33,12 +33,12 @@
 - [x] Adicionar testes de integração das rotas.
 
 ### Item 4: Interface do Usuário no Painel de Configurações (`frontend`)
-- [ ] Adicionar seção "Backup & Migração" na aba "Arquivos & Mídias" do `SettingsModal.svelte`.
-- [ ] Implementar Card de Exportação com botão de download e opções de seleção.
-- [ ] Implementar Card de Importação com seletor de arquivo `.opbackup`/`.zip`.
-- [ ] Implementar diálogo/modal de inspeção prévia exibindo estatísticas (total de músicas, setlists, imagens, etc.) e confirmação de restauração.
-- [ ] Feedback visual de progresso, notificação de sucesso e atualização da página.
-- [ ] Executar `npm --prefix frontend run build`.
+- [x] Adicionar seção "Backup & Migração" na aba "Arquivos & Mídias" do `SettingsModal.svelte`.
+- [x] Implementar Card de Exportação com botão de download e opções de seleção.
+- [x] Implementar Card de Importação com seletor de arquivo `.opbackup`/`.zip`.
+- [x] Implementar diálogo/modal de inspeção prévia exibindo estatísticas (total de músicas, setlists, imagens, etc.) e confirmação de restauração.
+- [x] Feedback visual de progresso, notificação de sucesso e atualização da página.
+- [x] Executar `npm --prefix frontend run build`.
 
 ### Item 5: Documentação Final, Overview da Arquitetura e CHANGELOG
 - [ ] Atualizar `docs/architecture/overview.md` detalhando o fluxo de exportação e restauração.

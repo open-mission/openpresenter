@@ -8,13 +8,13 @@
 
 ## Backlog
 
-- [ ] Item 5: Documentação Final, Overview da Arquitetura e CHANGELOG: atualização de `docs/architecture/overview.md`, registro no `CHANGELOG.md` e verificação de todos os portões de qualidade.
-
 ## Doing
 
-- [ ] Item 4: Interface do Usuário no Painel de Configurações (`frontend/src/lib/components/SettingsModal.svelte`): seção "Backup & Migração" na aba "Arquivos & Mídias" com cards de exportação rápida e importação, modal de confirmação com resumo das estatísticas do pacote (músicas, mídias, etc.), barra de progresso e recarga suave.
+- [ ] Item 5: Documentação Final, Overview da Arquitetura e CHANGELOG: atualização de `docs/architecture/overview.md`, registro no `CHANGELOG.md` e verificação de todos os portões de qualidade.
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Feat(ui): Interface de Backup & Migração de Instalação no Painel de Configurações (`SettingsModal.svelte`): nova seção "Backup & Migração de Instalação" na aba "Arquivos & Mídias" com card de exportação direta (.opbackup com download automático) e card de importação com seletor de arquivos (.opbackup e .zip); inspeção prévia via API com exibição de estatísticas detalhadas (músicas, setlists, membros de equipe, mídias e tamanho); alerta de confirmação preventiva antes da substituição de dados; indicadores de carregamento durante upload/extração e recarga automática sincronizada do app. (commit cc9e046 - 2026-11-06 23:43:00 -03:00)
 
 - [x] Feat(api): Endpoints REST de Exportação, Inspeção e Importação de Backup (`op-admin`): rotas `GET /api/backup/export` (stream de download do arquivo `.opbackup` com query params de filtros), `POST /api/backup/inspect` (inspeção prévia com retorno de estatísticas e validação de compatibilidade) e `POST /api/backup/import` (restauração segura com substituição no SQLite, extração de arquivos, recarga atômica de `AppState` via `reload_from_database` e broadcast WebSocket); suporte híbrido a upload binário direto e JSON Base64/source_path; documentação OpenAPI 3.0 / Swagger UI offline; e testes de integração de ponta a ponta. (commit f71c2c4 - 2026-11-06 23:36:00 -03:00)
 
