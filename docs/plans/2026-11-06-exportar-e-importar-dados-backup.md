@@ -16,14 +16,14 @@
 - [x] Rodar `cargo test -p op-db` e atualizar documentação/TODO.
 
 ### Item 2: Modelagem de Dados no Domínio e Módulo de Empacotamento ZIP (`op-core` e `op-admin`)
-- [ ] Criar estruturas `BackupManifest`, `BackupStats`, `BackupInspectResult`, `BackupRestoreResult` em `crates/op-core/src/lib.rs`.
-- [ ] Criar módulo `crates/op-admin/src/backup.rs` responsável por:
+- [x] Criar estruturas `BackupManifest`, `BackupStats`, `BackupInspectResult`, `BackupRestoreResult` em `crates/op-core/src/lib.rs`.
+- [x] Criar módulo `crates/op-admin/src/backup.rs` responsável por:
   - Gerar o manifesto `manifest.json`.
   - Criar o pacote compactado `.opbackup` (ZIP com compressão Deflate).
   - Incluir banco snapshot e pastas de arquivos (`media/`, `bibles/`, `fonts/`).
   - Inspecionar pacote ZIP existente e extrair metadados para validação.
   - Extrair e restaurar arquivos com proteção rigorosa contra Zip Slip.
-- [ ] Adicionar testes unitários cobrindo empacotamento, integridade e sanitização de caminhos.
+- [x] Adicionar testes unitários cobrindo empacotamento, integridade e sanitização de caminhos.
 
 ### Item 3: Endpoints REST na API Axum (`op-admin`)
 - [ ] Adicionar rota `GET /api/backup/export` com streaming do arquivo `.opbackup` e opções de inclusão via query params.

@@ -1,6 +1,7 @@
 //! Binário principal do servidor OpenPresenter (Rust + Axum).
 
 mod api_docs;
+pub mod backup;
 pub mod metrics;
 mod online_lyrics;
 mod routes;

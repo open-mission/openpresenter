@@ -1038,6 +1038,97 @@ pub enum WsMessage {
     Pong,
 }
 
+/// Versão do formato do manifesto de backup do OpenPresenter.
+pub const BACKUP_FORMAT_VERSION: u32 = 1;
+
+/// Manifesto contido na raiz do arquivo compactado de backup (`manifest.json`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BackupManifest {
+    pub format_version: u32,
+    pub app_name: String,
+    pub app_version: String,
+    pub schema_version: u32,
+    pub created_at: String,
+    pub stats: BackupStats,
+}
+
+/// Estatísticas quantitativas dos dados contidos no backup.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct BackupStats {
+    pub songs_count: usize,
+    pub setlists_count: usize,
+    pub team_members_count: usize,
+    pub bibles_count: usize,
+    pub images_count: usize,
+    pub wallpapers_count: usize,
+    pub videos_count: usize,
+    pub audios_count: usize,
+    pub church_brand_count: usize,
+    pub fonts_count: usize,
+    pub total_files_count: usize,
+    pub total_bytes: u64,
+}
+
+/// Opções configuráveis na exportação do pacote de backup.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BackupExportOptions {
+    #[serde(default = "default_backup_bool_true")]
+    pub include_database: bool,
+    #[serde(default = "default_backup_bool_true")]
+    pub include_images: bool,
+    #[serde(default = "default_backup_bool_true")]
+    pub include_wallpapers: bool,
+    #[serde(default = "default_backup_bool_true")]
+    pub include_videos: bool,
+    #[serde(default = "default_backup_bool_true")]
+    pub include_audios: bool,
+    #[serde(default = "default_backup_bool_true")]
+    pub include_church_brand: bool,
+    #[serde(default = "default_backup_bool_true")]
+    pub include_bibles: bool,
+    #[serde(default = "default_backup_bool_true")]
+    pub include_fonts: bool,
+}
+
+fn default_backup_bool_true() -> bool {
+    true
+}
+
+impl Default for BackupExportOptions {
+    fn default() -> Self {
+        Self {
+            include_database: true,
+            include_images: true,
+            include_wallpapers: true,
+            include_videos: true,
+            include_audios: true,
+            include_church_brand: true,
+            include_bibles: true,
+            include_fonts: true,
+        }
+    }
+}
+
+/// Resultado da inspeção preliminar de um arquivo `.opbackup` ou `.zip`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BackupInspectResult {
+    pub valid: bool,
+    pub is_compatible: bool,
+    pub error: Option<String>,
+    pub manifest: Option<BackupManifest>,
+    pub filename: String,
+    pub file_size_bytes: u64,
+}
+
+/// Resultado detalhado após a execução da restauração de dados.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BackupRestoreResult {
+    pub success: bool,
+    pub message: String,
+    pub restored_files_count: usize,
+    pub manifest: Option<BackupManifest>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

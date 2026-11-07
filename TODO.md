@@ -8,15 +8,16 @@
 
 ## Backlog
 
-- [ ] Item 3: Endpoints REST na API Axum (`op-admin/src/routes.rs`): rotas `GET /api/backup/export` (stream de download), `POST /api/backup/inspect` (análise sem efeitos colaterais) e `POST /api/backup/import` (restauração segura com substituição no SQLite, atualização de arquivos e recarga atômica de `AppState` e WebSocket).
 - [ ] Item 4: Interface do Usuário no Painel de Configurações (`frontend/src/lib/components/SettingsModal.svelte`): seção "Backup & Migração" na aba "Arquivos & Mídias" com cards de exportação rápida e importação, modal de confirmação com resumo das estatísticas do pacote (músicas, mídias, etc.), barra de progresso e recarga suave.
 - [ ] Item 5: Documentação Final, Overview da Arquitetura e CHANGELOG: atualização de `docs/architecture/overview.md`, registro no `CHANGELOG.md` e verificação de todos os portões de qualidade.
 
 ## Doing
 
-- [ ] Item 2: Modelagem de Dados no Domínio e Módulo de Empacotamento ZIP (`op-core` e `op-admin/src/backup.rs`): criação das structs `BackupManifest`, `BackupStats`, `BackupInspectResult`, `BackupRestoreResult` em `op-core`, utilitários para criar `.opbackup` (ZIP Deflate) com manifesto, snapshot do SQLite e pastas de mídias (`images`, `videos`, `audios`, `wallpapers`, `church_brand`, `bibles`, `fonts`), inspeção prévia de pacotes e extração com proteção rigorosa contra Zip Slip.
+- [ ] Item 3: Endpoints REST na API Axum (`op-admin/src/routes.rs`): rotas `GET /api/backup/export` (stream de download), `POST /api/backup/inspect` (análise sem efeitos colaterais) e `POST /api/backup/import` (restauração segura com substituição no SQLite, atualização de arquivos e recarga atômica de `AppState` e WebSocket).
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Feat(backup): Modelagem de Dados no Domínio e Módulo de Empacotamento ZIP (`op-core` e `op-admin/src/backup.rs`): definição de `BackupManifest`, `BackupStats`, `BackupInspectResult`, `BackupRestoreResult` e `BackupExportOptions` no `op-core`; implementação de `export_backup_package` gerando arquivos `.opbackup` (ZIP Deflate) com snapshot atômico do SQLite e árvore de diretórios de mídia (`images`, `wallpapers`, `videos`, `audios`, `church_brand`, `bibles`, `fonts`); rotinas `inspect_backup_package` com validação de compatibilidade e `restore_backup_package` com proteção contra Zip Slip e extração sanitizada; e testes unitários de ciclo completo (exportar, inspecionar e restaurar). (commit a79602c - 2026-11-06 23:27:00 -03:00)
 
 - [x] Feat(db): Métodos Atômicos de Backup e Restore no Banco de Dados SQLite (`op-db`): criação da spec `docs/specs/2026-11-06-exportar-e-importar-dados-backup.md`, plano `docs/plans/2026-11-06-exportar-e-importar-dados-backup.md` e ADR 0014; implementação de `Database::backup_to_file` e `Database::restore_from_file` usando a API nativa de backup do SQLite (`rusqlite::backup::Backup`), garantindo atomicidade e ausência de inconsistências de WAL/locks; validação preventiva com `PRAGMA integrity_check`, checagem de versão de schema e aplicação de migrações automáticas em caso de backup de versão anterior; inclusão de métodos de contagem estatística (`count_songs`, `count_setlists`, `count_team_members`, `count_bibles`) e cobertura com testes unitários. (commit 57de6a1 - 2026-11-06 23:22:00 -03:00)
 
