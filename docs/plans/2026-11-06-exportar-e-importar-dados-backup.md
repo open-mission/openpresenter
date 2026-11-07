@@ -1,7 +1,7 @@
 # Plano — Exportação e Importação Completa de Dados da Aplicação (Backup & Migração)
 
 **Data:** 2026-11-06  
-**Status:** Em execução  
+**Status:** Concluído  
 **Spec relacionada:** [Spec — Exportação e Importação Completa de Dados](docs/specs/2026-11-06-exportar-e-importar-dados-backup.md)  
 **Abordagem:** Desenvolvimento incremental passo a passo (um item de cada vez), com validação contínua e garantia dos portões de qualidade.
 
@@ -41,7 +41,7 @@
 - [x] Executar `npm --prefix frontend run build`.
 
 ### Item 5: Documentação Final, Overview da Arquitetura e CHANGELOG
-- [ ] Atualizar `docs/architecture/overview.md` detalhando o fluxo de exportação e restauração.
-- [ ] Atualizar `CHANGELOG.md` com as novas capacidades de migração e backup.
-- [ ] Concluir o item em `TODO.md` com commits e referências organizadas.
-- [ ] Executar todos os portões de qualidade: `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`.
+- [x] Atualizar `docs/architecture/overview.md` detalhando o fluxo de exportação e restauração.
+- [x] Atualizar `CHANGELOG.md` com as novas capacidades de migração e backup.
+- [x] Concluir o item em `TODO.md` com commits e referências organizadas.
+- [x] Executar todos os portões de qualidade: `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`.

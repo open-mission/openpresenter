@@ -10,9 +10,9 @@
 
 ## Doing
 
-- [ ] Item 5: Documentação Final, Overview da Arquitetura e CHANGELOG: atualização de `docs/architecture/overview.md`, registro no `CHANGELOG.md` e verificação de todos os portões de qualidade.
-
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Docs: Documentação de Arquitetura, Overview e Atualização do CHANGELOG (`overview.md`, `CHANGELOG.md`): documentação da arquitetura do módulo de backup e migração em `docs/architecture/overview.md`, registro detalhado das novas funcionalidades de exportação/inspeção/importação no `CHANGELOG.md` sob a seção `[Unreleased]` e validação completa de todos os portões de qualidade (`cargo fmt`, `cargo clippy`, `cargo test` e `npm run build`). (commit d265f9b - 2026-11-06 23:46:00 -03:00)
 
 - [x] Feat(ui): Interface de Backup & Migração de Instalação no Painel de Configurações (`SettingsModal.svelte`): nova seção "Backup & Migração de Instalação" na aba "Arquivos & Mídias" com card de exportação direta (.opbackup com download automático) e card de importação com seletor de arquivos (.opbackup e .zip); inspeção prévia via API com exibição de estatísticas detalhadas (músicas, setlists, membros de equipe, mídias e tamanho); alerta de confirmação preventiva antes da substituição de dados; indicadores de carregamento durante upload/extração e recarga automática sincronizada do app. (commit cc9e046 - 2026-11-06 23:43:00 -03:00)
 

@@ -49,6 +49,7 @@ crates/op-admin/src/
 ├── ws.rs           # handler WebSocket (/ws) com sincronização inicial e broadcast de eventos
 ├── session.rs      # inicialização de sessão, data directory e metadados no SQLite
 ├── static_files.rs # serviço de assets embutidos no binário (rust-embed) com fallback SPA
+├── backup.rs       # exportação, inspeção e restauração atômica de dados (.opbackup ZIP)
 └── updater.rs      # verificação de releases no GitHub, download e auto-update in-app
 ```
 
@@ -81,6 +82,12 @@ crates/op-admin/src/
 - Schema v5: tabela `media_folders` para mapeamento externo de diretórios do computador (zero-copy).
 - Schema v6: tabela `app_settings` para armazenamento de pares chave/valor de configurações de telas (`public_display`, `stage_display`) e marca da congregação (`church_brand`).
 - Schema v7: tabela `bibles` para catálogo das versões da Bíblia importadas (`id`, `name`, `abbreviation`, `filename`, `is_default`, `created_at`, `updated_at`). Arquivos `.sqlite` individuais são armazenados em `<data_dir>/bibles/`.
+- Schema v8: tabela `action_logs` para histórico de auditoria e telemetria de eventos operacionais.
+- Schema v9: tabela `song_tags` para categorização e filtragem rápida de louvores.
+- Schema v10: tabelas `teams`, `team_departments`, `team_members`, `service_rosters` e `service_roster_items` para gestão de voluntários e escalas.
+- Schema v11: coluna `role` em `team_members` para cargos da equipe (Líder, Vice-Líder, Membro).
+- Schema v12: colunas de login local por PIN e permissão de controle remoto em `team_members`.
+- Schema v13: coluna `audio_url` em `songs` para vinculação de playback.
 - As migrações são estritamente aditivas e numeradas.
 - Datas em RFC 3339 UTC com milissegundos.
 
@@ -98,6 +105,22 @@ As mensagens entre o painel do operador, as telas de saída e o servidor utiliza
 - `set_stage_message`: envia mensagem instantânea ou aviso para o monitor de palco.
 - `timer_updated`: broadcast com tick a cada 1 segundo com tempo restante e alerta de overtime.
 - `state_updated`: broadcast emitido a todos os clientes conectados informando alterações de estado.
+- `reload_clients`: comando de recarga forçada para saídas conectadas e clientes web.
+- `ping` / `pong`: manutenção de conexão ativa contra timeouts de rede.
+
+## Backup & Migração de Instalação
+
+O OpenPresenter suporta exportação e restauração integral de dados para transferência entre computadores e cópias de segurança:
+
+- **Formato:** Arquivo ZIP com compressão Deflate e extensão `.opbackup` (ou `.zip`).
+- **Conteúdo do Pacote:**
+  - `manifest.json`: metadados da aplicação (`app_name`, `app_version`, `schema_version`, `created_at`) e estatísticas quantitativas (`songs_count`, `setlists_count`, `team_members_count`, `images_count`, etc.).
+  - `database/open-presenter.db`: snapshot consistente e atômico do banco de dados SQLite obtido via SQLite Online Backup API (`rusqlite::backup::Backup`), sem risco de bloqueios de arquivo no Windows/macOS/Linux ou inconsistências com arquivos `-wal`/`-shm`.
+  - `media/`: árvore completa de diretórios de imagens (`media/images`), papéis de parede (`media/wallpapers`), vídeos (`media/videos`), áudios (`media/audios`) e marca da igreja (`media/church_brand`).
+  - `bibles/`: módulos de bíblias em SQLite instalados pelo usuário.
+  - `fonts/`: arquivos de fontes tipográficas customizadas instalados localmente.
+- **Segurança contra Zip Slip:** Sanitização estrita contra ataques de *directory traversal*, recusando entradas com `..`, barras iniciais ou caminhos absolutos.
+- **Restauração Atômica:** Validação prévia com `PRAGMA integrity_check`, checagem de versão de schema, migração automática para schemas anteriores e recarga em tempo real de `AppState`, setlist ativa, saídas físicas e notificação via WebSocket (`ReloadClients` / `SyncState`).
 - `ping` / `pong`: manutenção de conexão ativa contra timeouts de rede.
 
 ## Atualização Automática (Auto-Updater)

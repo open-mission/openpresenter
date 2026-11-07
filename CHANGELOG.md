@@ -6,6 +6,20 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Exportação e Importação Completa de Dados da Aplicação (Backup & Migração):**
+  - **Snapshot Atômico do Banco SQLite (`op-db`):** Métodos `Database::backup_to_file` e `Database::restore_from_file` utilizando a API nativa de Online Backup do SQLite (`rusqlite::backup::Backup`), garantindo atomicidade transacional e integridade sem risco de bloqueios de arquivo no Windows/Linux/macOS ou inconsistências de arquivos `-wal`/`-shm`.
+  - **Validação Preventiva de Integridade & Migrações Automáticas:** Checagem física com `PRAGMA integrity_check`, validação de versão do schema rejeitando backups de versões futuras e aplicação automática de migrações pendentes em backups criados em versões anteriores do aplicativo.
+  - **Empacotamento Completo em Formato ZIP (.opbackup):** Módulo `crates/op-admin/src/backup.rs` com suporte a compressão Deflate, empacotando o banco SQLite, manifesto padronizado (`manifest.json`), imagens (`media/images`), papéis de parede (`media/wallpapers`), vídeos (`media/videos`), áudios (`media/audios`), identidade da igreja (`media/church_brand`), bíblias (`bibles`) e fontes customizadas (`fonts`).
+  - **Defesa em Profundidade contra Zip Slip:** Sanitização rigorosa contra tentativas de *directory traversal*, rejeitando arquivos com componentes relativos (`..`), caminhos absolutos ou tentativas de escape do diretório base.
+  - **Endpoints REST na API Axum (`op-admin`):**
+    - `GET /api/backup/export`: download do pacote `.opbackup` gerado em tempo de execução com opções de inclusão configuráveis via query parameters.
+    - `POST /api/backup/inspect`: inspeção prévia de pacotes sem efeitos colaterais, validando integridade e retornando estatísticas quantitativas (músicas, setlists, membros, mídias e tamanho do arquivo).
+    - `POST /api/backup/import`: restauração atômica do banco e extração de arquivos, recarga em tempo real do `AppState` em memória (`reload_from_database`), broadcast WebSocket (`ReloadClients` / `SyncState`) e auditoria no histórico de logs.
+    - Suporte híbrido a upload binário direto (`application/zip`) e JSON com `content_base64` ou `source_path`.
+  - **Interface de Usuário em Configurações (`SettingsModal.svelte`):** Nova seção "Backup & Migração de Instalação" na aba "Arquivos & Mídias" com card de exportação em 1 clique, card de importação de arquivos, modal de inspeção prévia com resumo estatístico, alerta de confirmação e recarga sincronizada do app.
+  - **Documentação OpenAPI 3.0 / Swagger UI:** Atualização da especificação interativa offline com tag dedicada `Backup` e documentação completa dos endpoints.
+
 ## [0.5.0] - 2026-11-06
 
 ### Destaques da Versão
