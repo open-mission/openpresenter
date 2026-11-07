@@ -6,11 +6,12 @@ use axum::{
     routing::{get, post},
 };
 use op_core::{
-    BibleBook, BibleSearchResult, BibleVerse, BibleVersionSummary, DisplayMode, MediaItem,
-    OnlineLyricHit, OutputKind, OutputsConfig, ParsedReference, PresentationState, ServiceRoster,
-    ServiceRosterItem, ServiceRosterSummary, Setlist, SetlistSummary, Song, SongSummary,
-    TeamDepartment, TeamMember, UpsertServiceRoster, UpsertServiceRosterItem, UpsertTeamDepartment,
-    UpsertTeamMember, VERSION, WsMessage,
+    BackupExportOptions, BackupInspectResult, BackupRestoreResult, BibleBook, BibleSearchResult,
+    BibleVerse, BibleVersionSummary, DisplayMode, MediaItem, OnlineLyricHit, OutputKind,
+    OutputsConfig, ParsedReference, PresentationState, ServiceRoster, ServiceRosterItem,
+    ServiceRosterSummary, Setlist, SetlistSummary, Song, SongSummary, TeamDepartment, TeamMember,
+    UpsertServiceRoster, UpsertServiceRosterItem, UpsertTeamDepartment, UpsertTeamMember, VERSION,
+    WsMessage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -381,6 +382,15 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/updater/status", get(get_updater_status))
         .route("/api/updater/install", post(install_updater))
         .route("/api/updater/restart", post(restart_system))
+        .route("/api/backup/export", get(export_backup))
+        .route(
+            "/api/backup/inspect",
+            post(inspect_backup).layer(DefaultBodyLimit::max(1024 * 1024 * 1024)),
+        )
+        .route(
+            "/api/backup/import",
+            post(import_backup).layer(DefaultBodyLimit::max(1024 * 1024 * 1024)),
+        )
         .layer(axum::middleware::from_fn(cors_header_middleware))
         .layer(DefaultBodyLimit::max(128 * 1024 * 1024))
         .with_state(state)
@@ -3802,4 +3812,220 @@ async fn update_service_roster_item_status(
         Ok(false) => Err((StatusCode::NOT_FOUND, "Item não encontrado".into())),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     }
+}
+
+// ==========================================
+// MÓDULO BACKUP & MIGRAÇÃO (ROTAS & HANDLERS)
+// ==========================================
+
+#[derive(Debug, Deserialize)]
+pub struct BackupUploadPayload {
+    pub filename: Option<String>,
+    pub content_base64: Option<String>,
+    pub source_path: Option<String>,
+}
+
+fn extract_backup_data(
+    bytes: axum::body::Bytes,
+) -> Result<(std::fs::File, String, u64), (StatusCode, String)> {
+    // 1. Se os bytes começam com magic bytes de ZIP ('PK', [0x50, 0x4b])
+    if bytes.starts_with(b"PK") {
+        let len = bytes.len() as u64;
+        let mut temp_file = tempfile::NamedTempFile::new().map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Falha ao criar arquivo temporário: {e}"),
+            )
+        })?;
+        std::io::Write::write_all(&mut temp_file, &bytes).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Falha ao gravar arquivo temporário: {e}"),
+            )
+        })?;
+        let file = temp_file.reopen().map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Falha ao reabrir arquivo temporário: {e}"),
+            )
+        })?;
+        return Ok((file, "backup.opbackup".to_string(), len));
+    }
+
+    // 2. Tenta desserializar como JSON BackupUploadPayload
+    if let Ok(payload) = serde_json::from_slice::<BackupUploadPayload>(&bytes) {
+        let filename = payload
+            .filename
+            .unwrap_or_else(|| "backup.opbackup".to_string());
+        if let Some(source_path) = payload.source_path.filter(|p| !p.trim().is_empty()) {
+            let path = std::path::PathBuf::from(source_path.trim());
+            if !path.exists() {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    format!("Arquivo não encontrado no caminho: {}", path.display()),
+                ));
+            }
+            let file = std::fs::File::open(&path).map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Falha ao abrir arquivo de backup: {e}"),
+                )
+            })?;
+            let len = file.metadata().map(|m| m.len()).unwrap_or(0);
+            return Ok((file, filename, len));
+        }
+
+        if let Some(base64_str) = payload.content_base64.filter(|b| !b.trim().is_empty()) {
+            let decoded = decode_base64(&base64_str).ok_or((
+                StatusCode::BAD_REQUEST,
+                "Base64 do arquivo de backup inválido".into(),
+            ))?;
+            let len = decoded.len() as u64;
+            let mut temp_file = tempfile::NamedTempFile::new().map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Falha ao criar arquivo temporário: {e}"),
+                )
+            })?;
+            std::io::Write::write_all(&mut temp_file, &decoded).map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Falha ao gravar arquivo temporário: {e}"),
+                )
+            })?;
+            let file = temp_file.reopen().map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Falha ao reabrir arquivo temporário: {e}"),
+                )
+            })?;
+            return Ok((file, filename, len));
+        }
+    }
+
+    Err((
+        StatusCode::BAD_REQUEST,
+        "Formato de arquivo ou payload de backup inválido. Envie o arquivo ZIP (.opbackup) diretamente ou JSON com content_base64 ou source_path.".into(),
+    ))
+}
+
+async fn export_backup(
+    State(state): State<AppState>,
+    Query(options): Query<BackupExportOptions>,
+) -> Result<axum::response::Response, (StatusCode, String)> {
+    let db_mutex = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados não disponível".into(),
+    ))?;
+
+    let data_dir = crate::session::resolve_data_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let mut temp_file = tempfile::NamedTempFile::new().map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao criar arquivo temporário de exportação: {e}"),
+        )
+    })?;
+
+    let db_guard = db_mutex.lock().await;
+    let manifest =
+        crate::backup::export_backup_package(&mut temp_file, &data_dir, &db_guard, &options)
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Falha ao gerar pacote de backup: {e}"),
+                )
+            })?;
+    drop(db_guard);
+
+    state
+        .log_action(
+            "backup_exported",
+            "system",
+            &format!(
+                "Backup exportado com sucesso: {} arquivos ({} músicas, {} setlists)",
+                manifest.stats.total_files_count,
+                manifest.stats.songs_count,
+                manifest.stats.setlists_count
+            ),
+            None,
+        )
+        .await;
+
+    let timestamp = chrono::Local::now().format("%Y-%m-%d-%H%M%S");
+    let filename = format!("open-presenter-backup-{timestamp}.opbackup");
+
+    let mut file = temp_file.reopen().map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao reabrir arquivo temporário de backup: {e}"),
+        )
+    })?;
+    let mut buffer = Vec::new();
+    std::io::Read::read_to_end(&mut file, &mut buffer).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao ler conteúdo do backup: {e}"),
+        )
+    })?;
+
+    let response = axum::response::Response::builder()
+        .header(axum::http::header::CONTENT_TYPE, "application/zip")
+        .header(
+            axum::http::header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{filename}\""),
+        )
+        .body(axum::body::Body::from(buffer))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(response)
+}
+
+async fn inspect_backup(
+    bytes: axum::body::Bytes,
+) -> Result<Json<BackupInspectResult>, (StatusCode, String)> {
+    let (reader, filename, len) = extract_backup_data(bytes)?;
+    let result = crate::backup::inspect_backup_package(reader, &filename, len).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao inspecionar pacote de backup: {e}"),
+        )
+    })?;
+
+    Ok(Json(result))
+}
+
+async fn import_backup(
+    State(state): State<AppState>,
+    bytes: axum::body::Bytes,
+) -> Result<Json<BackupRestoreResult>, (StatusCode, String)> {
+    let db_mutex = state.db.as_ref().ok_or((
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados não disponível".into(),
+    ))?;
+
+    let data_dir = crate::session::resolve_data_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let (reader, _filename, _len) = extract_backup_data(bytes)?;
+
+    let mut db_guard = db_mutex.lock().await;
+    let result =
+        crate::backup::restore_backup_package(reader, &data_dir, &mut db_guard).map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                format!("Falha ao restaurar dados do backup: {e}"),
+            )
+        })?;
+    drop(db_guard);
+
+    // Recarrega o estado em memória e notifica clientes via WebSocket
+    state.reload_from_database().await;
+
+    state
+        .log_action("backup_restored", "system", &result.message, None)
+        .await;
+
+    Ok(Json(result))
 }

@@ -328,6 +328,53 @@ impl AppState {
         Some(setlist)
     }
 
+    /// Recarrega todo o estado em memória a partir do banco de dados (após uma restauração de backup)
+    /// e notifica as saídas e clientes conectados.
+    pub async fn reload_from_database(&self) {
+        if let Some(ref db_mutex) = self.db {
+            let db = db_mutex.lock().await;
+
+            // 1. Recarrega setlist ativa ou padrão
+            if let Ok(Some(active)) = db.get_active_setlist() {
+                *self.active_setlist.write().await = Some(active.clone());
+                *self.media_items.write().await = active.items.clone();
+
+                let mut pres = self.presentation.write().await;
+                pres.active_setlist_id = Some(active.id.clone());
+                pres.setlist_wallpaper_path = active.wallpaper_path.clone();
+                pres.setlist_wallpaper_mode = active.wallpaper_mode.clone();
+                if pres.wallpaper_path.is_none() {
+                    pres.wallpaper_path = active.wallpaper_path.clone();
+                    pres.wallpaper_mode = active.wallpaper_mode.clone();
+                }
+            }
+
+            // 2. Recarrega papéis de parede de letras e configurações
+            if let Ok(Some(saved_bg)) = db.get_setting("lyrics_background_path") {
+                self.presentation.write().await.lyrics_background_path = Some(saved_bg);
+            }
+            if let Ok(Some(saved_mode)) = db.get_setting("lyrics_background_mode") {
+                self.presentation.write().await.lyrics_background_mode = Some(saved_mode);
+            }
+
+            // 3. Recarrega saídas
+            if let Ok(outputs) = db.load_outputs() {
+                *self.outputs.write().await = outputs;
+            }
+        }
+
+        // 4. Notifica todas as saídas e telas conectadas via WebSocket
+        let pres = self.presentation.read().await.clone();
+        let items = self.media_items.read().await.clone();
+        let _ = self.broadcast_tx.send(WsMessage::SyncState {
+            presentation: pres,
+            media_items: items,
+        });
+        let _ = self
+            .broadcast_tx
+            .send(WsMessage::ReloadClients { target: None });
+    }
+
     /// Sincroniza a lista de itens com a setlist ativa no banco.
     async fn sync_active_setlist_items(&self, items: &[MediaItem]) {
         let mut active = self.active_setlist.write().await;

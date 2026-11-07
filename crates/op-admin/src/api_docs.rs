@@ -160,6 +160,7 @@ fn build_openapi_spec() -> Value {
         { "name": "Bibles", "description": "Bíblias em arquivos SQLite desacoplados, busca rápida e projeção de versículos." },
         { "name": "Media", "description": "Papéis de parede, imagens, pastas de mídias locais e uploads." },
         { "name": "Settings", "description": "Preferências do operador, margens de projeção e marca da congregação." },
+        { "name": "Backup", "description": "Exportação e importação completa de dados, mídias e banco SQLite para migração e cópias de segurança." },
         { "name": "System", "description": "Status, identificação na rede local, auditoria de ações e reinício do aplicativo." }
       ],
       "paths": {
@@ -482,6 +483,35 @@ fn build_openapi_spec() -> Value {
             "tags": ["Media"],
             "summary": "Fazer upload de vídeo",
             "responses": { "200": { "description": "Vídeo salvo com sucesso." } }
+          }
+        },
+        "/api/backup/export": {
+          "get": {
+            "tags": ["Backup"],
+            "summary": "Exportar pacote completo de dados (.opbackup / .zip)",
+            "description": "Gera um arquivo compactado contendo o snapshot do SQLite e arquivos de mídia, bíblias e fontes.",
+            "responses": {
+              "200": {
+                "description": "Arquivo .opbackup gerado para download.",
+                "content": { "application/zip": {} }
+              }
+            }
+          }
+        },
+        "/api/backup/inspect": {
+          "post": {
+            "tags": ["Backup"],
+            "summary": "Inspecionar pacote de backup antes da restauração",
+            "description": "Valida o manifesto e a integridade de um arquivo de backup, retornando estatísticas e diagnóstico de compatibilidade.",
+            "responses": { "200": { "description": "Resultado da inspeção." } }
+          }
+        },
+        "/api/backup/import": {
+          "post": {
+            "tags": ["Backup"],
+            "summary": "Restaurar banco de dados e arquivos a partir de um backup",
+            "description": "Aplica o backup ao banco ativo e extrai os arquivos físicos para o diretório de dados da aplicação.",
+            "responses": { "200": { "description": "Resultado da restauração." } }
           }
         }
       },

@@ -26,11 +26,11 @@
 - [x] Adicionar testes unitários cobrindo empacotamento, integridade e sanitização de caminhos.
 
 ### Item 3: Endpoints REST na API Axum (`op-admin`)
-- [ ] Adicionar rota `GET /api/backup/export` com streaming do arquivo `.opbackup` e opções de inclusão via query params.
-- [ ] Adicionar rota `POST /api/backup/inspect` para upload temporário e retorno das estatísticas do backup antes da confirmação.
-- [ ] Adicionar rota `POST /api/backup/import` para restauração do banco e arquivos com recarregamento em memória do `AppState` e notificação WebSocket.
-- [ ] Atualizar documentação da OpenAPI / Swagger offline em `crates/op-admin/src/api_docs.rs`.
-- [ ] Adicionar testes de integração das rotas.
+- [x] Adicionar rota `GET /api/backup/export` com streaming do arquivo `.opbackup` e opções de inclusão via query params.
+- [x] Adicionar rota `POST /api/backup/inspect` para upload temporário e retorno das estatísticas do backup antes da confirmação.
+- [x] Adicionar rota `POST /api/backup/import` para restauração do banco e arquivos com recarregamento em memória do `AppState` e notificação WebSocket.
+- [x] Atualizar documentação da OpenAPI / Swagger offline em `crates/op-admin/src/api_docs.rs`.
+- [x] Adicionar testes de integração das rotas.
 
 ### Item 4: Interface do Usuário no Painel de Configurações (`frontend`)
 - [ ] Adicionar seção "Backup & Migração" na aba "Arquivos & Mídias" do `SettingsModal.svelte`.

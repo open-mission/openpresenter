@@ -2341,4 +2341,148 @@ mod tests {
 
         let _ = dir;
     }
+
+    #[tokio::test]
+    async fn test_backup_export_inspect_and_import_endpoints() {
+        let _env_guard = ENV_LOCK.lock().await;
+        let (state1, dir1) = mock_state_with_db();
+        unsafe {
+            std::env::set_var("OPENPRESENTER_DATA_DIR", dir1.path());
+        }
+
+        // 1. Cria dados no estado 1 (música e arquivo de mídia)
+        {
+            let db_guard = state1.db.as_ref().unwrap().lock().await;
+            let song = op_core::Song {
+                id: "song-export-test".into(),
+                title: "Ousado Amor".into(),
+                artist: "Isaías Saad".into(),
+                album: None,
+                composer: None,
+                song_key: Some("Bb".into()),
+                bpm: Some(68),
+                lyrics_raw: "Antes de eu falar, tu cantavas sobre mim".into(),
+                sections: vec![op_core::SongSection {
+                    section_type: Some(op_core::SectionType::Verse),
+                    label: "Verso 1".into(),
+                    lines: vec!["Antes de eu falar, tu cantavas sobre mim".into()],
+                }],
+                tags: vec!["Adoração".into()],
+                audio_url: None,
+            };
+            db_guard.save_song(&song, chrono::Utc::now()).unwrap();
+            db_guard
+                .set_setting("church_name", "Comunidade da Fé")
+                .unwrap();
+        }
+
+        let images_dir = dir1.path().join("media").join("images");
+        std::fs::create_dir_all(&images_dir).unwrap();
+        std::fs::write(images_dir.join("banner.png"), b"fake_png_binary_data").unwrap();
+
+        let app1 = create_routes(state1.clone());
+
+        // 2. Testa GET /api/backup/export
+        let export_resp = app1
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/backup/export")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(export_resp.status(), StatusCode::OK);
+        assert_eq!(
+            export_resp
+                .headers()
+                .get(axum::http::header::CONTENT_TYPE)
+                .unwrap(),
+            "application/zip"
+        );
+
+        let backup_bytes = axum::body::to_bytes(export_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert!(!backup_bytes.is_empty());
+        assert!(backup_bytes.starts_with(b"PK"));
+
+        // 3. Testa POST /api/backup/inspect (com binário direto)
+        let inspect_resp = app1
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/backup/inspect")
+                    .header("content-type", "application/zip")
+                    .body(axum::body::Body::from(backup_bytes.clone()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(inspect_resp.status(), StatusCode::OK);
+        let inspect_body = axum::body::to_bytes(inspect_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let inspect_res: op_core::BackupInspectResult =
+            serde_json::from_slice(&inspect_body).unwrap();
+        assert!(inspect_res.valid);
+        assert!(inspect_res.is_compatible);
+        assert!(inspect_res.manifest.is_some());
+        assert!(inspect_res.manifest.unwrap().stats.songs_count >= 1);
+
+        // 4. Cria estado 2 limpo com outro diretório de dados
+        let (state2, dir2) = mock_state_with_db();
+        unsafe {
+            std::env::set_var("OPENPRESENTER_DATA_DIR", dir2.path());
+        }
+        let app2 = create_routes(state2.clone());
+
+        // 5. Testa POST /api/backup/import
+        let import_resp = app2
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/backup/import")
+                    .header("content-type", "application/zip")
+                    .body(axum::body::Body::from(backup_bytes))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(import_resp.status(), StatusCode::OK);
+        let import_body = axum::body::to_bytes(import_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let import_res: op_core::BackupRestoreResult =
+            serde_json::from_slice(&import_body).unwrap();
+        assert!(import_res.success);
+        assert!(import_res.restored_files_count >= 1);
+
+        // 6. Valida que os dados foram restaurados no estado 2
+        {
+            let db_guard = state2.db.as_ref().unwrap().lock().await;
+            let restored_song = db_guard.get_song("song-export-test").unwrap().unwrap();
+            assert_eq!(restored_song.title, "Ousado Amor");
+            assert_eq!(
+                db_guard.get_setting("church_name").unwrap().unwrap(),
+                "Comunidade da Fé"
+            );
+        }
+
+        let restored_banner = dir2.path().join("media").join("images").join("banner.png");
+        assert!(restored_banner.exists());
+        assert_eq!(
+            std::fs::read(&restored_banner).unwrap(),
+            b"fake_png_binary_data"
+        );
+
+        let _ = (dir1, dir2);
+    }
 }

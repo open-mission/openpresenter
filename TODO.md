@@ -8,14 +8,15 @@
 
 ## Backlog
 
-- [ ] Item 4: Interface do Usuário no Painel de Configurações (`frontend/src/lib/components/SettingsModal.svelte`): seção "Backup & Migração" na aba "Arquivos & Mídias" com cards de exportação rápida e importação, modal de confirmação com resumo das estatísticas do pacote (músicas, mídias, etc.), barra de progresso e recarga suave.
 - [ ] Item 5: Documentação Final, Overview da Arquitetura e CHANGELOG: atualização de `docs/architecture/overview.md`, registro no `CHANGELOG.md` e verificação de todos os portões de qualidade.
 
 ## Doing
 
-- [ ] Item 3: Endpoints REST na API Axum (`op-admin/src/routes.rs`): rotas `GET /api/backup/export` (stream de download), `POST /api/backup/inspect` (análise sem efeitos colaterais) e `POST /api/backup/import` (restauração segura com substituição no SQLite, atualização de arquivos e recarga atômica de `AppState` e WebSocket).
+- [ ] Item 4: Interface do Usuário no Painel de Configurações (`frontend/src/lib/components/SettingsModal.svelte`): seção "Backup & Migração" na aba "Arquivos & Mídias" com cards de exportação rápida e importação, modal de confirmação com resumo das estatísticas do pacote (músicas, mídias, etc.), barra de progresso e recarga suave.
 
 ## Done (com o commit e data e hora de conclusão)
+
+- [x] Feat(api): Endpoints REST de Exportação, Inspeção e Importação de Backup (`op-admin`): rotas `GET /api/backup/export` (stream de download do arquivo `.opbackup` com query params de filtros), `POST /api/backup/inspect` (inspeção prévia com retorno de estatísticas e validação de compatibilidade) e `POST /api/backup/import` (restauração segura com substituição no SQLite, extração de arquivos, recarga atômica de `AppState` via `reload_from_database` e broadcast WebSocket); suporte híbrido a upload binário direto e JSON Base64/source_path; documentação OpenAPI 3.0 / Swagger UI offline; e testes de integração de ponta a ponta. (commit f71c2c4 - 2026-11-06 23:36:00 -03:00)
 
 - [x] Feat(backup): Modelagem de Dados no Domínio e Módulo de Empacotamento ZIP (`op-core` e `op-admin/src/backup.rs`): definição de `BackupManifest`, `BackupStats`, `BackupInspectResult`, `BackupRestoreResult` e `BackupExportOptions` no `op-core`; implementação de `export_backup_package` gerando arquivos `.opbackup` (ZIP Deflate) com snapshot atômico do SQLite e árvore de diretórios de mídia (`images`, `wallpapers`, `videos`, `audios`, `church_brand`, `bibles`, `fonts`); rotinas `inspect_backup_package` com validação de compatibilidade e `restore_backup_package` com proteção contra Zip Slip e extração sanitizada; e testes unitários de ciclo completo (exportar, inspecionar e restaurar). (commit a79602c - 2026-11-06 23:27:00 -03:00)
 
