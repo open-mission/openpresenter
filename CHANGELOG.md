@@ -6,6 +6,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Suporte a Docker e Execução em Servidor Headless sem System Tray (`op-admin`, `Dockerfile`, `docker-compose.yml`):**
+  - **Feature Flag Opcional `tray` (`op-admin`):** Desacoplamento das dependências gráficas (`tao`, `muda`, `tray-icon` e `open`) através da feature `tray`, habilitada por padrão (`default = ["tray"]`) para compilações desktop, mas desativável via `--no-default-features` para ambientes de servidor puro e contêineres Docker, eliminando a necessidade de pacotes gráficos do Linux (`libgtk-3-dev`, `libappindicator3-dev`, `libx11-dev`).
+  - **Isolamento do Ciclo de Vida do Processo (`crates/op-admin/src/process.rs`):** Extração da rotina `restart_application()` do módulo de tray para módulo próprio, garantindo que reinicializações de servidor agendadas via API REST (`POST /api/system/restart`) continuem plenamente operacionais mesmo sem interface gráfica.
+  - **Encerramento Gracioso em Unix (`SIGTERM` e `SIGINT`):** Escuta assíncrona combinada de sinais `tokio::signal::unix::{signal, SignalKind}` permitindo que o comando `docker stop` encerre o processo do OpenPresenter de forma imediata e graciosa, sem bloqueio de 10 segundos e protegendo transações do SQLite WAL.
+  - **Dockerfile Multi-Stage Oficial:** Construção em 3 estágios (compilação do frontend Svelte em `node:22-alpine`, compilação do servidor Axum em `rust:1.85-slim-bookworm` com `--no-default-features` e imagem final ultraleve e segura em `debian:bookworm-slim` com usuário não-root `openpresenter`, healthcheck HTTP em `/api/status`, volume `/data` e porta `18080`).
+  - **Orquestração com Docker Compose (`docker-compose.yml`):** Configuração pronta para implantação em servidores Linux locais, mini-PCs e VPS com persistência em volume nomeado `openpresenter_data` e reinício automático (`restart: unless-stopped`).
+  - **Documentação de Arquitetura & Decisões:** Criação da especificação técnica `docs/specs/2026-11-07-suporte-docker-e-servidor-headless.md`, plano de execução `docs/plans/2026-11-07-suporte-docker-e-servidor-headless.md`, decisão arquitetural `docs/decisions/0015-suporte-docker-e-servidor-headless-sem-system-tray.md` e atualização do `overview.md` e `README.md`.
+
 ## [0.5.1] - 2026-11-07
 
 ### Destaques da Versão

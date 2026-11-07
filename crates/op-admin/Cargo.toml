@@ -10,6 +10,10 @@ publish = false
 name = "open-presenter"
 path = "src/main.rs"
 
+[features]
+default = ["tray"]
+tray = ["dep:muda", "dep:open", "dep:tao", "dep:tray-icon"]
+
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
@@ -19,10 +23,10 @@ flate2.workspace = true
 futures-util.workspace = true
 image.workspace = true
 mime_guess.workspace = true
-muda.workspace = true
+muda = { workspace = true, optional = true }
 op-core.workspace = true
 op-db.workspace = true
-open.workspace = true
+open = { workspace = true, optional = true }
 reqwest.workspace = true
 ring.workspace = true
 rust-embed.workspace = true
@@ -30,7 +34,7 @@ semver.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sysinfo = "0.40.1"
-tao.workspace = true
+tao = { workspace = true, optional = true }
 tar.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
@@ -38,7 +42,7 @@ tower.workspace = true
 tower-http.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-tray-icon.workspace = true
+tray-icon = { workspace = true, optional = true }
 zip.workspace = true
 
 [dev-dependencies]

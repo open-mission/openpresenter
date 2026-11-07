@@ -4,10 +4,12 @@ mod api_docs;
 pub mod backup;
 pub mod metrics;
 mod online_lyrics;
+pub mod process;
 mod routes;
 mod session;
 mod state;
 mod static_files;
+#[cfg(feature = "tray")]
 mod tray;
 mod updater;
 mod ws;
@@ -16,8 +18,10 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::{Router, extract::DefaultBodyLimit};
+#[cfg(feature = "tray")]
 use muda::MenuEvent;
 use op_core::OutputsConfig;
+#[cfg(feature = "tray")]
 use tao::{
     event::{Event, StartCause},
     event_loop::{ControlFlow, EventLoopBuilder},
@@ -25,21 +29,59 @@ use tao::{
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::{info, warn};
+#[cfg(feature = "tray")]
 use tray_icon::TrayIconEvent;
 
+#[cfg(feature = "tray")]
+use crate::tray::{init_tray, prompt_change_port, show_native_alert};
 use crate::{
     routes::{cors_header_middleware, create_routes},
     session::load_session,
     state::AppState,
     static_files::static_fallback_handler,
-    tray::{init_tray, prompt_change_port, show_native_alert},
     ws::create_ws_router,
 };
 
+#[cfg(feature = "tray")]
 #[derive(Debug)]
 enum UserEvent {
     Tray(TrayIconEvent),
     Menu(MenuEvent),
+}
+
+async fn wait_for_shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        let mut sigterm = match signal(SignalKind::terminate()) {
+            Ok(s) => Some(s),
+            Err(e) => {
+                warn!("Não foi possível registrar handler de SIGTERM: {}", e);
+                None
+            }
+        };
+
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                info!("Sinal de interrupção (Ctrl+C / SIGINT) recebido. Encerrando servidor.");
+            }
+            _ = async {
+                if let Some(ref mut s) = sigterm {
+                    s.recv().await;
+                } else {
+                    std::future::pending::<()>().await;
+                }
+            } => {
+                info!("Sinal de terminação (SIGTERM) recebido. Encerrando servidor de forma graciosa.");
+            }
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+        info!("Sinal de interrupção recebido. Encerrando servidor.");
+    }
 }
 
 fn resolve_server_port(db_opt: Option<&Arc<tokio::sync::Mutex<op_db::Database>>>) -> u16 {
@@ -95,7 +137,9 @@ fn main() -> anyhow::Result<()> {
     let state = AppState::new(session.view, outputs, session.db);
     let db_ref = state.db.clone();
     let port = resolve_server_port(db_ref.as_ref());
+    #[cfg(feature = "tray")]
     let args: Vec<String> = std::env::args().collect();
+    #[cfg(feature = "tray")]
     let is_headless = args.iter().any(|a| a == "--headless" || a == "-h")
         || std::env::var("OPENPRESENTER_HEADLESS").is_ok();
 
@@ -203,110 +247,120 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
-    if is_headless {
-        info!("Modo headless ativo. Pressione Ctrl+C para encerrar.");
-        rt.block_on(async {
-            let _ = tokio::signal::ctrl_c().await;
-            info!("Sinal de interrupção recebido. Encerrando servidor.");
+    #[cfg(feature = "tray")]
+    {
+        if is_headless {
+            info!("Modo headless ativo. Pressione Ctrl+C para encerrar.");
+            rt.block_on(wait_for_shutdown_signal());
+            let _ = shutdown_tx.send(());
+            return Ok(());
+        }
+
+        // Modo Desktop com System Tray (Menu Bar / Bandeja do Sistema)
+        let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
+
+        let proxy_tray = event_loop.create_proxy();
+        TrayIconEvent::set_event_handler(Some(move |event| {
+            let _ = proxy_tray.send_event(UserEvent::Tray(event));
+        }));
+
+        let proxy_menu = event_loop.create_proxy();
+        MenuEvent::set_event_handler(Some(move |event| {
+            let _ = proxy_menu.send_event(UserEvent::Menu(event));
+        }));
+
+        let mut tray_holder = None;
+        let mut opened_browser_on_start = false;
+        let mut shutdown_tx_opt = Some(shutdown_tx);
+
+        event_loop.run(move |event, _, control_flow| {
+            *control_flow = ControlFlow::Wait;
+
+            match event {
+                Event::NewEvents(StartCause::Init) => {
+                    match init_tray(port) {
+                        Ok(state) => {
+                            tray_holder = Some(state);
+                            info!("System Tray inicializado com sucesso.");
+                        }
+                        Err(e) => {
+                            warn!("Não foi possível inicializar o System Tray: {}", e);
+                        }
+                    }
+
+                    if !opened_browser_on_start {
+                        opened_browser_on_start = true;
+                        let url = format!("http://localhost:{}", port);
+                        let _ = open::that(&url);
+                    }
+                }
+
+                Event::UserEvent(UserEvent::Menu(menu_event)) => {
+                    if let Some(ref tray_st) = tray_holder {
+                        let ids = &tray_st.menu_ids;
+
+                        if menu_event.id == ids.open_admin {
+                            let _ = open::that(format!("http://localhost:{}", port));
+                        } else if menu_event.id == ids.open_public {
+                            let _ = open::that(format!("http://localhost:{}/public", port));
+                        } else if menu_event.id == ids.open_stage {
+                            let _ = open::that(format!("http://localhost:{}/stage", port));
+                        } else if menu_event.id == ids.open_remote {
+                            let _ = open::that(format!("http://localhost:{}/remote", port));
+                        } else if menu_event.id == ids.open_lower_third {
+                            let _ = open::that(format!("http://localhost:{}/lower-third", port));
+                        } else if menu_event.id == ids.change_port {
+                            if let Some(new_p) = prompt_change_port(port).filter(|&p| p != port) {
+                                if let Some(db) = db_ref.as_ref().and_then(|m| m.try_lock().ok()) {
+                                    let _ = db.set_setting("server_port", &new_p.to_string());
+                                }
+                                show_native_alert(
+                                    "Porta Configurada",
+                                    &format!(
+                                        "A porta {} foi salva com sucesso. Reinicie o OpenPresenter para aplicar a nova porta.",
+                                        new_p
+                                    ),
+                                );
+                            }
+                        } else if menu_event.id == ids.restart {
+                            info!("Reiniciando OpenPresenter via menu do System Tray.");
+                            if let Err(e) = tray::restart_application() {
+                                warn!("Falha ao spawnar novo processo para reinicialização: {}", e);
+                            }
+                            if let Some(tx) = shutdown_tx_opt.take() {
+                                let _ = tx.send(());
+                            }
+                            *control_flow = ControlFlow::Exit;
+                        } else if menu_event.id == ids.quit {
+                            info!("Encerrando OpenPresenter via menu do System Tray.");
+                            if let Some(tx) = shutdown_tx_opt.take() {
+                                let _ = tx.send(());
+                            }
+                            *control_flow = ControlFlow::Exit;
+                        }
+                    }
+                }
+
+                Event::UserEvent(UserEvent::Tray(_tray_event)) => {
+                    // Eventos de interação ou foco no ícone da bandeja não reabrem o navegador;
+                    // a abertura sob demanda é feita pelo menu do tray ("Abrir Painel de Controle")
+                    // ou automaticamente apenas uma única vez na inicialização da aplicação.
+                }
+
+                _ => {}
+            }
         });
-        let _ = shutdown_tx.send(());
-        return Ok(());
     }
 
-    // Modo Desktop com System Tray (Menu Bar / Bandeja do Sistema)
-    let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
-
-    let proxy_tray = event_loop.create_proxy();
-    TrayIconEvent::set_event_handler(Some(move |event| {
-        let _ = proxy_tray.send_event(UserEvent::Tray(event));
-    }));
-
-    let proxy_menu = event_loop.create_proxy();
-    MenuEvent::set_event_handler(Some(move |event| {
-        let _ = proxy_menu.send_event(UserEvent::Menu(event));
-    }));
-
-    let mut tray_holder = None;
-    let mut opened_browser_on_start = false;
-    let mut shutdown_tx_opt = Some(shutdown_tx);
-
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
-
-        match event {
-            Event::NewEvents(StartCause::Init) => {
-                match init_tray(port) {
-                    Ok(state) => {
-                        tray_holder = Some(state);
-                        info!("System Tray inicializado com sucesso.");
-                    }
-                    Err(e) => {
-                        warn!("Não foi possível inicializar o System Tray: {}", e);
-                    }
-                }
-
-                if !opened_browser_on_start {
-                    opened_browser_on_start = true;
-                    let url = format!("http://localhost:{}", port);
-                    let _ = open::that(&url);
-                }
-            }
-
-            Event::UserEvent(UserEvent::Menu(menu_event)) => {
-                if let Some(ref tray_st) = tray_holder {
-                    let ids = &tray_st.menu_ids;
-
-                    if menu_event.id == ids.open_admin {
-                        let _ = open::that(format!("http://localhost:{}", port));
-                    } else if menu_event.id == ids.open_public {
-                        let _ = open::that(format!("http://localhost:{}/public", port));
-                    } else if menu_event.id == ids.open_stage {
-                        let _ = open::that(format!("http://localhost:{}/stage", port));
-                    } else if menu_event.id == ids.open_remote {
-                        let _ = open::that(format!("http://localhost:{}/remote", port));
-                    } else if menu_event.id == ids.open_lower_third {
-                        let _ = open::that(format!("http://localhost:{}/lower-third", port));
-                    } else if menu_event.id == ids.change_port {
-                        if let Some(new_p) = prompt_change_port(port).filter(|&p| p != port) {
-                            if let Some(db) = db_ref.as_ref().and_then(|m| m.try_lock().ok()) {
-                                let _ = db.set_setting("server_port", &new_p.to_string());
-                            }
-                            show_native_alert(
-                                "Porta Configurada",
-                                &format!(
-                                    "A porta {} foi salva com sucesso. Reinicie o OpenPresenter para aplicar a nova porta.",
-                                    new_p
-                                ),
-                            );
-                        }
-                    } else if menu_event.id == ids.restart {
-                        info!("Reiniciando OpenPresenter via menu do System Tray.");
-                        if let Err(e) = tray::restart_application() {
-                            warn!("Falha ao spawnar novo processo para reinicialização: {}", e);
-                        }
-                        if let Some(tx) = shutdown_tx_opt.take() {
-                            let _ = tx.send(());
-                        }
-                        *control_flow = ControlFlow::Exit;
-                    } else if menu_event.id == ids.quit {
-                        info!("Encerrando OpenPresenter via menu do System Tray.");
-                        if let Some(tx) = shutdown_tx_opt.take() {
-                            let _ = tx.send(());
-                        }
-                        *control_flow = ControlFlow::Exit;
-                    }
-                }
-            }
-
-            Event::UserEvent(UserEvent::Tray(_tray_event)) => {
-                // Eventos de interação ou foco no ícone da bandeja não reabrem o navegador;
-                // a abertura sob demanda é feita pelo menu do tray ("Abrir Painel de Controle")
-                // ou automaticamente apenas uma única vez na inicialização da aplicação.
-            }
-
-            _ => {}
-        }
-    });
+    #[cfg(not(feature = "tray"))]
+    {
+        info!(
+            "OpenPresenter em modo servidor headless puro (sem System Tray). Pressione Ctrl+C para encerrar."
+        );
+        rt.block_on(wait_for_shutdown_signal());
+        let _ = shutdown_tx.send(());
+        Ok(())
+    }
 }
 
 /// No macOS, atribui o ícone oficial da marca do OpenPresenter ao arquivo executável

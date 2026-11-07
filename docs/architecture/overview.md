@@ -41,8 +41,9 @@ frontend (HTTP/WS) → op-admin → op-db → op-core
 
 ```text
 crates/op-admin/src/
-├── main.rs         # ponto de entrada, event loop nativo (tao) e inicialização Tokio em background
-├── tray.rs         # System Tray nativo (tray-icon + muda) e diálogos de configuração de porta
+├── main.rs         # ponto de entrada, event loop nativo opcional e inicialização Tokio em background
+├── process.rs      # gerenciamento de ciclo de vida do processo e reinicialização desacoplada de GUI
+├── tray.rs         # System Tray nativo (tray-icon + muda) opcional (feature `tray`) e diálogos de porta
 ├── routes.rs       # rotas REST para status, setlist, catálogo FTS5, bíblias e busca online
 ├── online_lyrics.rs# clientes para busca e download de letras em Holyrics e Vagalume
 ├── state.rs        # AppState global thread-safe e acervo inicial de demonstração
@@ -64,8 +65,10 @@ crates/op-admin/src/
 7. Resolve a porta do servidor: verifica variável `PORT`, depois `app_settings.server_port` no SQLite, utilizando a porta `18080` como padrão seguro e livre de conflitos.
 8. Inicializa `AppState` em memória contendo `SessionView`, `OutputsConfig`, `PresentationState`, a biblioteca inicial de mídias e o canal de transmissão `broadcast::Sender<WsMessage>`.
 9. Inicia o servidor HTTP Axum em uma runtime assíncrona Tokio dedicada em background, servindo os assets compilados do frontend embutidos diretamente no executável via `rust-embed`.
-10. Se a flag `--headless` estiver ativa, o servidor opera em modo terminal/daemon puro.
-11. Em modo padrão desktop (Windows, macOS e Linux):
+10. Se a feature `tray` estiver desabilitada (como na imagem Docker oficial ou compilação com `--no-default-features`) ou a flag `--headless` estiver ativa:
+    - O servidor opera em modo terminal/daemon/contêiner puro.
+    - O runtime assíncrono escuta tanto `SIGINT` (Ctrl+C) quanto `SIGTERM` (sinal do `docker stop`), garantindo encerramento gracioso e imediato sem timeout forçado.
+11. Em modo padrão desktop (Windows, macOS e Linux com feature `tray` ativa):
     - A thread principal executa o event loop nativo (`tao`).
     - O ícone oficial da marca é exibido na bandeja do sistema (**System Tray / Menu Bar**).
     - O navegador padrão é aberto automaticamente em `http://localhost:18080`.

@@ -309,6 +309,12 @@
 - [Spec — Limpeza Automática da Mensagem de Retorno ao Finalizar Timer](specs/2026-11-07-limpar-mensagem-palco-ao-terminar-timer.md)
 - [Plano — Limpeza Automática da Mensagem de Retorno ao Finalizar Timer](plans/2026-11-07-limpar-mensagem-palco-ao-terminar-timer.md)
 
+## Suporte a Docker e Servidor Headless sem System Tray
+
+- [Spec — Suporte a Docker e Servidor Headless sem System Tray](specs/2026-11-07-suporte-docker-e-servidor-headless.md)
+- [Plano — Suporte a Docker e Servidor Headless sem System Tray](plans/2026-11-07-suporte-docker-e-servidor-headless.md)
+- [ADR 0015 — Suporte a Docker e Servidor Headless sem System Tray](decisions/0015-suporte-docker-e-servidor-headless-sem-system-tray.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
@@ -327,6 +333,7 @@
 - [ADR 0012 — Sistema de Auto-Updater Completo, Verificação de Releases e Substituição Atômica Multiplataforma](decisions/0012-auto-updater-multiplataforma-e-github-releases.md)
 - [ADR 0013 — Integração com Google Cast: Web Receiver via WebSocket vs. Transmissão de Vídeo HLS](decisions/0013-integracao-google-cast-web-receiver-vs-hls.md)
 - [ADR 0014 — Exportação e Importação de Dados: Pacote ZIP com SQLite Online Backup API](decisions/0014-exportar-e-importar-dados-backup-zip.md)
+- [ADR 0015 — Suporte a Docker e Servidor Headless sem System Tray](decisions/0015-suporte-docker-e-servidor-headless-sem-system-tray.md)
 
 ## Marca e design
 

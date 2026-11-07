@@ -1,0 +1,25 @@
+services:
+  open-presenter:
+    image: openpresenter:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: open-presenter
+    restart: unless-stopped
+    ports:
+      - "18080:18080"
+    environment:
+      - PORT=18080
+      - HOST=0.0.0.0
+      - OPENPRESENTER_DATA_DIR=/data
+      - OPENPRESENTER_HEADLESS=1
+      - RUST_LOG=open_presenter=info,tower_http=info
+    volumes:
+      - openpresenter_data:/data
+    # Exemplo com bind mount local em vez de volume gerenciado:
+    # volumes:
+    #   - ./openpresenter-data:/data
+
+volumes:
+  openpresenter_data:
+    name: openpresenter_data

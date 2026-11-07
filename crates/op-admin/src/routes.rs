@@ -3284,7 +3284,7 @@ async fn restart_system(State(state): State<AppState>) -> Json<serde_json::Value
         {
             // Breve delay de 500ms para permitir a transmissão completa do HTTP 200 ao cliente
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-            if let Err(e) = crate::tray::restart_application() {
+            if let Err(e) = crate::process::restart_application() {
                 tracing::error!("Falha ao spawnar novo processo para reinicialização: {}", e);
             }
             std::process::exit(0);

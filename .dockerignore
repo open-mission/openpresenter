@@ -1,0 +1,40 @@
+# Git e controle de versão
+.git
+.gitignore
+.github
+
+# Rust e Cargo
+target/
+**/*.rs.bk
+
+# Node e Frontend
+**/node_modules/
+frontend/dist/
+frontend/.svelte-kit/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Banco de dados e mídias locais de desenvolvimento
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.opbackup
+
+# Pacotes e artefatos de release locais
+dist-package/
+*.tar.gz
+*.zip
+
+# Sistema Operacional e IDEs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.commandcode/
+.superpowers/
+
+# Documentação pesada não necessária no build
+docs/screenshots/

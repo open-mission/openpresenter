@@ -130,10 +130,11 @@ cargo run -p op-admin
 
 O OpenPresenter iniciará imediatamente e exibirá as URLs de acesso no terminal:
 
-- **Painel do Operador:** [http://localhost:3000](http://localhost:3000)
-- **Tela Pública (Projetor / OBS):** [http://localhost:3000/public](http://localhost:3000/public)
-- **Monitor do Palco:** [http://localhost:3000/stage](http://localhost:3000/stage)
-- **API Status:** [http://localhost:3000/api/status](http://localhost:3000/api/status)
+- **Painel do Operador:** [http://localhost:18080](http://localhost:18080)
+- **Tela Pública (Projetor / OBS):** [http://localhost:18080/public](http://localhost:18080/public)
+- **Monitor do Palco:** [http://localhost:18080/stage](http://localhost:18080/stage)
+- **Controle Remoto (Mobile):** [http://localhost:18080/remote](http://localhost:18080/remote)
+- **API Status:** [http://localhost:18080/api/status](http://localhost:18080/api/status)
 
 ### Modo de Desenvolvimento (com Hot Reload)
 
@@ -148,7 +149,46 @@ cd frontend
 bun run dev
 ```
 
-O Vite servirá o frontend na porta 5173 com proxy automático para a API e WebSocket do Rust na porta 3000.
+O Vite servirá o frontend na porta 5173 com proxy automático para a API e WebSocket do Rust na porta 18080.
+
+---
+
+## Executando via Docker e Servidores
+
+O OpenPresenter oferece suporte nativo para implantação em servidores Linux, mini-PCs dedicados ou VPS através de contêineres Docker, sem qualquer dependência gráfica de System Tray, X11 ou Wayland:
+
+### 1. Com Docker Compose (Recomendado)
+
+```bash
+docker compose up -d
+```
+
+O contêiner iniciará com reinício automático (`restart: unless-stopped`), persistência de dados no volume nomeado `openpresenter_data` (mapeado para `/data`) e porta `18080`.
+
+### 2. Com Docker CLI
+
+```bash
+# Compilar a imagem oficial localmente
+docker build -t openpresenter:latest .
+
+# Executar contêiner com persistência de dados
+docker run -d \
+  --name open-presenter \
+  --restart unless-stopped \
+  -p 18080:18080 \
+  -v openpresenter_data:/data \
+  openpresenter:latest
+```
+
+### Variáveis de Ambiente no Docker
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `PORT` | `18080` | Porta TCP do servidor HTTP e WebSocket |
+| `HOST` | `0.0.0.0` | Endereço de rede para escuta de conexões |
+| `OPENPRESENTER_DATA_DIR` | `/data` | Diretório de persistência do banco SQLite e mídias |
+| `OPENPRESENTER_HEADLESS` | `1` | Ativa explicitamente o modo servidor headless |
+| `RUST_LOG` | `open_presenter=info` | Nível de detalhamento dos logs estruturados |
 
 ---
 
