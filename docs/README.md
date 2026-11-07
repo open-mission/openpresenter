@@ -313,6 +313,8 @@
 
 - [Spec — Suporte a Docker e Servidor Headless sem System Tray](specs/2026-11-07-suporte-docker-e-servidor-headless.md)
 - [Plano — Suporte a Docker e Servidor Headless sem System Tray](plans/2026-11-07-suporte-docker-e-servidor-headless.md)
+- [Spec — Pipeline CI/CD de Publicação Automática de Imagens Docker](specs/2026-11-07-ci-cd-publicacao-docker-hub.md)
+- [Plano — Pipeline CI/CD de Publicação Automática de Imagens Docker](plans/2026-11-07-ci-cd-publicacao-docker-hub.md)
 - [ADR 0015 — Suporte a Docker e Servidor Headless sem System Tray](decisions/0015-suporte-docker-e-servidor-headless-sem-system-tray.md)
 
 ## Arquitetura e decisões

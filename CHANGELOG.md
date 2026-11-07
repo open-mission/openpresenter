@@ -14,6 +14,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - **Dockerfile Multi-Stage Oficial:** Construção em 3 estágios (compilação do frontend Svelte em `node:22-alpine`, compilação do servidor Axum em `rust:1.85-slim-bookworm` com `--no-default-features` e imagem final ultraleve e segura em `debian:bookworm-slim` com usuário não-root `openpresenter`, healthcheck HTTP em `/api/status`, volume `/data` e porta `18080`).
   - **Orquestração com Docker Compose (`docker-compose.yml`):** Configuração pronta para implantação em servidores Linux locais, mini-PCs e VPS com persistência em volume nomeado `openpresenter_data` e reinício automático (`restart: unless-stopped`).
   - **Documentação de Arquitetura & Decisões:** Criação da especificação técnica `docs/specs/2026-11-07-suporte-docker-e-servidor-headless.md`, plano de execução `docs/plans/2026-11-07-suporte-docker-e-servidor-headless.md`, decisão arquitetural `docs/decisions/0015-suporte-docker-e-servidor-headless-sem-system-tray.md` e atualização do `overview.md` e `README.md`.
+- **Pipeline CI/CD de Publicação Automática de Imagens Docker (`.github/workflows/docker-publish.yml`):**
+  - Workflow automatizado com compilação multi-arquitetura (`linux/amd64` e `linux/arm64`) utilizando Docker Buildx e emulação QEMU.
+  - Publicação unificada no Docker Hub (`<usuario>/openpresenter`) e GitHub Container Registry (`ghcr.io/<org>/openpresenter`) acionada por tags Git `v*` ou disparo manual via `workflow_dispatch`.
+  - Mapeamento automático de versionamento SemVer (`x.y.z`, `x.y`, `latest`), metadados OCI e aceleração de compilação via cache nativo GHA (`type=gha`).
 
 ## [0.5.1] - 2026-11-07
 
