@@ -993,12 +993,14 @@ mod tests {
     #[tokio::test]
     async fn test_timer_presentation_reset_and_stop_behavior() {
         let state = mock_state();
+        let mut slide = op_core::Slide::new("s1", "Timer 3m", "180");
+        slide.lower_content = Some("O culto começará em instantes".into());
         let timer_item = op_core::MediaItem {
             id: "timer-culto".into(),
             title: "Contagem Regressiva".into(),
             artist_or_ref: None,
             kind: op_core::MediaKind::Timer,
-            slides: vec![op_core::Slide::new("s1", "Timer 3m", "180")],
+            slides: vec![slide],
             align_v: None,
             align_h: None,
             lower_image_url: None,
@@ -1006,13 +1008,17 @@ mod tests {
         };
         state.add_media_item(timer_item).await;
 
-        // 1. Ao selecionar/apresentar o timer, inicia contagem e reseta tempo
+        // 1. Ao selecionar/apresentar o timer, inicia contagem, reseta tempo e define a mensagem de palco
         state.select_slide("timer-culto".into(), 0).await;
         {
             let pres = state.presentation.read().await;
             assert_eq!(pres.active_media_id, Some("timer-culto".into()));
             assert_eq!(pres.timer.duration_seconds, 180);
             assert_eq!(pres.timer.remaining_seconds, 180);
+            assert_eq!(
+                pres.timer.stage_message.as_deref(),
+                Some("O culto começará em instantes")
+            );
             assert!(pres.timer.running);
             assert!(!pres.timer.allow_overtime);
         }
@@ -1022,9 +1028,13 @@ mod tests {
         {
             let pres = state.presentation.read().await;
             assert_eq!(pres.timer.remaining_seconds, 179);
+            assert_eq!(
+                pres.timer.stage_message.as_deref(),
+                Some("O culto começará em instantes")
+            );
         }
 
-        // 3. Ao cancelar/parar apresentação, para o timer e restaura o tempo
+        // 3. Ao cancelar/parar apresentação, para o timer, restaura o tempo e limpa a mensagem de retorno
         state.stop_presentation().await;
         {
             let pres = state.presentation.read().await;
@@ -1032,18 +1042,23 @@ mod tests {
             assert_eq!(pres.active_slide_index, None);
             assert!(!pres.timer.running);
             assert_eq!(pres.timer.remaining_seconds, 180);
+            assert_eq!(pres.timer.stage_message, None);
         }
 
-        // 4. Ao iniciar novamente, reseta aos 180s e volta a rodar
+        // 4. Ao iniciar novamente, reseta aos 180s, redefine mensagem e volta a rodar
         state.select_slide("timer-culto".into(), 0).await;
         {
             let pres = state.presentation.read().await;
             assert_eq!(pres.active_media_id, Some("timer-culto".into()));
             assert!(pres.timer.running);
             assert_eq!(pres.timer.remaining_seconds, 180);
+            assert_eq!(
+                pres.timer.stage_message.as_deref(),
+                Some("O culto começará em instantes")
+            );
         }
 
-        // 5. Ao atingir o final da contagem sem overtime, crava em 0 e para
+        // 5. Ao atingir o final da contagem sem overtime, crava em 0, para e limpa a mensagem de retorno
         {
             let mut pres = state.presentation.write().await;
             pres.timer.remaining_seconds = 1;
@@ -1053,6 +1068,7 @@ mod tests {
             let pres = state.presentation.read().await;
             assert_eq!(pres.timer.remaining_seconds, 0);
             assert!(!pres.timer.running);
+            assert_eq!(pres.timer.stage_message, None);
         }
     }
 
@@ -1234,15 +1250,27 @@ mod tests {
         );
 
         // Timer Stop at Zero
+        state.set_stage_message(Some("Aviso Zero".into())).await;
         state
             .set_timer(1, Some("Teste Zero".into()), Some(false))
             .await;
         state.start_timer().await;
         assert!(state.presentation.read().await.timer.running);
+        assert_eq!(
+            state
+                .presentation
+                .read()
+                .await
+                .timer
+                .stage_message
+                .as_deref(),
+            Some("Aviso Zero")
+        );
         state.tick_timer().await;
         let pres = state.presentation.read().await;
         assert_eq!(pres.timer.remaining_seconds, 0);
         assert!(!pres.timer.running); // Parou no zero!
+        assert_eq!(pres.timer.stage_message, None); // Limpou a mensagem de retorno!
     }
 
     static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

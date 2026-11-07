@@ -481,9 +481,10 @@ impl AppState {
         // Ao cancelar apresentação, volta ao plano de fundo do setlist
         state.wallpaper_path = state.setlist_wallpaper_path.clone();
         state.wallpaper_mode = state.setlist_wallpaper_mode.clone();
-        // Para a contagem do timer e restaura o tempo configurado
+        // Para a contagem do timer, restaura o tempo configurado e limpa a mensagem de retorno
         state.timer.running = false;
         state.timer.remaining_seconds = state.timer.duration_seconds;
+        state.timer.stage_message = None;
         let updated = state.clone();
         drop(state);
 
@@ -950,6 +951,7 @@ impl AppState {
             if state.timer.remaining_seconds <= 1 && !state.timer.allow_overtime {
                 state.timer.remaining_seconds = 0;
                 state.timer.running = false;
+                state.timer.stage_message = None;
             } else {
                 state.timer.remaining_seconds -= 1;
             }

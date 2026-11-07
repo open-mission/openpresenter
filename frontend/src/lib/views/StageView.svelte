@@ -516,9 +516,9 @@
               <div class="text-7xl sm:text-9xl md:text-[130px] font-mono font-black tracking-tight leading-none drop-shadow-2xl {isOvertime ? 'text-rose-500 animate-pulse' : isNearEnd ? 'text-amber-400' : 'text-white'}">
                 {formatTime(remainingSecs, isOvertime)}
               </div>
-              {#if activeSlide.lower_content || timer?.stage_message}
+              {#if remainingSecs > 0 && (timer?.stage_message || activeSlide.lower_content)}
                 <div class="text-lg sm:text-2xl text-zinc-300 font-medium max-w-2xl mt-1">
-                  {activeSlide.lower_content || timer?.stage_message}
+                  {timer?.stage_message || activeSlide.lower_content}
                 </div>
               {/if}
               {#if remainingSecs <= 0}

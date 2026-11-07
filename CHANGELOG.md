@@ -20,6 +20,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - **Interface de Usuário em Configurações (`SettingsModal.svelte`):** Nova seção "Backup & Migração de Instalação" na aba "Arquivos & Mídias" com card de exportação em 1 clique, card de importação de arquivos, modal de inspeção prévia com resumo estatístico, alerta de confirmação e recarga sincronizada do app.
   - **Documentação OpenAPI 3.0 / Swagger UI:** Atualização da especificação interativa offline com tag dedicada `Backup` e documentação completa dos endpoints.
 
+### Corrigido
+- **Limpeza Automática da Mensagem de Retorno ao Finalizar Timer no Public e Palco (`op-admin/state.rs`, `StageView.svelte`):**
+  - **Término da Contagem no Backend (`tick_timer`):** Ao concluir a contagem regressiva (`remaining_seconds <= 1 && !allow_overtime`), o backend agora limpa automaticamente a mensagem de retorno (`state.timer.stage_message = None`), parando a contagem em 0 e transmitindo o estado atualizado a todos os clientes conectados via WebSocket.
+  - **Parada e Cancelamento de Apresentação (`stop_presentation`):** Ao acionar o cancelamento da apresentação (tecla Esc ou botão Parar), qualquer mensagem de retorno associada ao timer é limpa (`state.timer.stage_message = None`).
+  - **Limpeza no Monitor de Palco (`StageView.svelte`):** Ao concluir a contagem (`remainingSecs <= 0`), o monitor de retorno oculta a mensagem de subtítulo sob os dígitos do cronômetro, exibindo apenas o badge "Tempo Concluído", e a caixa "Aviso para o Palco" volta para o estado inativo ("Nenhum aviso ativo").
+  - **Sincronização no Console do Operador (`TimerControlPanel.svelte` e `StagePreviewBox.svelte`):** O painel do operador remove o indicador "Ativo" e a mensagem de retorno expirada assim que o cronômetro chega a 00:00.
+
 ## [0.5.0] - 2026-11-06
 
 ### Destaques da Versão

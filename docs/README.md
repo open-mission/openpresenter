@@ -294,6 +294,11 @@
 - [Plano — Exportação e Importação Completa de Dados](plans/2026-11-06-exportar-e-importar-dados-backup.md)
 - [ADR 0014 — Exportação e Importação de Dados: Pacote ZIP com SQLite Online Backup API](decisions/0014-exportar-e-importar-dados-backup-zip.md)
 
+## Limpeza da Mensagem de Retorno ao Finalizar Timer
+
+- [Spec — Limpeza Automática da Mensagem de Retorno ao Finalizar Timer](specs/2026-11-07-limpar-mensagem-palco-ao-terminar-timer.md)
+- [Plano — Limpeza Automática da Mensagem de Retorno ao Finalizar Timer](plans/2026-11-07-limpar-mensagem-palco-ao-terminar-timer.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
