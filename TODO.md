@@ -12,6 +12,8 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
+- [x] Lançamento da versão 0.5.1: unificação de versão em todo o workspace (Cargo.toml, Cargo.lock, package.json, workflows, componentes e testes), sistema completo de backup, exportação e importação de dados para migração entre instalações (.opbackup com SQLite Online Backup API e mídias), limpeza automática da mensagem de retorno do cronômetro ao concluir contagem regressiva e parar apresentação, fechamento da release 0.5.1 no CHANGELOG.md, spec docs/specs/2026-11-07-release-0-5-1.md e publicação da tag v0.5.1. (2026-11-07 00:38:00 -03:00)
+
 - [x] Fix(timer): Limpeza automática da mensagem de retorno (stage_message) ao finalizar a contagem regressiva no Public e Palco: quando o cronômetro conclui sua contagem (`remaining_seconds <= 1 && !allow_overtime`) ou a apresentação é parada (`stop_presentation`), limpar automaticamente a mensagem de retorno (`state.timer.stage_message = None`), sincronizando em tempo real com todas as telas conectadas (PublicView, StageView, previews e console do operador). (commit 873139a - 2026-11-07 00:14:00 -03:00)
 
 - [x] Docs: Documentação de Arquitetura, Overview e Atualização do CHANGELOG (`overview.md`, `CHANGELOG.md`): documentação da arquitetura do módulo de backup e migração em `docs/architecture/overview.md`, registro detalhado das novas funcionalidades de exportação/inspeção/importação no `CHANGELOG.md` sob a seção `[Unreleased]` e validação completa de todos os portões de qualidade (`cargo fmt`, `cargo clippy`, `cargo test` e `npm run build`). (commit d265f9b - 2026-11-06 23:46:00 -03:00)

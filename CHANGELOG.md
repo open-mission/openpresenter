@@ -6,6 +6,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-07
+
+### Destaques da Versão
+A versão **0.5.1** consolida a portabilidade e segurança de dados do OpenPresenter através de um sistema completo e autocontido de Backup e Migração de Instalação, além de aprimorar a experiência de sincronização com a limpeza automática de mensagens de retorno do cronômetro:
+- 📦 **Exportação e Importação Completa (Backup & Migração):** Criação e restauração de pacotes autocontidos `.opbackup` (ZIP Deflate) com snapshot atômico do banco SQLite via API nativa `rusqlite::backup::Backup`, proteção contra Zip Slip, checagem física de integridade (`PRAGMA integrity_check`), migrações incrementais automáticas e empacotamento completo de todas as mídias (imagens, vídeos, áudios, papéis de parede, marca da igreja, bíblias e fontes customizadas).
+- 🔍 **Inspeção Prévia e Interface Amigável:** Nova seção dedicada em Configurações > Arquivos & Mídias com download em 1 clique, seletor de arquivos de backup, modal de inspeção com estatísticas detalhadas (músicas, setlists, membros, mídias e tamanho) antes da substituição e recarga instantânea em tempo real sincronizada via WebSocket.
+- ⏱️ **Limpeza Automática da Mensagem de Retorno do Timer:** Ao término da contagem regressiva (`00:00`) ou parada da apresentação (`stop_presentation`), a mensagem de retorno (`stage_message`) é limpa automaticamente em todas as saídas conectadas (Telão Público, Monitor de Retorno/Palco, Previews e Console do Operador), evitando textos residuais ou desatualizados.
+
 ### Adicionado
 - **Exportação e Importação Completa de Dados da Aplicação (Backup & Migração):**
   - **Snapshot Atômico do Banco SQLite (`op-db`):** Métodos `Database::backup_to_file` e `Database::restore_from_file` utilizando a API nativa de Online Backup do SQLite (`rusqlite::backup::Backup`), garantindo atomicidade transacional e integridade sem risco de bloqueios de arquivo no Windows/Linux/macOS ou inconsistências de arquivos `-wal`/`-shm`.

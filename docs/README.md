@@ -299,6 +299,16 @@
 - [Spec — Limpeza Automática da Mensagem de Retorno ao Finalizar Timer](specs/2026-11-07-limpar-mensagem-palco-ao-terminar-timer.md)
 - [Plano — Limpeza Automática da Mensagem de Retorno ao Finalizar Timer](plans/2026-11-07-limpar-mensagem-palco-ao-terminar-timer.md)
 
+## Release v0.5.1: Exportação/Importação Completa de Dados (Backup & Migração) e Limpeza Automática da Mensagem de Retorno do Timer
+
+- [Spec — Preparação e Lançamento da Versão 0.5.1](specs/2026-11-07-release-0-5-1.md)
+- [Plano — Preparação e Lançamento da Versão 0.5.1](plans/2026-11-07-release-0-5-1.md)
+- [Spec — Exportação e Importação Completa de Dados](specs/2026-11-06-exportar-e-importar-dados-backup.md)
+- [Plano — Exportação e Importação Completa de Dados](plans/2026-11-06-exportar-e-importar-dados-backup.md)
+- [ADR 0014 — Exportação e Importação de Dados: Pacote ZIP com SQLite Online Backup API](decisions/0014-exportar-e-importar-dados-backup-zip.md)
+- [Spec — Limpeza Automática da Mensagem de Retorno ao Finalizar Timer](specs/2026-11-07-limpar-mensagem-palco-ao-terminar-timer.md)
+- [Plano — Limpeza Automática da Mensagem de Retorno ao Finalizar Timer](plans/2026-11-07-limpar-mensagem-palco-ao-terminar-timer.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
