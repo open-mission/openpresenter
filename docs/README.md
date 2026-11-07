@@ -288,6 +288,12 @@
 - [Spec — Playback de Áudio Vinculado a Músicas, Widget de Player Superior/Remoto e Ajustes no Monitor de Palco](specs/2026-11-06-audio-playback-vinculado-a-musica-e-ajustes-stage-timer.md)
 - [Plano — Playback de Áudio Vinculado a Músicas, Widget de Player Superior/Remoto e Ajustes no Monitor de Palco](plans/2026-11-06-audio-playback-vinculado-a-musica-e-ajustes-stage-timer.md)
 
+## Exportação e Importação de Dados da Aplicação (Backup & Migração)
+
+- [Spec — Exportação e Importação Completa de Dados](specs/2026-11-06-exportar-e-importar-dados-backup.md)
+- [Plano — Exportação e Importação Completa de Dados](plans/2026-11-06-exportar-e-importar-dados-backup.md)
+- [ADR 0014 — Exportação e Importação de Dados: Pacote ZIP com SQLite Online Backup API](decisions/0014-exportar-e-importar-dados-backup-zip.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
@@ -305,6 +311,7 @@
 - [ADR 0011 — Versão 0.1.0: Executável Autocontido com Tray Icon, Frontend Embutido e CI/CD Multiplataforma](decisions/0011-versao-0-1-0-tray-icon-frontend-embutido-e-release-matrix.md)
 - [ADR 0012 — Sistema de Auto-Updater Completo, Verificação de Releases e Substituição Atômica Multiplataforma](decisions/0012-auto-updater-multiplataforma-e-github-releases.md)
 - [ADR 0013 — Integração com Google Cast: Web Receiver via WebSocket vs. Transmissão de Vídeo HLS](decisions/0013-integracao-google-cast-web-receiver-vs-hls.md)
+- [ADR 0014 — Exportação e Importação de Dados: Pacote ZIP com SQLite Online Backup API](decisions/0014-exportar-e-importar-dados-backup-zip.md)
 
 ## Marca e design
 

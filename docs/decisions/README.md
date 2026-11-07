@@ -17,6 +17,7 @@ Cada decisão arquitetural duradoura é registrada em um arquivo `NNNN-slug.md`,
 - [ADR 0011 — Versão 0.1.0: Executável Autocontido com Tray Icon, Frontend Embutido e CI/CD Multiplataforma](0011-versao-0-1-0-tray-icon-frontend-embutido-e-release-matrix.md)
 - [ADR 0012 — Sistema de Auto-Updater Completo, Verificação de Releases e Substituição Atômica Multiplataforma](0012-auto-updater-multiplataforma-e-github-releases.md)
 - [ADR 0013 — Integração com Google Cast: Web Receiver via WebSocket vs. Transmissão de Vídeo HLS](0013-integracao-google-cast-web-receiver-vs-hls.md)
+- [ADR 0014 — Exportação e Importação de Dados: Pacote ZIP com SQLite Online Backup API](0014-exportar-e-importar-dados-backup-zip.md)
 
 ## Formato
 

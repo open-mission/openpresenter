@@ -27,6 +27,14 @@ pub enum DbError {
     Write(#[source] rusqlite::Error),
     #[error("data inválida no banco de dados: {0}")]
     InvalidTimestamp(String),
+    #[error(
+        "o backup possui schema ({0}) mais recente que o suportado ({1}); atualize o OpenPresenter"
+    )]
+    SchemaTooNew(u32, u32),
+    #[error("falha na verificação de integridade do banco de dados SQLite: {0}")]
+    CorruptDatabase(String),
+    #[error("erro de E/S no banco de dados: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 fn parse_timestamp(value: String) -> Result<DateTime<Utc>, DbError> {
@@ -47,20 +55,12 @@ pub struct Database {
 }
 
 impl Database {
-    /// Abre o banco, aplica os PRAGMAs e roda as migrações pendentes.
-    pub fn open(path: &Path) -> Result<Self, DbError> {
-        let mut conn = Connection::open(path).map_err(DbError::Open)?;
+    /// Número total de migrações registradas.
+    pub const MIGRATIONS_COUNT: u32 = 13;
 
-        conn.pragma_update(None, "journal_mode", "WAL")
-            .map_err(DbError::Open)?;
-        conn.pragma_update(None, "synchronous", "NORMAL")
-            .map_err(DbError::Open)?;
-        conn.pragma_update(None, "foreign_keys", "ON")
-            .map_err(DbError::Open)?;
-        conn.busy_timeout(Duration::from_secs(5))
-            .map_err(DbError::Open)?;
-
-        let migrations = Migrations::new(vec![
+    /// Lista de migrações gerenciadas do banco de dados.
+    pub fn migrations() -> Migrations<'static> {
+        Migrations::new(vec![
             M::up(include_str!("../migrations/0001_initial.sql")),
             M::up(include_str!("../migrations/0002_output_config.sql")),
             M::up(include_str!("../migrations/0003_songs_fts.sql")),
@@ -76,7 +76,23 @@ impl Database {
                 "../migrations/0012_team_member_remote_access.sql"
             )),
             M::up(include_str!("../migrations/0013_song_audio_url.sql")),
-        ]);
+        ])
+    }
+
+    /// Abre o banco, aplica os PRAGMAs e roda as migrações pendentes.
+    pub fn open(path: &Path) -> Result<Self, DbError> {
+        let mut conn = Connection::open(path).map_err(DbError::Open)?;
+
+        conn.pragma_update(None, "journal_mode", "WAL")
+            .map_err(DbError::Open)?;
+        conn.pragma_update(None, "synchronous", "NORMAL")
+            .map_err(DbError::Open)?;
+        conn.pragma_update(None, "foreign_keys", "ON")
+            .map_err(DbError::Open)?;
+        conn.busy_timeout(Duration::from_secs(5))
+            .map_err(DbError::Open)?;
+
+        let migrations = Self::migrations();
         migrations
             .to_latest(&mut conn)
             .map_err(DbError::Migration)?;
@@ -85,6 +101,113 @@ impl Database {
             conn,
             path: path.to_path_buf(),
         })
+    }
+
+    /// Exporta o banco de dados atual para um arquivo destino de forma atômica
+    /// e consistente usando a SQLite Online Backup API.
+    pub fn backup_to_file(&self, target_path: &Path) -> Result<(), DbError> {
+        if let Some(parent) = target_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        if target_path.exists() {
+            let _ = std::fs::remove_file(target_path);
+        }
+
+        let mut dst = Connection::open(target_path).map_err(DbError::Open)?;
+        let backup = rusqlite::backup::Backup::new(&self.conn, &mut dst).map_err(DbError::Write)?;
+        backup
+            .run_to_completion(100, Duration::from_millis(5), None)
+            .map_err(DbError::Write)?;
+        Ok(())
+    }
+
+    /// Restaura o banco de dados a partir de um arquivo SQLite de backup.
+    /// Valida integridade via `PRAGMA integrity_check`, checa versão do schema,
+    /// transfere as páginas atomicamente para a conexão ativa via SQLite Online Backup API
+    /// e aplica as migrações pendentes.
+    pub fn restore_from_file(&mut self, source_path: &Path) -> Result<(), DbError> {
+        let mut src = Connection::open(source_path).map_err(DbError::Open)?;
+
+        // 1. Verifica integridade física do SQLite do backup
+        let check: String = src
+            .query_row("PRAGMA integrity_check", [], |row| row.get(0))
+            .map_err(DbError::Read)?;
+        if check != "ok" {
+            return Err(DbError::CorruptDatabase(check));
+        }
+
+        // 2. Checa versão de schema do arquivo de backup
+        let src_version: i64 = src
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .map_err(DbError::Read)?;
+        if (src_version as u32) > Self::MIGRATIONS_COUNT {
+            return Err(DbError::SchemaTooNew(
+                src_version as u32,
+                Self::MIGRATIONS_COUNT,
+            ));
+        }
+
+        // 3. Aplica migrações na origem temporária se for necessário, para garantir compatibilidade
+        let migrations = Self::migrations();
+        migrations.to_latest(&mut src).map_err(DbError::Migration)?;
+
+        // 4. Transfere os dados para a conexão ativa via SQLite Backup API
+        {
+            let backup =
+                rusqlite::backup::Backup::new(&src, &mut self.conn).map_err(DbError::Write)?;
+            backup
+                .run_to_completion(100, Duration::from_millis(5), None)
+                .map_err(DbError::Write)?;
+        }
+
+        // 5. Garante PRAGMAs ativos na conexão principal
+        self.conn
+            .pragma_update(None, "journal_mode", "WAL")
+            .map_err(DbError::Open)?;
+        self.conn
+            .pragma_update(None, "synchronous", "NORMAL")
+            .map_err(DbError::Open)?;
+        self.conn
+            .pragma_update(None, "foreign_keys", "ON")
+            .map_err(DbError::Open)?;
+
+        Ok(())
+    }
+
+    /// Contagem total de músicas no catálogo.
+    pub fn count_songs(&self) -> Result<usize, DbError> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM songs", [], |row| row.get(0))
+            .unwrap_or(0);
+        Ok(count as usize)
+    }
+
+    /// Contagem total de setlists cadastradas.
+    pub fn count_setlists(&self) -> Result<usize, DbError> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM setlists", [], |row| row.get(0))
+            .unwrap_or(0);
+        Ok(count as usize)
+    }
+
+    /// Contagem total de voluntários/membros da equipe.
+    pub fn count_team_members(&self) -> Result<usize, DbError> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM team_members", [], |row| row.get(0))
+            .unwrap_or(0);
+        Ok(count as usize)
+    }
+
+    /// Contagem total de módulos de bíblias cadastrados.
+    pub fn count_bibles(&self) -> Result<usize, DbError> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM bibles", [], |row| row.get(0))
+            .unwrap_or(0);
+        Ok(count as usize)
     }
 
     /// Versão atual do schema, controlada por `PRAGMA user_version`.
@@ -3105,5 +3228,95 @@ mod tests {
         );
         let updated_roster2 = db.get_service_roster(&roster.id).unwrap().unwrap();
         assert_eq!(updated_roster2.items.len(), 1);
+    }
+
+    #[test]
+    fn test_backup_and_restore_database() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_a_path = temp_dir.path().join("db_a.sqlite");
+        let db_b_path = temp_dir.path().join("db_b.sqlite");
+        let backup_path = temp_dir.path().join("backup.sqlite");
+
+        // 1. Cria DB A e insere dados
+        let db_a = Database::open(&db_a_path).unwrap();
+        let song = Song {
+            id: "song-backup-1".into(),
+            title: "Graça Maravilhosa".into(),
+            artist: "John Newton".into(),
+            album: None,
+            composer: Some("John Newton".into()),
+            song_key: Some("G".into()),
+            bpm: Some(72),
+            lyrics_raw: "Graça maravilhosa, quão doce o som".into(),
+            sections: vec![SongSection {
+                section_type: Some(SectionType::Verse),
+                label: "Verso 1".into(),
+                lines: vec!["Graça maravilhosa, quão doce o som".into()],
+            }],
+            tags: vec!["Tradicional".into()],
+            audio_url: Some("/api/media/files/audios/graca.mp3".into()),
+        };
+        db_a.save_song(&song, Utc::now()).unwrap();
+        db_a.set_setting("theme", "dracula").unwrap();
+
+        assert_eq!(db_a.count_songs().unwrap(), 1);
+
+        // 2. Faz backup para o arquivo backup_path
+        db_a.backup_to_file(&backup_path).unwrap();
+        assert!(backup_path.exists());
+
+        // 3. Abre DB B (vazio) e restaura a partir do backup
+        let mut db_b = Database::open(&db_b_path).unwrap();
+        assert_eq!(db_b.count_songs().unwrap(), 0);
+
+        db_b.restore_from_file(&backup_path).unwrap();
+
+        // 4. Verifica se os dados foram restaurados fielmente
+        assert_eq!(db_b.count_songs().unwrap(), 1);
+        let restored_song = db_b.get_song("song-backup-1").unwrap().unwrap();
+        assert_eq!(restored_song.title, "Graça Maravilhosa");
+        assert_eq!(
+            restored_song.audio_url.as_deref(),
+            Some("/api/media/files/audios/graca.mp3")
+        );
+        let restored_setting = db_b.get_setting("theme").unwrap().unwrap();
+        assert_eq!(restored_setting, "dracula");
+    }
+
+    #[test]
+    fn test_restore_rejects_newer_schema() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let backup_path = temp_dir.path().join("future_backup.sqlite");
+        let target_path = temp_dir.path().join("target.sqlite");
+
+        // Cria um banco com user_version no futuro
+        {
+            let conn = Connection::open(&backup_path).unwrap();
+            conn.pragma_update(None, "user_version", 999).unwrap();
+        }
+
+        let mut target_db = Database::open(&target_path).unwrap();
+        let err = target_db.restore_from_file(&backup_path).unwrap_err();
+        match err {
+            DbError::SchemaTooNew(v, max) => {
+                assert_eq!(v, 999);
+                assert_eq!(max, Database::MIGRATIONS_COUNT);
+            }
+            other => panic!("Esperado SchemaTooNew, obteve: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_restore_rejects_corrupted_file() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let corrupt_path = temp_dir.path().join("corrupt.sqlite");
+        let target_path = temp_dir.path().join("target.sqlite");
+
+        // Escreve bytes aleatórios
+        std::fs::write(&corrupt_path, b"nao_sou_um_banco_sqlite_valido_12345").unwrap();
+
+        let mut target_db = Database::open(&target_path).unwrap();
+        let err = target_db.restore_from_file(&corrupt_path).unwrap_err();
+        assert!(matches!(err, DbError::Open(_) | DbError::Read(_)));
     }
 }
