@@ -30,7 +30,7 @@
 - [x] Criar `.dockerignore` excluindo diretórios de compilação, dependências locais e dados locais.
 - [x] Criar `Dockerfile` multi-stage:
   - Estágio 1: compilação do frontend Svelte (Node 22 Alpine / `npm run build`).
-  - Estágio 2: compilação do backend Rust headless (Rust 1.85 Slim / `cargo build --release --locked --no-default-features`).
+  - Estágio 2: compilação do backend Rust headless (Rust Slim Bookworm estável / `cargo build --release --locked --no-default-features`).
   - Estágio 3: imagem de runtime Debian Bookworm Slim com usuário não-root, diretório `/data`, healthcheck e entrypoint.
 - [x] Criar `docker-compose.yml` pronto para uso com volume `/data` e portas configuradas.
 

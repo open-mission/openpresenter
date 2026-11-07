@@ -19,7 +19,7 @@ RUN npm run build
 # ------------------------------------------------------------------------------
 # Estágio 2: Compilação do Servidor Rust Headless (Axum + Rusqlite)
 # ------------------------------------------------------------------------------
-FROM rust:1.85-slim-bookworm AS backend-builder
+FROM rust:slim-bookworm AS backend-builder
 WORKDIR /app
 
 # Instala dependências essenciais de build

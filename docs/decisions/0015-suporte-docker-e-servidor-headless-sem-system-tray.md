@@ -26,7 +26,7 @@ Nesses ambientes de servidor e contêiner:
 
 4. **Empacotamento em Imagem Docker Oficial Multi-Stage:**
    - **Estágio Frontend:** `node:22-alpine` para gerar os estáticos compilados do Svelte (`npm run build`).
-   - **Estágio Backend:** `rust:1.85-slim-bookworm` para compilar o binário em modo release com `--no-default-features`.
+   - **Estágio Backend:** `rust:slim-bookworm` (Rust estável) para compilar o binário em modo release com `--no-default-features`.
    - **Estágio Runtime:** `debian:bookworm-slim` enxuta, com usuário não-root `openpresenter` (UID 1000), volume persistente `/data`, healthcheck HTTP nativo e inicialização imediata.
    - Fornecimento de arquivo `docker-compose.yml` para facilitar a implantação em servidores domésticos e paroquiais.
 
