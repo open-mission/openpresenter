@@ -12,7 +12,7 @@
 
 ## Done (com o commit e data e hora de conclusão)
 
-- [x] Otimização de CI/CD Docker: compilação paralela nativa ARM64 (`ubuntu-24.04-arm`) e AMD64 (`ubuntu-latest`) com matrix strategy, eliminação de emulação lenta QEMU, cache GHA isolado por arquitetura e unificação atômica de manifesto multi-arch via `docker buildx imagetools create` no GHCR e Docker Hub, spec `docs/specs/2026-11-08-otimizacao-ci-cd-docker-arm64-nativo.md` e plano `docs/plans/2026-11-08-otimizacao-ci-cd-docker-arm64-nativo.md`. (2026-11-08 16:30:00 -03:00)
+- [x] Otimização de CI/CD Docker: compilação paralela nativa ARM64 (`ubuntu-24.04-arm`) e AMD64 (`ubuntu-latest`) com matrix strategy, eliminação de emulação lenta QEMU, cache GHA isolado por arquitetura e unificação atômica de manifesto multi-arch via `docker buildx imagetools create` no GHCR e Docker Hub, spec `docs/specs/2026-11-08-otimizacao-ci-cd-docker-arm64-nativo.md` e plano `docs/plans/2026-11-08-otimizacao-ci-cd-docker-arm64-nativo.md`. (commit 5a52cc6 - 2026-11-08 16:30:00 -03:00)
 
 - [x] Lançamento da versão 0.6.0: unificação de versão em todo o workspace (Cargo.toml, Cargo.lock, package.json, workflows, componentes e testes), suporte oficial a servidores headless e contêineres Docker (feature tray desacoplada, Dockerfile multi-stage, docker-compose, CI/CD multi-arquitetura), gerenciamento físico de pastas e navegação File Explorer em mídias, árvore hierárquica visual com chevrons e linhas guias, desacoplamento do cronômetro de palco ao parar apresentação/ESC, correção da troca de versão da Bíblia, fechamento da release 0.6.0 no CHANGELOG.md, spec docs/specs/2026-11-08-release-0-6-0.md e publicação da tag v0.6.0. (2026-11-08 14:55:00 -03:00)
 
