@@ -325,6 +325,8 @@
 - [Plano — Desacoplamento do Timer de Palco ao Parar Apresentação, Troca de Versão da Bíblia e Pastas de Mídia com File Explorer](plans/2026-11-08-stage-timer-esc-persistencia-biblia-versao-pastas-midia-file-explorer.md)
 - [Spec — Hierarquia Visual de Pastas na Navegação da Aba de Mídias (Imagens)](specs/2026-11-08-hierarquia-pastas-navegacao-midias.md)
 - [Plano — Hierarquia Visual de Pastas na Navegação da Aba de Mídias (Imagens)](plans/2026-11-08-hierarquia-pastas-navegacao-midias.md)
+- [Spec — Otimização do Pipeline Docker com Compilação Paralela Nativa ARM64 e AMD64](specs/2026-11-08-otimizacao-ci-cd-docker-arm64-nativo.md)
+- [Plano — Otimização do Pipeline Docker com Compilação Paralela Nativa ARM64 e AMD64](plans/2026-11-08-otimizacao-ci-cd-docker-arm64-nativo.md)
 
 ## Arquitetura e decisões
 

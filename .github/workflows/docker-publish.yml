@@ -16,15 +16,23 @@ permissions:
   packages: write
 
 jobs:
-  docker:
-    name: Build & Publish Multi-Arch Docker Image
-    runs-on: ubuntu-latest
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            platform-id: linux-amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            platform-id: linux-arm64
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -45,27 +53,132 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
-        id: meta
+      - name: Prepare build outputs
+        id: prepare-outputs
+        run: |
+          OUTPUTS="type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true"
+          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
+            OUTPUTS="${OUTPUTS}
+          type=image,name=${{ secrets.DOCKERHUB_USERNAME }}/openpresenter,push-by-digest=true,name-canonical=true,push=true"
+          fi
+          echo "outputs<<EOF" >> $GITHUB_OUTPUT
+          echo "$OUTPUTS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platform }}
+          outputs: ${{ steps.prepare-outputs.outputs.outputs }}
+          cache-from: type=gha,scope=build-${{ matrix.platform-id }}
+          cache-to: type=gha,scope=build-${{ matrix.platform-id }},mode=max
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.platform-id }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Merge Multi-Arch Manifests
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: ${{ env.DOCKERHUB_USERNAME != '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+
+      - name: Log in to GitHub Container Registry (ghcr.io)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata for GHCR
+        id: meta-ghcr
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ${{ secrets.DOCKERHUB_USERNAME && format('{0}/openpresenter', secrets.DOCKERHUB_USERNAME) || '' }}
-            ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' }}
 
-      - name: Build and push Multi-Arch Docker Image
-        uses: docker/build-push-action@v6
+      - name: Extract Docker metadata for Docker Hub
+        if: ${{ env.DOCKERHUB_USERNAME != '' }}
+        id: meta-dockerhub
+        uses: docker/metadata-action@v5
         with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/openpresenter
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' }}
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+
+      - name: Create and push manifest for GHCR
+        working-directory: /tmp/digests
+        run: |
+          images=()
+          for tag in ${{ steps.meta-ghcr.outputs.tags }}; do
+            images+=( "--tag" "$tag" )
+          done
+
+          platforms=()
+          for digest in *; do
+            platforms+=( "ghcr.io/${{ github.repository }}@sha256:$digest" )
+          done
+
+          docker buildx imagetools create "${images[@]}" "${platforms[@]}"
+
+      - name: Create and push manifest for Docker Hub
+        if: ${{ env.DOCKERHUB_USERNAME != '' }}
+        working-directory: /tmp/digests
+        run: |
+          images=()
+          for tag in ${{ steps.meta-dockerhub.outputs.tags }}; do
+            images+=( "--tag" "$tag" )
+          done
+
+          platforms=()
+          for digest in *; do
+            platforms+=( "${{ secrets.DOCKERHUB_USERNAME }}/openpresenter@sha256:$digest" )
+          done
+
+          docker buildx imagetools create "${images[@]}" "${platforms[@]}"
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+
+      - name: Inspect GHCR multi-arch image
+        run: |
+          docker buildx imagetools inspect ghcr.io/${{ github.repository }}:${{ steps.meta-ghcr.outputs.version }}

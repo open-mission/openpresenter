@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Otimizado
+- **CI/CD Docker Multi-Arquitetura com Runners Nativos ARM64 e AMD64 (`.github/workflows/docker-publish.yml`):**
+  - Substituição da emulação por software com QEMU por compilação nativa distribuída em matriz de runners paralelos (`ubuntu-latest` para `linux/amd64` e `ubuntu-24.04-arm` com 4 vCPUs nativas para `linux/arm64`).
+  - Publicação das imagens por digest imutável com escopos de cache isolados por arquitetura (`type=gha,scope=build-${{ matrix.platform-id }}`).
+  - Job de merge leve que coleta os digests via artefatos do GitHub Actions e monta a lista de manifestos fat multi-plataforma usando `docker buildx imagetools create` no GHCR e Docker Hub.
+  - Redução drástica do tempo de execução total de build de > 1h30 para aproximadamente 4 a 6 minutos.
+
 ## [0.6.0] - 2026-11-08
 
 ### Destaques da Versão
