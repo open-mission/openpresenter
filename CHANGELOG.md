@@ -6,6 +6,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-08
+
+### Destaques da Versão
+A versão **0.6.0** é um marco de expansão e robustez operacional para o OpenPresenter, introduzindo suporte a servidores headless e Docker, gestão de arquivos e pastas no disco com File Explorer, árvore hierárquica visual de mídias, desacoplamento completo do cronômetro de palco na parada de projeção e correção imediata da troca de versão da Bíblia:
+- 🐳 **Suporte Oficial a Docker & Servidor Headless:** Desacoplamento de dependências gráficas (`tao`, `muda`, `tray-icon`, `open`) via feature `tray` no `op-admin`. `Dockerfile` multi-stage oficial leve (Alpine + Bookworm Slim) e `docker-compose.yml` para implantação em servidores locais ou VPS, com encerramento gracioso via `SIGTERM` e pipeline CI/CD multi-arquitetura (`amd64` e `arm64`) para Docker Hub e GHCR.
+- 📁 **Gerenciamento de Pastas com Criação Física e Navegação File Explorer:** Criação real de diretórios no sistema de arquivos local (`POST /api/media/folders/create-dir`) para imagens e vídeos, botão "+ Pasta" com modal de criação rápida, visualização estilo File Explorer na grade com cartões clicáveis, contadores, navegação por breadcrumbs multinível, botão "Subir um nível" e upload direcionado à pasta atualmente aberta.
+- 🌳 **Árvore Hierárquica Visual de Pastas:** Navegação lateral de imagens em árvore multinível (`buildFolderTree`) com recuo proporcional (`depth`), linhas guias verticais conectivas, botões chevrons para expandir/recolher pastas individualmente e autoexpansão inteligente dos ramos pais ao selecionar subpastas internas.
+- ⏱️ **Desacoplamento do Cronômetro de Palco e Itens de Timer ao Parar Projeção / ESC:** Pressionar Escape ou clicar em "Parar Apresentação" agora cessa exclusivamente a projeção na tela pública, preservando a contagem do cronômetro no monitor de retorno do palco (Stage Display) e console do operador até controle explícito no painel.
+- 📖 **Troca Instantânea de Versão da Bíblia na Aba da Bíblia:** Correção no manipulador de seleção e invalidação unívoca de chaves do DOM por versão, recarregando e exibindo imediatamente o texto dos versículos na versão selecionada.
+
 ### Adicionado
 - **Hierarquia Visual de Pastas na Barra Lateral de Mídias (`BottomPanel.svelte`):**
   - **Árvore de Diretórios Multinível (`FolderTreeNode` e `buildFolderTree`):** Transformação da lista plana de subpastas na aba de Imagens em uma visualização em árvore com suporte a múltiplos níveis de aninhamento para a Pasta do App e Pastas Mapeadas.
@@ -17,15 +27,6 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - **Descoberta de Subpastas Físicas (`GET /api/media/app-subfolders`):** Listagem recursiva de subpastas do app para imagens e vídeos, incluindo pastas recém-criadas vazias com contagem zero de arquivos.
   - **Upload Direcionado à Subpasta Aberta:** Suporte a parâmetro `subfolder` e `folder_id` nos endpoints `POST /api/media/images/upload` e `POST /api/media/videos/upload`, garantindo que arquivos importados sejam salvos na subpasta aberta no painel.
   - **Navegação File Explorer & Breadcrumbs nas Abas de Imagens e Vídeos:** Botão "+ Pasta" na barra de ações, modal de criação acessível com indicação clara do caminho de destino, cartões de pasta clicáveis estilo navegador de arquivos na área principal de mídias, contadores de itens, breadcrumbs com navegação multinível e botão "Subir um nível".
-
-### Corrigido
-- **Desacoplamento do Timer de Palco e Itens de Timer ao Parar Apresentação / ESC (`op-admin/src/state.rs`, `AdminView.svelte`):**
-  - Pressionar a tecla ESC (inclusive repetidas vezes) ou acionar o botão "Parar Apresentação" agora cancela estritamente a projeção de slides/mídias na tela pública, mantendo o cronômetro do monitor de retorno de palco (Stage Display) e do painel do operador rodando ininterruptamente.
-  - O cronômetro passa a ser pausado, parado ou reiniciado unicamente através dos botões dedicados de controle no painel de timer (`TimerControlPanel.svelte`).
-- **Troca Imediata de Versão da Bíblia na Aba da Bíblia (`BiblePanel.svelte`):**
-  - Correção no manipulador de alteração do `<select>` de versão da Bíblia capturando imediatamente o valor selecionado do evento `onchange` (`handleVersionChange`).
-  - Atualização da chave de renderização do bloco de versículos para `${selectedBibleId}-${v.book_id}-${v.chapter}-${v.verse}`, forçando o Svelte a substituir completamente os cartões e renderizar o texto fiel da nova versão escolhida sem reaproveitamento indevido de nós do DOM.
-  - Inclusão da versão na verificação de `targetPassage` para atualizações corretas via Command Palette ou atalhos de busca.
 - **Suporte a Docker e Execução em Servidor Headless sem System Tray (`op-admin`, `Dockerfile`, `docker-compose.yml`):**
   - **Feature Flag Opcional `tray` (`op-admin`):** Desacoplamento das dependências gráficas (`tao`, `muda`, `tray-icon` e `open`) através da feature `tray`, habilitada por padrão (`default = ["tray"]`) para compilações desktop, mas desativável via `--no-default-features` para ambientes de servidor puro e contêineres Docker, eliminando a necessidade de pacotes gráficos do Linux (`libgtk-3-dev`, `libappindicator3-dev`, `libx11-dev`).
   - **Isolamento do Ciclo de Vida do Processo (`crates/op-admin/src/process.rs`):** Extração da rotina `restart_application()` do módulo de tray para módulo próprio, garantindo que reinicializações de servidor agendadas via API REST (`POST /api/system/restart`) continuem plenamente operacionais mesmo sem interface gráfica.
@@ -37,6 +38,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Workflow automatizado com compilação multi-arquitetura (`linux/amd64` e `linux/arm64`) utilizando Docker Buildx e emulação QEMU.
   - Publicação unificada no Docker Hub (`<usuario>/openpresenter`) e GitHub Container Registry (`ghcr.io/<org>/openpresenter`) acionada por tags Git `v*` ou disparo manual via `workflow_dispatch`.
   - Mapeamento automático de versionamento SemVer (`x.y.z`, `x.y`, `latest`), metadados OCI e aceleração de compilação via cache nativo GHA (`type=gha`).
+
+### Corrigido
+- **Desacoplamento do Timer de Palco e Itens de Timer ao Parar Apresentação / ESC (`op-admin/src/state.rs`, `AdminView.svelte`):**
+  - Pressionar a tecla ESC (inclusive repetidas vezes) ou acionar o botão "Parar Apresentação" agora cancela estritamente a projeção de slides/mídias na tela pública, mantendo o cronômetro do monitor de retorno de palco (Stage Display) e do painel do operador rodando ininterruptamente.
+  - O cronômetro passa a ser pausado, parado ou reiniciado unicamente através dos botões dedicados de controle no painel de timer (`TimerControlPanel.svelte`).
+- **Troca Imediata de Versão da Bíblia na Aba da Bíblia (`BiblePanel.svelte`):**
+  - Correção no manipulador de alteração do `<select>` de versão da Bíblia capturando imediatamente o valor selecionado do evento `onchange` (`handleVersionChange`).
+  - Atualização da chave de renderização do bloco de versículos para `${selectedBibleId}-${v.book_id}-${v.chapter}-${v.verse}`, forçando o Svelte a substituir completamente os cartões e renderizar o texto fiel da nova versão escolhida sem reaproveitamento indevido de nós do DOM.
+  - Inclusão da versão na verificação de `targetPassage` para atualizações corretas via Command Palette ou atalhos de busca.
 
 ## [0.5.1] - 2026-11-07
 

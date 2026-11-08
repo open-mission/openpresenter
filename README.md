@@ -194,7 +194,7 @@ docker run -d \
 
 O repositório conta com a pipeline `.github/workflows/docker-publish.yml` para compilação multi-arquitetura (`linux/amd64` e `linux/arm64`) e publicação automática no Docker Hub e GitHub Container Registry (`ghcr.io`):
 
-- **Gatilhos:** criação de tags de versão (`git tag v0.5.1 && git push origin v0.5.1`) ou disparo manual em **Actions > Docker Publish**.
+- **Gatilhos:** criação de tags de versão (`git tag v0.6.0 && git push origin v0.6.0`) ou disparo manual em **Actions > Docker Publish**.
 - **Configuração de Segredos:**
   - `DOCKERHUB_USERNAME`: seu nome de usuário ou organização no Docker Hub.
   - `DOCKERHUB_TOKEN`: Personal Access Token gerado no Docker Hub (*Account Settings > Security > New Access Token*).

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag manual para a imagem (ex: latest, v0.5.1)'
+        description: 'Tag manual para a imagem (ex: latest, v0.6.0)'
         required: false
         default: 'latest'
 
