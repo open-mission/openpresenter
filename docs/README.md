@@ -317,6 +317,11 @@
 - [Plano — Pipeline CI/CD de Publicação Automática de Imagens Docker](plans/2026-11-07-ci-cd-publicacao-docker-hub.md)
 - [ADR 0015 — Suporte a Docker e Servidor Headless sem System Tray](decisions/0015-suporte-docker-e-servidor-headless-sem-system-tray.md)
 
+## Timer no Stage vs. ESC, Troca de Versão da Bíblia e Pastas de Mídia com File Explorer
+
+- [Spec — Desacoplamento do Timer de Palco ao Parar Apresentação, Troca de Versão da Bíblia e Pastas de Mídia com File Explorer](specs/2026-11-08-stage-timer-esc-persistencia-biblia-versao-pastas-midia-file-explorer.md)
+- [Plano — Desacoplamento do Timer de Palco ao Parar Apresentação, Troca de Versão da Bíblia e Pastas de Mídia com File Explorer](plans/2026-11-08-stage-timer-esc-persistencia-biblia-versao-pastas-midia-file-explorer.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

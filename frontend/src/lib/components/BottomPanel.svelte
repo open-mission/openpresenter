@@ -54,6 +54,9 @@
     uploadAudio,
     formatBytes,
     formatDuration,
+    fetchAppSubfolders,
+    createMediaDirectory,
+    uploadImage,
   } from '../media';
   import {
     customItemsStore,
@@ -90,6 +93,7 @@
     VideoMediaItem,
     AudioMediaItem,
     MediaFolder,
+    MediaSubfolder,
     WallpaperItem,
     ImageFitMode,
     MediaItem,
@@ -312,12 +316,140 @@
     loadFolders();
     loadWallpapers();
     loadCustomItems();
+    loadAppImageSubfolders();
+    loadAppVideoSubfolders();
   });
+
+  // --- GERENCIAMENTO DE PASTAS FÍSICAS E FILE EXPLORER ---
+  let appImageSubfolders = $state<MediaSubfolder[]>([]);
+  let appVideoSubfolders = $state<MediaSubfolder[]>([]);
+  let isCreateFolderModalOpen = $state(false);
+  let newFolderName = $state('');
+  let isCreatingFolder = $state(false);
+  let folderInputEl: HTMLInputElement | null = $state(null);
+  let isAppFolderExpanded = $state(true);
+
+  async function loadAppImageSubfolders() {
+    try {
+      appImageSubfolders = await fetchAppSubfolders('images');
+    } catch (err) {
+      console.warn('Erro ao carregar subpastas de imagens:', err);
+    }
+  }
+
+  async function loadAppVideoSubfolders() {
+    try {
+      appVideoSubfolders = await fetchAppSubfolders('videos');
+    } catch (err) {
+      console.warn('Erro ao carregar subpastas de vídeos:', err);
+    }
+  }
+
+  function getDirectSubfoldersForLevel(
+    allSubfolders: MediaSubfolder[],
+    currentLevel: string | null
+  ): MediaSubfolder[] {
+    const map = new Map<string, { relative_path: string; name: string; count: number }>();
+    const prefix = currentLevel ? `${currentLevel}/` : '';
+
+    for (const sub of allSubfolders) {
+      if (currentLevel === null) {
+        const topSegment = sub.relative_path.split('/')[0];
+        const existing = map.get(topSegment);
+        if (!existing) {
+          map.set(topSegment, {
+            relative_path: topSegment,
+            name: topSegment,
+            count: sub.relative_path === topSegment ? sub.count : 0,
+          });
+        } else if (sub.relative_path === topSegment) {
+          existing.count = sub.count;
+        }
+      } else if (sub.relative_path.startsWith(prefix)) {
+        const remainder = sub.relative_path.slice(prefix.length);
+        const directName = remainder.split('/')[0];
+        const directRelPath = `${prefix}${directName}`;
+        const existing = map.get(directRelPath);
+        if (!existing) {
+          map.set(directRelPath, {
+            relative_path: directRelPath,
+            name: directName,
+            count: sub.relative_path === directRelPath ? sub.count : 0,
+          });
+        } else if (sub.relative_path === directRelPath) {
+          existing.count = sub.count;
+        }
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  function openCreateFolderModal() {
+    newFolderName = '';
+    isCreateFolderModalOpen = true;
+    setTimeout(() => {
+      folderInputEl?.focus();
+    }, 50);
+  }
+
+  const createFolderLocationLabel = $derived.by(() => {
+    const isVideo = activeTab === 'videos';
+    if (isVideo) {
+      const folderName = videoFolderFilter === 'all' || videoFolderFilter === 'app' ? 'Pasta do App (Vídeos)' : videoFolderFilter;
+      return selectedVideoSubfolder ? `${folderName} / ${selectedVideoSubfolder}` : folderName;
+    } else {
+      const folderName = selectedFolderFilter === 'all' || selectedFolderFilter === 'app' ? 'Pasta do App (Imagens)' : currentFolderName;
+      return selectedSubfolder ? `${folderName} / ${selectedSubfolder}` : folderName;
+    }
+  });
+
+  async function handleCreateFolderSubmit() {
+    const name = newFolderName.trim();
+    if (!name) return;
+
+    isCreatingFolder = true;
+    try {
+      const isVideo = activeTab === 'videos';
+      const kind = isVideo ? 'videos' : 'images';
+      const folderId = isVideo
+        ? (videoFolderFilter !== 'all' ? videoFolderFilter : 'app')
+        : (selectedFolderFilter !== 'all' ? selectedFolderFilter : 'app');
+      const parentSubfolder = isVideo ? selectedVideoSubfolder : selectedSubfolder;
+
+      await createMediaDirectory(name, kind, folderId, parentSubfolder);
+      notifySuccess('Pasta Criada', `A pasta "${name}" foi criada com sucesso.`);
+
+      if (!isVideo && selectedFolderFilter === 'all') {
+        selectedFolderFilter = 'app';
+      } else if (isVideo && videoFolderFilter === 'all') {
+        videoFolderFilter = 'app';
+      }
+
+      newFolderName = '';
+      isCreateFolderModalOpen = false;
+
+      if (isVideo) {
+        await loadVideos();
+        await loadAppVideoSubfolders();
+      } else {
+        await loadImages();
+        await loadFolders();
+        await loadAppImageSubfolders();
+      }
+    } catch (err: any) {
+      console.error('Erro ao criar pasta:', err);
+      notifyError('Erro ao Criar Pasta', err?.message || 'Falha ao criar diretório.');
+    } finally {
+      isCreatingFolder = false;
+    }
+  }
 
   // --- GALERIA DE VÍDEOS ---
   let videos = $state<VideoMediaItem[]>([]);
   let videoSearch = $state('');
   let videoFolderFilter = $state<string>('all');
+  let selectedVideoSubfolder = $state<string | null>(null);
   let isLoadingVideos = $state(false);
   let isUploadingVideo = $state(false);
   let videoFileInputEl: HTMLInputElement | null = $state(null);
@@ -326,6 +458,7 @@
     isLoadingVideos = true;
     try {
       videos = await fetchVideos();
+      await loadAppVideoSubfolders();
     } catch (err) {
       console.error('Erro ao carregar vídeos:', err);
     } finally {
@@ -341,19 +474,88 @@
     return Array.from(set);
   });
 
+  const allAppVideoSubfolders = $derived.by(() => {
+    const map = new Map<string, MediaSubfolder>();
+    for (const s of appVideoSubfolders) {
+      map.set(s.relative_path, { ...s });
+    }
+    for (const vid of videos) {
+      if ((!vid.folder_name || vid.folder_id === 'app') && vid.subfolder) {
+        if (!map.has(vid.subfolder)) {
+          map.set(vid.subfolder, {
+            relative_path: vid.subfolder,
+            name: vid.subfolder.split('/').pop() || vid.subfolder,
+            count: 1,
+          });
+        }
+      }
+    }
+    return Array.from(map.values());
+  });
+
+  const allCurrentVideoSubfolders = $derived.by(() => {
+    if (videoFolderFilter === 'all') return [];
+    if (videoFolderFilter === 'app') {
+      return allAppVideoSubfolders;
+    }
+    const f = folders.find((item) => item.name === videoFolderFilter || item.id === videoFolderFilter);
+    return f?.subfolders || [];
+  });
+
+  const currentVideoDirectSubfolders = $derived.by(() => {
+    if (videoFolderFilter === 'all') return [];
+    return getDirectSubfoldersForLevel(allCurrentVideoSubfolders, selectedVideoSubfolder);
+  });
+
+  const videoBreadcrumbs = $derived.by(() => {
+    if (!selectedVideoSubfolder) return [];
+    const parts = selectedVideoSubfolder.split('/');
+    return parts.map((part, index) => ({
+      name: part,
+      path: parts.slice(0, index + 1).join('/'),
+    }));
+  });
+
+  function navigateUpVideoFolder() {
+    if (!selectedVideoSubfolder) return;
+    const parts = selectedVideoSubfolder.split('/');
+    if (parts.length <= 1) {
+      selectedVideoSubfolder = null;
+    } else {
+      parts.pop();
+      selectedVideoSubfolder = parts.join('/');
+    }
+  }
+
+  const currentVideoFolderName = $derived.by(() => {
+    if (videoFolderFilter === 'all') return 'Todos os Vídeos';
+    if (videoFolderFilter === 'app') return 'Pasta do App';
+    return videoFolderFilter;
+  });
+
   const filteredVideos = $derived.by(() => {
     let list = videos;
     if (videoFolderFilter === 'app') {
-      list = list.filter((v) => !v.folder_name);
+      list = list.filter((v) => !v.folder_name || v.folder_id === 'app');
     } else if (videoFolderFilter !== 'all') {
-      list = list.filter((v) => v.folder_name === videoFolderFilter);
+      list = list.filter((v) => v.folder_name === videoFolderFilter || v.folder_id === videoFolderFilter);
     }
+
+    if (videoFolderFilter !== 'all') {
+      if (selectedVideoSubfolder !== null) {
+        list = list.filter((v) => v.subfolder === selectedVideoSubfolder);
+      } else {
+        list = list.filter((v) => !v.subfolder || v.subfolder === '');
+      }
+    }
+
     const q = videoSearch.trim().toLowerCase();
     if (!q) return list;
     return list.filter(
       (v) =>
         v.name.toLowerCase().includes(q) ||
-        (v.folder_name && v.folder_name.toLowerCase().includes(q))
+        (v.folder_name && v.folder_name.toLowerCase().includes(q)) ||
+        (v.subfolder && v.subfolder.toLowerCase().includes(q))
     );
   });
 
@@ -368,9 +570,12 @@
       reader.onload = async () => {
         try {
           const b64 = (reader.result as string).split(',')[1];
-          await uploadVideo(file.name, b64);
+          const folderId = videoFolderFilter !== 'all' ? videoFolderFilter : 'app';
+          const subfolder = selectedVideoSubfolder || undefined;
+          await uploadVideo(file.name, b64, folderId, subfolder);
           notifySuccess('Vídeo Importado', `"${file.name}" foi salvo na biblioteca de vídeos.`);
           await loadVideos();
+          await loadAppVideoSubfolders();
         } catch (err) {
           notifyError('Erro no Upload', 'Falha ao salvar arquivo de vídeo.');
         } finally {
@@ -769,6 +974,7 @@
       if (res.ok) {
         images = await res.json();
       }
+      await loadAppImageSubfolders();
     } catch (err) {
       console.error('Erro ao carregar imagens:', err);
     } finally {
@@ -849,30 +1055,65 @@
     };
   }
 
-  // Sub-pastas da pasta atualmente selecionada
-  const currentSubfolders = $derived.by(() => {
-    if (selectedFolderFilter === 'all') return [];
-    if (selectedFolderFilter === 'app') {
-      const set = new Map<string, number>();
-      for (const img of images) {
-        if (!img.is_external && img.subfolder) {
-          set.set(img.subfolder, (set.get(img.subfolder) || 0) + 1);
+  // Subpastas completas da pasta do app (incluindo diretórios físicos vazios)
+  const allAppImageSubfolders = $derived.by(() => {
+    const map = new Map<string, MediaSubfolder>();
+    for (const s of appImageSubfolders) {
+      map.set(s.relative_path, { ...s });
+    }
+    for (const img of images) {
+      if (!img.is_external && img.subfolder) {
+        if (!map.has(img.subfolder)) {
+          map.set(img.subfolder, {
+            relative_path: img.subfolder,
+            name: img.subfolder.split('/').pop() || img.subfolder,
+            count: 1,
+          });
         }
       }
-      return Array.from(set.entries()).map(([sub, count]) => ({
-        relative_path: sub,
-        name: sub.split('/').pop() || sub,
-        count,
-      }));
+    }
+    return Array.from(map.values());
+  });
+
+  const allCurrentFolderSubfolders = $derived.by(() => {
+    if (selectedFolderFilter === 'all') return [];
+    if (selectedFolderFilter === 'app') {
+      return allAppImageSubfolders;
     }
     const f = folders.find((item) => item.id === selectedFolderFilter);
     return f?.subfolders || [];
   });
 
+  // Sub-pastas diretas do nível atual (File Explorer)
+  const currentSubfolders = $derived.by(() => {
+    if (selectedFolderFilter === 'all') return [];
+    return getDirectSubfoldersForLevel(allCurrentFolderSubfolders, selectedSubfolder);
+  });
+
+  const imageBreadcrumbs = $derived.by(() => {
+    if (!selectedSubfolder) return [];
+    const parts = selectedSubfolder.split('/');
+    return parts.map((part, index) => ({
+      name: part,
+      path: parts.slice(0, index + 1).join('/'),
+    }));
+  });
+
+  function navigateUpImageFolder() {
+    if (!selectedSubfolder) return;
+    const parts = selectedSubfolder.split('/');
+    if (parts.length <= 1) {
+      selectedSubfolder = null;
+    } else {
+      parts.pop();
+      selectedSubfolder = parts.join('/');
+    }
+  }
+
   // Filtragem de imagens com suporte a sub-pastas e privacidade
   const filteredImages = $derived.by(() => {
     let list = images;
-    // Por padrão (privacidade ativa), exibe apenas pastas importadas externas
+    // Por padrão (privacidade ativa), exibe apenas pastas importadas externas quando não na pasta do app
     if (!showSystemImages && selectedFolderFilter !== 'app') {
       list = list.filter((img) => img.is_external);
     }
@@ -881,8 +1122,18 @@
     } else if (selectedFolderFilter !== 'all') {
       list = list.filter((img) => img.folder_id === selectedFolderFilter);
     }
+
+    if (selectedFolderFilter === 'all') {
+      if (selectedSubfolder !== null) {
+        list = list.filter((img) => img.subfolder === selectedSubfolder);
+      }
+      return list;
+    }
+
     if (selectedSubfolder !== null) {
       list = list.filter((img) => img.subfolder === selectedSubfolder);
+    } else {
+      list = list.filter((img) => !img.subfolder || img.subfolder === '');
     }
     return list;
   });
@@ -962,7 +1213,7 @@
     if (isMaximized) isCollapsed = false;
   }
 
-  // Upload de Imagem para pasta do App
+  // Upload de Imagem para pasta ativa e subpasta atual
   async function handleFileUpload(e: Event) {
     const input = e.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
@@ -970,21 +1221,18 @@
 
     const reader = new FileReader();
     reader.onload = async () => {
-      const base64 = reader.result as string;
+      const fullBase64 = reader.result as string;
+      const b64 = fullBase64.includes(',') ? fullBase64.split(',')[1] : fullBase64;
       try {
-        const resp = await fetch('/api/media/images/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filename: file.name,
-            content_base64: base64,
-          }),
-        });
-        if (resp.ok) {
-          await loadImages();
-        }
+        const folderId = selectedFolderFilter !== 'all' ? selectedFolderFilter : 'app';
+        const subfolder = selectedSubfolder || undefined;
+        await uploadImage(file.name, b64, folderId, subfolder);
+        notifySuccess('Imagem Importada', `"${file.name}" foi importada com sucesso.`);
+        await loadImages();
+        await loadAppImageSubfolders();
       } catch (err) {
         console.error('Erro no upload de imagem:', err);
+        notifyError('Erro no Upload', 'Falha ao salvar arquivo de imagem.');
       }
     };
     reader.readAsDataURL(file);
@@ -2288,22 +2536,73 @@
             </button>
 
             <!-- Nó: Pasta do App (Sistema) -->
-            <button
-              type="button"
-              onclick={() => {
-                selectedFolderFilter = 'app';
-                selectedSubfolder = null;
-              }}
-              class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedFolderFilter === 'app' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
-            >
-              <div class="flex items-center gap-2 truncate">
-                <Folder size={13} class="text-primary" />
-                <span class="truncate">Pasta do App (Sistema)</span>
+            <div class="space-y-0.5">
+              <div
+                role="button"
+                tabindex="0"
+                onclick={() => {
+                  selectedFolderFilter = 'app';
+                  selectedSubfolder = null;
+                }}
+                onkeydown={(e) => {
+                  if (e.key === 'Enter') {
+                    selectedFolderFilter = 'app';
+                    selectedSubfolder = null;
+                  }
+                }}
+                class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedFolderFilter === 'app' && selectedSubfolder === null ? 'bg-primary/10 text-primary font-bold' : selectedFolderFilter === 'app' ? 'bg-muted/60 text-foreground font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+              >
+                <div class="flex items-center gap-1.5 truncate">
+                  {#if allAppImageSubfolders.length > 0}
+                    <button
+                      type="button"
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        isAppFolderExpanded = !isAppFolderExpanded;
+                      }}
+                      class="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+                      title={isAppFolderExpanded ? 'Recolher subpastas' : 'Expandir subpastas'}
+                    >
+                      {#if isAppFolderExpanded}
+                        <ChevronDown size={11} />
+                      {:else}
+                        <ChevronRight size={11} />
+                      {/if}
+                    </button>
+                  {:else}
+                    <span class="w-3.5"></span>
+                  {/if}
+                  <Folder size={13} class="text-primary shrink-0" />
+                  <span class="truncate">Pasta do App</span>
+                </div>
+                <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono shrink-0">
+                  {images.filter((i) => !i.is_external).length}
+                </Badge>
               </div>
-              <Badge variant="secondary" class="text-[9px] py-0 px-1 font-mono">
-                {images.filter((i) => !i.is_external).length}
-              </Badge>
-            </button>
+
+              {#if isAppFolderExpanded && allAppImageSubfolders.length > 0}
+                <div class="pl-4 space-y-0.5 border-l border-border/50 ml-3">
+                  {#each allAppImageSubfolders as sub (sub.relative_path)}
+                    {@const isSubSelected = selectedFolderFilter === 'app' && selectedSubfolder === sub.relative_path}
+                    <button
+                      type="button"
+                      onclick={() => {
+                        selectedFolderFilter = 'app';
+                        selectedSubfolder = sub.relative_path;
+                      }}
+                      class="w-full flex items-center justify-between px-2 py-1 rounded text-[11px] transition-colors cursor-pointer {isSubSelected ? 'bg-primary/20 text-primary font-bold' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'}"
+                      title="Pasta do App / {sub.relative_path}"
+                    >
+                      <div class="flex items-center gap-1.5 min-w-0">
+                        <Folder size={11} class="text-amber-400/80 shrink-0" />
+                        <span class="truncate">{sub.name}</span>
+                      </div>
+                      <span class="text-[9px] font-mono opacity-80 ml-1 shrink-0">{sub.count}</span>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
 
             <!-- Seção de Pastas Mapeadas -->
             <div class="pt-2">
@@ -2412,45 +2711,55 @@
             <!-- Barra de Breadcrumbs e Ações -->
             <div class="flex items-center justify-between gap-3 mb-2 shrink-0 pb-1.5 border-b border-border">
               <!-- Breadcrumbs -->
-              <nav class="flex items-center gap-1.5 text-xs text-muted-foreground overflow-x-auto">
+              <nav class="flex items-center gap-1.5 text-xs text-muted-foreground overflow-x-auto min-w-0">
                 <button
                   type="button"
                   onclick={() => {
                     selectedFolderFilter = 'all';
                     selectedSubfolder = null;
                   }}
-                  class="hover:text-foreground transition-colors cursor-pointer"
+                  class="hover:text-foreground transition-colors cursor-pointer shrink-0"
                 >
                   Mídias
                 </button>
-                <ChevronRight size={11} />
+                <ChevronRight size={11} class="shrink-0" />
                 <button
                   type="button"
                   onclick={() => {
                     selectedFolderFilter = 'all';
                     selectedSubfolder = null;
                   }}
-                  class="hover:text-foreground transition-colors cursor-pointer"
+                  class="hover:text-foreground transition-colors cursor-pointer shrink-0 {selectedFolderFilter === 'all' ? 'text-foreground font-bold' : ''}"
                 >
                   Imagens
                 </button>
                 {#if selectedFolderFilter !== 'all'}
-                  <ChevronRight size={11} />
+                  <ChevronRight size={11} class="shrink-0" />
                   <button
                     type="button"
                     onclick={() => (selectedSubfolder = null)}
-                    class="hover:text-foreground transition-colors cursor-pointer {selectedSubfolder ? 'text-muted-foreground hover:text-foreground' : 'text-foreground font-bold'}"
+                    class="hover:text-foreground transition-colors cursor-pointer shrink-0 {!selectedSubfolder ? 'text-foreground font-bold' : ''}"
                   >
                     {currentFolderName}
                   </button>
                 {/if}
-                {#if selectedSubfolder}
-                  <ChevronRight size={11} />
-                  <span class="text-foreground font-bold truncate max-w-xs">
-                    {selectedSubfolder}
-                  </span>
-                {/if}
-                <Badge variant="secondary" class="text-[9px] py-0 px-1 ml-1 font-mono">
+                {#each imageBreadcrumbs as crumb, i}
+                  <ChevronRight size={11} class="shrink-0" />
+                  {#if i === imageBreadcrumbs.length - 1}
+                    <span class="text-foreground font-bold truncate max-w-xs shrink-0">
+                      {crumb.name}
+                    </span>
+                  {:else}
+                    <button
+                      type="button"
+                      onclick={() => (selectedSubfolder = crumb.path)}
+                      class="hover:text-foreground transition-colors cursor-pointer shrink-0"
+                    >
+                      {crumb.name}
+                    </button>
+                  {/if}
+                {/each}
+                <Badge variant="secondary" class="text-[9px] py-0 px-1 ml-1 font-mono shrink-0">
                   {filteredImages.length}
                 </Badge>
               </nav>
@@ -2512,11 +2821,21 @@
                 <Button
                   variant="outline"
                   size="sm"
+                  onclick={openCreateFolderModal}
+                  class="h-7 text-xs gap-1 font-medium"
+                  title="Criar nova pasta física no diretório atual"
+                >
+                  <FolderPlus size={12} class="text-amber-400" />
+                  <span>+ Pasta</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onclick={onopenfolderconfig}
                   class="h-7 text-xs gap-1"
                   title="Configurar pastas externas de mídia"
                 >
-                  <FolderPlus size={12} />
+                  <FolderOpen size={12} />
                   <span>Pastas</span>
                 </Button>
                 <Button
@@ -2533,24 +2852,38 @@
 
             <!-- Grade de Miniaturas de Imagens com Ação de Apresentar Direta -->
             <div class="flex-1 overflow-y-auto pr-1">
-              {#if selectedSubfolder === null && currentSubfolders.length > 0}
+              {#if currentSubfolders.length > 0}
                 <div class="mb-3.5 pb-3 border-b border-border/50">
-                  <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1.5">
-                    <Folder size={12} class="text-amber-400" />
-                    <span>Sub-pastas ({currentSubfolders.length})</span>
+                  <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center justify-between">
+                    <span class="flex items-center gap-1.5">
+                      <Folder size={12} class="text-amber-400" />
+                      <span>Pastas ({currentSubfolders.length})</span>
+                    </span>
+                    {#if selectedSubfolder}
+                      <button
+                        type="button"
+                        onclick={navigateUpImageFolder}
+                        class="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer font-normal"
+                        title="Subir para a pasta anterior"
+                      >
+                        <ChevronUp size={12} />
+                        <span>Subir um nível</span>
+                      </button>
+                    {/if}
                   </div>
                   <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                     {#each currentSubfolders as sub (sub.relative_path)}
                       <button
                         type="button"
                         onclick={() => (selectedSubfolder = sub.relative_path)}
-                        class="p-2 rounded-xl border border-border bg-card/60 hover:bg-neutral-850 hover:border-primary/50 text-left transition-all flex items-center gap-2.5 group cursor-pointer shadow-xs"
+                        class="p-2.5 rounded-xl border border-border bg-card/60 hover:bg-neutral-850 hover:border-amber-400/50 text-left transition-all flex items-center gap-2.5 group cursor-pointer shadow-xs"
+                        title="Abrir pasta {sub.name}"
                       >
-                        <div class="w-8 h-8 rounded-lg bg-amber-400/10 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                        <div class="w-8 h-8 rounded-lg bg-amber-400/10 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:bg-amber-400/20 transition-all">
                           <Folder size={16} />
                         </div>
                         <div class="min-w-0 flex-1">
-                          <p class="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                          <p class="text-xs font-semibold text-foreground truncate group-hover:text-amber-400 transition-colors">
                             {sub.name}
                           </p>
                           <p class="text-[10px] text-muted-foreground font-mono">
@@ -2564,8 +2897,21 @@
               {/if}
 
               {#if filteredImages.length === 0}
-                <div class="h-32 flex flex-col items-center justify-center text-xs text-muted-foreground">
-                  Nenhuma imagem encontrada nesta pasta.
+                <div class="h-32 flex flex-col items-center justify-center text-xs text-muted-foreground gap-2">
+                  {#if currentSubfolders.length > 0}
+                    <span>Nenhuma imagem na raiz desta pasta. Abra uma pasta acima ou importe imagens.</span>
+                  {:else}
+                    <span>Nenhuma imagem encontrada nesta pasta.</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onclick={() => fileInputEl?.click()}
+                      class="text-xs gap-1 mt-1"
+                    >
+                      <Upload size={12} />
+                      <span>Importar primeira imagem aqui</span>
+                    </Button>
+                  {/if}
                 </div>
               {:else}
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
@@ -2683,11 +3029,21 @@
               <Button
                 variant="outline"
                 size="sm"
+                onclick={openCreateFolderModal}
+                class="h-8 text-xs gap-1.5 font-medium"
+                title="Criar nova pasta física de vídeos no diretório atual"
+              >
+                <FolderPlus size={13} class="text-purple-400" />
+                <span>+ Pasta</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onclick={onopenfolderconfig}
                 class="h-8 text-xs gap-1.5"
                 title="Mapear ou gerenciar pastas locais de vídeo"
               >
-                <FolderPlus size={13} class="text-purple-400" />
+                <FolderOpen size={13} />
                 <span>Pastas</span>
               </Button>
               <Button
@@ -2704,31 +3060,40 @@
           </div>
 
           <!-- Filtro de Pastas de Vídeo -->
-          {#if videoFoldersList.length > 0 || folders.length > 0}
+          {#if videoFoldersList.length > 0 || folders.length > 0 || allAppVideoSubfolders.length > 0}
             <div class="flex items-center gap-1.5 overflow-x-auto pb-1 shrink-0 text-xs">
-              <span class="text-[11px] text-muted-foreground flex items-center gap-1 mr-1">
+              <span class="text-[11px] text-muted-foreground flex items-center gap-1 mr-1 shrink-0">
                 <Folder size={12} class="text-purple-400" />
                 <span>Pastas:</span>
               </span>
               <button
                 type="button"
-                onclick={() => (videoFolderFilter = 'all')}
-                class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer {videoFolderFilter === 'all' ? 'bg-purple-600 text-white font-bold' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
+                onclick={() => {
+                  videoFolderFilter = 'all';
+                  selectedVideoSubfolder = null;
+                }}
+                class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer shrink-0 {videoFolderFilter === 'all' ? 'bg-purple-600 text-white font-bold' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
               >
                 Todas ({videos.length})
               </button>
               <button
                 type="button"
-                onclick={() => (videoFolderFilter = 'app')}
-                class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer {videoFolderFilter === 'app' ? 'bg-purple-600 text-white font-bold' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
+                onclick={() => {
+                  videoFolderFilter = 'app';
+                  selectedVideoSubfolder = null;
+                }}
+                class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer shrink-0 {videoFolderFilter === 'app' ? 'bg-purple-600 text-white font-bold' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
               >
-                Pasta do App ({videos.filter((v) => !v.folder_name).length})
+                Pasta do App ({videos.filter((v) => !v.folder_name || v.folder_id === 'app').length})
               </button>
               {#each videoFoldersList as folderName}
                 <button
                   type="button"
-                  onclick={() => (videoFolderFilter = folderName)}
-                  class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer {videoFolderFilter === folderName ? 'bg-purple-600 text-white font-bold' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
+                  onclick={() => {
+                    videoFolderFilter = folderName;
+                    selectedVideoSubfolder = null;
+                  }}
+                  class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer shrink-0 {videoFolderFilter === folderName ? 'bg-purple-600 text-white font-bold' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
                 >
                   {folderName} ({videos.filter((v) => v.folder_name === folderName).length})
                 </button>
@@ -2736,21 +3101,133 @@
             </div>
           {/if}
 
-          <!-- Grade de Vídeos -->
+          <!-- Breadcrumbs de Navegação estilo File Explorer para Vídeos -->
+          {#if videoFolderFilter !== 'all' || selectedVideoSubfolder}
+            <div class="flex items-center justify-between gap-2 px-2 py-1 bg-neutral-900/60 rounded-lg border border-border/40 shrink-0 text-xs text-muted-foreground">
+              <nav class="flex items-center gap-1.5 overflow-x-auto min-w-0">
+                <button
+                  type="button"
+                  onclick={() => {
+                    videoFolderFilter = 'all';
+                    selectedVideoSubfolder = null;
+                  }}
+                  class="hover:text-foreground transition-colors cursor-pointer shrink-0"
+                >
+                  Vídeos
+                </button>
+                <ChevronRight size={11} class="shrink-0" />
+                <button
+                  type="button"
+                  onclick={() => (selectedVideoSubfolder = null)}
+                  class="hover:text-foreground transition-colors cursor-pointer shrink-0 {!selectedVideoSubfolder ? 'text-foreground font-bold' : ''}"
+                >
+                  {currentVideoFolderName}
+                </button>
+                {#each videoBreadcrumbs as crumb, i}
+                  <ChevronRight size={11} class="shrink-0" />
+                  {#if i === videoBreadcrumbs.length - 1}
+                    <span class="text-foreground font-bold truncate max-w-xs shrink-0">
+                      {crumb.name}
+                    </span>
+                  {:else}
+                    <button
+                      type="button"
+                      onclick={() => (selectedVideoSubfolder = crumb.path)}
+                      class="hover:text-foreground transition-colors cursor-pointer shrink-0"
+                    >
+                      {crumb.name}
+                    </button>
+                  {/if}
+                {/each}
+              </nav>
+              {#if selectedVideoSubfolder}
+                <button
+                  type="button"
+                  onclick={navigateUpVideoFolder}
+                  class="text-[11px] text-purple-400 hover:underline flex items-center gap-1 cursor-pointer font-medium shrink-0"
+                  title="Subir para a pasta anterior"
+                >
+                  <ChevronUp size={12} />
+                  <span>Subir um nível</span>
+                </button>
+              {/if}
+            </div>
+          {/if}
+
+          <!-- Grade de Vídeos com File Explorer -->
           <div class="flex-1 overflow-y-auto pr-1">
+            {#if currentVideoDirectSubfolders.length > 0}
+              <div class="mb-3.5 pb-3 border-b border-border/50">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center justify-between">
+                  <span class="flex items-center gap-1.5">
+                    <Folder size={12} class="text-purple-400" />
+                    <span>Pastas ({currentVideoDirectSubfolders.length})</span>
+                  </span>
+                  {#if selectedVideoSubfolder}
+                    <button
+                      type="button"
+                      onclick={navigateUpVideoFolder}
+                      class="text-[11px] text-purple-400 hover:underline flex items-center gap-1 cursor-pointer font-normal"
+                      title="Subir para a pasta anterior"
+                    >
+                      <ChevronUp size={12} />
+                      <span>Subir um nível</span>
+                    </button>
+                  {/if}
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {#each currentVideoDirectSubfolders as sub (sub.relative_path)}
+                    <button
+                      type="button"
+                      onclick={() => (selectedVideoSubfolder = sub.relative_path)}
+                      class="p-2.5 rounded-xl border border-border bg-card/60 hover:bg-neutral-850 hover:border-purple-500/50 text-left transition-all flex items-center gap-2.5 group cursor-pointer shadow-xs"
+                      title="Abrir pasta {sub.name}"
+                    >
+                      <div class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:bg-purple-500/20 transition-all">
+                        <Folder size={16} />
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <p class="text-xs font-semibold text-foreground truncate group-hover:text-purple-300 transition-colors">
+                          {sub.name}
+                        </p>
+                        <p class="text-[10px] text-muted-foreground font-mono">
+                          {sub.count} {sub.count === 1 ? 'vídeo' : 'vídeos'}
+                        </p>
+                      </div>
+                    </button>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+
             {#if filteredVideos.length === 0}
               <div class="h-44 flex flex-col items-center justify-center text-xs text-muted-foreground gap-2">
                 <Film size={28} class="text-neutral-600 opacity-60" />
-                <p>Nenhum vídeo encontrado na biblioteca.</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={() => videoFileInputEl?.click()}
-                  class="text-xs gap-1 mt-1"
-                >
-                  <Upload size={12} />
-                  <span>Importar primeiro vídeo (MP4, WebM, MOV)</span>
-                </Button>
+                {#if currentVideoDirectSubfolders.length > 0}
+                  <p>Nenhum vídeo na raiz desta pasta. Abra uma pasta acima ou importe vídeos.</p>
+                {:else}
+                  <p>Nenhum vídeo encontrado nesta pasta.</p>
+                {/if}
+                <div class="flex items-center gap-2 mt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onclick={openCreateFolderModal}
+                    class="text-xs gap-1"
+                  >
+                    <FolderPlus size={12} class="text-purple-400" />
+                    <span>Nova Pasta</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onclick={() => videoFileInputEl?.click()}
+                    class="text-xs gap-1"
+                  >
+                    <Upload size={12} />
+                    <span>Importar vídeo aqui</span>
+                  </Button>
+                </div>
               </div>
             {:else}
               <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
@@ -3945,4 +4422,104 @@
     items={contextMenuItems}
     onclose={() => (contextMenuOpen = false)}
   />
+
+  {#if isCreateFolderModalOpen}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div
+      class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+      onclick={() => (isCreateFolderModalOpen = false)}
+      role="presentation"
+    >
+      <div
+        class="w-full max-w-sm rounded-xl border border-border bg-neutral-900 shadow-2xl flex flex-col overflow-hidden text-neutral-100"
+        onclick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-folder-title"
+        tabindex="-1"
+      >
+        <!-- Header -->
+        <div class="h-12 px-4 border-b border-border flex items-center justify-between shrink-0 bg-neutral-900/80">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg {activeTab === 'videos' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'} border flex items-center justify-center">
+              <FolderPlus size={15} />
+            </div>
+            <div>
+              <h3 id="create-folder-title" class="text-xs font-bold text-white">Nova Pasta</h3>
+            </div>
+          </div>
+          <button
+            type="button"
+            onclick={() => (isCreateFolderModalOpen = false)}
+            class="w-6 h-6 rounded-md hover:bg-neutral-800 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        <!-- Form Body -->
+        <form
+          onsubmit={(e) => {
+            e.preventDefault();
+            handleCreateFolderSubmit();
+          }}
+          class="p-4 space-y-3.5"
+        >
+          <div class="space-y-1">
+            <span class="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+              Localização:
+            </span>
+            <div class="p-2 rounded-lg bg-neutral-950 border border-neutral-800 text-[11px] text-neutral-300 font-mono truncate flex items-center gap-1.5">
+              <FolderOpen size={12} class="{activeTab === 'videos' ? 'text-purple-400' : 'text-amber-400'} shrink-0" />
+              <span class="truncate">{createFolderLocationLabel}</span>
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <label for="new-folder-input" class="text-xs font-semibold text-neutral-200">
+              Nome da Pasta
+            </label>
+            <input
+              id="new-folder-input"
+              type="text"
+              bind:this={folderInputEl}
+              bind:value={newFolderName}
+              placeholder="Ex: Culto da Noite, Anúncios, 2026..."
+              maxlength={60}
+              class="w-full h-8 px-3 rounded-lg bg-neutral-950 border border-neutral-800 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onclick={() => (isCreateFolderModalOpen = false)}
+              disabled={isCreatingFolder}
+              class="h-7 text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="default"
+              size="sm"
+              disabled={!newFolderName.trim() || isCreatingFolder}
+              class="h-7 text-xs font-semibold gap-1.5 {activeTab === 'videos' ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}"
+            >
+              {#if isCreatingFolder}
+                <RefreshCw size={12} class="animate-spin" />
+                <span>Criando...</span>
+              {:else}
+                <Plus size={13} />
+                <span>Criar Pasta</span>
+              {/if}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {/if}
 </div>

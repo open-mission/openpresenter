@@ -265,10 +265,16 @@
     }
   }
 
+  async function handleVersionChange(newBibleId: string) {
+    if (!newBibleId) return;
+    selectedBibleId = newBibleId;
+    await loadBooks(newBibleId);
+  }
+
   let prevTargetPassage = '';
   $effect(() => {
     if (targetPassage && bibles.length > 0) {
-      const key = `${targetPassage.book_id}:${targetPassage.chapter}:${targetPassage.verse_start || 1}`;
+      const key = `${targetPassage.book_id}:${targetPassage.chapter}:${targetPassage.verse_start || 1}:${targetPassage.version || ''}`;
       if (key !== prevTargetPassage) {
         prevTargetPassage = key;
         jumpToPassage(targetPassage);
@@ -277,6 +283,7 @@
   });
 
   async function jumpToPassage(ref: ParsedReference) {
+    let bibleId = selectedBibleId;
     if (ref.version) {
       const matched = bibles.find(
         (b) =>
@@ -285,6 +292,7 @@
       );
       if (matched && matched.id !== selectedBibleId) {
         selectedBibleId = matched.id;
+        bibleId = matched.id;
         await loadBooks(matched.id);
       }
     }
@@ -292,8 +300,8 @@
     hasSearchResults = false;
     selectedBookId = ref.book_id;
     selectedChapter = ref.chapter;
-    await loadChapters(selectedBibleId, ref.book_id);
-    await loadVerses(selectedBibleId, ref.book_id, ref.chapter);
+    await loadChapters(bibleId, ref.book_id);
+    await loadVerses(bibleId, ref.book_id, ref.chapter);
     const targetVerse = ref.verse_start || 1;
     selectedVerseNumbers = [targetVerse];
     lastClickedVerseNum = targetVerse;
@@ -524,15 +532,14 @@
     if (!q) return;
 
     // Se o usuário digitou diretamente a sigla de uma versão instalada (ex: "ARA", "NVI")
-    const cleanWord = q.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    const cleanWord = q.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     if (cleanWord.length >= 2 && cleanWord.length <= 6) {
       const matchedExactVersion = bibles.find(
         (b) => b.abbreviation.toUpperCase() === cleanWord
       );
       if (matchedExactVersion) {
         if (matchedExactVersion.id !== selectedBibleId) {
-          selectedBibleId = matchedExactVersion.id;
-          await loadBooks(matchedExactVersion.id);
+          await handleVersionChange(matchedExactVersion.id);
         }
         searchInput = '';
         return;
@@ -542,6 +549,7 @@
     // Primeiro tenta o parser local de referência bíblica (ex: "Salmos 91 ARA", "João 3:16", "Sl 91")
     const parsed = parseBibleReference(q);
     if (parsed) {
+      let bibleId = selectedBibleId;
       if (parsed.version) {
         const matched = bibles.find(
           (b) =>
@@ -550,6 +558,7 @@
         );
         if (matched && matched.id !== selectedBibleId) {
           selectedBibleId = matched.id;
+          bibleId = matched.id;
           await loadBooks(matched.id);
         }
       }
@@ -557,8 +566,8 @@
       hasSearchResults = false;
       selectedBookId = parsed.book_id;
       selectedChapter = parsed.chapter;
-      await loadChapters(selectedBibleId, parsed.book_id);
-      await loadVerses(selectedBibleId, parsed.book_id, parsed.chapter);
+      await loadChapters(bibleId, parsed.book_id);
+      await loadVerses(bibleId, parsed.book_id, parsed.chapter);
 
       const targetVerse = parsed.verse_start || 1;
       selectedVerseNumbers = [targetVerse];
@@ -657,9 +666,10 @@
     <div class="flex items-center gap-2">
       <div class="relative">
         <select
-          bind:value={selectedBibleId}
-          onchange={() => {
-            loadBooks(selectedBibleId);
+          value={selectedBibleId}
+          onchange={(e) => {
+            const target = e.currentTarget as HTMLSelectElement;
+            handleVersionChange(target.value);
           }}
           class="h-8 pl-8 pr-7 bg-muted/60 border border-border rounded-lg text-xs font-bold text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary appearance-none max-w-[200px]"
         >
@@ -992,7 +1002,7 @@
           </div>
         {:else}
           <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 pb-3">
-            {#each verses as v (v.id)}
+            {#each verses as v (`${selectedBibleId}-${v.book_id}-${v.chapter}-${v.verse}`)}
               {@const isSelected = selectedVerseNumbers.includes(v.verse)}
               {@const isLive =
                 isScriptureLive &&

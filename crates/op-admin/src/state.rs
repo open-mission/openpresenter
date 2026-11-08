@@ -471,6 +471,9 @@ impl AppState {
 
     /// Para ou cancela a apresentação ativa, limpando qualquer mídia e slide ao vivo
     /// e restaurando o papel de parede do setlist.
+    ///
+    /// Observação: O cronômetro de palco (stage timer / item de timer) NÃO é resetado nem
+    /// interrompido aqui; ele permanece ativo no palco até controle explícito pelos botões do painel.
     pub async fn stop_presentation(&self) -> PresentationState {
         let mut state = self.presentation.write().await;
         state.active_media_id = None;
@@ -481,10 +484,6 @@ impl AppState {
         // Ao cancelar apresentação, volta ao plano de fundo do setlist
         state.wallpaper_path = state.setlist_wallpaper_path.clone();
         state.wallpaper_mode = state.setlist_wallpaper_mode.clone();
-        // Para a contagem do timer, restaura o tempo configurado e limpa a mensagem de retorno
-        state.timer.running = false;
-        state.timer.remaining_seconds = state.timer.duration_seconds;
-        state.timer.stage_message = None;
         let updated = state.clone();
         drop(state);
 

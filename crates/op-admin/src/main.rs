@@ -969,6 +969,125 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_create_media_directory_and_app_subfolders() {
+        let state = mock_state();
+        let app = create_routes(state.clone());
+
+        // 1. Cria subpasta na Pasta do App de imagens
+        let payload = serde_json::json!({
+            "kind": "images",
+            "folder_id": "app",
+            "name": "Cultos Especiais"
+        });
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/api/media/folders/create-dir")
+                    .body(axum::body::Body::from(
+                        serde_json::to_string(&payload).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // 2. Cria sub-subpasta dentro de "Cultos Especiais"
+        let sub_payload = serde_json::json!({
+            "kind": "images",
+            "folder_id": "app",
+            "parent_subfolder": "Cultos Especiais",
+            "name": "Manha"
+        });
+        let sub_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/api/media/folders/create-dir")
+                    .body(axum::body::Body::from(
+                        serde_json::to_string(&sub_payload).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(sub_resp.status(), StatusCode::OK);
+
+        // 3. Consulta subpastas do app (deve listar mesmo estando vazias)
+        let list_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/media/app-subfolders?kind=images")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list_resp.status(), StatusCode::OK);
+        let list_bytes = axum::body::to_bytes(list_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let list_json: Vec<op_core::MediaSubfolder> = serde_json::from_slice(&list_bytes).unwrap();
+        assert!(list_json.iter().any(|s| s.name == "Cultos Especiais"));
+        assert!(list_json.iter().any(|s| s.name == "Manha"));
+
+        // 4. Faz upload de imagem dentro da subpasta "Cultos Especiais/Manha"
+        let upload_payload = serde_json::json!({
+            "filename": "banner.png",
+            "content_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+            "folder_id": "app",
+            "subfolder": "Cultos Especiais/Manha"
+        });
+        let upload_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/api/media/images/upload")
+                    .body(axum::body::Body::from(
+                        serde_json::to_string(&upload_payload).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(upload_resp.status(), StatusCode::OK);
+
+        // 5. Verifica se a imagem aparece com subfolder correto
+        let images_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("GET")
+                    .uri("/api/media/images")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let images_bytes = axum::body::to_bytes(images_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let images_json: Vec<routes::ImageMediaItem> =
+            serde_json::from_slice(&images_bytes).unwrap();
+        let uploaded = images_json
+            .iter()
+            .find(|i| i.name == "banner.png")
+            .expect("banner.png encontrado");
+        assert_eq!(
+            uploaded.subfolder.as_deref(),
+            Some("Cultos Especiais/Manha")
+        );
+    }
+
+    #[tokio::test]
     async fn stop_presentation_and_set_wallpaper_work() {
         let state = mock_state();
         let app = create_routes(state.clone());
@@ -1088,18 +1207,42 @@ mod tests {
             );
         }
 
-        // 3. Ao cancelar/parar apresentação, para o timer, restaura o tempo e limpa a mensagem de retorno
+        // 3. Ao cancelar/parar apresentação (ESC ou botão Parar), a mídia ao vivo é limpa,
+        // mas o timer continua rodando no palco/painel (não para nem reseta involuntariamente)
         state.stop_presentation().await;
         {
             let pres = state.presentation.read().await;
             assert_eq!(pres.active_media_id, None);
             assert_eq!(pres.active_slide_index, None);
-            assert!(!pres.timer.running);
-            assert_eq!(pres.timer.remaining_seconds, 180);
-            assert_eq!(pres.timer.stage_message, None);
+            assert!(pres.timer.running);
+            assert_eq!(pres.timer.remaining_seconds, 179);
+            assert_eq!(
+                pres.timer.stage_message.as_deref(),
+                Some("O culto começará em instantes")
+            );
         }
 
-        // 4. Ao iniciar novamente, reseta aos 180s, redefine mensagem e volta a rodar
+        // Paradas repetidas de apresentação (ex: apertar ESC duas vezes) também não afetam o timer
+        state.stop_presentation().await;
+        {
+            let pres = state.presentation.read().await;
+            assert!(pres.timer.running);
+            assert_eq!(pres.timer.remaining_seconds, 179);
+        }
+
+        // 4. Parar e resetar o timer é feito explicitamente pelos controles do painel de timer
+        state.pause_timer().await;
+        {
+            let pres = state.presentation.read().await;
+            assert!(!pres.timer.running);
+        }
+        state.reset_timer().await;
+        {
+            let pres = state.presentation.read().await;
+            assert_eq!(pres.timer.remaining_seconds, 180);
+        }
+
+        // 5. Ao selecionar o timer novamente, reseta aos 180s, redefine mensagem e volta a rodar
         state.select_slide("timer-culto".into(), 0).await;
         {
             let pres = state.presentation.read().await;
@@ -1112,7 +1255,7 @@ mod tests {
             );
         }
 
-        // 5. Ao atingir o final da contagem sem overtime, crava em 0, para e limpa a mensagem de retorno
+        // 6. Ao atingir o final da contagem sem overtime, crava em 0, para e limpa a mensagem de retorno
         {
             let mut pres = state.presentation.write().await;
             pres.timer.remaining_seconds = 1;

@@ -612,8 +612,6 @@
 
   function stopPresentation() {
     wsStopPresentation();
-    pauseTimer();
-    resetTimer();
   }
 
   // Controle de Seções e Itens no Fluxo Contínuo ProPresenter

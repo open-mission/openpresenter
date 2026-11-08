@@ -7,6 +7,20 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Criação de Pastas e Navegação Estilo File Explorer nas Abas de Mídias (`op-admin/src/routes.rs`, `BottomPanel.svelte`, `media.ts`):**
+  - **Criação Física de Diretórios no Disco (`POST /api/media/folders/create-dir`):** Endpoint seguro com sanitização contra path traversal para criar pastas e subpastas físicas diretamente em `<data_dir>/media/images`, `<data_dir>/media/videos` ou em pastas mapeadas.
+  - **Descoberta de Subpastas Físicas (`GET /api/media/app-subfolders`):** Listagem recursiva de subpastas do app para imagens e vídeos, incluindo pastas recém-criadas vazias com contagem zero de arquivos.
+  - **Upload Direcionado à Subpasta Aberta:** Suporte a parâmetro `subfolder` e `folder_id` nos endpoints `POST /api/media/images/upload` e `POST /api/media/videos/upload`, garantindo que arquivos importados sejam salvos na subpasta aberta no painel.
+  - **Navegação File Explorer & Breadcrumbs nas Abas de Imagens e Vídeos:** Botão "+ Pasta" na barra de ações, modal de criação acessível com indicação clara do caminho de destino, cartões de pasta clicáveis estilo navegador de arquivos na área principal de mídias, contadores de itens, breadcrumbs com navegação multinível e botão "Subir um nível".
+
+### Corrigido
+- **Desacoplamento do Timer de Palco e Itens de Timer ao Parar Apresentação / ESC (`op-admin/src/state.rs`, `AdminView.svelte`):**
+  - Pressionar a tecla ESC (inclusive repetidas vezes) ou acionar o botão "Parar Apresentação" agora cancela estritamente a projeção de slides/mídias na tela pública, mantendo o cronômetro do monitor de retorno de palco (Stage Display) e do painel do operador rodando ininterruptamente.
+  - O cronômetro passa a ser pausado, parado ou reiniciado unicamente através dos botões dedicados de controle no painel de timer (`TimerControlPanel.svelte`).
+- **Troca Imediata de Versão da Bíblia na Aba da Bíblia (`BiblePanel.svelte`):**
+  - Correção no manipulador de alteração do `<select>` de versão da Bíblia capturando imediatamente o valor selecionado do evento `onchange` (`handleVersionChange`).
+  - Atualização da chave de renderização do bloco de versículos para `${selectedBibleId}-${v.book_id}-${v.chapter}-${v.verse}`, forçando o Svelte a substituir completamente os cartões e renderizar o texto fiel da nova versão escolhida sem reaproveitamento indevido de nós do DOM.
+  - Inclusão da versão na verificação de `targetPassage` para atualizações corretas via Command Palette ou atalhos de busca.
 - **Suporte a Docker e Execução em Servidor Headless sem System Tray (`op-admin`, `Dockerfile`, `docker-compose.yml`):**
   - **Feature Flag Opcional `tray` (`op-admin`):** Desacoplamento das dependências gráficas (`tao`, `muda`, `tray-icon` e `open`) através da feature `tray`, habilitada por padrão (`default = ["tray"]`) para compilações desktop, mas desativável via `--no-default-features` para ambientes de servidor puro e contêineres Docker, eliminando a necessidade de pacotes gráficos do Linux (`libgtk-3-dev`, `libappindicator3-dev`, `libx11-dev`).
   - **Isolamento do Ciclo de Vida do Processo (`crates/op-admin/src/process.rs`):** Extração da rotina `restart_application()` do módulo de tray para módulo próprio, garantindo que reinicializações de servidor agendadas via API REST (`POST /api/system/restart`) continuem plenamente operacionais mesmo sem interface gráfica.

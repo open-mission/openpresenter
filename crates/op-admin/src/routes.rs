@@ -139,6 +139,10 @@ pub struct RenameItemPayload {
 pub struct UploadMediaPayload {
     pub filename: String,
     pub content_base64: String,
+    #[serde(default)]
+    pub folder_id: Option<String>,
+    #[serde(default)]
+    pub subfolder: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -173,7 +177,7 @@ pub struct CreateMediaFolderPayload {
     pub kind: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ImageMediaItem {
     pub id: String,
     pub name: String,
@@ -342,6 +346,11 @@ pub fn create_routes(state: AppState) -> Router {
             "/api/media/folders",
             get(list_media_folders).post(create_media_folder),
         )
+        .route(
+            "/api/media/folders/create-dir",
+            post(create_media_directory),
+        )
+        .route("/api/media/app-subfolders", get(list_app_subfolders))
         .route(
             "/api/media/folders/{id}",
             axum::routing::delete(delete_media_folder),
@@ -2043,7 +2052,7 @@ async fn list_media_folders(State(state): State<AppState>) -> Json<Vec<op_core::
     for f in &mut list {
         let p = std::path::Path::new(&f.path);
         if p.is_dir() {
-            f.subfolders = discover_subfolders(p, 4);
+            f.subfolders = discover_subfolders_for_kind(p, 4, f.kind == "videos");
         }
     }
     Json(list)
@@ -2110,6 +2119,155 @@ async fn delete_media_folder(
         Ok(false) => Err((StatusCode::NOT_FOUND, "Pasta não encontrada".into())),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AppSubfoldersQuery {
+    #[serde(default = "default_media_kind")]
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CreateDirectoryPayload {
+    #[serde(default = "default_media_kind")]
+    pub kind: String,
+    #[serde(default = "default_app_folder")]
+    pub folder_id: String,
+    #[serde(default)]
+    pub parent_subfolder: Option<String>,
+    pub name: String,
+}
+
+fn default_media_kind() -> String {
+    "images".to_string()
+}
+
+fn default_app_folder() -> String {
+    "app".to_string()
+}
+
+async fn list_app_subfolders(
+    Query(query): Query<AppSubfoldersQuery>,
+) -> Result<Json<Vec<op_core::MediaSubfolder>>, (StatusCode, String)> {
+    let media_dir = crate::session::resolve_media_dir()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let kind = if query.kind == "videos" {
+        "videos"
+    } else {
+        "images"
+    };
+    let app_dir = media_dir.join(kind);
+    let _ = std::fs::create_dir_all(&app_dir);
+    let is_video = kind == "videos";
+    let subfolders = discover_subfolders_for_kind(&app_dir, 4, is_video);
+    Ok(Json(subfolders))
+}
+
+async fn create_media_directory(
+    State(state): State<AppState>,
+    Json(payload): Json<CreateDirectoryPayload>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let raw_name = payload.name.trim();
+    if raw_name.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Nome da pasta não pode ser vazio".into(),
+        ));
+    }
+    if raw_name.contains('/') || raw_name.contains('\\') || raw_name.contains("..") {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Nome de pasta contém caracteres inválidos".into(),
+        ));
+    }
+
+    let sanitized_name: String = raw_name
+        .chars()
+        .filter(|c| {
+            !c.is_control()
+                && *c != '/'
+                && *c != '\\'
+                && *c != ':'
+                && *c != '*'
+                && *c != '?'
+                && *c != '"'
+                && *c != '<'
+                && *c != '>'
+                && *c != '|'
+        })
+        .collect();
+
+    let clean_name = sanitized_name.trim();
+    if clean_name.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "Nome de pasta inválido".into()));
+    }
+
+    let kind = if payload.kind == "videos" {
+        "videos"
+    } else {
+        "images"
+    };
+
+    let target_base: std::path::PathBuf =
+        if payload.folder_id == "app" || payload.folder_id.is_empty() {
+            let media_dir = crate::session::resolve_media_dir()
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+            media_dir.join(kind)
+        } else {
+            let db = state.db.as_ref().ok_or((
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Banco de dados indisponível".into(),
+            ))?;
+            let db_guard = db.lock().await;
+            let folders = db_guard.list_media_folders().unwrap_or_default();
+            let folder = folders
+                .into_iter()
+                .find(|f| f.id == payload.folder_id)
+                .ok_or((StatusCode::NOT_FOUND, "Pasta mapeada não encontrada".into()))?;
+            std::path::PathBuf::from(folder.path)
+        };
+
+    let mut target_dir = target_base;
+    let mut clean_rel_path = clean_name.to_string();
+
+    if let Some(parent) = payload
+        .parent_subfolder
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+    {
+        let clean_parent = parent.trim().replace('\\', "/");
+        for part in clean_parent.split('/') {
+            let trimmed = part.trim();
+            if trimmed.is_empty() || trimmed == "." {
+                continue;
+            }
+            if trimmed == ".." {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    "Caminho inválido (..) detectado".into(),
+                ));
+            }
+            target_dir.push(trimmed);
+        }
+        clean_rel_path = format!("{clean_parent}/{clean_name}");
+    }
+    target_dir.push(clean_name);
+
+    std::fs::create_dir_all(&target_dir).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao criar diretório físico no disco: {e}"),
+        )
+    })?;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "name": clean_name,
+        "relative_path": clean_rel_path,
+        "path": target_dir.display().to_string(),
+        "kind": kind,
+        "folder_id": payload.folder_id
+    })))
 }
 
 fn is_image_file(path: &std::path::Path) -> bool {
@@ -2231,9 +2389,17 @@ fn scan_media_recursively(
     }
 }
 
-fn discover_subfolders(root: &std::path::Path, max_depth: usize) -> Vec<op_core::MediaSubfolder> {
+fn discover_subfolders_for_kind(
+    root: &std::path::Path,
+    max_depth: usize,
+    is_video: bool,
+) -> Vec<op_core::MediaSubfolder> {
     let mut scanned = Vec::new();
-    scan_images_recursively(root, root, 1, max_depth, &mut scanned);
+    if is_video {
+        scan_media_recursively(root, root, 1, max_depth, is_video_file, &mut scanned);
+    } else {
+        scan_images_recursively(root, root, 1, max_depth, &mut scanned);
+    }
 
     use std::collections::BTreeMap;
     let mut sub_counts: BTreeMap<String, usize> = BTreeMap::new();
@@ -2270,8 +2436,8 @@ fn discover_subfolders(root: &std::path::Path, max_depth: usize) -> Vec<op_core:
     }
     walk_dirs(root, root, 1, max_depth, &mut sub_counts);
 
-    for img in &scanned {
-        if let Some(ref sub) = img.subfolder {
+    for item in &scanned {
+        if let Some(ref sub) = item.subfolder {
             *sub_counts.entry(sub.clone()).or_insert(0) += 1;
         }
     }
@@ -2291,6 +2457,10 @@ fn discover_subfolders(root: &std::path::Path, max_depth: usize) -> Vec<op_core:
             }
         })
         .collect()
+}
+
+fn discover_subfolders(root: &std::path::Path, max_depth: usize) -> Vec<op_core::MediaSubfolder> {
+    discover_subfolders_for_kind(root, max_depth, false)
 }
 
 async fn list_images(State(state): State<AppState>) -> Json<Vec<ImageMediaItem>> {
@@ -2364,11 +2534,57 @@ async fn list_images(State(state): State<AppState>) -> Json<Vec<ImageMediaItem>>
 }
 
 async fn upload_image(
+    State(state): State<AppState>,
     Json(payload): Json<UploadMediaPayload>,
 ) -> Result<Json<UploadMediaResponse>, (StatusCode, String)> {
     let media_dir = crate::session::resolve_media_dir()
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    let images_dir = media_dir.join("images");
+    let mut images_dir = media_dir.join("images");
+
+    let is_app = payload.folder_id.as_deref().unwrap_or("app") == "app";
+    let mut clean_subfolder = String::new();
+
+    if is_app {
+        if let Some(ref sub) = payload.subfolder.filter(|s| !s.trim().is_empty()) {
+            for part in sub.trim().replace('\\', "/").split('/') {
+                let trimmed = part.trim();
+                if trimmed.is_empty() || trimmed == "." {
+                    continue;
+                }
+                if trimmed == ".." {
+                    return Err((StatusCode::BAD_REQUEST, "Subpasta inválida".into()));
+                }
+                images_dir.push(trimmed);
+            }
+            clean_subfolder = sub.trim().replace('\\', "/");
+        }
+    } else if let Some(ref fid) = payload.folder_id {
+        let db = state.db.as_ref().ok_or((
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Banco de dados indisponível".into(),
+        ))?;
+        let db_guard = db.lock().await;
+        let folders = db_guard.list_media_folders().unwrap_or_default();
+        let folder = folders
+            .into_iter()
+            .find(|f| f.id == *fid)
+            .ok_or((StatusCode::NOT_FOUND, "Pasta mapeada não encontrada".into()))?;
+        images_dir = std::path::PathBuf::from(folder.path);
+        if let Some(ref sub) = payload.subfolder.filter(|s| !s.trim().is_empty()) {
+            for part in sub.trim().replace('\\', "/").split('/') {
+                let trimmed = part.trim();
+                if trimmed.is_empty() || trimmed == "." {
+                    continue;
+                }
+                if trimmed == ".." {
+                    return Err((StatusCode::BAD_REQUEST, "Subpasta inválida".into()));
+                }
+                images_dir.push(trimmed);
+            }
+            clean_subfolder = sub.trim().replace('\\', "/");
+        }
+    }
+
     let _ = std::fs::create_dir_all(&images_dir);
 
     let bytes = decode_base64(&payload.content_base64)
@@ -2394,8 +2610,34 @@ async fn upload_image(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
+    let url = if is_app {
+        if clean_subfolder.is_empty() {
+            format!("/api/media/files/images/{sanitized_name}")
+        } else {
+            let enc_sub = clean_subfolder
+                .split('/')
+                .map(url_encode)
+                .collect::<Vec<_>>()
+                .join("/");
+            format!("/api/media/files/images/{enc_sub}/{sanitized_name}")
+        }
+    } else {
+        let fid = payload.folder_id.unwrap_or_default();
+        let file_param = if clean_subfolder.is_empty() {
+            sanitized_name.clone()
+        } else {
+            format!("{clean_subfolder}/{sanitized_name}")
+        };
+        let enc_file = file_param
+            .split('/')
+            .map(url_encode)
+            .collect::<Vec<_>>()
+            .join("/");
+        format!("/api/media/external-file?folder_id={fid}&file={enc_file}")
+    };
+
     Ok(Json(UploadMediaResponse {
-        url: format!("/api/media/files/images/{sanitized_name}"),
+        url,
         filename: sanitized_name,
     }))
 }
@@ -2478,11 +2720,57 @@ async fn list_videos(State(state): State<AppState>) -> Json<Vec<VideoMediaItem>>
 }
 
 async fn upload_video(
+    State(state): State<AppState>,
     Json(payload): Json<UploadMediaPayload>,
 ) -> Result<Json<UploadMediaResponse>, (StatusCode, String)> {
     let media_dir = crate::session::resolve_media_dir()
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    let videos_dir = media_dir.join("videos");
+    let mut videos_dir = media_dir.join("videos");
+
+    let is_app = payload.folder_id.as_deref().unwrap_or("app") == "app";
+    let mut clean_subfolder = String::new();
+
+    if is_app {
+        if let Some(ref sub) = payload.subfolder.filter(|s| !s.trim().is_empty()) {
+            for part in sub.trim().replace('\\', "/").split('/') {
+                let trimmed = part.trim();
+                if trimmed.is_empty() || trimmed == "." {
+                    continue;
+                }
+                if trimmed == ".." {
+                    return Err((StatusCode::BAD_REQUEST, "Subpasta inválida".into()));
+                }
+                videos_dir.push(trimmed);
+            }
+            clean_subfolder = sub.trim().replace('\\', "/");
+        }
+    } else if let Some(ref fid) = payload.folder_id {
+        let db = state.db.as_ref().ok_or((
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Banco de dados indisponível".into(),
+        ))?;
+        let db_guard = db.lock().await;
+        let folders = db_guard.list_media_folders().unwrap_or_default();
+        let folder = folders
+            .into_iter()
+            .find(|f| f.id == *fid)
+            .ok_or((StatusCode::NOT_FOUND, "Pasta mapeada não encontrada".into()))?;
+        videos_dir = std::path::PathBuf::from(folder.path);
+        if let Some(ref sub) = payload.subfolder.filter(|s| !s.trim().is_empty()) {
+            for part in sub.trim().replace('\\', "/").split('/') {
+                let trimmed = part.trim();
+                if trimmed.is_empty() || trimmed == "." {
+                    continue;
+                }
+                if trimmed == ".." {
+                    return Err((StatusCode::BAD_REQUEST, "Subpasta inválida".into()));
+                }
+                videos_dir.push(trimmed);
+            }
+            clean_subfolder = sub.trim().replace('\\', "/");
+        }
+    }
+
     let _ = std::fs::create_dir_all(&videos_dir);
 
     let bytes = decode_base64(&payload.content_base64)
@@ -2508,8 +2796,34 @@ async fn upload_video(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
+    let url = if is_app {
+        if clean_subfolder.is_empty() {
+            format!("/api/media/files/videos/{sanitized_name}")
+        } else {
+            let enc_sub = clean_subfolder
+                .split('/')
+                .map(url_encode)
+                .collect::<Vec<_>>()
+                .join("/");
+            format!("/api/media/files/videos/{enc_sub}/{sanitized_name}")
+        }
+    } else {
+        let fid = payload.folder_id.unwrap_or_default();
+        let file_param = if clean_subfolder.is_empty() {
+            sanitized_name.clone()
+        } else {
+            format!("{clean_subfolder}/{sanitized_name}")
+        };
+        let enc_file = file_param
+            .split('/')
+            .map(url_encode)
+            .collect::<Vec<_>>()
+            .join("/");
+        format!("/api/media/external-file?folder_id={fid}&file={enc_file}")
+    };
+
     Ok(Json(UploadMediaResponse {
-        url: format!("/api/media/files/videos/{sanitized_name}"),
+        url,
         filename: sanitized_name,
     }))
 }
