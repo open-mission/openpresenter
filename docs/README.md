@@ -321,6 +321,8 @@
 
 - [Spec — Desacoplamento do Timer de Palco ao Parar Apresentação, Troca de Versão da Bíblia e Pastas de Mídia com File Explorer](specs/2026-11-08-stage-timer-esc-persistencia-biblia-versao-pastas-midia-file-explorer.md)
 - [Plano — Desacoplamento do Timer de Palco ao Parar Apresentação, Troca de Versão da Bíblia e Pastas de Mídia com File Explorer](plans/2026-11-08-stage-timer-esc-persistencia-biblia-versao-pastas-midia-file-explorer.md)
+- [Spec — Hierarquia Visual de Pastas na Navegação da Aba de Mídias (Imagens)](specs/2026-11-08-hierarquia-pastas-navegacao-midias.md)
+- [Plano — Hierarquia Visual de Pastas na Navegação da Aba de Mídias (Imagens)](plans/2026-11-08-hierarquia-pastas-navegacao-midias.md)
 
 ## Arquitetura e decisões
 

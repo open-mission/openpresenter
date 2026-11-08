@@ -7,6 +7,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Adicionado
+- **Hierarquia Visual de Pastas na Barra Lateral de Mídias (`BottomPanel.svelte`):**
+  - **Árvore de Diretórios Multinível (`FolderTreeNode` e `buildFolderTree`):** Transformação da lista plana de subpastas na aba de Imagens em uma visualização em árvore com suporte a múltiplos níveis de aninhamento para a Pasta do App e Pastas Mapeadas.
+  - **Indentação Proporcional e Linhas Guias:** Indentação calculada por nível de profundidade (`depth * 12 + 6px`) com linhas guias verticais conectivas para evidenciar com clareza quais pastas estão dentro de outras.
+  - **Controle de Expansão/Recolhimento e Autoexpansão:** Botões chevrons para colapsar e expandir subpastas individualmente, com abertura automática preventiva dos ramos pais ao selecionar uma pasta interna no File Explorer ou na árvore.
+  - **Largura Ergonômica:** Ajuste da barra lateral para `w-56` (14rem) proporcionando espaço confortável para navegação multinível.
 - **Criação de Pastas e Navegação Estilo File Explorer nas Abas de Mídias (`op-admin/src/routes.rs`, `BottomPanel.svelte`, `media.ts`):**
   - **Criação Física de Diretórios no Disco (`POST /api/media/folders/create-dir`):** Endpoint seguro com sanitização contra path traversal para criar pastas e subpastas físicas diretamente em `<data_dir>/media/images`, `<data_dir>/media/videos` ou em pastas mapeadas.
   - **Descoberta de Subpastas Físicas (`GET /api/media/app-subfolders`):** Listagem recursiva de subpastas do app para imagens e vídeos, incluindo pastas recém-criadas vazias com contagem zero de arquivos.

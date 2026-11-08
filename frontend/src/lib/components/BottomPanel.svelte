@@ -1075,6 +1075,106 @@
     return Array.from(map.values());
   });
 
+  export interface FolderTreeNode {
+    name: string;
+    relative_path: string;
+    count: number;
+    depth: number;
+    children: FolderTreeNode[];
+  }
+
+  function buildFolderTree(subfolders: MediaSubfolder[]): FolderTreeNode[] {
+    interface TempNode {
+      name: string;
+      relative_path: string;
+      count: number;
+      depth: number;
+      childrenMap: Map<string, TempNode>;
+    }
+
+    const root: TempNode = {
+      name: '',
+      relative_path: '',
+      count: 0,
+      depth: -1,
+      childrenMap: new Map(),
+    };
+
+    for (const sub of subfolders) {
+      const parts = sub.relative_path.split('/');
+      let current = root;
+      let accumulatedPath = '';
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        accumulatedPath = accumulatedPath ? `${accumulatedPath}/${part}` : part;
+
+        let child = current.childrenMap.get(part);
+        if (!child) {
+          child = {
+            name: part,
+            relative_path: accumulatedPath,
+            count: accumulatedPath === sub.relative_path ? sub.count : 0,
+            depth: i,
+            childrenMap: new Map(),
+          };
+          current.childrenMap.set(part, child);
+        } else if (accumulatedPath === sub.relative_path) {
+          child.count = sub.count;
+        }
+        current = child;
+      }
+    }
+
+    function convert(node: TempNode): FolderTreeNode[] {
+      const list: FolderTreeNode[] = [];
+      for (const child of node.childrenMap.values()) {
+        list.push({
+          name: child.name,
+          relative_path: child.relative_path,
+          count: child.count,
+          depth: child.depth,
+          children: convert(child),
+        });
+      }
+      return list.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return convert(root);
+  }
+
+  let expandedSubfolders = $state<Record<string, boolean>>({});
+
+  function toggleSubfolderExpand(relPath: string, e?: MouseEvent) {
+    e?.stopPropagation();
+    const current = expandedSubfolders[relPath] ?? true;
+    expandedSubfolders = {
+      ...expandedSubfolders,
+      [relPath]: !current,
+    };
+  }
+
+  $effect(() => {
+    if (selectedSubfolder) {
+      const parts = selectedSubfolder.split('/');
+      let acc = '';
+      const updates: Record<string, boolean> = {};
+      for (let i = 0; i < parts.length - 1; i++) {
+        acc = acc ? `${acc}/${parts[i]}` : parts[i];
+        if (expandedSubfolders[acc] === false) {
+          updates[acc] = true;
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        expandedSubfolders = { ...expandedSubfolders, ...updates };
+      }
+    }
+  });
+
+  const appImageFolderTree = $derived.by(() => {
+    return buildFolderTree(allAppImageSubfolders);
+  });
+
   const allCurrentFolderSubfolders = $derived.by(() => {
     if (selectedFolderFilter === 'all') return [];
     if (selectedFolderFilter === 'app') {
@@ -2510,9 +2610,82 @@
 
       <!-- ================= ABA 2: IMAGENS & PASTAS ================= -->
       {:else if activeTab === 'images'}
+        {#snippet renderTreeNode(node: FolderTreeNode, folderId: string)}
+          {@const isSelected = selectedFolderFilter === folderId && selectedSubfolder === node.relative_path}
+          {@const hasChildren = node.children.length > 0}
+          {@const isNodeExpanded = expandedSubfolders[node.relative_path] ?? true}
+          {@const isCurrentOrParent =
+            selectedFolderFilter === folderId &&
+            selectedSubfolder !== null &&
+            (selectedSubfolder === node.relative_path || selectedSubfolder.startsWith(node.relative_path + '/'))}
+
+          <div class="space-y-0.5">
+            <div
+              role="button"
+              tabindex="0"
+              onclick={() => {
+                selectedFolderFilter = folderId;
+                selectedSubfolder = node.relative_path;
+              }}
+              onkeydown={(e) => {
+                if (e.key === 'Enter') {
+                  selectedFolderFilter = folderId;
+                  selectedSubfolder = node.relative_path;
+                }
+              }}
+              class="w-full flex items-center justify-between py-1 pr-1.5 rounded-md text-[11px] transition-colors cursor-pointer group {isSelected ? 'bg-primary/20 text-primary font-bold' : isCurrentOrParent ? 'bg-muted/50 text-foreground font-semibold' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'}"
+              style="padding-left: {node.depth * 12 + 6}px;"
+              title="{node.name} ({node.relative_path})"
+            >
+              <div class="flex items-center gap-1 min-w-0">
+                {#if hasChildren}
+                  <button
+                    type="button"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      toggleSubfolderExpand(node.relative_path);
+                    }}
+                    class="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                    title={isNodeExpanded ? 'Recolher subpasta' : 'Expandir subpasta'}
+                  >
+                    {#if isNodeExpanded}
+                      <ChevronDown size={11} />
+                    {:else}
+                      <ChevronRight size={11} />
+                    {/if}
+                  </button>
+                {:else}
+                  <span class="w-3.5 shrink-0"></span>
+                {/if}
+
+                {#if isSelected || isCurrentOrParent}
+                  <FolderOpen size={11} class="text-amber-400 shrink-0" />
+                {:else}
+                  <Folder size={11} class="text-amber-400/80 shrink-0" />
+                {/if}
+                <span class="truncate">{node.name}</span>
+              </div>
+              <span class="text-[9px] font-mono opacity-80 ml-1 shrink-0">{node.count}</span>
+            </div>
+
+            {#if hasChildren && isNodeExpanded}
+              <div class="relative space-y-0.5">
+                <!-- Linha guia vertical conectando a pasta pai às suas subpastas -->
+                <div
+                  class="absolute top-0 bottom-1 border-l border-border/50 pointer-events-none"
+                  style="left: {node.depth * 12 + 12}px;"
+                ></div>
+                {#each node.children as child (child.relative_path)}
+                  {@render renderTreeNode(child, folderId)}
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/snippet}
+
         <div role="tabpanel" id="panel-images" aria-labelledby="tab-images" class="flex-1 flex overflow-hidden gap-3">
-          <!-- Tree Navigation Vertical para Pastas de Imagens -->
-          <aside class="w-52 border-r border-border bg-card/40 flex flex-col shrink-0 p-2 overflow-y-auto space-y-1">
+          <!-- Tree Navigation Vertical para Pastas de Imagens com Hierarquia Completa -->
+          <aside class="w-56 border-r border-border bg-card/40 flex flex-col shrink-0 p-2 overflow-y-auto space-y-1">
             <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1 block">
               Navegação de Pastas
             </span>
@@ -2553,7 +2726,7 @@
                 class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {selectedFolderFilter === 'app' && selectedSubfolder === null ? 'bg-primary/10 text-primary font-bold' : selectedFolderFilter === 'app' ? 'bg-muted/60 text-foreground font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
               >
                 <div class="flex items-center gap-1.5 truncate">
-                  {#if allAppImageSubfolders.length > 0}
+                  {#if appImageFolderTree.length > 0}
                     <button
                       type="button"
                       onclick={(e) => {
@@ -2580,25 +2753,12 @@
                 </Badge>
               </div>
 
-              {#if isAppFolderExpanded && allAppImageSubfolders.length > 0}
-                <div class="pl-4 space-y-0.5 border-l border-border/50 ml-3">
-                  {#each allAppImageSubfolders as sub (sub.relative_path)}
-                    {@const isSubSelected = selectedFolderFilter === 'app' && selectedSubfolder === sub.relative_path}
-                    <button
-                      type="button"
-                      onclick={() => {
-                        selectedFolderFilter = 'app';
-                        selectedSubfolder = sub.relative_path;
-                      }}
-                      class="w-full flex items-center justify-between px-2 py-1 rounded text-[11px] transition-colors cursor-pointer {isSubSelected ? 'bg-primary/20 text-primary font-bold' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'}"
-                      title="Pasta do App / {sub.relative_path}"
-                    >
-                      <div class="flex items-center gap-1.5 min-w-0">
-                        <Folder size={11} class="text-amber-400/80 shrink-0" />
-                        <span class="truncate">{sub.name}</span>
-                      </div>
-                      <span class="text-[9px] font-mono opacity-80 ml-1 shrink-0">{sub.count}</span>
-                    </button>
+              {#if isAppFolderExpanded && appImageFolderTree.length > 0}
+                <div class="space-y-0.5 relative pl-1">
+                  <!-- Linha guia vertical conectando a raiz do App às subpastas de nível 0 -->
+                  <div class="absolute top-0 bottom-1 border-l border-border/50 pointer-events-none left-2.5"></div>
+                  {#each appImageFolderTree as rootNode (rootNode.relative_path)}
+                    {@render renderTreeNode(rootNode, 'app')}
                   {/each}
                 </div>
               {/if}
@@ -2677,24 +2837,12 @@
                         </div>
 
                         {#if isExpanded && subs.length > 0}
-                          <div class="pl-4 space-y-0.5 border-l border-border/50 ml-3">
-                            {#each subs as sub (sub.relative_path)}
-                              {@const isSubSelected = isFolderSelected && selectedSubfolder === sub.relative_path}
-                              <button
-                                type="button"
-                                onclick={() => {
-                                  selectedFolderFilter = f.id;
-                                  selectedSubfolder = sub.relative_path;
-                                }}
-                                class="w-full flex items-center justify-between px-2 py-1 rounded text-[11px] transition-colors cursor-pointer {isSubSelected ? 'bg-primary/20 text-primary font-bold' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'}"
-                                title="{f.name} / {sub.relative_path}"
-                              >
-                                <div class="flex items-center gap-1.5 min-w-0">
-                                  <Folder size={11} class="text-amber-400/80 shrink-0" />
-                                  <span class="truncate">{sub.name}</span>
-                                </div>
-                                <span class="text-[9px] font-mono opacity-80 ml-1 shrink-0">{sub.count}</span>
-                              </button>
+                          {@const mappedTree = buildFolderTree(subs)}
+                          <div class="space-y-0.5 relative pl-1">
+                            <!-- Linha guia vertical conectando a raiz mapeada às subpastas de nível 0 -->
+                            <div class="absolute top-0 bottom-1 border-l border-border/50 pointer-events-none left-2.5"></div>
+                            {#each mappedTree as rootNode (rootNode.relative_path)}
+                              {@render renderTreeNode(rootNode, f.id)}
                             {/each}
                           </div>
                         {/if}
