@@ -148,15 +148,21 @@ jobs:
 
       - name: Create and push manifest for GHCR
         working-directory: /tmp/digests
+        env:
+          TAGS: ${{ steps.meta-ghcr.outputs.tags }}
         run: |
           images=()
-          for tag in ${{ steps.meta-ghcr.outputs.tags }}; do
-            images+=( "--tag" "$tag" )
-          done
+          while IFS= read -r tag; do
+            if [ -n "$tag" ]; then
+              images+=( "--tag" "$tag" )
+            fi
+          done <<< "$TAGS"
 
           platforms=()
           for digest in *; do
-            platforms+=( "ghcr.io/${{ github.repository }}@sha256:$digest" )
+            if [ -f "$digest" ]; then
+              platforms+=( "ghcr.io/${{ github.repository }}@sha256:$digest" )
+            fi
           done
 
           docker buildx imagetools create "${images[@]}" "${platforms[@]}"
@@ -164,20 +170,25 @@ jobs:
       - name: Create and push manifest for Docker Hub
         if: ${{ env.DOCKERHUB_USERNAME != '' }}
         working-directory: /tmp/digests
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          TAGS: ${{ steps.meta-dockerhub.outputs.tags }}
         run: |
           images=()
-          for tag in ${{ steps.meta-dockerhub.outputs.tags }}; do
-            images+=( "--tag" "$tag" )
-          done
+          while IFS= read -r tag; do
+            if [ -n "$tag" ]; then
+              images+=( "--tag" "$tag" )
+            fi
+          done <<< "$TAGS"
 
           platforms=()
           for digest in *; do
-            platforms+=( "${{ secrets.DOCKERHUB_USERNAME }}/openpresenter@sha256:$digest" )
+            if [ -f "$digest" ]; then
+              platforms+=( "${DOCKERHUB_USERNAME}/openpresenter@sha256:$digest" )
+            fi
           done
 
           docker buildx imagetools create "${images[@]}" "${platforms[@]}"
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
       - name: Inspect GHCR multi-arch image
         run: |
