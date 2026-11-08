@@ -53,55 +53,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Prepare build outputs
-        id: prepare-outputs
-        run: |
-          OUTPUTS="type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true"
-          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
-            OUTPUTS="${OUTPUTS}
-          type=image,name=${{ secrets.DOCKERHUB_USERNAME }}/openpresenter,push-by-digest=true,name-canonical=true,push=true"
-          fi
-          echo "outputs<<EOF" >> $GITHUB_OUTPUT
-          echo "$OUTPUTS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Build and push by digest
-        id: build
+      - name: Build and push platform image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
-          outputs: ${{ steps.prepare-outputs.outputs.outputs }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.sha }}-${{ matrix.platform-id }}
+            ${{ secrets.DOCKERHUB_USERNAME != '' && format('{0}/openpresenter:{1}-{2}', secrets.DOCKERHUB_USERNAME, github.sha, matrix.platform-id) || '' }}
           cache-from: type=gha,scope=build-${{ matrix.platform-id }}
           cache-to: type=gha,scope=build-${{ matrix.platform-id }},mode=max
-
-      - name: Export digest
-        run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-
-      - name: Upload digest artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: digests-${{ matrix.platform-id }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
 
   merge:
     name: Merge Multi-Arch Manifests
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download all digests
-        uses: actions/download-artifact@v4
-        with:
-          path: /tmp/digests
-          pattern: digests-*
-          merge-multiple: true
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -147,7 +116,6 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
       - name: Create and push manifest for GHCR
-        working-directory: /tmp/digests
         env:
           TAGS: ${{ steps.meta-ghcr.outputs.tags }}
         run: |
@@ -158,18 +126,12 @@ jobs:
             fi
           done <<< "$TAGS"
 
-          platforms=()
-          for digest in *; do
-            if [ -f "$digest" ]; then
-              platforms+=( "ghcr.io/${{ github.repository }}@sha256:$digest" )
-            fi
-          done
-
-          docker buildx imagetools create "${images[@]}" "${platforms[@]}"
+          docker buildx imagetools create "${images[@]}" \
+            ghcr.io/${{ github.repository }}:${{ github.sha }}-linux-amd64 \
+            ghcr.io/${{ github.repository }}:${{ github.sha }}-linux-arm64
 
       - name: Create and push manifest for Docker Hub
         if: ${{ env.DOCKERHUB_USERNAME != '' }}
-        working-directory: /tmp/digests
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           TAGS: ${{ steps.meta-dockerhub.outputs.tags }}
@@ -181,14 +143,9 @@ jobs:
             fi
           done <<< "$TAGS"
 
-          platforms=()
-          for digest in *; do
-            if [ -f "$digest" ]; then
-              platforms+=( "${DOCKERHUB_USERNAME}/openpresenter@sha256:$digest" )
-            fi
-          done
-
-          docker buildx imagetools create "${images[@]}" "${platforms[@]}"
+          docker buildx imagetools create "${images[@]}" \
+            ${DOCKERHUB_USERNAME}/openpresenter:${{ github.sha }}-linux-amd64 \
+            ${DOCKERHUB_USERNAME}/openpresenter:${{ github.sha }}-linux-arm64
 
       - name: Inspect GHCR multi-arch image
         run: |
