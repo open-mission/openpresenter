@@ -13,6 +13,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - O modo é reiniciado ao fechar e reabrir o editor e não participa do estado de alterações não salvas.
 
 ### Refatorado
+- **Módulo 11 — Seletor de Imagens & Mídias Locais (`ImageSelectorModal.svelte`, `lib/components/image-selector/*`):**
+  - Decomposição do monólito de 470 linhas em um orquestrador enxuto de 145 linhas (`ImageSelectorModal.svelte`) e módulos coesos em `frontend/src/lib/components/image-selector/`: `ImageSelectorHeader`, `ImageSelectorModeTabs`, `ImageSelectorFolderFilter`, `ImageSelectorGrid`, `ImageSelectorFolderList`, `ImageSelectorFooter`, `controller.svelte.ts`, `types.ts` e `defaults.ts`.
+  - Eliminação de `alert()` nativo bloqueante em favor de banner inline acessível (`role="alert"`), sem bloqueio da thread da aplicação.
+  - Tema Claro/Escuro real: substituição de backdrop fixo `bg-black/80` por token semântico `bg-background/80`, com contraste WCAG AA nos dois temas.
+  - Acessibilidade WAI-ARIA completa: diálogo com `role="dialog"`, `aria-modal="true"`, `aria-labelledby`/`aria-describedby`, armadilha de `Tab` via `focusTrap.ts`, foco inicial no input de busca ao abrir, atalho global `Escape` e confirmação via `⌘Enter` / `Ctrl+Enter`.
+  - Semântica de seleção aprimorada: cards de imagem com `role="checkbox"`, `aria-checked`, teclado `Enter`/`Space` e clique duplo; seleção de pastas com `role="radiogroup"` / `role="radio"`.
+  - Piso tipográfico `>= 11px` em legendas e caminhos de pastas; filtros de pasta com alvos táteis confortáveis `>= 28px`.
 - **Módulo 10 — Seletor de Fundos & Gradientes (`BackgroundSelectorModal.svelte`, `lib/components/background-selector/*`):**
   - Decomposição do monólito de 395 linhas em um orquestrador enxuto de 99 linhas (`BackgroundSelectorModal.svelte`) e módulos coesos em `frontend/src/lib/components/background-selector/`: `BackgroundHeader`, `BackgroundToolbar`, `BackgroundSidebar`, `BackgroundCard`, `BackgroundGrid`, `BackgroundFooter`, `controller.svelte.ts`, `types.ts` e `defaults.ts`.
   - Tema Claro/Escuro real: substituição de backdrop rígido `bg-black/80` por token semântico `bg-background/80`, e aplicação de `bg-card`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground` com contraste WCAG AA.

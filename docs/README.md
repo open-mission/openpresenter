@@ -343,6 +343,11 @@
 - [Spec — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](specs/2026-11-14-refatoracao-modulo-6-command-palette.md)
 - [Plano — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](plans/2026-11-14-refatoracao-modulo-6-command-palette.md)
 
+## Refatoração do Módulo 11 (Seletor de Imagens & Mídias Locais)
+
+- [Spec — Refatoração do Módulo 11 (Seletor de Imagens & Mídias Locais)](specs/2026-11-14-refatoracao-modulo-11-seletor-de-imagens.md)
+- [Plano — Refatoração do Módulo 11 (Seletor de Imagens & Mídias Locais)](plans/2026-11-14-refatoracao-modulo-11-seletor-de-imagens.md)
+
 ## Refatoração do Módulo 10 (Seletor de Fundos & Gradientes)
 
 - [Spec — Refatoração do Módulo 10 (Seletor de Fundos & Gradientes)](specs/2026-11-14-refatoracao-modulo-10-seletor-de-backgrounds.md)
