@@ -6,6 +6,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-14
+
+### Destaques da Versão
+A versão **0.6.2** consolida a refatoração modular completa de todos os 14 módulos de interface do OpenPresenter com padrão visual e ergonômico *Impeccable* (notas 38/40 a 40/40), além de correções críticas e polimento tátil de alta fidelidade no Controle Remoto Mobile PWA (`/remote`):
+- 📱 **Controle Remoto Mobile PWA (`/remote`):** Resolução de bugs críticos P0 (URL de versículos bíblicos sem colisão com SPA fallback, parsing resiliente de louvores com `lyrics_raw`/`sections`/`slides`, e despacho canônico de apresentações rápidas); transição contínua entre itens da setlist sem travamento; feedback háptico tátil (`triggerHaptic`) nas ações essenciais; navegação bíblica intuitiva em três etapas (`Livros` → `Capítulos` → `Versículos`); e extração de sheets e diálogos modais com conformidade WAI-ARIA completa (`role="alertdialog"`, armadilha de foco e tecla `Escape`).
+- 🧩 **Arquitetura Modular do Frontend (Módulos 5 a 14):** Conclusão da decomposição de todos os grandes modais em orquestradores enxutos (< 200 linhas) e subsistemas coesos com `controller.svelte.ts`, tipagem estrita e separação clara de responsabilidades.
+- 🎨 **Tema Claro & Escuro Reais em 100% dos Módulos:** Eliminação sistemática de cores fixas escuras (`neutral-*`, `zinc-*`, `bg-black/80`) em favor de tokens semânticos completos (`bg-card`, `bg-background`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`), assegurando contraste WCAG AA/AAA.
+- ♿ **Acessibilidade Universal (WAI-ARIA & WCAG AAA):** Substituição de diálogos nativos bloqueantes (`confirm()`, `alert()`, `prompt()`) por modais acessíveis com trap de foco, retorno ao botão gatilho, navegação por teclado (`Tab`, setas, atalhos `⌘Enter`/`Ctrl+Enter` e `Escape` em camadas), piso tipográfico `>= 11px` e alvos táteis confortáveis (`>= 24×24px`, preferencialmente `>= 28-36px`).
+- 🎵 **Produtividade de Palco & Edição:** Maximização vertical no Editor de Músicas com recolhimento de metadados, suporte a Bíblias em formato JSON, e refinamento de timers e cronômetros com presets rápidos.
+
 ### Corrigido
 - **Controle Remoto Mobile — Correções Críticas e Polimento Ergonômico (`RemoteView.svelte`, `lib/components/remote/*`):**
   - Correção na URL de versículos bíblicos (`/api/bibles/${id}/books/${bookId}/chapters/${chapter}/verses`), eliminando erro de parsing JSON (`Unexpected token '<'`) causado pelo retorno da SPA fallback.
