@@ -13,6 +13,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - O modo é reiniciado ao fechar e reabrir o editor e não participa do estado de alterações não salvas.
 
 ### Refatorado
+- **Módulo 9 — Gerenciador de Setlists (`SetlistModal.svelte`, `lib/components/setlist-editor/*`):**
+  - Decomposição do monólito de 457 linhas em um orquestrador enxuto de 132 linhas (`SetlistModal.svelte`) e módulos coesos em `frontend/src/lib/components/setlist-editor/`: `SetlistHeader`, `SetlistMetadata`, `SetlistWallpaperSelector`, `SetlistConfirmDiscard`, `controller.svelte.ts`, `types.ts` e `defaults.ts`.
+  - Tema Claro/Escuro real: eliminação total de `neutral-*`, `zinc-*`, `bg-black/80` e `text-white` em favor de tokens semânticos (`bg-card`, `bg-background`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`), garantindo contraste WCAG AA nos dois temas.
+  - Eliminação do `confirm()` nativo bloqueante em favor do modal acessível `SetlistConfirmDiscard` com `role="alertdialog"`, trap de foco e retorno ao botão gatilho.
+  - Acessibilidade WAI-ARIA completa: diálogo com `aria-labelledby`/`aria-describedby`, armadilha de `Tab` via `focusTrap.ts`, foco inicial no título, galeria de wallpapers com `aria-label` descritivo e seletor de modo (`Preencher`, `Ajustar`, `Centralizar`, `Repetir`) com semântica de rádio.
+  - Piso tipográfico `>= 11px` (eliminado `text-[9px]`), alvos táteis confortáveis `>= 28×28px` e atalhos multiplataforma `⌘Enter` / `Ctrl+Enter` para salvar e `Escape` hierárquico.
 - **Módulo 8 — Cronogramas & Agendas de Culto (`ScheduleEditorModal.svelte`, `lib/components/schedule-editor/*`):**
   - Decomposição do monólito de 653 linhas em um orquestrador de 172 linhas e módulos coesos em `frontend/src/lib/components/schedule-editor/`: `ScheduleEditorHeader`, `ScheduleEditorMetadata`, `ScheduleEditorPresets`, `ScheduleEditorEventsList`, `ScheduleEditorEventCard`, `ScheduleEditorPreview`, `ScheduleEditorConfirmDiscard`, `controller.svelte.ts`, `types.ts` e `defaults.ts`.
   - Tema Claro/Escuro real: eliminação total de `neutral-*`, `zinc-*`, `bg-black/80` e `text-white` em favor de tokens semânticos (`bg-card`, `bg-background`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`), com badges e destaques contrastantes nos dois modos.

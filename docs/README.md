@@ -343,6 +343,11 @@
 - [Spec — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](specs/2026-11-14-refatoracao-modulo-6-command-palette.md)
 - [Plano — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](plans/2026-11-14-refatoracao-modulo-6-command-palette.md)
 
+## Refatoração do Módulo 9 (Gerenciador de Setlists)
+
+- [Spec — Refatoração do Módulo 9 (Gerenciador de Setlists)](specs/2026-11-14-refatoracao-modulo-9-gerenciador-de-setlists.md)
+- [Plano — Refatoração do Módulo 9 (Gerenciador de Setlists)](plans/2026-11-14-refatoracao-modulo-9-gerenciador-de-setlists.md)
+
 ## Refatoração do Módulo 8 (Cronogramas & Agendas de Culto)
 
 - [Spec — Refatoração do Módulo 8 (Cronogramas & Agendas de Culto)](specs/2026-11-14-refatoracao-modulo-8-cronogramas-e-agendas.md)
