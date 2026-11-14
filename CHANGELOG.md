@@ -13,6 +13,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - O modo é reiniciado ao fechar e reabrir o editor e não participa do estado de alterações não salvas.
 
 ### Refatorado
+- **Módulo 13 — Editor de Cronômetros & Timers (`TimerEditorModal.svelte`, `lib/components/timer-editor/*`):**
+  - Decomposição do monólito de 303 linhas em um orquestrador enxuto de 134 linhas (`TimerEditorModal.svelte`) e submódulos coesos em `frontend/src/lib/components/timer-editor/`: `TimerEditorHeader`, `TimerDurationSelector`, `TimerSubtitleField`, `TimerAdvancedOptions`, `TimerEditorFooter`, `controller.svelte.ts`, `types.ts` e `defaults.ts`.
+  - Tema Claro/Escuro real: eliminação total de classes fixas escuras (`neutral-*`, `zinc-*`, `bg-black/80`, `text-white`) em favor de tokens semânticos completos (`bg-card`, `bg-background`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`, acentos âmbar), garantindo contraste WCAG AA tanto no tema escuro quanto no claro.
+  - Acessibilidade WAI-ARIA completa: estrutura correta de diálogo com `role="presentation"` no overlay backdrop e `role="dialog"`, `aria-modal="true"`, `aria-labelledby="timer-editor-title"` e `aria-describedby="timer-editor-desc"` no painel interno. Foco aprisionado via `focusTrap.ts`, foco inicial no título ao abrir, atalho global `Escape` e retorno de foco ao elemento gatilho ao fechar.
+  - Presets e opções acessíveis: lista de presets rápidos com semântica de rádio (`role="radiogroup"` / `role="radio"`, `aria-checked`), campos numéricos com labels associadas e switch de Overtime com `role="switch"` e estado anunciado.
+  - Piso tipográfico `>= 11px` no badge de destino (`text-xs`) e alvos táteis confortáveis em botões e presets (`>= 30px` e `>= 32px`).
+  - Atalhos de teclado: `⌘Enter` / `Ctrl+Enter` para salvar e adicionar diretamente à setlist (ou salvar na biblioteca).
 - **Módulo 12 — Compartilhamento e Streaming de Saídas (`ShareOutputsModal.svelte`, `lib/components/share-outputs/*`):**
   - Decomposição do monólito de 313 linhas em um orquestrador enxuto de 100 linhas (`ShareOutputsModal.svelte`) e submódulos coesos em `frontend/src/lib/components/share-outputs/`: `ShareOutputsHeader`, `ShareOutputsTabs`, `ShareOutputsQrView`, `ShareOutputsFooter`, `controller.svelte.ts`, `types.ts` e `defaults.ts`.
   - Tema Claro/Escuro real: eliminação total de classes fixas escuras (`neutral-*`, `zinc-*`, `bg-black/80`) em favor de tokens semânticos completos (`bg-card`, `bg-background`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`), garantindo contraste WCAG AA tanto no tema escuro quanto no claro.

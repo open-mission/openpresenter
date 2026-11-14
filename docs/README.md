@@ -343,6 +343,11 @@
 - [Spec — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](specs/2026-11-14-refatoracao-modulo-6-command-palette.md)
 - [Plano — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](plans/2026-11-14-refatoracao-modulo-6-command-palette.md)
 
+## Refatoração do Módulo 13 (Editor de Cronômetros & Timers)
+
+- [Spec — Refatoração do Módulo 13 (Editor de Cronômetros & Timers)](specs/2026-11-14-refatoracao-modulo-13-editor-de-cronometro.md)
+- [Plano — Refatoração do Módulo 13 (Editor de Cronômetros & Timers)](plans/2026-11-14-refatoracao-modulo-13-editor-de-cronometro.md)
+
 ## Refatoração do Módulo 12 (Compartilhamento e Streaming de Saídas)
 
 - [Spec — Refatoração do Módulo 12 (Compartilhamento e Streaming de Saídas)](specs/2026-11-14-refatoracao-modulo-12-compartilhamento-de-saidas.md)
