@@ -13,6 +13,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - O modo é reiniciado ao fechar e reabrir o editor e não participa do estado de alterações não salvas.
 
 ### Refatorado
+- **Módulo 14 — Itens Rápidos, Divisores & Avisos (`QuickItemModal.svelte`, `lib/components/quick-item/*`):**
+  - Decomposição do monólito de 225 linhas em um orquestrador enxuto de 104 linhas (`QuickItemModal.svelte`) e submódulos coesos em `frontend/src/lib/components/quick-item/`: `QuickItemHeader`, `QuickItemForm`, `QuickItemFooter`, `QuickItemConfirmDiscard`, `controller.svelte.ts`, `types.ts` e `defaults.ts`.
+  - Eliminação de `confirm()` nativo bloqueante em favor do modal acessível `QuickItemConfirmDiscard` com `role="alertdialog"`, `aria-modal="true"`, foco preso via `focusTrap.ts` e retorno ao botão gatilho.
+  - Tema Claro/Escuro real: eliminação total de classes fixas escuras (`neutral-*`, `zinc-*`, `bg-black/80`, `text-white`) em favor de tokens semânticos completos (`bg-card`, `bg-background`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`, acentos esmeralda), garantindo contraste WCAG AA tanto no tema escuro quanto no claro.
+  - Acessibilidade WAI-ARIA completa: estrutura correta de diálogo com `role="presentation"` no overlay backdrop e `role="dialog"`, `aria-modal="true"`, `aria-labelledby="quick-item-title"` e `aria-describedby="quick-item-desc"` no painel interno. Foco inicial no campo de título, foco aprisionado via `focusTrap.ts`, fechamento hierárquico com `Escape` e retorno de foco ao elemento gatilho ao fechar.
+  - Piso tipográfico `>= 11px` na dica de auxílio de slides e alvos táteis confortáveis em botões (`>= 32px`).
+  - Atalhos de teclado: `⌘Enter` / `Ctrl+Enter` para salvar diretamente e delegação de tecla `Escape` no `AdminView`.
 - **Módulo 13 — Editor de Cronômetros & Timers (`TimerEditorModal.svelte`, `lib/components/timer-editor/*`):**
   - Decomposição do monólito de 303 linhas em um orquestrador enxuto de 134 linhas (`TimerEditorModal.svelte`) e submódulos coesos em `frontend/src/lib/components/timer-editor/`: `TimerEditorHeader`, `TimerDurationSelector`, `TimerSubtitleField`, `TimerAdvancedOptions`, `TimerEditorFooter`, `controller.svelte.ts`, `types.ts` e `defaults.ts`.
   - Tema Claro/Escuro real: eliminação total de classes fixas escuras (`neutral-*`, `zinc-*`, `bg-black/80`, `text-white`) em favor de tokens semânticos completos (`bg-card`, `bg-background`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`, acentos âmbar), garantindo contraste WCAG AA tanto no tema escuro quanto no claro.

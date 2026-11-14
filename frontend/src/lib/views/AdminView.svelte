@@ -981,6 +981,10 @@
         if (isSongEditorOpen) {
           return;
         }
+        // QuickItemModal gerencia a própria pilha (descartar -> modal) e confirmação de alterações
+        if (isQuickItemModalOpen) {
+          return;
+        }
         e.preventDefault();
         contextMenuOpen = false;
         isCommandPaletteOpen = false;
