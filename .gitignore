@@ -6,3 +6,5 @@
 .DS_Store
 .env
 .commandcode/
+/.impeccable/
+/frontend/.impeccable/

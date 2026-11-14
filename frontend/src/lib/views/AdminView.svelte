@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { cn } from '$lib/utils';
   import {
     presentationState,
@@ -8,6 +8,7 @@
     isWsConnected,
     connectedClients,
     initWebSocket,
+    reconnectWebSocket,
     selectSlide,
     setDisplayMode,
     stopPresentation as wsStopPresentation,
@@ -113,6 +114,8 @@
     Bookmark,
     FileText,
     BookOpen,
+    ArrowUp,
+    ArrowDown,
     ArrowUpToLine,
     Pencil,
     Edit3,
@@ -184,6 +187,27 @@
   let quickItemMode = $state<'header' | 'announcement'>('header');
   let isRenameModalOpen = $state(false);
   let isConfirmCloseAudioOpen = $state(false);
+  let confirmModal = $state<{
+    open: boolean;
+    title: string;
+    description: string;
+    confirmLabel: string;
+    onConfirm: (() => Promise<void> | void) | null;
+  }>({
+    open: false,
+    title: '',
+    description: '',
+    confirmLabel: 'Confirmar',
+    onConfirm: null,
+  });
+  let renameModalEl = $state<HTMLDivElement | null>(null);
+  let renameInputEl = $state<HTMLInputElement | null>(null);
+  let closeAudioModalEl = $state<HTMLDivElement | null>(null);
+  let confirmModalEl = $state<HTMLDivElement | null>(null);
+  let previousFocusedBeforeModal: HTMLElement | null = null;
+  const isMacPlatform =
+    typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent);
+  const shortcutMod = isMacPlatform ? '⌘' : 'Ctrl+';
   let isAudioWidgetDismissed = $state(false);
   let lastActivePlaybackUrl = $state('');
   let isSetlistSelectorOpen = $state(false);
@@ -483,7 +507,11 @@
 
   function handleCloseAudioWidget() {
     if ($isAudioPlayingStore) {
+      previousFocusedBeforeModal = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       isConfirmCloseAudioOpen = true;
+      void tick().then(() => {
+        closeAudioModalEl?.focus();
+      });
     } else {
       executeCloseAudioWidget();
     }
@@ -491,7 +519,7 @@
 
   function executeCloseAudioWidget() {
     isAudioWidgetDismissed = true;
-    isConfirmCloseAudioOpen = false;
+    closeInlineModals();
     resetTrack();
   }
 
@@ -580,8 +608,8 @@
   });
 
   function scrollToSlideCard(idx: number) {
-    if (typeof document !== 'undefined') {
-      const el = document.getElementById(`slide-card-${idx}`);
+    if (typeof document !== 'undefined' && selectedMedia) {
+      const el = document.getElementById(`slide-card-${selectedMedia.id}-${idx}`);
       el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }
@@ -859,27 +887,46 @@
     return false;
   }
 
+  function closeInlineModals() {
+    isRenameModalOpen = false;
+    isConfirmCloseAudioOpen = false;
+    confirmModal.open = false;
+    if (previousFocusedBeforeModal && document.contains(previousFocusedBeforeModal)) {
+      previousFocusedBeforeModal.focus();
+    }
+    previousFocusedBeforeModal = null;
+  }
+
+  function openConfirmDialog(options: {
+    title: string;
+    description: string;
+    confirmLabel?: string;
+    onConfirm: () => Promise<void> | void;
+  }) {
+    previousFocusedBeforeModal = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    confirmModal = {
+      open: true,
+      title: options.title,
+      description: options.description,
+      confirmLabel: options.confirmLabel ?? 'Confirmar',
+      onConfirm: options.onConfirm,
+    };
+    void tick().then(() => {
+      confirmModalEl?.focus();
+    });
+  }
+
   // Atalhos de teclado globais
   function handleKeydown(e: KeyboardEvent) {
-    // Atalho global do Command Palette (⌘K / Ctrl+K)
-    if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
-      e.preventDefault();
-      isCommandPaletteOpen = !isCommandPaletteOpen;
-      return;
-    }
+    if (e.defaultPrevented) return;
 
-    // Atalho global para abrir a aba de Bíblia (⌘B / Ctrl+B ou F4)
-    if (((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) || e.key === 'F4') {
-      e.preventDefault();
-      handleOpenBibleTab();
-      return;
-    }
+    const target = e.target instanceof HTMLElement ? e.target : null;
+    const hasDomOverlay =
+      typeof document !== 'undefined' &&
+      document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]') !== null;
 
-    // Se estiver digitando em input ou textarea, ignorar
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-    // Se algum modal estiver aberto
-    if (
+    const hasModalOrMenu =
+      contextMenuOpen ||
       isCommandPaletteOpen ||
       isSongEditorOpen ||
       isSettingsOpen ||
@@ -887,39 +934,84 @@
       isSetlistModalOpen ||
       isQuickItemModalOpen ||
       isScheduleEditorOpen ||
+      isImageSelectorOpen ||
+      isLowerThirdImageSelectorOpen ||
+      isShareOutputsOpen ||
+      isPreviewImageOpen ||
+      isTimerEditorOpen ||
       isRenameModalOpen ||
       isConfirmCloseAudioOpen ||
+      confirmModal.open ||
+      isSetlistSelectorOpen ||
+      isAddMenuOpen ||
       isConnectionsDropdownOpen ||
-      isOutputsMenuOpen
-    ) {
-      if (e.key === 'Escape') {
-        isCommandPaletteOpen = false;
-        isSongEditorOpen = false;
-        isSettingsOpen = false;
-        isTeamsModalOpen = false;
-        isSetlistModalOpen = false;
-        isQuickItemModalOpen = false;
-        isScheduleEditorOpen = false;
-        isRenameModalOpen = false;
-        isConfirmCloseAudioOpen = false;
-        isSetlistSelectorOpen = false;
-        isAddMenuOpen = false;
-        isConnectionsDropdownOpen = false;
-        isOutputsMenuOpen = false;
+      isOutputsMenuOpen ||
+      hasDomOverlay;
+
+    // Atalho global do Command Palette (⌘K / Ctrl+K) apenas quando outro modal bloqueante não está aberto
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+      if (!hasModalOrMenu || isCommandPaletteOpen) {
+        e.preventDefault();
+        isCommandPaletteOpen = !isCommandPaletteOpen;
       }
       return;
     }
 
-    // Tecla Escape: Para a apresentação
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      if (isSetlistSelectorOpen || isAddMenuOpen || isConnectionsDropdownOpen || isOutputsMenuOpen) {
+    // Atalho global para abrir a aba de Bíblia (⌘B / Ctrl+B ou F4) não deve disparar sobre modais
+    if (((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) || e.key === 'F4') {
+      if (!hasModalOrMenu) {
+        e.preventDefault();
+        handleOpenBibleTab();
+      }
+      return;
+    }
+
+    // Se algum modal, menu de contexto ou dropdown estiver aberto
+    if (hasModalOrMenu) {
+      if (e.key === 'Escape') {
+        // SettingsModal gerencia sua própria pilha de diálogos, popovers e confirmação de alterações
+        if (isSettingsOpen) {
+          return;
+        }
+        e.preventDefault();
+        contextMenuOpen = false;
+        isCommandPaletteOpen = false;
+        isSongEditorOpen = false;
+        isTeamsModalOpen = false;
+        isSetlistModalOpen = false;
+        isQuickItemModalOpen = false;
+        isScheduleEditorOpen = false;
+        isImageSelectorOpen = false;
+        isLowerThirdImageSelectorOpen = false;
+        isShareOutputsOpen = false;
+        isPreviewImageOpen = false;
+        isTimerEditorOpen = false;
         isSetlistSelectorOpen = false;
         isAddMenuOpen = false;
         isConnectionsDropdownOpen = false;
         isOutputsMenuOpen = false;
-        return;
+        closeInlineModals();
       }
+      return;
+    }
+
+    // Se estiver digitando em input, textarea, select ou contenteditable, ignorar atalhos de projeção
+    if (
+      target &&
+      (target.matches('input, textarea, select') ||
+        target.isContentEditable ||
+        !!target.closest('[contenteditable="true"]'))
+    ) {
+      return;
+    }
+
+    const isInteractiveElement =
+      !!target &&
+      !!target.closest('button, a[href], select, summary, [role="button"], [role="menuitem"], [role="tab"]');
+
+    // Tecla Escape: Para a apresentação apenas quando nenhum overlay está aberto
+    if (e.key === 'Escape') {
+      e.preventDefault();
       if (numberBuffer) {
         numberBuffer = '';
         if (numberBufferTimer) clearTimeout(numberBufferTimer);
@@ -929,14 +1021,20 @@
       return;
     }
 
-    // Tecla Enter
+    // Tecla Enter em controle focado executa a ação nativa dele; só apresenta slide fora de controles interativos
     if (e.key === 'Enter') {
+      if (isInteractiveElement) return;
       e.preventDefault();
       if (numberBuffer) {
         submitNumberBuffer();
       } else {
         presentSlide(focusedSlideIndex);
       }
+      return;
+    }
+
+    // Barra de espaço em botão/controle focado executa ação nativa sem pular slide
+    if (e.key === ' ' && isInteractiveElement) {
       return;
     }
 
@@ -1019,33 +1117,49 @@
     const currentId = $presentationState.active_setlist_id;
     if (!currentId) return;
     if (setlistsList.length <= 1) {
-      alert('Não é possível excluir a única setlist existente.');
+      notifyError('Ação indisponível', 'Não é possível excluir a única setlist existente.');
       return;
     }
-    if (!confirm('Deseja realmente excluir esta setlist?')) return;
 
-    try {
-      await fetch(`/api/setlists/${currentId}`, { method: 'DELETE' });
-      await loadSetlists();
-      if (setlistsList.length > 0) {
-        await switchActiveSetlist(setlistsList[0].id);
-      }
-    } catch (err) {
-      console.error('Erro ao excluir setlist:', err);
-    }
+    openConfirmDialog({
+      title: 'Excluir setlist atual?',
+      description: 'Esta setlist e a organização de seus itens serão removidas permanentemente.',
+      confirmLabel: 'Excluir Setlist',
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/setlists/${currentId}`, { method: 'DELETE' });
+          await loadSetlists();
+          if (setlistsList.length > 0) {
+            await switchActiveSetlist(setlistsList[0].id);
+          }
+          notifySuccess('Setlist excluída');
+        } catch (err) {
+          console.error('Erro ao excluir setlist:', err);
+          notifyError('Falha ao excluir setlist');
+        }
+      },
+    });
   }
 
   async function handleClearSetlist() {
     isSetlistSelectorOpen = false;
     if ($mediaItemsList.length === 0) return;
-    if (!confirm('Deseja realmente remover todos os itens da setlist ativa?')) return;
 
-    try {
-      await clearSetlistItems();
-      selectedMediaId = '';
-    } catch (err) {
-      console.error('Erro ao limpar itens da setlist:', err);
-    }
+    openConfirmDialog({
+      title: 'Limpar itens da setlist ativa?',
+      description: 'Todos os itens serão removidos desta programação. As músicas e mídias originais continuam salvas na biblioteca.',
+      confirmLabel: 'Limpar Setlist',
+      onConfirm: async () => {
+        try {
+          await clearSetlistItems();
+          selectedMediaId = '';
+          notifySuccess('Setlist limpa');
+        } catch (err) {
+          console.error('Erro ao limpar itens da setlist:', err);
+          notifyError('Falha ao limpar setlist');
+        }
+      },
+    });
   }
 
   // Menu de Contexto nos Itens da Setlist
@@ -1056,12 +1170,35 @@
     contextMenuX = e.clientX;
     contextMenuY = e.clientY;
 
+    const itemIndex = $mediaItemsList.findIndex((m) => m.id === item.id);
+
     contextMenuItems = [
       {
         id: 'pin_top',
         label: 'Fixar no topo',
         icon: ArrowUpToLine,
+        disabled: itemIndex <= 0,
         onclick: () => handlePinToTop(item),
+      },
+      {
+        id: 'move_up',
+        label: 'Mover para cima',
+        icon: ArrowUp,
+        shortcut: 'Alt+↑',
+        disabled: itemIndex <= 0,
+        onclick: () => void handleMoveItem(item.id, -1),
+      },
+      {
+        id: 'move_down',
+        label: 'Mover para baixo',
+        icon: ArrowDown,
+        shortcut: 'Alt+↓',
+        disabled: itemIndex === -1 || itemIndex >= $mediaItemsList.length - 1,
+        onclick: () => void handleMoveItem(item.id, 1),
+      },
+      {
+        id: 'div_reorder_item',
+        divider: true,
       },
       {
         id: 'edit',
@@ -1196,9 +1333,10 @@
       },
       {
         id: 'add_scripture',
-        label: 'Versículo Bíblico (Em breve)',
+        label: 'Versículo Bíblico...',
         icon: BookOpen,
-        disabled: true,
+        shortcut: 'F4',
+        onclick: () => handleOpenBibleTab(),
       },
     ];
 
@@ -1445,6 +1583,16 @@
     await reorderSetlistItems(items);
   }
 
+  async function handleMoveItem(itemId: string, delta: -1 | 1) {
+    const items = [...$mediaItemsList];
+    const fromIdx = items.findIndex((m) => m.id === itemId);
+    const toIdx = fromIdx + delta;
+    if (fromIdx === -1 || toIdx < 0 || toIdx >= items.length) return;
+    const [moved] = items.splice(fromIdx, 1);
+    items.splice(toIdx, 0, moved);
+    await reorderSetlistItems(items);
+  }
+
   async function handleAddSongToSetlist(songId: string) {
     try {
       await fetch('/api/setlist/add', {
@@ -1649,16 +1797,21 @@
   }
 
   function handleOpenRename(item: MediaItem) {
+    previousFocusedBeforeModal = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     renamingItemId = item.id;
     renamingItemTitle = item.title;
     isRenameModalOpen = true;
+    void tick().then(() => {
+      renameInputEl?.focus();
+      renameInputEl?.select();
+    });
   }
 
   async function handleSaveRename() {
     if (renamingItemId && renamingItemTitle.trim()) {
       await renameSetlistItem(renamingItemId, renamingItemTitle.trim());
     }
-    isRenameModalOpen = false;
+    closeInlineModals();
   }
 
   async function handleRemoveItem(item: MediaItem) {
@@ -1773,10 +1926,12 @@
 
 <div class="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden font-sans">
   <!-- Top Bar / Header Operacional -->
-  <header class="h-14 border-b border-border bg-card/60 px-4 flex items-center justify-between shrink-0">
-    <div class="flex items-center gap-2.5">
+  <header class="h-14 border-b border-border bg-card/60 px-4 flex items-center justify-between gap-2 shrink-0">
+    <h1 class="sr-only">OpenPresenter Minimal — Console do Operador</h1>
+
+    <div class="flex items-center gap-2.5 shrink-0">
       <!-- Logo Oficial com Tamanho Nítido e Sem Duplicação -->
-      <a href="/" class="flex items-center gap-2 group cursor-pointer" title="OpenPresenter Minimal">
+      <a href="/" class="flex items-center gap-2 group cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded-md" title="OpenPresenter Minimal">
         <img
           src="/branding/open-presenter-app-icon.svg"
           alt="OpenPresenter"
@@ -1788,33 +1943,34 @@
       </a>
     </div>
 
-    <!-- Busca Global e Command Palette (⌘K) -->
+    <!-- Busca Global e Command Palette -->
     <button
       type="button"
       onclick={() => (isCommandPaletteOpen = true)}
-      aria-label="Abrir busca global e paleta de comandos"
-      class="flex items-center gap-2 h-8 px-3 rounded-lg bg-muted/40 hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none border border-border text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-44 sm:w-64 md:w-80 justify-between mx-2"
+      aria-label={`Abrir busca global e paleta de comandos (${shortcutMod}K)`}
+      class="flex items-center gap-2 h-8 px-3 rounded-lg bg-muted/40 hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none border border-border text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-40 sm:w-56 md:w-72 lg:w-80 justify-between mx-2"
     >
       <span class="flex items-center gap-2 truncate">
         <Search size={14} class="text-muted-foreground shrink-0" />
         <span class="truncate">Buscar música ou comando...</span>
       </span>
-      <kbd class="px-1.5 py-0.5 rounded bg-background border border-border text-[10px] font-mono text-muted-foreground shrink-0">
-        ⌘K
+      <kbd class="px-1.5 py-0.5 rounded bg-background border border-border text-[11px] font-mono text-muted-foreground shrink-0">
+        {shortcutMod}K
       </kbd>
     </button>
 
     <!-- Player de Playback / Áudio Superior -->
     {#if showHeaderAudioWidget}
       <div
-        class="flex items-center gap-2 h-8 px-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/50 text-xs text-foreground transition-all shrink-0 max-w-xs sm:max-w-sm md:max-w-md shadow-sm mr-auto"
+        class="flex items-center gap-2 h-8 px-2.5 rounded-lg bg-emerald-500/12 border border-emerald-600/35 dark:border-emerald-500/45 text-xs text-foreground transition-all shrink-0 max-w-xs sm:max-w-sm md:max-w-md shadow-xs mr-auto"
         title={`Playback: ${activePlaybackTitle}`}
       >
         <button
           type="button"
           onclick={handleToggleHeaderAudio}
-          class="p-1.5 rounded-md bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold transition-all cursor-pointer shrink-0 shadow-sm"
-          title={$isAudioPlayingStore ? "Pausar Playback" : "Reproduzir Playback"}
+          aria-label={$isAudioPlayingStore ? 'Pausar playback' : 'Reproduzir playback'}
+          class="w-6 h-6 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center justify-center transition-colors cursor-pointer shrink-0 shadow-xs focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+          title={$isAudioPlayingStore ? 'Pausar Playback' : 'Reproduzir Playback'}
         >
           {#if $isAudioPlayingStore}
             <Pause size={12} class="fill-current" />
@@ -1826,7 +1982,8 @@
         <button
           type="button"
           onclick={handleStopHeaderAudio}
-          class="p-1.5 rounded-md bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
+          aria-label="Parar playback"
+          class="w-6 h-6 rounded-md bg-muted hover:bg-muted/80 text-foreground border border-border flex items-center justify-center transition-colors cursor-pointer shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           title="Parar Playback"
         >
           <Square size={11} class="fill-current" />
@@ -1836,15 +1993,17 @@
         <button
           type="button"
           onclick={toggleTrackLoop}
-          class="p-1.5 rounded-md transition-colors cursor-pointer shrink-0 {$isAudioLoopingStore ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white'}"
-          title={$isAudioLoopingStore ? "Repetir Único: Ativado (Loop)" : "Repetir Único: Desativado"}
+          aria-pressed={$isAudioLoopingStore}
+          aria-label={$isAudioLoopingStore ? 'Desativar repetir em loop' : 'Ativar repetir em loop'}
+          class="w-6 h-6 rounded-md border flex items-center justify-center transition-colors cursor-pointer shrink-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none {$isAudioLoopingStore ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-600/40 dark:border-emerald-500/40 shadow-xs' : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border'}"
+          title={$isAudioLoopingStore ? 'Repetir Único: Ativado (Loop)' : 'Repetir Único: Desativado'}
         >
-          <Repeat1 size={11} class={$isAudioLoopingStore ? 'text-emerald-400' : 'text-neutral-400'} />
+          <Repeat1 size={11} class={$isAudioLoopingStore ? 'text-emerald-700 dark:text-emerald-400' : ''} />
         </button>
 
         <div class="flex items-center gap-1.5 min-w-0 max-w-[110px] sm:max-w-[140px] truncate">
-          <Music size={12} class="text-emerald-400 shrink-0" />
-          <span class="font-semibold text-xs text-emerald-100 truncate">
+          <Music size={12} class="text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span class="font-semibold text-xs text-foreground truncate">
             {activePlaybackTitle}
           </span>
         </div>
@@ -1858,26 +2017,29 @@
             step="1"
             value={$audioCurrentTimeStore}
             oninput={(e) => seekTrack(Number((e.target as HTMLInputElement).value))}
-            class="w-14 sm:w-20 md:w-24 h-1 accent-emerald-500 bg-neutral-700 rounded cursor-pointer"
+            aria-label="Posição da reprodução de áudio"
+            class="w-14 sm:w-20 md:w-24 h-1.5 accent-emerald-600 dark:accent-emerald-500 bg-muted rounded cursor-pointer"
             title="Avançar / Retroceder áudio"
           />
-          <span class="font-mono text-[10px] text-neutral-300 tabular-nums shrink-0">
+          <span class="font-mono text-[11px] text-muted-foreground tabular-nums shrink-0">
             {formatDuration($audioCurrentTimeStore)}/{formatDuration($audioDurationStore)}
           </span>
         </div>
 
         <!-- Volume e Mute -->
-        <div class="hidden md:flex items-center gap-1 pl-1 border-l border-emerald-900/60 shrink-0">
+        <div class="hidden md:flex items-center gap-1 pl-1 border-l border-border/70 shrink-0">
           <button
             type="button"
             onclick={toggleTrackMute}
-            class="p-0.5 text-neutral-400 hover:text-white transition-colors cursor-pointer"
-            title={$isAudioMutedStore ? "Ativar som" : "Silenciar áudio"}
+            aria-pressed={$isAudioMutedStore}
+            aria-label={$isAudioMutedStore ? 'Ativar som' : 'Silenciar áudio'}
+            class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+            title={$isAudioMutedStore ? 'Ativar som' : 'Silenciar áudio'}
           >
             {#if $isAudioMutedStore}
-              <VolumeX size={12} class="text-rose-400" />
+              <VolumeX size={12} class="text-rose-600 dark:text-rose-400" />
             {:else}
-              <Volume2 size={12} class="text-neutral-400" />
+              <Volume2 size={12} />
             {/if}
           </button>
           <input
@@ -1887,7 +2049,8 @@
             step="0.05"
             value={$audioVolumeStore}
             oninput={(e) => setTrackVolume(Number((e.target as HTMLInputElement).value))}
-            class="w-10 h-1 accent-emerald-500 bg-neutral-700 rounded cursor-pointer"
+            aria-label="Volume do áudio"
+            class="w-10 h-1.5 accent-emerald-600 dark:accent-emerald-500 bg-muted rounded cursor-pointer"
             title={`Volume: ${Math.round($audioVolumeStore * 100)}%`}
           />
         </div>
@@ -1896,7 +2059,8 @@
         <button
           type="button"
           onclick={handleCloseAudioWidget}
-          class="p-1 rounded-md text-neutral-400 hover:text-white hover:bg-neutral-800/80 transition-colors cursor-pointer shrink-0 ml-0.5"
+          aria-label="Fechar player de áudio"
+          class="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer shrink-0 ml-0.5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           title="Fechar player de áudio"
         >
           <X size={12} />
@@ -1905,16 +2069,16 @@
     {/if}
 
     <!-- Status e Ações Rápidas -->
-    <div class="flex items-center gap-2 sm:gap-2.5">
+    <div class="flex items-center gap-2 shrink-0">
       <!-- Widget de Cronômetro Global do Operador (aparece somente quando estiver rodando) -->
       {#if isTimerRunning}
         <div
           class={cn(
             'flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-colors',
             isTimerOvertime
-              ? 'bg-rose-950/40 border-rose-600/70 text-rose-300 animate-pulse'
+              ? 'bg-rose-500/15 border-rose-600/50 dark:border-rose-500/60 text-rose-800 dark:text-rose-200'
               : isTimerWarning
-                ? 'bg-amber-950/40 border-amber-600/70 text-amber-300'
+                ? 'bg-amber-500/15 border-amber-600/50 dark:border-amber-500/60 text-amber-800 dark:text-amber-200'
                 : 'bg-primary/10 border-primary/40 text-primary'
           )}
           title={`Cronômetro: ${timer.label || 'Geral'} (Em execução)`}
@@ -1922,9 +2086,9 @@
           <Timer
             size={13}
             class={isTimerOvertime
-              ? 'text-rose-400'
+              ? 'text-rose-600 dark:text-rose-400'
               : isTimerWarning
-                ? 'text-amber-400'
+                ? 'text-amber-600 dark:text-amber-400'
                 : 'text-primary'}
           />
           <span class="font-mono text-xs font-semibold tabular-nums tracking-tight">
@@ -1935,7 +2099,7 @@
               type="button"
               onclick={pauseTimer}
               aria-label="Pausar cronômetro"
-              class="p-1 hover:bg-background/80 rounded text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
+              class="w-6 h-6 flex items-center justify-center hover:bg-background/80 rounded text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
               title="Pausar Cronômetro"
             >
               <Pause size={12} />
@@ -1944,7 +2108,7 @@
               type="button"
               onclick={resetTimer}
               aria-label="Reiniciar cronômetro"
-              class="p-1 hover:bg-background/80 rounded text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
+              class="w-6 h-6 flex items-center justify-center hover:bg-background/80 rounded text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
               title="Reiniciar Cronômetro"
             >
               <RotateCcw size={12} />
@@ -1954,7 +2118,7 @@
       {/if}
 
       <!-- Status WebSocket & Dropdown de Conexões Ativas -->
-      <div class="relative">
+      <div class="relative flex items-center gap-1">
         <button
           type="button"
           onclick={() => {
@@ -1964,56 +2128,68 @@
           aria-label="Conexões ativas do WebSocket"
           aria-expanded={isConnectionsDropdownOpen}
           aria-haspopup="true"
-          class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none border border-border text-xs transition-colors cursor-pointer select-none"
+          class="min-h-7 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none border border-border text-xs transition-colors cursor-pointer select-none"
           title="Ver conexões ativas do WebSocket"
         >
           {#if $isWsConnected}
-            <Wifi size={13} class="text-emerald-400" />
-            <span class="text-emerald-400 font-medium">Online</span>
+            <Wifi size={13} class="text-emerald-600 dark:text-emerald-400" />
+            <span class="text-emerald-700 dark:text-emerald-400 font-medium">Online</span>
             {#if $connectedClients.length > 0}
-              <span class="text-[10px] px-1 py-0.2 bg-emerald-500/20 text-emerald-300 rounded font-mono font-bold leading-none">
+              <span class="text-[11px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 rounded font-mono font-bold leading-none">
                 {$connectedClients.length}
               </span>
             {/if}
           {:else}
-            <WifiOff size={13} class="text-destructive" />
-            <span class="text-destructive font-medium">Reconectando</span>
+            <WifiOff size={13} class="text-red-700 dark:text-red-400" />
+            <span class="text-red-700 dark:text-red-400 font-medium">Desconectado</span>
           {/if}
         </button>
 
+        {#if !$isWsConnected}
+          <button
+            type="button"
+            onclick={() => reconnectWebSocket('admin')}
+            aria-label="Reconectar WebSocket manualmente"
+            title="Reconectar WebSocket imediatamente"
+            class="h-7 px-2 rounded-full bg-red-500/15 hover:bg-red-500/25 border border-red-600/40 dark:border-red-500/40 text-red-700 dark:text-red-300 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none"
+          >
+            <RefreshCw size={11} />
+            <span class="hidden sm:inline">Reconectar</span>
+          </button>
+        {/if}
+
         {#if isConnectionsDropdownOpen}
           <!-- Backdrop invisível para fechar ao clicar fora -->
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="fixed inset-0 z-40"
             onclick={() => (isConnectionsDropdownOpen = false)}
+            role="presentation"
           ></div>
 
           <!-- Dropdown com lista de conexões ativas -->
           <div
-            class="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-xl border border-border bg-card/95 backdrop-blur-md p-3 shadow-2xl z-50 text-xs text-foreground select-none animate-in fade-in zoom-in-95 duration-100"
+            class="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-xl border border-border bg-popover/95 backdrop-blur-md p-3 shadow-2xl z-50 text-xs text-popover-foreground select-none animate-in fade-in zoom-in-95 duration-100"
           >
-            <div class="flex items-center justify-between pb-2 mb-2 border-b border-neutral-800">
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-border">
               <div class="flex items-center gap-2">
-                <Wifi size={14} class="text-emerald-400" />
-                <span class="font-bold text-white text-xs">Conexões WebSocket Ativas</span>
+                <Wifi size={14} class="text-emerald-600 dark:text-emerald-400" />
+                <span class="font-bold text-foreground text-xs">Conexões WebSocket Ativas</span>
               </div>
-              <span class="text-[10px] font-mono text-neutral-400 bg-neutral-800 px-1.5 py-0.5 rounded">
+              <span class="text-[11px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                 {$connectedClients.length} {$connectedClients.length === 1 ? 'ativa' : 'ativas'}
               </span>
             </div>
 
             {#if $connectedClients.length === 0}
-              <div class="py-4 text-center text-neutral-400 text-xs">
+              <div class="py-4 text-center text-muted-foreground text-xs">
                 Nenhuma outra conexão registrada no momento.
               </div>
             {:else}
               <div class="space-y-1.5 max-h-72 overflow-y-auto pr-0.5">
                 {#each $connectedClients as conn (conn.id)}
-                  <div class="flex items-center justify-between p-2 rounded-lg bg-neutral-950/70 border border-neutral-800/80">
+                  <div class="flex items-center justify-between p-2 rounded-lg bg-card border border-border/80">
                     <div class="flex items-center gap-2 min-w-0">
-                      <div class="w-6 h-6 rounded flex items-center justify-center shrink-0 {conn.client_type === 'public' ? 'bg-purple-500/20 text-purple-400' : conn.client_type === 'stage' ? 'bg-blue-500/20 text-blue-400' : conn.client_type === 'remote' ? 'bg-amber-500/20 text-amber-400' : conn.client_type === 'lower-third' || conn.client_type === 'lower' || conn.client_type === 'obs' ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}">
+                      <div class="w-6 h-6 rounded flex items-center justify-center shrink-0 {conn.client_type === 'public' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' : conn.client_type === 'stage' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' : conn.client_type === 'remote' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' : conn.client_type === 'lower-third' || conn.client_type === 'lower' || conn.client_type === 'obs' ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400' : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'}">
                         {#if conn.client_type === 'public'}
                           <MonitorPlay size={13} />
                         {:else if conn.client_type === 'stage'}
@@ -2028,7 +2204,7 @@
                       </div>
                       <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
-                          <span class="font-semibold text-white text-xs truncate">
+                          <span class="font-semibold text-foreground text-xs truncate">
                             {conn.client_type === 'public'
                               ? 'Projetor Público'
                               : conn.client_type === 'stage'
@@ -2039,31 +2215,31 @@
                                     ? 'Transmissão (OBS)'
                                     : 'Painel Operador'}
                           </span>
-                          <span class="text-[10px] font-mono px-1 py-0.2 rounded bg-neutral-800 text-neutral-300">
+                          <span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                             {conn.route}
                           </span>
                         </div>
                         {#if conn.device_info}
-                          <div class="text-[11px] text-neutral-300 font-medium truncate mt-0.5 flex items-center gap-1">
-                            <span class="opacity-75">{conn.device_info}</span>
+                          <div class="text-[11px] text-muted-foreground font-medium truncate mt-0.5 flex items-center gap-1">
+                            <span>{conn.device_info}</span>
                           </div>
                         {/if}
-                        <div class="text-[10px] font-mono text-neutral-400 truncate">
-                          IP: <span class="text-neutral-200">{conn.ip}</span>
+                        <div class="text-[11px] font-mono text-muted-foreground truncate">
+                          IP: <span class="text-foreground">{conn.ip}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div class="text-[10px] font-mono text-neutral-400 shrink-0 text-right">
-                      <div class="text-neutral-500">às</div>
-                      <div class="text-neutral-300 font-semibold">{conn.connected_at}</div>
+                    <div class="text-[11px] font-mono text-muted-foreground shrink-0 text-right">
+                      <div>às</div>
+                      <div class="text-foreground font-semibold">{conn.connected_at}</div>
                     </div>
                   </div>
                 {/each}
               </div>
 
               <!-- Atalho para Histórico & Logs -->
-              <div class="pt-2 mt-2 border-t border-neutral-800">
+              <div class="pt-2 mt-2 border-t border-border">
                 <button
                   type="button"
                   onclick={() => {
@@ -2071,7 +2247,7 @@
                     settingsInitialTab = 'logs';
                     isSettingsOpen = true;
                   }}
-                  class="w-full py-1.5 px-2 rounded-lg bg-neutral-800/80 hover:bg-neutral-800 text-neutral-300 hover:text-white flex items-center justify-center gap-1.5 font-medium transition-colors cursor-pointer text-[11px]"
+                  class="w-full min-h-7 py-1.5 px-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground flex items-center justify-center gap-1.5 font-medium transition-colors cursor-pointer text-[11px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                 >
                   <ScrollText size={12} class="text-primary" />
                   <span>Ver Histórico e Logs de Auditoria</span>
@@ -2091,35 +2267,34 @@
             isOutputsMenuOpen = !isOutputsMenuOpen;
             if (isOutputsMenuOpen) isConnectionsDropdownOpen = false;
           }}
-          class="gap-1.5 text-xs {$castStore.isConnected ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300' : ''}"
+          class="gap-1.5 text-xs {$castStore.isConnected ? 'border-emerald-600/45 dark:border-emerald-500/50 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300' : ''}"
           title="Telas de exibição e transmissão (Pública, Palco, OBS, Cast, Remoto)"
           aria-expanded={isOutputsMenuOpen}
           aria-haspopup="true"
         >
           {#if $castStore.isConnected}
-            <Cast size={14} class="text-emerald-400 animate-pulse" />
+            <Cast size={14} class="text-emerald-600 dark:text-emerald-400" />
           {:else}
             <MonitorPlay size={14} class="text-primary" />
           {/if}
           <span>Saídas</span>
           {#if $castStore.isConnected}
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400"></span>
           {/if}
           <ChevronDown size={12} class="opacity-60 transition-transform {isOutputsMenuOpen ? 'rotate-180' : ''}" />
         </Button>
 
         {#if isOutputsMenuOpen}
           <!-- Backdrop invisível para fechar ao clicar fora -->
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="fixed inset-0 z-40"
             onclick={() => (isOutputsMenuOpen = false)}
+            role="presentation"
           ></div>
 
           <!-- Dropdown com lista de saídas e transmissão -->
           <div
-            class="absolute right-0 top-full mt-2 w-72 sm:w-80 rounded-xl border border-border bg-card/95 backdrop-blur-md p-2 shadow-2xl z-50 text-xs text-foreground select-none animate-in fade-in zoom-in-95 duration-100"
+            class="absolute right-0 top-full mt-2 w-72 sm:w-80 rounded-xl border border-border bg-popover/95 backdrop-blur-md p-2 shadow-2xl z-50 text-xs text-popover-foreground select-none animate-in fade-in zoom-in-95 duration-100"
           >
             <!-- Cabeçalho do Dropdown -->
             <div class="px-2.5 py-1.5 mb-1.5 border-b border-border/60 flex items-center justify-between">
@@ -2128,15 +2303,15 @@
                 Telas & Transmissão
               </span>
               {#if $castStore.isConnected}
-                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-semibold flex items-center gap-1">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="text-[11px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-semibold flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400"></span>
                   Cast Ativo
                 </span>
               {/if}
             </div>
 
             <!-- Seção 1: Telas de Projeção (Janelas Locais) -->
-            <div class="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <div class="px-2.5 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
               Telas do Computador
             </div>
 
@@ -2148,7 +2323,7 @@
                   isOutputsMenuOpen = false;
                   openPublicWindow();
                 }}
-                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group"
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
               >
                 <div class="flex items-center gap-2.5 min-w-0">
                   <div class="p-1.5 rounded-md bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
@@ -2157,7 +2332,7 @@
                   <div class="min-w-0">
                     <div class="font-medium text-xs text-foreground flex items-center gap-1.5">
                       <span>Projeção Pública</span>
-                      <span class="text-[10px] text-muted-foreground font-mono">/public</span>
+                      <span class="text-[11px] text-muted-foreground font-mono">/public</span>
                     </div>
                     <div class="text-[11px] text-muted-foreground truncate">
                       Telão principal ou projetor da igreja
@@ -2174,16 +2349,16 @@
                   isOutputsMenuOpen = false;
                   openStageWindow();
                 }}
-                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group"
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
               >
                 <div class="flex items-center gap-2.5 min-w-0">
-                  <div class="p-1.5 rounded-md bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                  <div class="p-1.5 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                     <Tv size={15} />
                   </div>
                   <div class="min-w-0">
                     <div class="font-medium text-xs text-foreground flex items-center gap-1.5">
                       <span>Retorno de Palco</span>
-                      <span class="text-[10px] text-muted-foreground font-mono">/stage</span>
+                      <span class="text-[11px] text-muted-foreground font-mono">/stage</span>
                     </div>
                     <div class="text-[11px] text-muted-foreground truncate">
                       Monitor com timer, relógio e próximo slide
@@ -2200,16 +2375,16 @@
                   isOutputsMenuOpen = false;
                   openLowerThirdWindow();
                 }}
-                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group"
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
               >
                 <div class="flex items-center gap-2.5 min-w-0">
-                  <div class="p-1.5 rounded-md bg-purple-500/10 text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                  <div class="p-1.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-400 group-hover:bg-purple-600 group-hover:text-white transition-colors">
                     <Video size={15} />
                   </div>
                   <div class="min-w-0">
                     <div class="font-medium text-xs text-foreground flex items-center gap-1.5">
                       <span>Lower Third (OBS)</span>
-                      <span class="text-[10px] text-muted-foreground font-mono">/lower-third</span>
+                      <span class="text-[11px] text-muted-foreground font-mono">/lower-third</span>
                     </div>
                     <div class="text-[11px] text-muted-foreground truncate">
                       Transparência alfa para transmissão e lives
@@ -2224,7 +2399,7 @@
             <div class="my-1.5 border-t border-border/60"></div>
 
             <!-- Seção 2: Conexões Sem Fio & Compartilhamento -->
-            <div class="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <div class="px-2.5 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
               Sem Fio & Dispositivos
             </div>
 
@@ -2237,17 +2412,17 @@
                   shareOutputsTab = 'cast';
                   isShareOutputsOpen = true;
                 }}
-                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group {$castStore.isConnected ? 'bg-emerald-500/10 border border-emerald-500/30' : ''}"
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none {$castStore.isConnected ? 'bg-emerald-500/12 border border-emerald-600/35 dark:border-emerald-500/35' : ''}"
               >
                 <div class="flex items-center gap-2.5 min-w-0">
-                  <div class="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                    <Cast size={15} class={$castStore.isConnected ? 'animate-pulse' : ''} />
+                  <div class="p-1.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <Cast size={15} />
                   </div>
                   <div class="min-w-0">
                     <div class="font-medium text-xs text-foreground flex items-center gap-1.5">
                       <span>Transmitir via Google Cast</span>
                       {#if $castStore.isConnected}
-                        <span class="text-[10px] text-emerald-400 font-semibold">● Conectado</span>
+                        <span class="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">● Conectado</span>
                       {/if}
                     </div>
                     <div class="text-[11px] text-muted-foreground truncate">
@@ -2266,16 +2441,16 @@
                   shareOutputsTab = 'remote';
                   isShareOutputsOpen = true;
                 }}
-                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group"
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
               >
                 <div class="flex items-center gap-2.5 min-w-0">
-                  <div class="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                  <div class="p-1.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                     <Smartphone size={15} />
                   </div>
                   <div class="min-w-0">
                     <div class="font-medium text-xs text-foreground flex items-center gap-1.5">
                       <span>Controle Remoto Mobile</span>
-                      <span class="text-[10px] text-muted-foreground font-mono">/remote</span>
+                      <span class="text-[11px] text-muted-foreground font-mono">/remote</span>
                     </div>
                     <div class="text-[11px] text-muted-foreground truncate">
                       QR Code para operar louvor e Bíblia no celular
@@ -2293,10 +2468,10 @@
                   shareOutputsTab = 'stage';
                   isShareOutputsOpen = true;
                 }}
-                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group"
+                class="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 text-foreground transition-colors cursor-pointer text-left group focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
               >
                 <div class="flex items-center gap-2.5 min-w-0">
-                  <div class="p-1.5 rounded-md bg-neutral-500/10 text-neutral-400 group-hover:bg-neutral-600 group-hover:text-white transition-colors">
+                  <div class="p-1.5 rounded-md bg-muted text-muted-foreground group-hover:bg-foreground group-hover:text-background transition-colors">
                     <QrCode size={15} />
                   </div>
                   <div class="min-w-0">
@@ -2320,10 +2495,10 @@
         variant="outline"
         size="sm"
         onclick={() => (isTeamsModalOpen = true)}
-        class="gap-1.5 text-xs border-purple-500/30 hover:border-purple-500/60 hover:bg-purple-500/10 text-purple-300"
+        class="gap-1.5 text-xs border-purple-600/35 dark:border-purple-500/35 hover:border-purple-600/60 hover:bg-purple-500/15 text-purple-700 dark:text-purple-300"
         title="Equipe de Mídia & Escala de Culto"
       >
-        <Users size={14} class="text-purple-400" />
+        <Users size={14} class="text-purple-600 dark:text-purple-400" />
         {#if $previewLabelsStore}
           <span class="hidden md:inline">Equipe</span>
         {/if}
@@ -2333,7 +2508,11 @@
       <Button
         variant="outline"
         size="sm"
-        onclick={() => (isSettingsOpen = true)}
+        aria-label="Configurações"
+        onclick={() => {
+          settingsInitialTab = 'appearance';
+          isSettingsOpen = true;
+        }}
         class="gap-1.5 text-xs"
         title="Configurações (Aparência, Pastas, Atalhos, Atualizações)"
       >
@@ -2351,10 +2530,10 @@
             settingsInitialTab = 'about';
             isSettingsOpen = true;
           }}
-          class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 text-xs font-semibold animate-pulse transition-colors cursor-pointer"
+          class="min-h-7 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-600/40 dark:border-emerald-500/50 text-emerald-800 dark:text-emerald-300 text-xs font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
           title="Nova versão v{updateInfo.latest_version} disponível! Clique para ver e atualizar."
         >
-          <Sparkles size={13} class="text-emerald-400" />
+          <Sparkles size={13} class="text-emerald-600 dark:text-emerald-400" />
           {#if $previewLabelsStore}
             <span class="hidden sm:inline">Nova Versão</span>
           {/if}
@@ -2368,7 +2547,7 @@
   <div class="flex-1 flex overflow-hidden">
     <!-- COLUNA 1: SIDEBAR DE MÍDIAS / SETLIST (Esquerda) -->
     {#if isSetlistSidebarOpen}
-      <aside class="w-72 lg:w-80 border-r border-border bg-card/30 flex flex-col shrink-0">
+      <aside class="w-60 xl:w-72 2xl:w-80 border-r border-border bg-card/30 flex flex-col shrink-0">
         <!-- Cabeçalho da Setlist com Seletor e Ações -->
         <div class="p-3 border-b border-border space-y-2.5">
           <div class="flex items-center justify-between">
@@ -2384,7 +2563,7 @@
                 title="Alternar ou gerenciar Setlists"
               >
                 <div class="flex items-center gap-1.5 min-w-0">
-                  <Layers size={14} class="text-emerald-400 shrink-0" />
+                  <Layers size={14} class="text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span class="text-xs font-bold text-foreground truncate">
                     {currentSetlistTitle}
                   </span>
@@ -2395,9 +2574,14 @@
               <!-- Dropdown Menu de Setlists -->
               {#if isSetlistSelectorOpen}
                 <div
-                  class="absolute left-0 top-full mt-1 w-64 rounded-xl border border-border bg-card/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-foreground select-none animate-in fade-in zoom-in-95 duration-100"
+                  class="fixed inset-0 z-30"
+                  onclick={() => (isSetlistSelectorOpen = false)}
+                  role="presentation"
+                ></div>
+                <div
+                  class="absolute left-0 top-full mt-1 w-64 rounded-xl border border-border bg-popover/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-popover-foreground select-none animate-in fade-in zoom-in-95 duration-100"
                 >
-                  <div class="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <div class="px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                     Setlists Cadastradas
                   </div>
 
@@ -2410,19 +2594,19 @@
                         class={cn(
                           'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                           s.is_active || s.id === $presentationState.active_setlist_id
-                            ? 'bg-muted text-emerald-400 font-semibold'
+                            ? 'bg-muted text-emerald-700 dark:text-emerald-400 font-semibold'
                             : 'hover:bg-muted/70 text-foreground/90 hover:text-foreground'
                         )}
                       >
                         <div class="min-w-0">
                           <div class="truncate text-xs">{s.title}</div>
                           {#if s.description}
-                            <div class="text-[10px] text-muted-foreground truncate">{s.description}</div>
+                            <div class="text-[11px] text-muted-foreground truncate">{s.description}</div>
                           {/if}
                         </div>
 
                         {#if s.is_active || s.id === $presentationState.active_setlist_id}
-                          <Check size={13} class="text-emerald-400 shrink-0 ml-1.5" />
+                          <Check size={13} class="text-emerald-600 dark:text-emerald-400 shrink-0 ml-1.5" />
                         {/if}
                       </button>
                     {/each}
@@ -2436,7 +2620,7 @@
                     aria-label="Criar nova setlist"
                     class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
-                    <Plus size={13} class="text-emerald-400" />
+                    <Plus size={13} class="text-emerald-600 dark:text-emerald-400" />
                     <span>+ Nova Setlist</span>
                   </button>
 
@@ -2455,9 +2639,9 @@
                     disabled={$mediaItemsList.length === 0}
                     onclick={handleClearSetlist}
                     aria-label="Limpar todos os itens da setlist ativa"
-                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-foreground hover:bg-muted hover:text-amber-300 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-foreground hover:bg-muted hover:text-amber-700 dark:hover:text-amber-300 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
                   >
-                    <Eraser size={13} class="text-amber-400" />
+                    <Eraser size={13} class="text-amber-600 dark:text-amber-400" />
                     <span>Limpar Itens da Setlist</span>
                   </button>
 
@@ -2466,7 +2650,7 @@
                       type="button"
                       onclick={handleDeleteSetlist}
                       aria-label="Excluir setlist atual"
-                      class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-destructive hover:bg-destructive/20 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:outline-none transition-colors cursor-pointer"
+                      class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-destructive hover:bg-destructive/15 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:outline-none transition-colors cursor-pointer"
                     >
                       <Trash2 size={13} />
                       <span>Excluir Setlist</span>
@@ -2485,7 +2669,7 @@
                 aria-expanded={isAddMenuOpen}
                 aria-haspopup="true"
                 onclick={() => (isAddMenuOpen = !isAddMenuOpen)}
-                class="w-8 h-8 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+                class="w-8 h-8 rounded-md bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-400 border border-emerald-600/35 dark:border-emerald-500/35 flex items-center justify-center transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
               >
                 <Plus size={14} />
               </button>
@@ -2503,7 +2687,12 @@
               <!-- Dropdown Menu do Botão + -->
               {#if isAddMenuOpen}
                 <div
-                  class="absolute right-0 top-full mt-1.5 w-48 rounded-xl border border-border bg-card/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-foreground select-none animate-in fade-in zoom-in-95 duration-100"
+                  class="fixed inset-0 z-30"
+                  onclick={() => (isAddMenuOpen = false)}
+                  role="presentation"
+                ></div>
+                <div
+                  class="absolute right-0 top-full mt-1.5 w-56 rounded-xl border border-border bg-popover/95 backdrop-blur-md p-1.5 shadow-2xl z-40 text-xs text-popover-foreground select-none animate-in fade-in zoom-in-95 duration-100"
                 >
                   <button
                     type="button"
@@ -2512,10 +2701,13 @@
                       isCommandPaletteOpen = true;
                     }}
                     aria-label="Adicionar Música via Paleta de Comandos"
-                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
+                    class="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-left hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
-                    <Music size={14} class="text-emerald-400" />
-                    <span>Música (⌘K)</span>
+                    <span class="flex items-center gap-2.5">
+                      <Music size={14} class="text-emerald-600 dark:text-emerald-400" />
+                      <span>Música</span>
+                    </span>
+                    <kbd class="text-[11px] font-mono text-muted-foreground">{shortcutMod}K</kbd>
                   </button>
 
                   <button
@@ -2529,7 +2721,7 @@
                     aria-label="Adicionar Seção ou Divisor"
                     class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
-                    <Bookmark size={14} class="text-cyan-400" />
+                    <Bookmark size={14} class="text-cyan-600 dark:text-cyan-400" />
                     <span>Seção / Divisor</span>
                   </button>
 
@@ -2543,7 +2735,7 @@
                     aria-label="Adicionar Agenda ou Programação dos Cultos"
                     class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
-                    <CalendarDays size={14} class="text-amber-400" />
+                    <CalendarDays size={14} class="text-amber-600 dark:text-amber-400" />
                     <span>Agenda / Programação...</span>
                   </button>
 
@@ -2559,7 +2751,7 @@
                     aria-label="Adicionar Texto Livre ou Apresentação"
                     class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
-                    <FileText size={14} class="text-amber-400" />
+                    <FileText size={14} class="text-amber-600 dark:text-amber-400" />
                     <span>Texto Livre / Apresentação</span>
                   </button>
 
@@ -2593,15 +2785,21 @@
 
                   <div class="h-[1px] bg-border my-1"></div>
 
-                  <div
-                    class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-muted-foreground opacity-50 cursor-not-allowed"
+                  <button
+                    type="button"
+                    onclick={() => {
+                      isAddMenuOpen = false;
+                      handleOpenBibleTab();
+                    }}
+                    aria-label="Abrir busca de Versículo Bíblico"
+                    class="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-left hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors cursor-pointer"
                   >
-                    <div class="flex items-center gap-2.5">
-                      <BookOpen size={14} />
-                      <span>Versículo Bíblico</span>
-                    </div>
-                    <span class="text-[9px] uppercase tracking-wider font-mono">Em breve</span>
-                  </div>
+                    <span class="flex items-center gap-2.5">
+                      <BookOpen size={14} class="text-amber-600 dark:text-amber-400" />
+                      <span>Versículo Bíblico...</span>
+                    </span>
+                    <kbd class="text-[11px] font-mono text-muted-foreground">F4</kbd>
+                  </button>
                 </div>
               {/if}
             </div>
@@ -2613,20 +2811,21 @@
             <input
               type="text"
               bind:value={searchQuery}
-              placeholder="Filtrar setlist (ou ⌘K p/ buscar)..."
+              aria-label="Filtrar itens da setlist"
+              placeholder={`Filtrar setlist (ou ${shortcutMod}K p/ buscar)...`}
               class="w-full h-8 pl-8 pr-8 bg-card border border-border rounded-md text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
             />
             <!-- Botão Toggle de Filtro no Input Group -->
             <button
               type="button"
               onclick={() => (showCategoryFilters = !showCategoryFilters)}
-              aria-label={showCategoryFilters ? 'Ocultar filtros de categoria' : 'Filtrar por categoria (Louvores, Bíblia, Avisos)'}
+              aria-label={showCategoryFilters ? 'Ocultar filtros de categoria' : 'Filtrar por categoria (Louvores, Bíblia, Agenda, Avisos)'}
               aria-expanded={showCategoryFilters}
-              title={showCategoryFilters ? 'Ocultar filtros de categoria' : 'Filtrar por categoria (Louvores, Bíblia, Avisos)'}
+              title={showCategoryFilters ? 'Ocultar filtros de categoria' : 'Filtrar por categoria (Louvores, Bíblia, Agenda, Avisos)'}
               class={cn(
                 'absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                 showCategoryFilters || filterKind !== 'all'
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                  ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-600/40 dark:border-emerald-500/40'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               )}
             >
@@ -2647,11 +2846,12 @@
                 <button
                   type="button"
                   onclick={() => (filterKind = tab.id as any)}
+                  aria-pressed={filterKind === tab.id}
                   aria-label={`Filtrar por ${tab.label}`}
                   class={cn(
-                    'px-2.5 py-1 rounded text-[11px] font-medium transition-colors shrink-0 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
+                    'min-h-7 px-2.5 py-1 rounded text-[11px] font-medium transition-colors shrink-0 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                     filterKind === tab.id
-                      ? 'bg-muted text-emerald-400 font-semibold'
+                      ? 'bg-muted text-emerald-700 dark:text-emerald-300 font-semibold'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
                   )}
                 >
@@ -2663,25 +2863,55 @@
         </div>
 
         <!-- Lista de Itens de Mídia com Reorganização Drag and Drop e Context Menu -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="flex-1 overflow-y-auto p-2.5 space-y-1.5"
+          role="region"
+          aria-label="Lista de itens da setlist"
           oncontextmenu={handleEmptyContextMenu}
         >
           {#each filteredMedia as item, idx (item.id)}
+            {@const realIndex = $mediaItemsList.findIndex((m) => m.id === item.id)}
             <MediaItemRow
               {item}
-              index={idx}
+              index={realIndex === -1 ? idx : realIndex}
               selected={selectedMediaId === item.id}
               isLive={$presentationState.active_media_id === item.id}
               onclick={() => (selectedMediaId = item.id)}
               oncontextmenu={(e) => handleItemContextMenu(e, item)}
               ondragstartitem={(e, i) => (draggedItemIndex = i)}
               ondropitem={(e, targetIdx) => handleDropReorder(draggedItemIndex, targetIdx)}
+              onmoveup={() => void handleMoveItem(item.id, -1)}
+              onmovedown={() => void handleMoveItem(item.id, 1)}
             />
           {:else}
-            <div class="p-6 text-center text-xs text-muted-foreground">
-              Nenhuma mídia encontrada na Setlist. Clique com o botão direito para adicionar.
+            <div class="p-5 text-center text-xs text-muted-foreground space-y-3 border border-dashed border-border/80 rounded-lg m-1">
+              {#if searchQuery.trim() || filterKind !== 'all'}
+                <p>Nenhum item encontrado para o filtro atual.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onclick={() => {
+                    searchQuery = '';
+                    filterKind = 'all';
+                  }}
+                  class="text-xs"
+                >
+                  Limpar filtros
+                </Button>
+              {:else}
+                <p>Nenhum item na Setlist ativa.</p>
+                <div class="flex flex-wrap items-center justify-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onclick={() => (isCommandPaletteOpen = true)}
+                    class="text-xs gap-1"
+                  >
+                    <Plus size={13} />
+                    <span>Adicionar item</span>
+                  </Button>
+                </div>
+              {/if}
             </div>
           {/each}
         </div>
@@ -2698,16 +2928,14 @@
         >
           <PanelLeftOpen size={16} />
         </button>
-        <span
-          class="text-[10px] uppercase font-bold tracking-widest text-muted-foreground [writing-mode:vertical-lr] rotate-180 cursor-pointer hover:text-foreground transition-colors py-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+        <button
+          type="button"
           onclick={() => (isSetlistSidebarOpen = true)}
-          role="button"
-          tabindex="0"
           aria-label="Expandir barra lateral da Setlist"
-          onkeydown={(e) => { if (e.key === 'Enter') isSetlistSidebarOpen = true; }}
+          class="px-1.5 py-2 rounded-md hover:bg-muted text-[11px] uppercase font-bold tracking-widest text-muted-foreground [writing-mode:vertical-lr] rotate-180 cursor-pointer hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
         >
           Setlist ({$mediaItemsList.length})
-        </span>
+        </button>
       </aside>
     {/if}
 
@@ -2725,145 +2953,161 @@
         <div
           id={`slide-card-${item.id}-${idx}`}
           class={cn(
-            'group flex flex-col rounded-lg border transition-all duration-150 overflow-hidden cursor-pointer select-none relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
+            'group flex flex-col rounded-lg border transition-all duration-150 overflow-hidden select-none relative',
             isLive
-              ? 'border-emerald-500 bg-card shadow-lg ring-2 ring-emerald-500/50'
+              ? 'border-emerald-600 dark:border-emerald-500 bg-card shadow-lg ring-2 ring-emerald-500/45'
               : isFocused
-                ? 'border-sky-500 bg-card shadow-md ring-2 ring-sky-500/40'
+                ? 'border-sky-600 dark:border-sky-500 bg-card shadow-md ring-2 ring-sky-500/40'
                 : 'border-border bg-card/60 hover:border-border hover:bg-muted/70'
           )}
-          onclick={() => {
-            selectedMediaId = item.id;
-            selectSlideForFocus(idx);
-          }}
-          ondblclick={() => {
-            selectedMediaId = item.id;
-            focusedSlideIndex = idx;
-            selectSlide(item.id, idx);
-          }}
-          oncontextmenu={(e) => handleSlideCardContextMenu(e, slide, idx, item)}
-          role="button"
-          tabindex="0"
-          aria-label={`Slide ${idx + 1}: ${slide.label}`}
-          onkeydown={(e) => {
-            if (e.key === 'Enter') {
+        >
+          <button
+            type="button"
+            onclick={() => {
+              selectedMediaId = item.id;
+              selectSlideForFocus(idx);
+            }}
+            ondblclick={() => {
               selectedMediaId = item.id;
               focusedSlideIndex = idx;
               selectSlide(item.id, idx);
-            }
-          }}
-        >
-          <!-- Cabeçalho do Cartão do Slide com Cores Customizadas de Seção -->
-          <div
-            class={cn(
-              'px-3 py-1.5 border-b flex items-center justify-between text-xs',
-              sectionStyle.bg,
-              sectionStyle.border
-            )}
+            }}
+            oncontextmenu={(e) => handleSlideCardContextMenu(e, slide, idx, item)}
+            aria-label={`Slide ${idx + 1}: ${slide.label}${isLive ? ' (Ao vivo)' : ''}`}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                selectedMediaId = item.id;
+                focusedSlideIndex = idx;
+                selectSlide(item.id, idx);
+              }
+            }}
+            class="w-full flex flex-col text-left cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary focus-visible:outline-none"
           >
-            <span class={cn('font-semibold flex items-center gap-1.5', sectionStyle.text)}>
-              <span
-                class="w-4 h-4 rounded-full bg-black/40 text-white flex items-center justify-center text-[10px] font-mono"
-              >
-                {idx + 1}
+            <!-- Cabeçalho do Cartão do Slide com Cores Customizadas de Seção -->
+            <div
+              class={cn(
+                'w-full px-3 py-1.5 border-b flex items-center justify-between gap-2 text-xs',
+                sectionStyle.bg,
+                sectionStyle.border
+              )}
+            >
+              <span class={cn('font-semibold flex items-center gap-1.5 min-w-0 truncate', sectionStyle.text)}>
+                <span
+                  class="min-w-5 h-5 px-1 rounded-full bg-black/55 text-white flex items-center justify-center text-[11px] font-mono shrink-0"
+                >
+                  {idx + 1}
+                </span>
+                <span class="truncate">{slide.label}</span>
               </span>
-              {slide.label}
-            </span>
 
-            <div class="flex items-center gap-1">
-              {#if isLive}
-                <Badge variant="live" class="text-[10px] py-0 px-1.5 animate-pulse">
-                  AO VIVO
-                </Badge>
-              {:else if isFocused}
-                <Badge variant="secondary" class="text-[10px] py-0 px-1.5 border-sky-500/40 text-sky-400 bg-sky-950/40">
-                  FOCADO
-                </Badge>
-              {/if}
+              <div class="flex items-center gap-1 shrink-0">
+                {#if isLive}
+                  <Badge variant="live" class="text-[11px] py-0 px-1.5">
+                    AO VIVO
+                  </Badge>
+                {:else if isFocused}
+                  <Badge variant="secondary" class="text-[11px] py-0 px-1.5 border-sky-600/40 dark:border-sky-500/40 text-sky-700 dark:text-sky-300 bg-sky-500/15">
+                    FOCADO
+                  </Badge>
+                {/if}
+              </div>
             </div>
-          </div>
 
-          <!-- Conteúdo Visual do Slide (Proporção 16:9) -->
-          {#if item.kind === 'image'}
-            <div class="aspect-video w-full bg-black/80 flex items-center justify-center relative overflow-hidden">
-              <img src={slide.content} alt={item.title} class="w-full h-full object-contain" />
-              <span class="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground font-mono bg-black/60 px-1 rounded">
-                Imagem 16:9
-              </span>
-            </div>
-          {:else if item.kind === 'video'}
-            <div class="aspect-video w-full bg-black/80 flex items-center justify-center relative overflow-hidden group/vid">
-              <!-- svelte-ignore a11y_media_has_caption -->
-              <video src={slide.content} class="w-full h-full object-contain" preload="metadata" muted></video>
-              <div class="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
-                <div class="w-10 h-10 rounded-full bg-purple-600/80 text-white flex items-center justify-center shadow-lg">
-                  <Film size={18} />
+            <!-- Conteúdo Visual do Slide (Proporção 16:9) -->
+            {#if item.kind === 'image'}
+              <div class="aspect-video w-full bg-neutral-950 flex items-center justify-center relative overflow-hidden">
+                <img src={slide.content} alt={item.title} class="w-full h-full object-contain" />
+                <span class="absolute bottom-1.5 right-2 text-[11px] text-neutral-200 font-mono bg-black/75 px-1.5 py-0.5 rounded">
+                  Imagem 16:9
+                </span>
+              </div>
+            {:else if item.kind === 'video'}
+              <div class="aspect-video w-full bg-neutral-950 flex items-center justify-center relative overflow-hidden group/vid">
+                <video src={slide.content} class="w-full h-full object-contain" preload="metadata" muted>
+                  <track kind="captions" label="Visualização de vídeo" />
+                </video>
+                <div class="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
+                  <div class="w-10 h-10 rounded-full bg-purple-600/85 text-white flex items-center justify-center shadow-lg">
+                    <Film size={18} />
+                  </div>
                 </div>
+                <span class="absolute bottom-1.5 right-2 text-[11px] text-purple-200 font-mono bg-black/75 px-1.5 py-0.5 rounded border border-purple-500/40">
+                  Vídeo 16:9
+                </span>
               </div>
-              <span class="absolute bottom-1.5 right-2 text-[10px] text-purple-300 font-mono bg-black/70 px-1.5 py-0.5 rounded border border-purple-500/30">
-                Vídeo 16:9
-              </span>
-            </div>
-          {:else if item.kind === 'audio'}
-            <div class="aspect-video w-full bg-indigo-950/40 border border-indigo-500/20 flex flex-col items-center justify-center relative overflow-hidden p-3 gap-2">
-              <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center shadow-md">
-                <Volume2 size={24} />
-              </div>
-              <p class="text-xs font-semibold text-indigo-200 truncate max-w-full">{item.title}</p>
-              <audio src={slide.content} controls class="w-full max-w-[220px] h-7 scale-90" preload="none"></audio>
-            </div>
-          {:else if item.kind === 'timer'}
-            {@const secs = parseInt(slide.content || '0', 10)}
-            <div class="aspect-video w-full bg-rose-950/30 border border-rose-500/20 flex flex-col items-center justify-center relative overflow-hidden p-3 gap-1">
-              <div class="flex items-center gap-1.5 text-rose-400 font-semibold text-[11px] uppercase tracking-wider">
-                <Hourglass size={12} />
-                <span>{item.title || 'Cronômetro'}</span>
-              </div>
-              <div class="text-3xl sm:text-4xl font-mono font-black text-rose-300 tracking-tight">
-                {formatDuration(isNaN(secs) ? 0 : secs)}
-              </div>
-              {#if slide.lower_content}
-                <div class="text-[10px] text-rose-300/80 truncate max-w-[90%]">
-                  {slide.lower_content}
+            {:else if item.kind === 'audio'}
+              <div class="w-full bg-indigo-500/12 flex flex-col items-center justify-center relative overflow-hidden px-3 py-4 gap-2">
+                <div class="w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-700 dark:text-indigo-300 flex items-center justify-center shadow-xs">
+                  <Volume2 size={22} />
                 </div>
-              {/if}
-            </div>
-          {:else}
-            <div class="aspect-video w-full p-4 flex flex-col bg-black/60 relative overflow-hidden">
-              <div
-                class={cn(
-                  'w-full h-full flex flex-col leading-tight',
-                  (slide.align_h || item.align_h) === 'left'
-                    ? 'text-left items-start'
-                    : (slide.align_h || item.align_h) === 'right'
-                      ? 'text-right items-end'
-                      : (slide.align_h || item.align_h) === 'justify'
-                        ? 'text-justify items-center'
-                        : 'text-center items-center',
-                  (slide.align_v || item.align_v) === 'top'
-                    ? 'justify-start'
-                    : (slide.align_v || item.align_v) === 'bottom'
-                      ? 'justify-end'
-                      : 'justify-center'
-                )}
-              >
+                <p class="text-xs font-semibold text-foreground truncate max-w-full">{item.title}</p>
+              </div>
+            {:else if item.kind === 'timer'}
+              {@const secs = parseInt(slide.content || '0', 10)}
+              <div class="aspect-video w-full bg-rose-950/90 dark:bg-rose-950/50 border-t border-rose-500/25 flex flex-col items-center justify-center relative overflow-hidden p-3 gap-1">
+                <div class="flex items-center gap-1.5 text-rose-200 font-semibold text-[11px] uppercase tracking-wider">
+                  <Hourglass size={12} />
+                  <span>{item.title || 'Cronômetro'}</span>
+                </div>
+                <div class="text-3xl sm:text-4xl font-mono font-black text-white tracking-tight">
+                  {formatDuration(isNaN(secs) ? 0 : secs)}
+                </div>
+                {#if slide.lower_content}
+                  <div class="text-[11px] text-rose-200/85 truncate max-w-[90%]">
+                    {slide.lower_content}
+                  </div>
+                {/if}
+              </div>
+            {:else}
+              <div class="aspect-video w-full p-4 flex flex-col bg-neutral-950 relative overflow-hidden">
                 <div
                   class={cn(
-                    'text-xs sm:text-sm font-semibold select-none leading-relaxed',
-                    isLive
-                      ? 'text-emerald-200'
-                      : isFocused
-                        ? 'text-white'
-                        : 'text-foreground/90 group-hover:text-foreground'
+                    'w-full h-full flex flex-col leading-tight',
+                    (slide.align_h || item.align_h) === 'left'
+                      ? 'text-left items-start'
+                      : (slide.align_h || item.align_h) === 'right'
+                        ? 'text-right items-end'
+                        : (slide.align_h || item.align_h) === 'justify'
+                          ? 'text-justify items-center'
+                          : 'text-center items-center',
+                    (slide.align_v || item.align_v) === 'top'
+                      ? 'justify-start'
+                      : (slide.align_v || item.align_v) === 'bottom'
+                        ? 'justify-end'
+                        : 'justify-center'
                   )}
                 >
-                  {@html renderFormattedText(slide.content)}
+                  <div
+                    class={cn(
+                      'text-xs sm:text-sm font-semibold select-none leading-relaxed',
+                      isLive
+                        ? 'text-emerald-200'
+                        : isFocused
+                          ? 'text-white'
+                          : 'text-neutral-100'
+                    )}
+                  >
+                    {@html renderFormattedText(slide.content)}
+                  </div>
                 </div>
-              </div>
 
-              <span class="absolute bottom-1.5 right-2 text-[10px] text-muted-foreground/60 font-mono">
-                16:9
-              </span>
+                <span class="absolute bottom-1.5 right-2 text-[11px] text-neutral-300/80 font-mono">
+                  16:9
+                </span>
+              </div>
+            {/if}
+          </button>
+
+          {#if item.kind === 'audio'}
+            <div class="px-3 py-2 bg-indigo-500/10 border-t border-indigo-500/25 flex justify-center">
+              <audio
+                src={slide.content}
+                controls
+                aria-label={`Reproduzir prévia de áudio: ${item.title}`}
+                class="w-full max-w-[230px] h-8"
+                preload="none"
+              ></audio>
             </div>
           {/if}
         </div>
@@ -2877,10 +3121,10 @@
         <div class="h-14 px-5 border-b border-border bg-card/40 flex items-center justify-between shrink-0 gap-3">
           <div class="min-w-0 flex items-center gap-2">
             <h2 class="text-sm font-bold text-foreground truncate leading-tight flex items-center gap-1.5">
-              <Rows3 size={15} class="text-sky-400 shrink-0" />
+              <Rows3 size={15} class="text-sky-600 dark:text-sky-400 shrink-0" />
               <span>{currentSetlistTitle}</span>
             </h2>
-            <Badge variant="outline" class="text-[10px] py-0 px-1.5 border-sky-500/30 text-sky-400 bg-sky-950/30">
+            <Badge variant="outline" class="text-[11px] py-0 px-1.5 border-sky-600/35 dark:border-sky-500/35 text-sky-700 dark:text-sky-300 bg-sky-500/15">
               Fluxo Contínuo
             </Badge>
             <span class="text-xs text-muted-foreground hidden sm:inline">
@@ -2958,7 +3202,8 @@
               <button
                 type="button"
                 onclick={() => setSetlistViewMode('item')}
-                class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer text-muted-foreground hover:text-foreground"
+                aria-pressed={false}
+                class="flex items-center gap-1 min-h-7 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                 title="Alternar para Modo Item Focado"
               >
                 <LayoutGrid size={13} />
@@ -2967,10 +3212,11 @@
               <button
                 type="button"
                 onclick={() => setSetlistViewMode('flow')}
-                class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer bg-background text-foreground shadow-xs"
+                aria-pressed={true}
+                class="flex items-center gap-1 min-h-7 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer bg-background text-foreground shadow-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                 title="Modo Fluxo Contínuo ProPresenter ativo"
               >
-                <Rows3 size={13} class="text-sky-400" />
+                <Rows3 size={13} class="text-sky-600 dark:text-sky-400" />
                 <span class="hidden lg:inline">Fluxo</span>
               </button>
             </div>
@@ -2987,7 +3233,7 @@
               class={cn(
                 'rounded-xl border transition-all duration-200 overflow-hidden',
                 isSectionCompleted
-                  ? 'border-emerald-800/40 bg-card/30 opacity-75'
+                  ? 'border-emerald-600/40 dark:border-emerald-800/50 bg-card/40 opacity-80'
                   : 'border-border/80 bg-card/60 shadow-xs'
               )}
             >
@@ -2996,15 +3242,17 @@
                 class={cn(
                   'px-3.5 py-2.5 flex items-center justify-between select-none transition-colors border-b',
                   isSectionCompleted
-                    ? 'bg-emerald-950/25 border-emerald-900/30 text-emerald-200'
-                    : 'bg-sky-950/40 border-sky-900/40 text-foreground'
+                    ? 'bg-emerald-500/12 border-emerald-600/30 dark:border-emerald-900/40 text-foreground'
+                    : 'bg-sky-500/12 border-sky-600/30 dark:border-sky-900/40 text-foreground'
                 )}
               >
                 <div class="flex items-center gap-2.5 min-w-0">
                   <button
                     type="button"
                     onclick={() => toggleCollapseSection(group.id)}
-                    class="p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-white transition-colors cursor-pointer"
+                    aria-expanded={!isSectionCollapsed}
+                    aria-label={isSectionCollapsed ? `Expandir seção ${group.title}` : `Recolher seção ${group.title}`}
+                    class="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                     title={isSectionCollapsed ? 'Expandir Seção' : 'Recolher Seção'}
                   >
                     {#if isSectionCollapsed}
@@ -3015,18 +3263,18 @@
                   </button>
 
                   <div class="flex items-center gap-2 min-w-0">
-                    <Bookmark size={15} class={isSectionCompleted ? 'text-emerald-400' : 'text-sky-400'} />
+                    <Bookmark size={15} class={isSectionCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-sky-600 dark:text-sky-400'} />
                     <h3 class={cn('font-bold text-sm tracking-tight truncate', isSectionCompleted && 'line-through text-muted-foreground')}>
                       {group.title}
                     </h3>
                   </div>
 
                   <div class="flex items-center gap-1.5 shrink-0 ml-1">
-                    <span class="text-[11px] font-mono text-muted-foreground bg-black/30 px-2 py-0.5 rounded">
+                    <span class="text-[11px] font-mono text-muted-foreground bg-muted/80 border border-border/60 px-2 py-0.5 rounded">
                       {group.items.length} {group.items.length === 1 ? 'item' : 'itens'} • {group.totalSlides} slides
                     </span>
                     {#if isSectionCompleted}
-                      <Badge variant="live" class="text-[10px] py-0 px-1.5 gap-1 bg-emerald-900/60 text-emerald-300 border border-emerald-600/40">
+                      <Badge variant="success" class="text-[11px] py-0 px-1.5 gap-1">
                         <Check size={11} /> Concluído
                       </Badge>
                     {/if}
@@ -3052,15 +3300,17 @@
                   <button
                     type="button"
                     onclick={() => toggleCompleteSection(group.id)}
+                    aria-pressed={isSectionCompleted}
+                    aria-label={isSectionCompleted ? `Desmarcar conclusão da seção ${group.title}` : `Marcar seção ${group.title} como concluída`}
                     class={cn(
-                      'p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer',
+                      'min-w-7 min-h-7 p-1.5 rounded-lg border text-xs font-semibold flex items-center justify-center transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                       isSectionCompleted
-                        ? 'border-emerald-600/50 bg-emerald-900/40 text-emerald-300 hover:bg-emerald-800/50'
-                        : 'border-border/70 bg-card/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+                        ? 'border-emerald-600/50 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/25'
+                        : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted'
                     )}
                     title={isSectionCompleted ? 'Marcar seção como não concluída' : 'Marcar seção como concluída (recolhe automaticamente)'}
                   >
-                    <CheckCircle2 size={14} class={isSectionCompleted ? 'text-emerald-400' : 'text-muted-foreground'} />
+                    <CheckCircle2 size={14} class={isSectionCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'} />
                   </button>
                 </div>
               </div>
@@ -3068,7 +3318,7 @@
               <!-- ITENS DA SEÇÃO -->
               {#if !isSectionCollapsed}
                 <div class="p-3.5 space-y-4">
-                  {#each group.items as item, itemIdx (item.id)}
+                  {#each group.items as item (item.id)}
                     {@const isItemCompleted = !!completedItemIds[item.id]}
                     {@const isItemCollapsed = !!collapsedItemIds[item.id]}
                     {@const isItemLive = $presentationState.active_media_id === item.id && $presentationState.display_mode === 'live'}
@@ -3077,19 +3327,21 @@
                       class={cn(
                         'rounded-lg border transition-all duration-150 overflow-hidden',
                         isItemLive
-                          ? 'border-emerald-500/80 bg-neutral-900/80 shadow-md ring-1 ring-emerald-500/40'
+                          ? 'border-emerald-600 dark:border-emerald-500 bg-card shadow-md ring-1 ring-emerald-500/40'
                           : isItemCompleted
-                            ? 'border-neutral-800/60 bg-neutral-950/40 opacity-70'
-                            : 'border-neutral-800/80 bg-neutral-900/50 hover:border-neutral-700/80'
+                            ? 'border-border/70 bg-card/40 opacity-75'
+                            : 'border-border bg-card hover:border-border/90'
                       )}
                     >
                       <!-- BARRA DE CABEÇALHO DO ITEM (Estilo ProPresenter Item Bar) -->
-                      <div class="px-3 py-2 bg-neutral-900/90 border-b border-neutral-800/80 flex items-center justify-between gap-2 select-none">
+                      <div class="px-3 py-2 bg-muted/40 border-b border-border flex items-center justify-between gap-2 select-none">
                         <div class="flex items-center gap-2 min-w-0">
                           <button
                             type="button"
                             onclick={() => toggleCollapseItem(item.id)}
-                            class="p-0.5 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                            aria-expanded={!isItemCollapsed}
+                            aria-label={isItemCollapsed ? `Expandir slides de ${item.title}` : `Recolher slides de ${item.title}`}
+                            class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                             title={isItemCollapsed ? 'Expandir slides do item' : 'Recolher slides do item'}
                           >
                             {#if isItemCollapsed}
@@ -3099,46 +3351,46 @@
                             {/if}
                           </button>
 
-                          <div class="w-5 h-5 rounded-md flex items-center justify-center shrink-0 bg-neutral-800 text-neutral-300">
+                          <div class="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-muted text-foreground border border-border/60">
                             {#if item.kind === 'song'}
-                              <Music size={12} class="text-sky-400" />
+                              <Music size={12} class="text-sky-600 dark:text-sky-400" />
                             {:else if item.kind === 'scripture'}
-                              <BookOpen size={12} class="text-amber-400" />
+                              <BookOpen size={12} class="text-amber-600 dark:text-amber-400" />
                             {:else if item.kind === 'image'}
-                              <ImageIcon size={12} class="text-emerald-400" />
+                              <ImageIcon size={12} class="text-emerald-600 dark:text-emerald-400" />
                             {:else if item.kind === 'video'}
-                              <Film size={12} class="text-purple-400" />
+                              <Film size={12} class="text-purple-600 dark:text-purple-400" />
                             {:else if item.kind === 'audio'}
-                              <Volume2 size={12} class="text-indigo-400" />
+                              <Volume2 size={12} class="text-indigo-600 dark:text-indigo-400" />
                             {:else if item.kind === 'timer'}
-                              <Hourglass size={12} class="text-rose-400" />
+                              <Hourglass size={12} class="text-rose-600 dark:text-rose-400" />
                             {:else}
-                              <FileText size={12} class="text-neutral-400" />
+                              <FileText size={12} class="text-muted-foreground" />
                             {/if}
                           </div>
 
-                          <span class="font-bold text-xs text-neutral-200 truncate {isItemCompleted ? 'line-through text-neutral-500' : ''}">
+                          <span class="font-bold text-xs text-foreground truncate {isItemCompleted ? 'line-through text-muted-foreground' : ''}">
                             {item.title}
                           </span>
 
                           {#if item.artist_or_ref}
-                            <span class="text-[11px] text-neutral-400 truncate hidden sm:inline">
+                            <span class="text-[11px] text-muted-foreground truncate hidden sm:inline">
                               • {item.artist_or_ref}
                             </span>
                           {/if}
 
-                          <span class="text-[10px] text-neutral-500 font-mono shrink-0 ml-1">
+                          <span class="text-[11px] text-muted-foreground font-mono shrink-0 ml-1">
                             ({item.slides ? item.slides.length : 0} {item.slides && item.slides.length === 1 ? 'slide' : 'slides'})
                           </span>
 
                           {#if isItemLive}
-                            <Badge variant="live" class="text-[9px] py-0 px-1.5 animate-pulse">
+                            <Badge variant="live" class="text-[11px] py-0 px-1.5">
                               NO AR
                             </Badge>
                           {/if}
 
                           {#if isItemCompleted}
-                            <Badge variant="outline" class="text-[9px] py-0 px-1.5 border-emerald-800 text-emerald-400 bg-emerald-950/30">
+                            <Badge variant="success" class="text-[11px] py-0 px-1.5">
                               ✓ Concluído
                             </Badge>
                           {/if}
@@ -3156,7 +3408,7 @@
                                 focusedSlideIndex = 0;
                                 selectSlide(item.id, 0);
                               }}
-                              class="h-6 px-2 text-[11px] gap-1 font-medium"
+                              class="h-7 px-2.5 text-[11px] gap-1 font-medium"
                               title="Iniciar apresentação deste item no telão"
                             >
                               <Play size={10} class="fill-current" />
@@ -3168,11 +3420,13 @@
                           <button
                             type="button"
                             onclick={() => toggleCompleteItem(item.id)}
+                            aria-pressed={isItemCompleted}
+                            aria-label={isItemCompleted ? `Desmarcar conclusão de ${item.title}` : `Marcar ${item.title} como concluído`}
                             class={cn(
-                              'p-1 rounded border text-xs transition-colors cursor-pointer',
+                              'w-7 h-7 rounded border text-xs flex items-center justify-center transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                               isItemCompleted
-                                ? 'border-emerald-600/50 bg-emerald-950/60 text-emerald-400'
-                                : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
+                                ? 'border-emerald-600/50 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                                : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted'
                             )}
                             title={isItemCompleted ? 'Desmarcar conclusão' : 'Marcar item como concluído'}
                           >
@@ -3183,7 +3437,7 @@
 
                       <!-- GRADE DE SLIDES DO ITEM -->
                       {#if !isItemCollapsed}
-                        <div class="p-3 bg-neutral-950/50">
+                        <div class="p-3 bg-muted/20">
                           {#if item.slides && item.slides.length > 0}
                             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
                               {#each item.slides as slide, sIdx (slide.id)}
@@ -3224,18 +3478,30 @@
                 <h2 class="text-base font-bold text-foreground truncate leading-tight">
                   {selectedMedia.title}
                 </h2>
-                <Badge variant="default" class="text-[10px] py-0 px-1.5">
-                  {selectedMedia.kind === 'song' ? 'Louvor' : selectedMedia.kind === 'scripture' ? 'Bíblia' : selectedMedia.kind === 'header' ? 'Seção' : 'Aviso'}
+                <Badge variant="default" class="text-[11px] py-0 px-1.5">
+                  {({
+                    song: 'Louvor',
+                    scripture: 'Bíblia',
+                    header: 'Seção',
+                    image: 'Imagem',
+                    video: 'Vídeo',
+                    audio: 'Áudio',
+                    timer: 'Cronômetro',
+                    schedule: 'Agenda',
+                    text: 'Texto',
+                    announcement: 'Aviso',
+                    media: 'Mídia',
+                  } as Record<string, string>)[selectedMedia.kind] ?? 'Mídia'}
                 </Badge>
                 {#if isSelectedMediaLive}
-                  <Badge variant="live" class="text-[10px] py-0 px-1.5 animate-pulse">
+                  <Badge variant="live" class="text-[11px] py-0 px-1.5">
                     NO AR
                   </Badge>
                 {/if}
                 {#if selectedMedia.lower_image_url}
                   <Badge
                     variant="outline"
-                    class="text-[10px] py-0 px-1.5 text-emerald-400 border-emerald-500/40 bg-emerald-950/40 gap-1 flex items-center"
+                    class="text-[11px] py-0 px-1.5 text-emerald-800 dark:text-emerald-300 border-emerald-600/35 dark:border-emerald-500/40 bg-emerald-500/15 gap-1 flex items-center"
                     title="Possui imagem alternativa para Lower Third"
                   >
                     <ImageIcon size={11} />
@@ -3318,7 +3584,8 @@
                 <button
                   type="button"
                   onclick={() => setSetlistViewMode('item')}
-                  class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer bg-background text-foreground shadow-xs"
+                  aria-pressed={true}
+                  class="flex items-center gap-1 min-h-7 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer bg-background text-foreground shadow-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                   title="Modo Item Focado ativo"
                 >
                   <LayoutGrid size={13} />
@@ -3327,7 +3594,8 @@
                 <button
                   type="button"
                   onclick={() => setSetlistViewMode('flow')}
-                  class="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer text-muted-foreground hover:text-foreground"
+                  aria-pressed={false}
+                  class="flex items-center gap-1 min-h-7 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                   title="Alternar para Modo Fluxo Contínuo ProPresenter"
                 >
                   <Rows3 size={13} />
@@ -3338,8 +3606,12 @@
           </div>
 
           <!-- Grade de Slides do Item Selecionado (Aspect Ratio 16:9) -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div class="flex-1 overflow-y-auto p-5" oncontextmenu={handleSlidesGridContextMenu}>
+          <div
+            class="flex-1 overflow-y-auto p-5"
+            role="region"
+            aria-label="Grade de slides"
+            oncontextmenu={handleSlidesGridContextMenu}
+          >
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {#each selectedMedia.slides as slide, idx (slide.id)}
                 {@render renderSlideCard(selectedMedia, slide, idx)}
@@ -3347,7 +3619,7 @@
             </div>
           </div>
         {:else}
-          <div class="flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm gap-3">
+          <div class="flex-1 flex flex-col items-center justify-center text-muted-foreground text-sm gap-3 p-6 text-center">
             <span>Selecione uma mídia na setlist para visualizar os slides.</span>
             <Button
               variant="outline"
@@ -3365,17 +3637,18 @@
 
     <!-- COLUNA 3: PAINEL DE PREVIEWS (PUBLIC E STAGE - 16:9) -->
     {#if isPreviewSidebarOpen}
-      <aside class="w-80 lg:w-96 border-l border-border bg-card/30 flex flex-col shrink-0 overflow-y-auto">
+      <aside class="w-72 xl:w-80 2xl:w-96 border-l border-border bg-card/30 flex flex-col shrink-0 overflow-y-auto">
         <!-- Botões de Controle Global da Projeção e Botão Fechar Sidebar -->
         <div class="p-3 border-b border-border {isOutputControlsCollapsed ? 'py-2.5' : 'space-y-2'} bg-card/60 shrink-0 transition-all">
           <div class="flex items-center justify-between">
             <button
               type="button"
               onclick={toggleOutputControlsCollapse}
-              class="flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors cursor-pointer select-none group"
+              aria-expanded={!isOutputControlsCollapsed}
+              class="min-h-6 flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors cursor-pointer select-none group focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded"
               title={isOutputControlsCollapsed ? 'Expandir controle de saídas' : 'Recolher controle de saídas'}
             >
-              <Radio size={14} class="text-emerald-400 group-hover:text-primary transition-colors" />
+              <Radio size={14} class="text-emerald-600 dark:text-emerald-400 group-hover:text-primary transition-colors" />
               <span>Controle de Saídas</span>
               <ChevronDown size={13} class="text-muted-foreground group-hover:text-foreground transition-transform duration-200 {isOutputControlsCollapsed ? '-rotate-90' : ''}" />
             </button>
@@ -3391,18 +3664,19 @@
           </div>
 
           {#if !isOutputControlsCollapsed}
-            <div class="grid grid-cols-5 gap-1 pt-0.5 animate-in fade-in duration-150">
+            <div class="grid grid-cols-4 gap-1.5 pt-0.5 animate-in fade-in duration-150">
               <!-- Botão Ao Vivo -->
               <Button
                 variant={$presentationState.display_mode === 'live' && $presentationState.active_media_id ? 'live' : 'secondary'}
                 size="sm"
+                aria-pressed={$presentationState.display_mode === 'live' && Boolean($presentationState.active_media_id)}
                 onclick={() => setDisplayMode('live')}
-                class="text-xs px-1 flex items-center justify-center gap-1"
+                class="min-h-8 text-[11px] px-1.5 flex items-center justify-center gap-1 whitespace-nowrap"
                 title="Colocar projeção ao vivo"
               >
                 <Radio size={$previewLabelsStore ? 12 : 14} />
                 {#if $previewLabelsStore}
-                  <span class="truncate text-[10px]">Ao Vivo</span>
+                  <span class="truncate">Ao Vivo</span>
                 {/if}
               </Button>
 
@@ -3411,12 +3685,12 @@
                 variant="secondary"
                 size="sm"
                 onclick={stopPresentation}
-                class="text-xs px-1 hover:bg-red-950/40 hover:text-red-400 flex items-center justify-center gap-1"
+                class="min-h-8 text-[11px] px-1.5 hover:bg-destructive/15 hover:text-destructive flex items-center justify-center gap-1 whitespace-nowrap"
                 title="Parar apresentação (Esc)"
               >
-                <Square size={$previewLabelsStore ? 12 : 14} class="text-red-400" />
+                <Square size={$previewLabelsStore ? 12 : 14} class="text-destructive" />
                 {#if $previewLabelsStore}
-                  <span class="truncate text-[10px]">Parar</span>
+                  <span class="truncate">Parar</span>
                 {/if}
               </Button>
 
@@ -3424,41 +3698,29 @@
               <Button
                 variant={$presentationState.display_mode === 'blackout' ? 'destructive' : 'secondary'}
                 size="sm"
+                aria-pressed={$presentationState.display_mode === 'blackout'}
                 onclick={toggleBlackout}
-                class="text-xs px-1 flex items-center justify-center gap-1"
+                class="min-h-8 text-[11px] px-1.5 flex items-center justify-center gap-1 whitespace-nowrap"
                 title="Blackout total (. ou Alt+B ou F1)"
               >
                 <EyeOff size={$previewLabelsStore ? 12 : 14} />
                 {#if $previewLabelsStore}
-                  <span class="truncate text-[10px]">Black</span>
+                  <span class="truncate">Blackout</span>
                 {/if}
               </Button>
 
-              <!-- Botão Limpar Texto -->
+              <!-- Botão Só Fundo / Ocultar Texto -->
               <Button
                 variant={$presentationState.display_mode === 'cleartext' ? 'default' : 'secondary'}
                 size="sm"
+                aria-pressed={$presentationState.display_mode === 'cleartext'}
                 onclick={toggleClearText}
-                class="text-xs px-1 flex items-center justify-center gap-1"
-                title="Ocultar texto (, ou Alt+C ou F2)"
-              >
-                <Slash size={$previewLabelsStore ? 12 : 14} />
-                {#if $previewLabelsStore}
-                  <span class="truncate text-[10px]">Limpar</span>
-                {/if}
-              </Button>
-
-              <!-- Botão Papel de Parede / Fundo -->
-              <Button
-                variant={$presentationState.display_mode === 'cleartext' && $presentationState.wallpaper_path ? 'default' : 'secondary'}
-                size="sm"
-                onclick={() => setDisplayMode('cleartext')}
-                class="text-xs px-1 flex items-center justify-center gap-1"
-                title="Tela de repouso / Papel de parede (/ ou Alt+W ou F3)"
+                class="min-h-8 text-[11px] px-1.5 flex items-center justify-center gap-1 whitespace-nowrap"
+                title="Ocultar texto / Só Fundo (, ou Alt+C ou / ou F2/F3)"
               >
                 <ImageIcon size={$previewLabelsStore ? 12 : 14} />
                 {#if $previewLabelsStore}
-                  <span class="truncate text-[10px]">Fundo</span>
+                  <span class="truncate">Só Fundo</span>
                 {/if}
               </Button>
             </div>
@@ -3471,10 +3733,11 @@
             <button
               type="button"
               onclick={togglePublicPreviewCollapse}
-              class="flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors cursor-pointer select-none group"
+              aria-expanded={!isPublicPreviewCollapsed}
+              class="min-h-6 flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors cursor-pointer select-none group focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded"
               title={isPublicPreviewCollapsed ? 'Expandir preview da tela pública' : 'Recolher preview da tela pública'}
             >
-              <MonitorPlay size={14} class="text-emerald-400 group-hover:text-primary transition-colors" />
+              <MonitorPlay size={14} class="text-emerald-600 dark:text-emerald-400 group-hover:text-primary transition-colors" />
               <span>Public (Projetor)</span>
               <ChevronDown size={13} class="text-muted-foreground group-hover:text-foreground transition-transform duration-200 {isPublicPreviewCollapsed ? '-rotate-90' : ''}" />
             </button>
@@ -3484,12 +3747,12 @@
                 type="button"
                 onclick={() => reloadOutputs('public')}
                 aria-label="Recarregar tela pública (projetor) remotamente"
-                class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                class="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                 title="Recarregar tela pública (projetor) remotamente"
               >
                 <RefreshCw size={12} />
               </button>
-              <Badge variant={$presentationState.public_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
+              <Badge variant={$presentationState.public_connected ? 'success' : 'secondary'} class="text-[11px] py-0 px-1.5">
                 {$presentationState.public_connected ? 'Conectado' : 'Aguardando'}
               </Badge>
             </div>
@@ -3519,10 +3782,11 @@
             <button
               type="button"
               onclick={toggleStagePreviewCollapse}
-              class="flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors cursor-pointer select-none group"
+              aria-expanded={!isStagePreviewCollapsed}
+              class="min-h-6 flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors cursor-pointer select-none group focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded"
               title={isStagePreviewCollapsed ? 'Expandir preview do monitor de palco' : 'Recolher preview do monitor de palco'}
             >
-              <Tv size={14} class="text-emerald-400 group-hover:text-primary transition-colors" />
+              <Tv size={14} class="text-emerald-600 dark:text-emerald-400 group-hover:text-primary transition-colors" />
               <span>Stage (Retorno Palco)</span>
               <ChevronDown size={13} class="text-muted-foreground group-hover:text-foreground transition-transform duration-200 {isStagePreviewCollapsed ? '-rotate-90' : ''}" />
             </button>
@@ -3532,12 +3796,12 @@
                 type="button"
                 onclick={() => reloadOutputs('stage')}
                 aria-label="Recarregar tela de retorno de palco remotamente"
-                class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                class="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                 title="Recarregar tela de retorno de palco remotamente"
               >
                 <RefreshCw size={12} />
               </button>
-              <Badge variant={$presentationState.stage_connected ? 'success' : 'secondary'} class="text-[10px] py-0 px-1.5">
+              <Badge variant={$presentationState.stage_connected ? 'success' : 'secondary'} class="text-[11px] py-0 px-1.5">
                 {$presentationState.stage_connected ? 'Conectado' : 'Aguardando'}
               </Badge>
             </div>
@@ -3573,16 +3837,14 @@
         >
           <PanelRightOpen size={16} />
         </button>
-        <span
-          class="text-[10px] uppercase font-bold tracking-widest text-muted-foreground [writing-mode:vertical-lr] cursor-pointer hover:text-foreground transition-colors py-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+        <button
+          type="button"
           onclick={() => (isPreviewSidebarOpen = true)}
-          role="button"
-          tabindex="0"
           aria-label="Expandir painel de saídas e previews"
-          onkeydown={(e) => { if (e.key === 'Enter') isPreviewSidebarOpen = true; }}
+          class="px-1.5 py-2 rounded-md hover:bg-muted text-[11px] uppercase font-bold tracking-widest text-muted-foreground [writing-mode:vertical-lr] cursor-pointer hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
         >
           Saídas (Public / Stage)
-        </span>
+        </button>
       </aside>
     {/if}
   </div>
@@ -3654,35 +3916,41 @@
 
   <!-- Modal de Renomear Item -->
   {#if isRenameModalOpen}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-100"
-      onclick={() => (isRenameModalOpen = false)}
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-100"
+      onclick={closeInlineModals}
+      role="presentation"
     >
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
-        class="w-full max-w-sm rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl space-y-4"
+        bind:this={renameModalEl}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rename-modal-title"
+        tabindex="-1"
+        class="w-full max-w-sm rounded-xl border border-border bg-card text-foreground p-5 shadow-2xl space-y-4 focus:outline-none"
         onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => {
+          if (e.key === 'Escape') closeInlineModals();
+        }}
       >
-        <h3 class="text-sm font-bold text-white">Renomear Item na Setlist</h3>
-        <!-- svelte-ignore a11y_autofocus -->
+        <h3 id="rename-modal-title" class="text-sm font-bold text-foreground">Renomear Item na Setlist</h3>
+        <label for="rename-item-input" class="sr-only">Novo título do item</label>
         <input
+          id="rename-item-input"
+          bind:this={renameInputEl}
           type="text"
           bind:value={renamingItemTitle}
-          class="w-full h-9 px-3 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-white focus:outline-none focus:border-emerald-500"
-          autofocus
+          class="w-full h-9 px-3 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
           onkeydown={(e) => {
-            if (e.key === 'Enter') handleSaveRename();
-            if (e.key === 'Escape') isRenameModalOpen = false;
+            if (e.key === 'Enter') void handleSaveRename();
+            if (e.key === 'Escape') closeInlineModals();
           }}
         />
         <div class="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onclick={() => (isRenameModalOpen = false)}>
+          <Button variant="secondary" size="sm" onclick={closeInlineModals}>
             Cancelar
           </Button>
-          <Button variant="default" size="sm" onclick={handleSaveRename} class="bg-emerald-500 hover:bg-emerald-400 text-black font-semibold">
+          <Button variant="default" size="sm" onclick={() => void handleSaveRename()} class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">
             Salvar
           </Button>
         </div>
@@ -3692,36 +3960,40 @@
 
   <!-- Modal de Confirmação para Fechar Player com Áudio em Reprodução -->
   {#if isConfirmCloseAudioOpen}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-100"
-      onclick={() => (isConfirmCloseAudioOpen = false)}
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-100"
+      onclick={closeInlineModals}
+      role="presentation"
     >
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
-        class="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl space-y-4"
+        bind:this={closeAudioModalEl}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="close-audio-modal-title"
+        tabindex="-1"
+        class="w-full max-w-md rounded-xl border border-border bg-card text-foreground p-5 shadow-2xl space-y-4 focus:outline-none"
         onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => {
+          if (e.key === 'Escape') closeInlineModals();
+        }}
       >
         <div class="flex items-start gap-3">
-          <div class="p-2.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
+          <div class="p-2.5 rounded-full bg-amber-500/15 border border-amber-600/30 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 shrink-0">
             <AlertTriangle size={20} />
           </div>
           <div class="space-y-1">
-            <h3 class="text-sm font-bold text-white">Parar reprodução de áudio?</h3>
-            <p class="text-xs text-neutral-300 leading-relaxed">
-              A faixa <strong class="text-white font-semibold">"{activePlaybackTitle}"</strong> está sendo reproduzida no momento. Fechar o player irá parar a reprodução do áudio imediatamente.
+            <h3 id="close-audio-modal-title" class="text-sm font-bold text-foreground">Parar reprodução de áudio?</h3>
+            <p class="text-xs text-muted-foreground leading-relaxed">
+              A faixa <strong class="text-foreground font-semibold">"{activePlaybackTitle}"</strong> está sendo reproduzida no momento. Fechar o player irá parar a reprodução do áudio imediatamente.
             </p>
           </div>
         </div>
 
-        <div class="flex justify-end gap-2 pt-2 border-t border-neutral-800/80">
+        <div class="flex justify-end gap-2 pt-2 border-t border-border">
           <Button
             variant="secondary"
             size="sm"
-            onclick={() => (isConfirmCloseAudioOpen = false)}
-            class="text-neutral-300 hover:text-white"
+            onclick={closeInlineModals}
           >
             Cancelar
           </Button>
@@ -3733,6 +4005,58 @@
           >
             <Square size={12} class="fill-current" />
             Parar e Fechar
+          </Button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Modal de Confirmação Genérico (Limpar / Excluir Setlist) -->
+  {#if confirmModal.open}
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-100"
+      onclick={closeInlineModals}
+      role="presentation"
+    >
+      <div
+        bind:this={confirmModalEl}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirm-action-title"
+        tabindex="-1"
+        class="w-full max-w-md rounded-xl border border-border bg-card text-foreground p-5 shadow-2xl space-y-4 focus:outline-none"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => {
+          if (e.key === 'Escape') closeInlineModals();
+        }}
+      >
+        <div class="flex items-start gap-3">
+          <div class="p-2.5 rounded-full bg-rose-500/15 border border-rose-600/30 dark:border-rose-500/30 text-rose-700 dark:text-rose-400 shrink-0">
+            <AlertTriangle size={20} />
+          </div>
+          <div class="space-y-1">
+            <h3 id="confirm-action-title" class="text-sm font-bold text-foreground">{confirmModal.title}</h3>
+            <p class="text-xs text-muted-foreground leading-relaxed">
+              {confirmModal.description}
+            </p>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-border">
+          <Button variant="secondary" size="sm" onclick={closeInlineModals}>
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onclick={async () => {
+              const action = confirmModal.onConfirm;
+              closeInlineModals();
+              await action?.();
+            }}
+            class="bg-rose-600 hover:bg-rose-500 text-white font-semibold"
+          >
+            {confirmModal.confirmLabel}
           </Button>
         </div>
       </div>

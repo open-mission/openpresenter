@@ -1,94 +1,61 @@
+<script module lang="ts">
+  export type { SettingsTab } from './settings/types';
+</script>
+
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { get } from 'svelte/store';
+  import { tick, onDestroy, untrack } from 'svelte';
   import {
-    X,
-    Sun,
-    Moon,
-    Laptop,
     Palette,
-    Monitor,
     Keyboard,
-    Info,
-    RotateCcw,
-    Check,
-    Bell,
-    BellOff,
+    ListMusic,
+    Monitor,
     Tv,
-    ExternalLink,
-    HardDrive,
-    FolderPlus,
-    Folder,
-    Trash2,
-    AlertCircle,
-    ChevronDown,
-    Copy,
-    FolderOpen,
-    Sliders,
-    Type,
-    Layers,
-    LayoutGrid,
-    Rows3,
-    Upload,
-    Church,
-    Maximize2,
-    Minimize2,
-    Save,
-    Image as ImageIcon,
-    BookOpen,
-    Edit3,
-    Plus,
-    CheckCircle2,
-    Download,
-    RefreshCw,
-    Sparkles,
-    AlertTriangle,
-    Music,
-    Clock,
     Video,
+    Sparkles,
+    Sliders,
+    Music,
+    BookOpen,
+    Church,
+    HardDrive,
     ScrollText,
-    CalendarDays,
-    MessageSquare,
+    Info,
+    X,
+    Search,
+    Save,
+    Check,
+    RefreshCw,
+    Settings,
   } from 'lucide-svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import ConfirmModal from './bottom-panel/ConfirmModal.svelte';
   import {
-    fetchUpdateCheck,
-    fetchUpdaterStatus,
-    triggerInstallUpdate,
-    triggerSystemRestart,
-    type UpdateCheckResponse,
-    type UpdaterStatusPayload,
-  } from '../updater';
+    SETTINGS_TABS,
+    type SettingsTab,
+    type SettingsConfirmRequest,
+  } from './settings/types';
+  import AppearanceTab from './settings/tabs/AppearanceTab.svelte';
+  import ShortcutsTab from './settings/tabs/ShortcutsTab.svelte';
+  import SectionsTab from './settings/tabs/SectionsTab.svelte';
+  import PublicDisplayTab from './settings/tabs/PublicDisplayTab.svelte';
+  import StageMonitorTab from './settings/tabs/StageMonitorTab.svelte';
+  import LowerThirdTab from './settings/tabs/LowerThirdTab.svelte';
+  import LyricsBackgroundsTab from './settings/tabs/LyricsBackgroundsTab.svelte';
+  import OutputsTab from './settings/tabs/OutputsTab.svelte';
+  import SongsTab from './settings/tabs/SongsTab.svelte';
+  import BiblesTab from './settings/tabs/BiblesTab.svelte';
+  import ChurchBrandTab from './settings/tabs/ChurchBrandTab.svelte';
+  import FilesTab from './settings/tabs/FilesTab.svelte';
+  import LogsTab from './settings/tabs/LogsTab.svelte';
+  import AboutTab from './settings/tabs/AboutTab.svelte';
   import {
-    themeStore,
-    baseColorStore,
-    accentThemeStore,
     sectionsStore,
-    wallpaperFitStore,
-    previewLabelsStore,
-    setlistViewModeStore,
-    setTheme,
-    setBaseColor,
-    setAccentTheme,
-    setWallpaperFit,
-    setPreviewLabels,
-    setSetlistViewMode,
-    toastDndStore,
-    toastPositionStore,
-    setToastDnd,
-    setToastPosition,
     saveSections,
     resetSectionsToDefault,
+    DEFAULT_SECTIONS,
     COLOR_PRESETS,
-    BASE_COLOR_PRESETS,
-    ACCENT_THEME_PRESETS,
-    type ThemeMode,
-    type BaseColor,
-    type AccentTheme,
-    type WallpaperFitMode,
-    type SetlistViewMode,
-    type ToastPosition,
+    setWallpaperFit,
     type CustomSectionConfig,
-  } from '../settings';
+  } from '$lib/settings';
   import {
     publicSettingsStore,
     churchBrandStore,
@@ -96,59 +63,42 @@
     backgroundStylesStore,
     lowerThirdSettingsStore,
     songSettingsStore,
-    savePublicDisplaySettings,
-    saveChurchBrandSettings,
-    saveStageDisplaySettings,
-    saveBackgroundStyles,
-    saveLowerThirdSettings,
-    saveSongSettings,
     DEFAULT_PUBLIC_SETTINGS,
     DEFAULT_CHURCH_BRAND,
     DEFAULT_STAGE_SETTINGS,
     DEFAULT_BACKGROUND_STYLES,
     DEFAULT_LOWER_THIRD_SETTINGS,
     DEFAULT_SONG_SETTINGS,
-  } from '../displaySettings';
+    savePublicDisplaySettings,
+    saveChurchBrandSettings,
+    saveStageDisplaySettings,
+    saveBackgroundStyles,
+    saveLowerThirdSettings,
+    saveSongSettings,
+  } from '$lib/displaySettings';
+  import type { BackgroundStylesMap } from '$lib/backgrounds';
   import {
-    getAllBackgrounds,
-    BACKGROUND_PRESETS,
-    type BackgroundPreset,
-    type BackgroundStylesMap,
-  } from '../backgrounds';
-  import { biblesStore, refreshBibles } from '../bibles';
-  import { notifySuccess, notifyError, notifyInfo } from '../toast';
-  import Badge from './ui/Badge.svelte';
-  import Button from './ui/Button.svelte';
-  import StagePreviewBox from './StagePreviewBox.svelte';
-  import { actionLogsStore } from '../ws';
+    fetchUpdateCheck,
+    fetchUpdaterStatus,
+    triggerInstallUpdate,
+    triggerSystemRestart,
+    type UpdateCheckResponse,
+    type UpdaterStatusPayload,
+  } from '$lib/updater';
+  import { readHttpError } from '$lib/media';
+  import { notifySuccess, notifyError } from '$lib/toast';
   import type {
-    MediaFolder,
-    SystemPaths,
-    PublicDisplaySettings,
-    ChurchBrandSettings,
-    StageDisplaySettings,
-    LowerThirdSettings,
-    SongSettings,
-    StagePreset,
-    BibleVersionSummary,
     ActionLog,
-  } from '../types';
-
-  export type SettingsTab =
-    | 'appearance'
-    | 'public'
-    | 'lyrics_bg'
-    | 'stage'
-    | 'lower_third'
-    | 'church'
-    | 'bibles'
-    | 'songs'
-    | 'files'
-    | 'sections'
-    | 'outputs'
-    | 'shortcuts'
-    | 'logs'
-    | 'about';
+    BibleVersionSummary,
+    ChurchBrandSettings,
+    ImageFitMode,
+    LowerThirdSettings,
+    MediaFolder,
+    PublicDisplaySettings,
+    SongSettings,
+    StageDisplaySettings,
+    SystemPaths,
+  } from '$lib/types';
 
   interface Props {
     open: boolean;
@@ -157,7379 +107,1164 @@
     onbibleschanged?: () => void;
   }
 
-  let { open = false, initialTab = 'appearance', onclose, onbibleschanged }: Props = $props();
+  let { open, initialTab = 'appearance', onclose, onbibleschanged }: Props = $props();
 
-  let activeTab = $state<SettingsTab>('appearance');
-  let isMaximized = $state(false);
-  let editableSections = $state<CustomSectionConfig[]>([]);
+  type IconComponent = typeof Palette;
+  const TAB_ICONS: Record<SettingsTab, IconComponent> = {
+    appearance: Palette,
+    shortcuts: Keyboard,
+    sections: ListMusic,
+    public: Monitor,
+    stage: Tv,
+    lower_third: Video,
+    lyrics_bg: Sparkles,
+    outputs: Sliders,
+    songs: Music,
+    bibles: BookOpen,
+    church: Church,
+    files: HardDrive,
+    logs: ScrollText,
+    about: Info,
+  };
 
-  // Configurações de Telas e Marca da Igreja
-  let localPublic = $state<PublicDisplaySettings>({ ...DEFAULT_PUBLIC_SETTINGS });
-  let localBrand = $state<ChurchBrandSettings>({ ...DEFAULT_CHURCH_BRAND });
-  let localStage = $state<StageDisplaySettings>({ ...DEFAULT_STAGE_SETTINGS });
-  let localLowerThird = $state<LowerThirdSettings>({ ...DEFAULT_LOWER_THIRD_SETTINGS });
-  let localSongSettings = $state<SongSettings>({ ...DEFAULT_SONG_SETTINGS });
-  let uploadStatus = $state<{ [key: string]: string }>({});
+  const GROUP_LABELS: Record<string, string> = {
+    outputs: 'Projeção & Telas',
+    general: 'Geral',
+    interface: 'Interface',
+    displays: 'Projeção & Telas',
+    projection: 'Projeção & Telas',
+    content: 'Acervo & Marca',
+    library: 'Acervo & Marca',
+    system: 'Sistema',
+  };
 
-  // Harpa Cristã e Importação de Músicas
-  let isInstallingHarpa = $state(false);
-  let harpaInstallMessage = $state<string | null>(null);
-  let harpaInstallSuccess = $state<boolean | null>(null);
-  let settingsImportTags = $state('');
-  let isSettingsImporting = $state(false);
-  let settingsImportResult = $state<string | null>(null);
-  let settingsSongFileInputEl: HTMLInputElement | null = $state(null);
-
-  // Sub-seções internas
-  let publicSection = $state<'lyrics' | 'scripture' | 'schedule' | 'timer' | 'general'>('lyrics');
-  let stageSection = $state<'lyrics' | 'scripture' | 'schedule' | 'general'>('lyrics');
-  let bgPreviewMode = $state<'lyrics' | 'scripture' | 'schedule'>('lyrics');
-  let ltPreviewMode = $state<'lyrics' | 'scripture' | 'image'>('lyrics');
-  let settingsLtBgFileInputEl: HTMLInputElement | null = $state(null);
-  let isUploadingLtBg = $state(false);
-
-  async function handleLtBgUpload(e: Event) {
-    const input = e.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    isUploadingLtBg = true;
-    try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const b64 = (reader.result as string).split(',')[1];
-        const res = await fetch('/api/media/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filename: file.name,
-            content_base64: b64,
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          localLowerThird = {
-            ...localLowerThird,
-            box_bg_type: 'image',
-            box_bg_image_url: data.url,
-          };
-          saveLowerThirdSettings(localLowerThird);
-        }
-        isUploadingLtBg = false;
-        input.value = '';
-      };
-      reader.readAsDataURL(file);
-    } catch {
-      isUploadingLtBg = false;
-    }
+  function cloneJson<T>(val: T): T {
+    return JSON.parse(JSON.stringify(val));
   }
 
-  // Configurações de Fundos de Letras e CSS
-  let localBgStyles = $state<BackgroundStylesMap>({
-    defaultBackgroundId: undefined,
-    customPresets: [],
-    overrides: {},
-  });
-  let selectedPresetId = $state<string>('grad-obsidian');
-  let bgCategoryFilter = $state<'all' | 'gradients' | 'mesh' | 'animated' | 'custom'>('all');
-  let bgSearchTerm = $state('');
+  // --- Navegação e Acessibilidade ---
+  let activeTab = $state<SettingsTab>('appearance');
+  let tabSearch = $state('');
+  let openSelectId = $state<string | null>(null);
+  let dialogEl = $state<HTMLDivElement | null>(null);
+  let wasModalOpen = false;
+  let previouslyFocusedEl: HTMLElement | null = null;
 
-  const QUICK_TEXT_COLORS = [
-    { label: 'Branco Puro', hex: '#FFFFFF' },
-    { label: 'Off-White', hex: '#F8FAFC' },
-    { label: 'Ouro / Dourado', hex: '#FACC15' },
-    { label: 'Âmbar Quente', hex: '#F59E0B' },
-    { label: 'Amarelo Suave', hex: '#FEF08A' },
-    { label: 'Ciano Gelo', hex: '#67E8F9' },
-    { label: 'Menta Verde', hex: '#86EFAC' },
-    { label: 'Rosa Claro', hex: '#F472B6' },
-  ];
-
-  const QUICK_GRADIENTS = [
-    { name: 'Índigo Noturno', css: 'linear-gradient(135deg, #090d16 0%, #1e1b4b 60%, #020617 100%)' },
-    { name: 'Púrpura Profundo', css: 'linear-gradient(135deg, #18052e 0%, #3b0764 50%, #090114 100%)' },
-    { name: 'Vinho Nobre', css: 'linear-gradient(135deg, #1a050d 0%, #4c0519 50%, #0a0105 100%)' },
-    { name: 'Floresta Escura', css: 'linear-gradient(135deg, #022c22 0%, #064e3b 50%, #021a14 100%)' },
-    { name: 'Azul Meia-Noite', css: 'linear-gradient(135deg, #030712 0%, #0c4a6e 50%, #020617 100%)' },
-    { name: 'Radial Sombrio', css: 'radial-gradient(ellipse at center, #2e1a05 0%, #0d0a06 60%, #000000 100%)' },
-    { name: 'Mesh Aurora', css: 'radial-gradient(at 0% 0%, #312e81 0px, transparent 50%), radial-gradient(at 100% 0%, #701a75 0px, transparent 50%), radial-gradient(at 100% 100%, #1e1b4b 0px, transparent 50%), #020617' },
-  ];
-
-  const allAvailableBackgrounds = $derived(getAllBackgrounds(localBgStyles));
-
-  const filteredBgList = $derived.by(() => {
-    return allAvailableBackgrounds.filter((p) => {
-      const matchesCat = bgCategoryFilter === 'all' || p.category === bgCategoryFilter;
-      const matchesSearch =
-        bgSearchTerm === '' ||
-        p.name.toLowerCase().includes(bgSearchTerm.toLowerCase()) ||
-        p.id.toLowerCase().includes(bgSearchTerm.toLowerCase());
-      return matchesCat && matchesSearch;
-    });
-  });
-
-  const currentSelectedPreset = $derived.by<BackgroundPreset>(() => {
-    return (
-      allAvailableBackgrounds.find((p) => p.id === selectedPresetId) ||
-      allAvailableBackgrounds[0] || {
-        id: 'grad-obsidian',
-        name: 'Obsidiana Escuro',
-        category: 'gradients',
-        style: 'linear-gradient(135deg, #09090b 0%, #18181b 50%, #09090b 100%)',
-        textColor: '#ffffff',
-      }
+  const filteredTabs = $derived.by(() => {
+    const q = tabSearch.trim().toLowerCase();
+    if (!q) return SETTINGS_TABS;
+    return SETTINGS_TABS.filter(
+      (t) => t.label.toLowerCase().includes(q) || t.keywords.toLowerCase().includes(q)
     );
   });
 
-  function updateCurrentTextColor(color: string) {
-    if (!currentSelectedPreset) return;
-    if (currentSelectedPreset.isCustom) {
-      const idx = localBgStyles.customPresets.findIndex((p) => p.id === currentSelectedPreset.id);
-      if (idx !== -1) {
-        localBgStyles.customPresets[idx] = { ...localBgStyles.customPresets[idx], textColor: color };
-      }
-    } else {
-      const current = localBgStyles.overrides[currentSelectedPreset.id] || {};
-      localBgStyles.overrides[currentSelectedPreset.id] = { ...current, textColor: color };
-    }
-  }
+  const activeTabMeta = $derived(
+    SETTINGS_TABS.find((t) => t.id === activeTab) ?? SETTINGS_TABS[0]
+  );
 
-  function updateCurrentStyle(styleCss: string) {
-    if (!currentSelectedPreset) return;
-    if (currentSelectedPreset.isCustom) {
-      const idx = localBgStyles.customPresets.findIndex((p) => p.id === currentSelectedPreset.id);
-      if (idx !== -1) {
-        localBgStyles.customPresets[idx] = { ...localBgStyles.customPresets[idx], style: styleCss };
-      }
-    } else {
-      const current = localBgStyles.overrides[currentSelectedPreset.id] || {};
-      localBgStyles.overrides[currentSelectedPreset.id] = { ...current, style: styleCss };
-    }
-  }
+  // --- Estados Locais Editáveis ---
+  let editableSections = $state<CustomSectionConfig[]>([]);
+  let localPublic = $state<PublicDisplaySettings>({ ...DEFAULT_PUBLIC_SETTINGS });
+  let localBrand = $state<ChurchBrandSettings>({ ...DEFAULT_CHURCH_BRAND });
+  let localStage = $state<StageDisplaySettings>({ ...DEFAULT_STAGE_SETTINGS });
+  let localBgStyles = $state<BackgroundStylesMap>({
+    ...DEFAULT_BACKGROUND_STYLES,
+    customPresets: [],
+    overrides: {},
+  });
+  let localLowerThird = $state<LowerThirdSettings>({ ...DEFAULT_LOWER_THIRD_SETTINGS });
+  let localSongSettings = $state<SongSettings>({ ...DEFAULT_SONG_SETTINGS });
 
-  function updateCurrentAnimation(animClass: string) {
-    if (!currentSelectedPreset) return;
-    const finalAnim = animClass === 'none' ? undefined : animClass;
-    if (currentSelectedPreset.isCustom) {
-      const idx = localBgStyles.customPresets.findIndex((p) => p.id === currentSelectedPreset.id);
-      if (idx !== -1) {
-        localBgStyles.customPresets[idx] = { ...localBgStyles.customPresets[idx], animationClass: finalAnim };
-      }
-    } else {
-      const current = localBgStyles.overrides[currentSelectedPreset.id] || {};
-      localBgStyles.overrides[currentSelectedPreset.id] = { ...current, animationClass: finalAnim };
-    }
-  }
+  let savedSnap = $state({
+    sections: '',
+    public: '',
+    brand: '',
+    stage: '',
+    bg: '',
+    lt: '',
+    songs: '',
+  });
 
-  function updateCurrentName(name: string) {
-    if (!currentSelectedPreset || !currentSelectedPreset.isCustom) return;
-    const idx = localBgStyles.customPresets.findIndex((p) => p.id === currentSelectedPreset.id);
-    if (idx !== -1) {
-      localBgStyles.customPresets[idx] = { ...localBgStyles.customPresets[idx], name };
-    }
-  }
+  const sectionsDirty = $derived(open && JSON.stringify(editableSections) !== savedSnap.sections);
+  const publicDirty = $derived(open && JSON.stringify(localPublic) !== savedSnap.public);
+  const brandDirty = $derived(open && JSON.stringify(localBrand) !== savedSnap.brand);
+  const stageDirty = $derived(open && JSON.stringify(localStage) !== savedSnap.stage);
+  const bgDirty = $derived(open && JSON.stringify(localBgStyles) !== savedSnap.bg);
+  const ltDirty = $derived(open && JSON.stringify(localLowerThird) !== savedSnap.lt);
+  const songsDirty = $derived(open && JSON.stringify(localSongSettings) !== savedSnap.songs);
+  const hasUnsavedChanges = $derived(
+    sectionsDirty ||
+      publicDirty ||
+      brandDirty ||
+      stageDirty ||
+      bgDirty ||
+      ltDirty ||
+      songsDirty
+  );
 
-  function createNewCustomPreset() {
-    const newId = `custom-${Date.now()}`;
-    const newPreset: BackgroundPreset = {
-      id: newId,
-      name: 'Novo Fundo Customizado',
-      category: 'custom',
-      style: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)',
-      textColor: '#ffffff',
-      animationClass: undefined,
-      isCustom: true,
-    };
-    localBgStyles.customPresets = [...localBgStyles.customPresets, newPreset];
-    selectedPresetId = newId;
-    bgCategoryFilter = 'custom';
-  }
-
-  function deleteCustomPreset(id: string) {
-    localBgStyles.customPresets = localBgStyles.customPresets.filter((p) => p.id !== id);
-    if (localBgStyles.defaultBackgroundId === id) {
-      localBgStyles.defaultBackgroundId = undefined;
-    }
-    selectedPresetId = 'grad-obsidian';
-  }
-
-  function restorePresetDefault(id: string) {
-    if (localBgStyles.overrides[id]) {
-      const copy = { ...localBgStyles.overrides };
-      delete copy[id];
-      localBgStyles.overrides = copy;
-    }
-  }
-
-  function setDefaultBackground(id: string) {
-    localBgStyles.defaultBackgroundId = localBgStyles.defaultBackgroundId === id ? undefined : id;
-  }
-
-  // Feedback de salvamento
-  let wasModalOpen = false;
   let isSaving = $state(false);
-  let saveStatusMessage = $state('');
+  let saveMessage = $state('');
+  let saveError = $state('');
 
-  // Estado da Aba Arquivos e Pastas
+  // --- Confirmação Centralizada ---
+  interface PendingConfirmState {
+    title: string;
+    message: string;
+    confirmLabel: string;
+    cancelLabel: string;
+    destructive: boolean;
+    onConfirm: () => Promise<void> | void;
+  }
+
+  let pendingConfirm = $state<PendingConfirmState | null>(null);
+  let isConfirmProcessing = $state(false);
+
+  function openConfirm(req: SettingsConfirmRequest) {
+    pendingConfirm = {
+      title: req.title,
+      message: req.description,
+      confirmLabel: req.confirmText ?? 'Confirmar',
+      cancelLabel: 'Cancelar',
+      destructive: req.variant === 'danger',
+      onConfirm: req.onConfirm,
+    };
+  }
+
+  async function executePendingConfirm() {
+    if (!pendingConfirm || isConfirmProcessing) return;
+    const action = pendingConfirm.onConfirm;
+    isConfirmProcessing = true;
+    try {
+      await action();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      saveError = msg;
+      notifyError('Falha ao executar ação', msg);
+    } finally {
+      isConfirmProcessing = false;
+      pendingConfirm = null;
+    }
+  }
+
+  // --- Estados Assíncronos por Aba ---
   let systemPaths = $state<SystemPaths | null>(null);
-  let mediaFolders = $state<MediaFolder[]>([]);
-  let newFolderName = $state('');
-  let newFolderPath = $state('');
-  let folderError = $state('');
-  let isAddingFolder = $state(false);
+  let isLoadingPaths = $state(false);
+  let pathsError = $state('');
 
-  // Estado da Aba Bíblias
+  let mediaFolders = $state<MediaFolder[]>([]);
+  let isLoadingFolders = $state(false);
+  let foldersError = $state('');
+
   let biblesList = $state<BibleVersionSummary[]>([]);
   let isLoadingBibles = $state(false);
   let bibleError = $state('');
-  let isImportingBible = $state(false);
-  let importProgress = $state({
-    current: 0,
-    total: 0,
-    currentFileName: '',
-    successCount: 0,
-    failedCount: 0,
-  });
-  let showPathImport = $state(false);
-  let importPathInput = $state('');
-  let bibleFileInput: HTMLInputElement | null = $state(null);
 
-  // Edição de Versão da Bíblia
-  let isEditingBible = $state(false);
-  let editingBibleId = $state<string | null>(null);
-  let editBibleName = $state('');
-  let editBibleAbbr = $state('');
-  let editBibleIsDefault = $state(false);
+  let actionLogs = $state<ActionLog[]>([]);
+  let selectedLogCategory = $state('all');
+  let isLoadingLogs = $state(false);
+  let logsError = $state('');
 
-  // Estado do Auto-Updater
   let updateInfo = $state<UpdateCheckResponse | null>(null);
   let updaterStatus = $state<UpdaterStatusPayload | null>(null);
   let isCheckingUpdate = $state(false);
   let updaterError = $state('');
-  let updatePollInterval: ReturnType<typeof setInterval> | null = null;
-
-  async function handleCheckForUpdates() {
-    isCheckingUpdate = true;
-    updaterError = '';
-    try {
-      const res = await fetchUpdateCheck();
-      updateInfo = res;
-      await refreshUpdaterStatus();
-    } catch (err: any) {
-      updaterError = err.message || 'Não foi possível verificar atualizações.';
-    } finally {
-      isCheckingUpdate = false;
-    }
-  }
-
-  async function refreshUpdaterStatus() {
-    try {
-      const st = await fetchUpdaterStatus();
-      updaterStatus = st;
-      if (st.last_check && !updateInfo) {
-        updateInfo = st.last_check;
-      }
-      if (st.stage.type === 'Downloading' || st.stage.type === 'Extracting') {
-        if (!updatePollInterval) {
-          updatePollInterval = setInterval(refreshUpdaterStatus, 1000);
-        }
-      } else if (updatePollInterval) {
-        clearInterval(updatePollInterval);
-        updatePollInterval = null;
-      }
-    } catch {
-      // silencioso
-    }
-  }
-
-  async function handleStartUpdate() {
-    if (!updateInfo?.download_url) return;
-    updaterError = '';
-    try {
-      await triggerInstallUpdate({
-        download_url: updateInfo.download_url,
-        asset_name: updateInfo.asset_name || undefined,
-        target_version: updateInfo.latest_version,
-      });
-      await refreshUpdaterStatus();
-      if (!updatePollInterval) {
-        updatePollInterval = setInterval(refreshUpdaterStatus, 1000);
-      }
-    } catch (err: any) {
-      updaterError = err.message || 'Falha ao iniciar atualização.';
-    }
-  }
-
   let isRestarting = $state(false);
 
-  async function handleRestartApplication() {
-    if (isRestarting) return;
-    isRestarting = true;
-    updaterError = '';
-    try {
-      await triggerSystemRestart();
-      // Polling para aguardar o servidor reiniciar e voltar online
-      let attempts = 0;
-      const pollServer = setInterval(async () => {
-        attempts++;
-        try {
-          const res = await fetch('/api/status');
-          if (res.ok) {
-            clearInterval(pollServer);
-            window.location.reload();
-          }
-        } catch {
-          if (attempts > 40) {
-            clearInterval(pollServer);
-            isRestarting = false;
-            updaterError = 'O servidor demorou para responder. Tente recarregar a página manualmente.';
-          }
-        }
-      }, 1000);
-    } catch (err: any) {
-      isRestarting = false;
-      updaterError = err.message || 'Falha ao solicitar reinicialização do sistema.';
+  let updaterPollInterval: ReturnType<typeof setInterval> | null = null;
+  let restartPollInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Guardas não reativas para evitar loops de repetição em abas sem backend
+  const attemptedTabs = {
+    bibles: false,
+    files: false,
+    logs: false,
+    about: false,
+  };
+
+  function stopUpdaterPolling() {
+    if (updaterPollInterval) {
+      clearInterval(updaterPollInterval);
+      updaterPollInterval = null;
     }
   }
 
-  // --- ESTADO DA ABA DE LOGS & AUDITORIA ---
-  let actionLogs = $state<ActionLog[]>([]);
-  let selectedLogCategory = $state<string>('all');
-  let isLoadingLogs = $state(false);
-
-  async function fetchLogs() {
-    isLoadingLogs = true;
-    try {
-      const url =
-        selectedLogCategory === 'all'
-          ? '/api/logs?limit=100'
-          : `/api/logs?limit=100&category=${selectedLogCategory}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        actionLogs = await res.json();
-      }
-    } catch (e) {
-      console.error('Erro ao buscar logs:', e);
-    } finally {
-      isLoadingLogs = false;
+  function stopRestartPolling() {
+    if (restartPollInterval) {
+      clearInterval(restartPollInterval);
+      restartPollInterval = null;
     }
   }
 
-  async function clearAllLogs() {
-    if (!confirm('Deseja realmente limpar todo o histórico de logs do sistema?')) return;
-    try {
-      const res = await fetch('/api/logs', { method: 'DELETE' });
-      if (res.ok) {
-        actionLogs = [];
-        fetchLogs();
-      }
-    } catch (e) {
-      console.error('Erro ao limpar logs:', e);
-    }
-  }
-
-  function getCategoryBadgeClass(category: string): string {
-    switch (category) {
-      case 'presentation':
-        return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
-      case 'bibles':
-        return 'bg-sky-500/20 text-sky-400 border border-sky-500/40';
-      case 'songs':
-        return 'bg-purple-500/20 text-purple-400 border border-purple-500/40';
-      case 'setlists':
-        return 'bg-amber-500/20 text-amber-400 border border-amber-500/40';
-      case 'timer':
-        return 'bg-teal-500/20 text-teal-400 border border-teal-500/40';
-      case 'connections':
-        return 'bg-blue-500/20 text-blue-400 border border-blue-500/40';
-      case 'settings':
-        return 'bg-neutral-500/20 text-neutral-400 border border-neutral-500/40';
-      default:
-        return 'bg-neutral-800 text-neutral-300';
-    }
-  }
-
-  function getCategoryLabel(category: string): string {
-    switch (category) {
-      case 'presentation':
-        return 'Apresentação';
-      case 'bibles':
-        return 'Bíblia';
-      case 'songs':
-        return 'Músicas';
-      case 'setlists':
-        return 'Setlist';
-      case 'timer':
-        return 'Cronômetro';
-      case 'connections':
-        return 'Conexão';
-      case 'settings':
-        return 'Ajustes';
-      default:
-        return category;
-    }
-  }
-
-  function formatTimestamp(ts: string): string {
-    if (!ts) return '';
-    try {
-      const d = new Date(ts);
-      return (
-        d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
-        ' ' +
-        d.toLocaleDateString([], { day: '2-digit', month: '2-digit' })
-      );
-    } catch {
-      return ts;
-    }
-  }
-
-  $effect(() => {
-    if (activeTab === 'logs' && open) {
-      fetchLogs();
-    }
+  onDestroy(() => {
+    stopUpdaterPolling();
+    stopRestartPolling();
   });
 
-  $effect(() => {
-    if ($actionLogsStore.length > 0) {
-      const latest = $actionLogsStore[0];
-      if (selectedLogCategory === 'all' || latest.category === selectedLogCategory) {
-        if (!actionLogs.some((l) => l.id === latest.id)) {
-          actionLogs = [latest, ...actionLogs];
-        }
-      }
-    }
-  });
+  function hydrateDraftsFromStores() {
+    editableSections = cloneJson($sectionsStore);
+    localPublic = cloneJson({ ...DEFAULT_PUBLIC_SETTINGS, ...$publicSettingsStore });
+    localBrand = cloneJson({ ...DEFAULT_CHURCH_BRAND, ...$churchBrandStore });
+    localStage = cloneJson({ ...DEFAULT_STAGE_SETTINGS, ...$stageSettingsStore });
+    localBgStyles = cloneJson({
+      ...DEFAULT_BACKGROUND_STYLES,
+      ...$backgroundStylesStore,
+      customPresets: $backgroundStylesStore.customPresets || [],
+      overrides: $backgroundStylesStore.overrides || {},
+    });
+    localLowerThird = cloneJson({
+      ...DEFAULT_LOWER_THIRD_SETTINGS,
+      ...$lowerThirdSettingsStore,
+    });
+    localSongSettings = cloneJson({ ...DEFAULT_SONG_SETTINGS, ...$songSettingsStore });
 
-  // Dropdown open states for Shadcn style selects
-  let isBaseColorMenuOpen = $state(false);
-  let isAccentThemeMenuOpen = $state(false);
+    savedSnap = {
+      sections: JSON.stringify(editableSections),
+      public: JSON.stringify(localPublic),
+      brand: JSON.stringify(localBrand),
+      stage: JSON.stringify(localStage),
+      bg: JSON.stringify(localBgStyles),
+      lt: JSON.stringify(localLowerThird),
+      songs: JSON.stringify(localSongSettings),
+    };
+  }
 
-  // Carrega configurações estritamente ao abrir o modal, sem criar dependências reativas nas stores
   $effect(() => {
     if (open && !wasModalOpen) {
       wasModalOpen = true;
-      activeTab = initialTab;
-      editableSections = JSON.parse(JSON.stringify(get(sectionsStore)));
-      localPublic = JSON.parse(JSON.stringify(get(publicSettingsStore)));
-      localBrand = JSON.parse(JSON.stringify(get(churchBrandStore)));
-      localStage = JSON.parse(JSON.stringify(get(stageSettingsStore)));
-      localBgStyles = JSON.parse(JSON.stringify(get(backgroundStylesStore)));
-      localLowerThird = JSON.parse(JSON.stringify(get(lowerThirdSettingsStore)));
-      localSongSettings = JSON.parse(JSON.stringify(get(songSettingsStore)));
-      loadSystemPaths();
-      loadMediaFolders();
-      loadBibles();
-      refreshUpdaterStatus();
-    } else if (!open) {
-      if (updatePollInterval) {
-        clearInterval(updatePollInterval);
-        updatePollInterval = null;
-      }
-      if (wasModalOpen) {
-        refreshBibles();
-        onbibleschanged?.();
-      }
+      previouslyFocusedEl =
+        typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+
+      untrack(() => {
+        activeTab = initialTab || 'appearance';
+        tabSearch = '';
+        openSelectId = null;
+        saveMessage = '';
+        saveError = '';
+        pendingConfirm = null;
+        pathsError = '';
+        foldersError = '';
+        bibleError = '';
+        logsError = '';
+        updaterError = '';
+        attemptedTabs.bibles = false;
+        attemptedTabs.files = false;
+        attemptedTabs.logs = false;
+        attemptedTabs.about = false;
+        hydrateDraftsFromStores();
+      });
+
+      tick().then(() => {
+        const activeBtn = Array.from(
+          dialogEl?.querySelectorAll<HTMLElement>('[role="tab"][aria-selected="true"]') ?? []
+        ).find((el) => el.offsetParent !== null);
+        (activeBtn || dialogEl)?.focus({ preventScroll: true });
+      });
+    } else if (!open && wasModalOpen) {
       wasModalOpen = false;
-      saveStatusMessage = '';
+      untrack(() => {
+        stopUpdaterPolling();
+        stopRestartPolling();
+        pendingConfirm = null;
+        openSelectId = null;
+      });
+      tick().then(() => {
+        previouslyFocusedEl?.focus?.();
+        previouslyFocusedEl = null;
+      });
     }
   });
 
-  async function handleSaveAllSettings() {
-    isSaving = true;
-    try {
-      await savePublicDisplaySettings(localPublic);
-      await saveChurchBrandSettings(localBrand);
-      await saveStageDisplaySettings(localStage);
-      await saveBackgroundStyles(localBgStyles);
-      await saveLowerThirdSettings(localLowerThird);
-      saveSections(editableSections);
-      saveStatusMessage = 'Configurações salvas com sucesso!';
-      setTimeout(() => {
-        saveStatusMessage = '';
-      }, 3500);
-    } catch (err) {
-      saveStatusMessage = 'Erro ao salvar configurações';
-    } finally {
-      isSaving = false;
-    }
-  }
-
-  async function handleLogoUpload(
-    variant: 'primary' | 'dark' | 'light' | 'full',
-    e: Event
-  ) {
-    const input = e.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    uploadStatus[variant] = 'Enviando...';
-
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const result = reader.result as string;
-        const commaIdx = result.indexOf(',');
-        const base64 = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
-
-        const res = await fetch('/api/church/upload-logo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filename: file.name,
-            content_base64: base64,
-          }),
-        });
-
-        if (!res.ok) {
-          throw new Error(await res.text());
-        }
-
-        const data = await res.json();
-        const key = `logo_${variant}` as keyof ChurchBrandSettings;
-        (localBrand as any)[key] = data.url;
-        await saveChurchBrandSettings(localBrand);
-        uploadStatus[variant] = 'Salvo!';
-        setTimeout(() => {
-          uploadStatus[variant] = '';
-        }, 3000);
-      } catch (err: any) {
-        uploadStatus[variant] = `Erro: ${err.message || 'Falha no upload'}`;
+  // Carregamento sob demanda ao trocar para abas com dados de API
+  $effect(() => {
+    if (!open) return;
+    const current = activeTab;
+    untrack(() => {
+      if (current === 'bibles' && !attemptedTabs.bibles) {
+        attemptedTabs.bibles = true;
+        void loadBibles();
+      } else if (current === 'files' && !attemptedTabs.files) {
+        attemptedTabs.files = true;
+        void loadSystemPaths();
+        void loadMediaFolders();
+      } else if (current === 'logs' && !attemptedTabs.logs) {
+        attemptedTabs.logs = true;
+        void fetchLogs();
+      } else if (current === 'about' && !attemptedTabs.about) {
+        attemptedTabs.about = true;
+        void refreshUpdaterStatus();
       }
-    };
-    reader.readAsDataURL(file);
-  }
+    });
+  });
 
-  function updatePublicField<K extends keyof PublicDisplaySettings>(key: K, val: PublicDisplaySettings[K]) {
-    localPublic = { ...localPublic, [key]: val };
-    savePublicDisplaySettings(localPublic);
-  }
-
-  function updateBrandField<K extends keyof ChurchBrandSettings>(key: K, val: ChurchBrandSettings[K]) {
-    localBrand = { ...localBrand, [key]: val };
-    saveChurchBrandSettings(localBrand);
-  }
-
-  function updateStageField<K extends keyof StageDisplaySettings>(key: K, val: StageDisplaySettings[K]) {
-    localStage = { ...localStage, [key]: val };
-    saveStageDisplaySettings(localStage);
-  }
-
-  function updateStageRatio(
-    field: 'current_slide_percent' | 'next_slide_percent' | 'footer_time_percent',
-    newVal: number
-  ) {
-    const cur = localStage.current_slide_percent ?? 50;
-    const next = localStage.next_slide_percent ?? 30;
-    const foot = localStage.footer_time_percent ?? 20;
-
-    if (field === 'current_slide_percent') {
-      const a = Math.max(20, Math.min(80, newVal));
-      const rem = 100 - a;
-      const otherTotal = (next + foot) || 1;
-      let b = Math.round(rem * (next / otherTotal));
-      b = Math.max(10, Math.min(rem - 10, b));
-      const c = 100 - a - b;
-      localStage = {
-        ...localStage,
-        current_slide_percent: a,
-        next_slide_percent: b,
-        footer_time_percent: c,
-      };
-    } else if (field === 'next_slide_percent') {
-      const b = Math.max(10, Math.min(60, newVal));
-      const rem = 100 - b;
-      const otherTotal = (cur + foot) || 1;
-      let a = Math.round(rem * (cur / otherTotal));
-      a = Math.max(20, Math.min(rem - 10, a));
-      const c = 100 - b - a;
-      localStage = {
-        ...localStage,
-        current_slide_percent: a,
-        next_slide_percent: b,
-        footer_time_percent: c,
-      };
-    } else if (field === 'footer_time_percent') {
-      const c = Math.max(10, Math.min(50, newVal));
-      const rem = 100 - c;
-      const otherTotal = (cur + next) || 1;
-      let a = Math.round(rem * (cur / otherTotal));
-      a = Math.max(20, Math.min(rem - 10, a));
-      const b = 100 - c - a;
-      localStage = {
-        ...localStage,
-        current_slide_percent: a,
-        next_slide_percent: b,
-        footer_time_percent: c,
-      };
-    }
-    saveStageDisplaySettings(localStage);
-  }
-
-  function handleResetStageColors() {
-    localStage = {
-      ...localStage,
-      current_text_color: DEFAULT_STAGE_SETTINGS.current_text_color,
-      next_text_color: DEFAULT_STAGE_SETTINGS.next_text_color,
-      current_border_color: DEFAULT_STAGE_SETTINGS.current_border_color,
-      next_border_color: DEFAULT_STAGE_SETTINGS.next_border_color,
-      scripture_text_color: DEFAULT_STAGE_SETTINGS.scripture_text_color,
-      scripture_border_color: DEFAULT_STAGE_SETTINGS.scripture_border_color,
-      timer_color: DEFAULT_STAGE_SETTINGS.timer_color,
-      clock_color: DEFAULT_STAGE_SETTINGS.clock_color,
-    };
-    saveStageDisplaySettings(localStage);
-  }
-
+  // --- Loaders Assíncronos ---
   async function loadSystemPaths() {
+    isLoadingPaths = true;
+    pathsError = '';
     try {
       const res = await fetch('/api/system/paths');
-      if (res.ok) {
-        systemPaths = await res.json();
+      if (!res.ok) {
+        pathsError = await readHttpError(res, 'Não foi possível carregar os caminhos do sistema.');
+        return;
       }
+      systemPaths = await res.json();
     } catch (err) {
-      console.error('Erro ao buscar caminhos do sistema:', err);
+      pathsError = err instanceof Error ? err.message : 'Falha de conexão ao consultar caminhos.';
+    } finally {
+      isLoadingPaths = false;
     }
   }
 
   async function loadMediaFolders() {
+    isLoadingFolders = true;
+    foldersError = '';
     try {
-      const res = await fetch('/api/media/folders');
-      if (res.ok) {
-        mediaFolders = await res.json();
-      }
-    } catch (err) {
-      console.error('Erro ao buscar pastas mapeadas:', err);
-    }
-  }
-
-  async function handleAddFolder() {
-    const p = newFolderPath.trim();
-    if (!p) {
-      folderError = 'Informe o caminho absoluto da pasta no seu computador.';
-      return;
-    }
-
-    isAddingFolder = true;
-    folderError = '';
-
-    try {
-      const res = await fetch('/api/media/folders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newFolderName.trim() || undefined,
-          path: p,
-          kind: 'images',
-        }),
-      });
-
+      const res = await fetch('/api/media-folders');
       if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || 'Falha ao mapear pasta');
+        foldersError = await readHttpError(res, 'Não foi possível carregar pastas vinculadas.');
+        return;
       }
-
-      newFolderName = '';
-      newFolderPath = '';
-      await loadMediaFolders();
-    } catch (err: any) {
-      folderError = err.message || 'Erro ao validar e adicionar pasta';
-    } finally {
-      isAddingFolder = false;
-    }
-  }
-
-  async function handleDeleteFolder(id: string) {
-    try {
-      const res = await fetch(`/api/media/folders/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await loadMediaFolders();
-      }
+      mediaFolders = await res.json();
     } catch (err) {
-      console.error('Erro ao desvincular pasta:', err);
-    }
-  }
-
-  let isCopiedDataDir = $state(false);
-  let folderPickerInput: HTMLInputElement | null = $state(null);
-
-  async function handleCopyText(text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      isCopiedDataDir = true;
-      setTimeout(() => (isCopiedDataDir = false), 2000);
-    } catch (err) {
-      console.error('Erro ao copiar texto:', err);
-    }
-  }
-
-  async function handleOpenInFinder(path: string) {
-    try {
-      await fetch('/api/system/open-path', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path }),
-      });
-    } catch (err) {
-      console.error('Erro ao abrir pasta:', err);
-    }
-  }
-
-  async function handleNativePickFolder() {
-    folderError = '';
-    try {
-      const res = await fetch('/api/system/pick-folder', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.path) {
-          newFolderPath = data.path;
-          if (!newFolderName && data.name) {
-            newFolderName = data.name;
-          }
-          return;
-        }
-      }
-    } catch (err) {
-      console.error('Erro ao abrir seletor nativo:', err);
-    }
-    // Fallback para input HTML se o nativo não responder
-    folderPickerInput?.click();
-  }
-
-  function handleHtmlFolderSelected(e: Event) {
-    const input = e.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      const file = input.files[0];
-      const relative = file.webkitRelativePath || '';
-      const folderName = relative.split('/')[0] || file.name;
-      if (!newFolderName) newFolderName = folderName;
-      if (!newFolderPath) newFolderPath = folderName;
-    }
-  }
-
-  // Estado e métodos para Backup e Migração de Dados
-  let isExportingBackup = $state(false);
-  let isInspectingBackup = $state(false);
-  let isRestoringBackup = $state(false);
-  let backupFileInput: HTMLInputElement | null = $state(null);
-  let inspectedBackup = $state<any | null>(null);
-  let backupFileToRestore = $state<File | null>(null);
-  let backupError = $state<string | null>(null);
-  let backupSuccessMessage = $state<string | null>(null);
-
-  async function handleExportBackup() {
-    isExportingBackup = true;
-    backupError = null;
-    backupSuccessMessage = null;
-    try {
-      const res = await fetch('/api/backup/export');
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg || 'Falha ao gerar pacote de backup');
-      }
-      const blob = await res.blob();
-      const contentDisposition = res.headers.get('content-disposition');
-      let filename = 'open-presenter-backup.opbackup';
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^"]+)"?/);
-        if (match && match[1]) filename = match[1];
-      }
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      notifySuccess('Backup exportado com sucesso!', `Arquivo salvo como ${filename}`);
-    } catch (err: any) {
-      backupError = err.message || 'Erro ao exportar backup';
-      notifyError('Erro na exportação', backupError);
+      foldersError = err instanceof Error ? err.message : 'Falha ao consultar pastas.';
     } finally {
-      isExportingBackup = false;
+      isLoadingFolders = false;
     }
-  }
-
-  function handleSelectBackupFile() {
-    backupError = null;
-    backupSuccessMessage = null;
-    backupFileInput?.click();
-  }
-
-  async function handleBackupFileSelected(event: Event) {
-    const target = event.target as HTMLInputElement;
-    const files = target.files;
-    if (!files || files.length === 0) return;
-
-    const file = files[0];
-    backupFileToRestore = file;
-    isInspectingBackup = true;
-    backupError = null;
-    backupSuccessMessage = null;
-
-    try {
-      const res = await fetch('/api/backup/inspect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/zip' },
-        body: file,
-      });
-
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg || 'Falha ao inspecionar arquivo de backup');
-      }
-
-      const inspectResult = await res.json();
-      if (!inspectResult.valid) {
-        throw new Error(inspectResult.error || 'Arquivo de backup inválido ou corrompido.');
-      }
-
-      inspectedBackup = inspectResult;
-    } catch (err: any) {
-      backupError = err.message || 'Erro ao analisar arquivo de backup';
-      inspectedBackup = null;
-      backupFileToRestore = null;
-      notifyError('Arquivo inválido', backupError);
-    } finally {
-      isInspectingBackup = false;
-      target.value = '';
-    }
-  }
-
-  async function handleConfirmRestore() {
-    if (!backupFileToRestore) return;
-
-    isRestoringBackup = true;
-    backupError = null;
-    backupSuccessMessage = null;
-
-    try {
-      const res = await fetch('/api/backup/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/zip' },
-        body: backupFileToRestore,
-      });
-
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg || 'Falha ao restaurar dados');
-      }
-
-      const result = await res.json();
-      inspectedBackup = null;
-      backupFileToRestore = null;
-      backupSuccessMessage = result.message || 'Dados restaurados com sucesso!';
-      notifySuccess('Restauração concluída!', 'Os dados foram aplicados com sucesso. A página será atualizada.');
-
-      await loadSystemPaths();
-      await loadMediaFolders();
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } catch (err: any) {
-      backupError = err.message || 'Erro ao restaurar backup';
-      notifyError('Erro na restauração', backupError);
-    } finally {
-      isRestoringBackup = false;
-    }
-  }
-
-  function handleCancelRestore() {
-    inspectedBackup = null;
-    backupFileToRestore = null;
-    backupError = null;
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (!open) return;
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      onclose();
-    }
-  }
-
-  function handleColorChange(secIdx: number, presetId: string) {
-    const preset = COLOR_PRESETS.find((p) => p.id === presetId);
-    if (!preset) return;
-
-    editableSections[secIdx].colorName = preset.name;
-    editableSections[secIdx].bg = preset.bg;
-    editableSections[secIdx].text = preset.text;
-    editableSections[secIdx].border = preset.border;
-    editableSections[secIdx].accent = preset.accent;
-    saveSections(editableSections);
-  }
-
-  function handleShortcutChange(secIdx: number, newKey: string) {
-    editableSections[secIdx].shortcut = newKey.toLowerCase().slice(-1);
-    saveSections(editableSections);
-  }
-
-  function handleNameChange(secIdx: number, newName: string) {
-    editableSections[secIdx].name = newName;
-    saveSections(editableSections);
-  }
-
-  function handleResetSections() {
-    resetSectionsToDefault();
-    editableSections = JSON.parse(JSON.stringify($sectionsStore));
   }
 
   async function loadBibles() {
     isLoadingBibles = true;
     bibleError = '';
     try {
-      const list = await refreshBibles();
-      biblesList = list;
+      const res = await fetch('/api/bibles');
+      if (!res.ok) {
+        bibleError = await readHttpError(res, 'Falha ao listar Bíblias instaladas.');
+        return;
+      }
+      biblesList = await res.json();
       onbibleschanged?.();
-    } catch (err: any) {
-      bibleError = err.message || 'Erro de conexão ao buscar Bíblias';
+    } catch (err) {
+      bibleError = err instanceof Error ? err.message : 'Erro de conexão ao buscar Bíblias.';
     } finally {
       isLoadingBibles = false;
     }
   }
 
-  function readFileAsBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const commaIdx = result.indexOf(',');
-        resolve(commaIdx >= 0 ? result.slice(commaIdx + 1) : result);
-      };
-      reader.onerror = () => reject(new Error(`Falha ao ler o arquivo ${file.name}`));
-      reader.readAsDataURL(file);
+  async function fetchLogs() {
+    isLoadingLogs = true;
+    logsError = '';
+    try {
+      const url =
+        selectedLogCategory === 'all'
+          ? '/api/logs?limit=100'
+          : `/api/logs?limit=100&category=${encodeURIComponent(selectedLogCategory)}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        logsError = await readHttpError(res, 'Falha ao carregar histórico de auditoria.');
+        return;
+      }
+      actionLogs = await res.json();
+    } catch (err) {
+      logsError = err instanceof Error ? err.message : 'Erro de conexão ao consultar logs.';
+    } finally {
+      isLoadingLogs = false;
+    }
+  }
+
+  function handleSelectLogCategory(category: string) {
+    selectedLogCategory = category;
+    void fetchLogs();
+  }
+
+  function requestClearLogs() {
+    openConfirm({
+      title: 'Limpar Histórico de Auditoria?',
+      description: 'Deseja remover permanentemente todos os registros de logs do sistema?',
+      confirmText: 'Limpar Logs',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await fetch('/api/logs', { method: 'DELETE' });
+          if (!res.ok) {
+            const msg = await readHttpError(res, 'Falha ao limpar logs.');
+            logsError = msg;
+            notifyError('Erro ao limpar logs', msg);
+            return;
+          }
+          actionLogs = [];
+          notifySuccess('Histórico limpo com sucesso');
+          await fetchLogs();
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          logsError = msg;
+          notifyError('Erro de conexão', msg);
+        }
+      },
     });
   }
 
-  async function handleBibleFileSelect(e: Event) {
-    const input = e.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-    const files = Array.from(input.files);
-
-    isImportingBible = true;
-    bibleError = '';
-    importProgress = {
-      current: 0,
-      total: files.length,
-      currentFileName: '',
-      successCount: 0,
-      failedCount: 0,
-    };
-
-    const failedFiles: { name: string; error: string }[] = [];
-    let successCount = 0;
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      importProgress = {
-        current: i + 1,
-        total: files.length,
-        currentFileName: file.name,
-        successCount,
-        failedCount: failedFiles.length,
-      };
-
-      try {
-        const base64 = await readFileAsBase64(file);
-        const res = await fetch('/api/bibles/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filename: file.name,
-            content_base64: base64,
-          }),
-        });
-
-        if (!res.ok) {
-          const msg = await res.text();
-          if (msg.includes('length limit exceeded') || res.status === 413) {
-            throw new Error('O arquivo excede o limite máximo de tamanho.');
-          }
-          throw new Error(msg || 'Falha ao importar Bíblia SQLite');
-        }
-
-        successCount++;
-        notifySuccess('Bíblia importada', `${file.name} (${i + 1}/${files.length})`);
-        await loadBibles();
-        refreshBibles();
-      } catch (err: any) {
-        console.error(`Erro ao importar ${file.name}:`, err);
-        const errorMsg = err.message || 'Erro ao importar arquivo de Bíblia';
-        failedFiles.push({ name: file.name, error: errorMsg });
-        notifyError('Falha na importação', `${file.name}: ${errorMsg}`);
+  async function refreshUpdaterStatus() {
+    try {
+      const status = await fetchUpdaterStatus();
+      updaterStatus = status;
+      if (status.last_check) {
+        updateInfo = status.last_check;
       }
-    }
-
-    if (bibleFileInput) {
-      bibleFileInput.value = '';
-    }
-    isImportingBible = false;
-
-    if (failedFiles.length === 0) {
-      notifySuccess(
-        'Importação concluída',
-        files.length === 1
-          ? 'Versão da Bíblia importada com sucesso.'
-          : `Todas as ${files.length} versões da Bíblia foram importadas com sucesso.`
-      );
-    } else {
-      bibleError = `${successCount} de ${files.length} versão(ões) importada(s) com sucesso. Falhas: ${failedFiles.map((f) => `${f.name} (${f.error})`).join('; ')}`;
+      if (status.stage.type === 'Downloading' || status.stage.type === 'Extracting') {
+        startUpdaterPolling();
+      }
+    } catch (err) {
+      // Silencioso apenas no bootstrap quando offline/preview sem API, mas guarda se houver mensagem explícita
+      updaterError = err instanceof Error ? err.message : '';
     }
   }
 
-  async function handleImportBibleByPath() {
-    const raw = importPathInput.trim();
-    if (!raw) {
-      bibleError = 'Informe o caminho absoluto do arquivo SQLite da Bíblia.';
+  function startUpdaterPolling() {
+    if (updaterPollInterval) return;
+    updaterPollInterval = setInterval(async () => {
+      try {
+        const status = await fetchUpdaterStatus();
+        updaterStatus = status;
+        if (status.stage.type === 'ReadyToRestart' || status.stage.type === 'Error') {
+          stopUpdaterPolling();
+          if (status.stage.type === 'Error') {
+            updaterError = status.stage.message;
+          }
+        }
+      } catch {
+        stopUpdaterPolling();
+      }
+    }, 1500);
+  }
+
+  async function handleCheckUpdates() {
+    isCheckingUpdate = true;
+    updaterError = '';
+    try {
+      const info = await fetchUpdateCheck();
+      updateInfo = info;
+      await refreshUpdaterStatus();
+    } catch (err) {
+      updaterError = err instanceof Error ? err.message : 'Falha ao verificar atualizações.';
+    } finally {
+      isCheckingUpdate = false;
+    }
+  }
+
+  async function handleStartUpdate() {
+    if (!updateInfo) return;
+    updaterError = '';
+    try {
+      await triggerInstallUpdate({
+        download_url: updateInfo.download_url || undefined,
+        asset_name: updateInfo.asset_name || undefined,
+        target_version: updateInfo.latest_version,
+      });
+      startUpdaterPolling();
+      await refreshUpdaterStatus();
+    } catch (err) {
+      updaterError = err instanceof Error ? err.message : 'Falha ao iniciar download da atualização.';
+    }
+  }
+
+  function requestRestartApplication() {
+    openConfirm({
+      title: 'Reiniciar Sistema?',
+      description:
+        'O servidor do OpenPresenter será reiniciado para aplicar a nova versão ou restaurar o estado. Telas conectadas ficarão brevemente indisponíveis.',
+      confirmText: 'Reiniciar Agora',
+      variant: 'danger',
+      onConfirm: executeRestartApplication,
+    });
+  }
+
+  async function executeRestartApplication() {
+    if (isRestarting) return;
+    isRestarting = true;
+    updaterError = '';
+    stopRestartPolling();
+    try {
+      await triggerSystemRestart();
+      let attempts = 0;
+      restartPollInterval = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await fetch('/api/status');
+          if (res.ok) {
+            stopRestartPolling();
+            window.location.reload();
+            return;
+          }
+        } catch {
+          // Aguarda enquanto o processo reinicia
+        }
+        if (attempts > 40) {
+          stopRestartPolling();
+          isRestarting = false;
+          updaterError =
+            'O servidor demorou para responder após o reinício. Tente recarregar a página.';
+        }
+      }, 1000);
+    } catch (err) {
+      isRestarting = false;
+      updaterError =
+        err instanceof Error ? err.message : 'Falha ao solicitar reinicialização do sistema.';
+    }
+  }
+
+  // --- Manipulação de Rascunho e Salvamento ---
+  function selectTab(tabId: SettingsTab) {
+    activeTab = tabId;
+    openSelectId = null;
+  }
+
+  function handleSectionNameChange(idx: number, val: string) {
+    editableSections = editableSections.map((sec, i) =>
+      i === idx ? { ...sec, name: val } : sec
+    );
+  }
+
+  function handleSectionShortcutChange(idx: number, val: string) {
+    const clean = val.trim().slice(0, 1).toLowerCase();
+    editableSections = editableSections.map((sec, i) =>
+      i === idx ? { ...sec, shortcut: clean } : sec
+    );
+  }
+
+  function handleSectionColorChange(idx: number, colorId: string) {
+    const preset = COLOR_PRESETS.find((p) => p.id === colorId);
+    if (!preset) return;
+    editableSections = editableSections.map((sec, i) =>
+      i === idx
+        ? {
+            ...sec,
+            colorName: preset.name,
+            bg: preset.bg,
+            text: preset.text,
+            border: preset.border,
+            accent: preset.accent,
+          }
+        : sec
+    );
+  }
+
+  function handleResetSections() {
+    resetSectionsToDefault();
+    editableSections = cloneJson(DEFAULT_SECTIONS);
+    savedSnap = { ...savedSnap, sections: JSON.stringify(editableSections) };
+    notifySuccess('Seções restauradas para o padrão');
+  }
+
+  function handleUpdateBrandField<K extends keyof ChurchBrandSettings>(
+    key: K,
+    val: ChurchBrandSettings[K]
+  ) {
+    localBrand = { ...localBrand, [key]: val };
+  }
+
+  async function handleSelectWallpaperFit(fit: ImageFitMode | 'repeat') {
+    const next = { ...localPublic, wallpaper_fit: fit };
+    localPublic = next;
+    setWallpaperFit(fit);
+    saveError = '';
+    try {
+      await savePublicDisplaySettings(next);
+      savedSnap = { ...savedSnap, public: JSON.stringify(next) };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Falha ao salvar ajuste de papel de parede.';
+      saveError = msg;
+      notifyError('Falha ao salvar ajuste', msg);
+    }
+  }
+
+  async function handleSelectLinesPerSlide(lines: number) {
+    const next = { ...localSongSettings, lines_per_slide: lines };
+    localSongSettings = next;
+    saveError = '';
+    try {
+      await saveSongSettings(next);
+      savedSnap = { ...savedSnap, songs: JSON.stringify(next) };
+      notifySuccess(
+        'Divisão de letras atualizada',
+        lines === 0 ? 'Sem divisão automática' : `${lines} linha(s) por slide`
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Falha ao salvar preferência de músicas.';
+      saveError = msg;
+      notifyError('Erro ao salvar', msg);
+    }
+  }
+
+  async function handleSaveBrandNow(next: ChurchBrandSettings) {
+    localBrand = next;
+    saveError = '';
+    try {
+      await saveChurchBrandSettings(next);
+      savedSnap = { ...savedSnap, brand: JSON.stringify(next) };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Falha ao salvar identidade da igreja.';
+      saveError = msg;
+      notifyError('Erro ao salvar identidade', msg);
+    }
+  }
+
+  async function handleSaveLowerThirdNow(next: LowerThirdSettings) {
+    localLowerThird = next;
+    saveError = '';
+    try {
+      await saveLowerThirdSettings(next);
+      savedSnap = { ...savedSnap, lt: JSON.stringify(next) };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Falha ao salvar Lower Third.';
+      saveError = msg;
+      notifyError('Erro ao salvar Lower Third', msg);
+    }
+  }
+
+  async function saveAllChanges() {
+    if (isSaving || !hasUnsavedChanges) return;
+    isSaving = true;
+    saveMessage = '';
+    saveError = '';
+
+    const errors: string[] = [];
+
+    if (sectionsDirty) {
+      saveSections(editableSections);
+      savedSnap = { ...savedSnap, sections: JSON.stringify(editableSections) };
+    }
+
+    const tasks: Array<Promise<void>> = [];
+
+    if (publicDirty) {
+      const snapshotTarget = cloneJson(localPublic);
+      tasks.push(
+        savePublicDisplaySettings(snapshotTarget).then(() => {
+          savedSnap = { ...savedSnap, public: JSON.stringify(snapshotTarget) };
+        })
+      );
+    }
+    if (brandDirty) {
+      const snapshotTarget = cloneJson(localBrand);
+      tasks.push(
+        saveChurchBrandSettings(snapshotTarget).then(() => {
+          savedSnap = { ...savedSnap, brand: JSON.stringify(snapshotTarget) };
+        })
+      );
+    }
+    if (stageDirty) {
+      const snapshotTarget = cloneJson(localStage);
+      tasks.push(
+        saveStageDisplaySettings(snapshotTarget).then(() => {
+          savedSnap = { ...savedSnap, stage: JSON.stringify(snapshotTarget) };
+        })
+      );
+    }
+    if (bgDirty) {
+      const snapshotTarget = cloneJson(localBgStyles);
+      tasks.push(
+        saveBackgroundStyles(snapshotTarget).then(() => {
+          savedSnap = { ...savedSnap, bg: JSON.stringify(snapshotTarget) };
+        })
+      );
+    }
+    if (ltDirty) {
+      const snapshotTarget = cloneJson(localLowerThird);
+      tasks.push(
+        saveLowerThirdSettings(snapshotTarget).then(() => {
+          savedSnap = { ...savedSnap, lt: JSON.stringify(snapshotTarget) };
+        })
+      );
+    }
+    if (songsDirty) {
+      const snapshotTarget = cloneJson(localSongSettings);
+      tasks.push(
+        saveSongSettings(snapshotTarget).then(() => {
+          savedSnap = { ...savedSnap, songs: JSON.stringify(snapshotTarget) };
+        })
+      );
+    }
+
+    const settled = await Promise.allSettled(tasks);
+    for (const res of settled) {
+      if (res.status === 'rejected') {
+        errors.push(
+          res.reason instanceof Error ? res.reason.message : 'Erro desconhecido ao salvar.'
+        );
+      }
+    }
+
+    isSaving = false;
+
+    if (errors.length > 0) {
+      saveError = errors[0];
+      notifyError('Falha ao salvar configurações', errors[0]);
       return;
     }
-    const paths = raw
-      .split(/[\n,;]+/)
-      .map((p) => p.trim())
-      .filter((p) => p.length > 0);
 
-    if (paths.length === 0) return;
+    saveMessage = 'Alterações salvas e sincronizadas.';
+    notifySuccess('Configurações salvas');
+    setTimeout(() => {
+      saveMessage = '';
+    }, 3000);
+  }
 
-    isImportingBible = true;
-    bibleError = '';
-    importProgress = {
-      current: 0,
-      total: paths.length,
-      currentFileName: '',
-      successCount: 0,
-      failedCount: 0,
-    };
-
-    const failedPaths: { path: string; error: string }[] = [];
-    let successCount = 0;
-
-    for (let i = 0; i < paths.length; i++) {
-      const p = paths[i];
-      const filename = p.split(/[/\\]/).pop() || p;
-      importProgress = {
-        current: i + 1,
-        total: paths.length,
-        currentFileName: filename,
-        successCount,
-        failedCount: failedPaths.length,
-      };
-
-      try {
-        const res = await fetch('/api/bibles/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            source_path: p,
-          }),
-        });
-
-        if (!res.ok) {
-          const msg = await res.text();
-          throw new Error(msg || 'Falha ao importar Bíblia a partir do caminho');
-        }
-
-        successCount++;
-        notifySuccess('Bíblia importada', `${filename} (${i + 1}/${paths.length})`);
-        await loadBibles();
-        refreshBibles();
-      } catch (err: any) {
-        console.error(`Erro ao importar ${p}:`, err);
-        const errorMsg = err.message || 'Erro ao importar';
-        failedPaths.push({ path: p, error: errorMsg });
-        notifyError('Falha na importação', `${filename}: ${errorMsg}`);
-      }
+  function requestClose() {
+    if (isRestarting) return;
+    if (hasUnsavedChanges) {
+      openConfirm({
+        title: 'Descartar alterações não salvas?',
+        description:
+          'Há ajustes modificados nesta sessão que ainda não foram gravados no servidor. Deseja descartá-los e fechar?',
+        confirmText: 'Descartar e Fechar',
+        variant: 'danger',
+        onConfirm: () => {
+          pendingConfirm = null;
+          onclose();
+        },
+      });
+      return;
     }
+    onclose();
+  }
 
-    importPathInput = '';
-    showPathImport = false;
-    isImportingBible = false;
+  // --- Teclado: Esc em Camadas, Tab Focus Trap, Navegação Roving em Tablist ---
+  function getFocusableElements(): HTMLElement[] {
+    if (!dialogEl) return [];
+    const selector =
+      'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+    return Array.from(dialogEl.querySelectorAll<HTMLElement>(selector)).filter((el) => {
+      if (el.getAttribute('aria-hidden') === 'true') return false;
+      return el.offsetParent !== null || el === document.activeElement;
+    });
+  }
 
-    if (failedPaths.length === 0) {
-      notifySuccess(
-        'Importação concluída',
-        paths.length === 1
-          ? 'Versão da Bíblia importada com sucesso.'
-          : `Todas as ${paths.length} versões da Bíblia foram importadas com sucesso.`
+  function handleWindowKeydown(e: KeyboardEvent) {
+    if (!open) return;
+
+    const hasNestedDialog =
+      typeof document !== 'undefined' &&
+      Boolean(
+        document.querySelector('[role="dialog"][aria-modal="true"]:not([data-settings-shell="true"])')
       );
-    } else {
-      bibleError = `${successCount} de ${paths.length} versão(ões) importada(s) com sucesso. Falhas: ${failedPaths.map((f) => `${f.path} (${f.error})`).join('; ')}`;
-    }
-  }
 
-  function handleStartEditBible(b: BibleVersionSummary) {
-    editingBibleId = b.id;
-    editBibleName = b.name;
-    editBibleAbbr = b.abbreviation;
-    editBibleIsDefault = b.is_default;
-    isEditingBible = true;
-  }
-
-  async function handleSaveEditBible() {
-    if (!editingBibleId) return;
-    try {
-      const res = await fetch(`/api/bibles/${editingBibleId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: editBibleName.trim() || undefined,
-          abbreviation: editBibleAbbr.trim() || undefined,
-          is_default: editBibleIsDefault,
-        }),
-      });
-      if (!res.ok) {
-        throw new Error(await res.text());
+    if (e.key === 'Escape') {
+      if (e.defaultPrevented || pendingConfirm || hasNestedDialog) {
+        return;
       }
-      isEditingBible = false;
-      editingBibleId = null;
-      await loadBibles();
-    } catch (err: any) {
-      bibleError = err.message || 'Erro ao salvar alterações da Bíblia';
-    }
-  }
-
-  async function handleSetDefaultBible(id: string) {
-    try {
-      const res = await fetch(`/api/bibles/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_default: true }),
-      });
-      if (res.ok) {
-        await loadBibles();
+      e.preventDefault();
+      if (openSelectId !== null) {
+        openSelectId = null;
+        return;
       }
-    } catch (err) {
-      console.error('Erro ao definir Bíblia padrão:', err);
+      requestClose();
+      return;
     }
-  }
 
-  async function handleDeleteBible(id: string, name: string) {
-    if (!confirm(`Tem certeza que deseja excluir a Bíblia "${name}"?`)) return;
-    try {
-      const res = await fetch(`/api/bibles/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await loadBibles();
-      } else {
-        const msg = await res.text();
-        bibleError = msg || 'Falha ao excluir Bíblia';
-      }
-    } catch (err: any) {
-      bibleError = err.message || 'Erro ao excluir Bíblia';
-    }
-  }
+    if (e.key === 'Tab' && !pendingConfirm && !hasNestedDialog) {
+      const focusables = getFocusableElements();
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
 
-  async function handleInstallHarpa() {
-    isInstallingHarpa = true;
-    harpaInstallMessage = null;
-    harpaInstallSuccess = null;
-    try {
-      const res = await fetch('/api/songs/harpa/install', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lines_per_slide: localSongSettings.lines_per_slide,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        harpaInstallSuccess = true;
-        harpaInstallMessage = data.message || '540 hinos da Harpa Cristã instalados com sucesso!';
-        notifySuccess('Harpa Cristã Instalada!', harpaInstallMessage ?? undefined);
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('openpresenter:songs-changed'));
+      if (e.shiftKey) {
+        if (!active || !dialogEl?.contains(active) || active === first) {
+          e.preventDefault();
+          last.focus();
         }
       } else {
-        harpaInstallSuccess = false;
-        harpaInstallMessage = data.message || 'Falha ao instalar a Harpa Cristã.';
-        notifyError('Erro ao instalar Harpa Cristã', harpaInstallMessage ?? undefined);
-      }
-    } catch (err) {
-      console.error('Erro ao instalar Harpa Cristã:', err);
-      harpaInstallSuccess = false;
-      harpaInstallMessage = `Erro de conexão: ${err}`;
-      notifyError('Erro de conexão', String(err));
-    } finally {
-      isInstallingHarpa = false;
-    }
-  }
-
-  function handleSaveSongLines(lines: number) {
-    localSongSettings.lines_per_slide = lines;
-    saveSongSettings(localSongSettings);
-    notifySuccess('Padrão de linhas salvo', `${lines === 0 ? 'Preservar original' : `${lines} linhas por slide`} como padrão`);
-  }
-
-  function triggerSettingsSongImport() {
-    settingsSongFileInputEl?.click();
-  }
-
-  async function handleSettingsSongFilesSelected(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const files = input.files;
-    if (!files || files.length === 0) return;
-
-    isSettingsImporting = true;
-    settingsImportResult = null;
-    let totalImported = 0;
-    const tags = settingsImportTags
-      .split(/[,;\s]+/)
-      .map((t) => t.trim().toLowerCase().replace(/^#/, ''))
-      .filter(Boolean);
-
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const content = await file.text();
-        const res = await fetch('/api/songs/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filename: file.name,
-            content,
-            tags,
-            lines_per_slide: localSongSettings.lines_per_slide,
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          totalImported += data.imported_count || 1;
+        if (!active || !dialogEl?.contains(active) || active === last) {
+          e.preventDefault();
+          first.focus();
         }
       }
-      settingsImportResult = `${totalImported} música(s) importada(s) com sucesso!`;
-      notifySuccess(settingsImportResult);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('openpresenter:songs-changed'));
-      }
-    } catch (err) {
-      console.error('Erro na importação:', err);
-      settingsImportResult = `Erro ao importar: ${err}`;
-      notifyError('Erro na importação', String(err));
-    } finally {
-      isSettingsImporting = false;
-      input.value = '';
     }
   }
 
-  const currentBaseColorPreset = $derived(
-    BASE_COLOR_PRESETS.find((p) => p.id === $baseColorStore) || BASE_COLOR_PRESETS[0]
-  );
+  function handleTablistKeydown(e: KeyboardEvent) {
+    if (filteredTabs.length === 0) return;
+    const currentIdx = filteredTabs.findIndex((t) => t.id === activeTab);
+    let nextIdx = -1;
 
-  const currentAccentPreset = $derived(
-    ACCENT_THEME_PRESETS.find((p) => p.id === $accentThemeStore) || ACCENT_THEME_PRESETS[0]
-  );
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      nextIdx = currentIdx < 0 ? 0 : (currentIdx + 1) % filteredTabs.length;
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      nextIdx =
+        currentIdx <= 0 ? filteredTabs.length - 1 : currentIdx - 1;
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      nextIdx = 0;
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      nextIdx = filteredTabs.length - 1;
+    }
+
+    if (nextIdx >= 0) {
+      const targetTab = filteredTabs[nextIdx];
+      const container = e.currentTarget as HTMLElement | null;
+      selectTab(targetTab.id);
+      tick().then(() => {
+        container
+          ?.querySelector<HTMLElement>(`[data-tab-id="${targetTab.id}"]`)
+          ?.focus();
+      });
+    }
+  }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleWindowKeydown} />
 
 {#if open}
-  <!-- Backdrop -->
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- Backdrop e Diálogo Principal -->
   <div
-    class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-150 {isMaximized ? 'p-0' : 'p-3 sm:p-6'}"
+    data-settings-shell="true"
+    class="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150"
     role="dialog"
     aria-modal="true"
-    aria-label="Configurações do OpenPresenter"
+    aria-labelledby="settings-modal-title"
     tabindex="-1"
     onclick={(e) => {
-      if (e.target === e.currentTarget) onclose();
+      if (e.target === e.currentTarget) requestClose();
+    }}
+    onkeydown={(e) => {
+      if (e.key === 'Escape' && e.target === e.currentTarget) {
+        e.preventDefault();
+        requestClose();
+      }
     }}
   >
-    <!-- Modal Container -->
     <div
-      class="{isMaximized
-        ? 'w-full h-full max-w-none max-h-none rounded-none border-0'
-        : 'w-[95vw] max-w-6xl 2xl:max-w-7xl h-[90vh] max-h-[860px] rounded-xl border border-border'} bg-card shadow-2xl flex flex-col overflow-hidden text-foreground transition-all duration-150"
+      bind:this={dialogEl}
+      class="relative w-full max-w-6xl h-[90vh] max-h-[820px] rounded-2xl border border-border bg-card text-foreground shadow-2xl flex flex-col overflow-hidden"
     >
-      <!-- Header do Modal -->
-      <div class="h-14 px-6 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-between shrink-0">
-        <div class="flex items-center gap-3">
-          <img src="/branding/open-presenter-app-icon.svg" alt="OpenPresenter" class="w-7 h-7 rounded-md" />
-          <div>
-            <h2 class="text-sm font-semibold tracking-tight text-white">Configurações</h2>
-            <p class="text-[11px] text-neutral-400">Preferências, temas, pastas do sistema e atalhos de projeção</p>
+      <!-- Cabeçalho -->
+      <header class="px-5 py-3.5 border-b border-border bg-card flex items-center justify-between gap-3 shrink-0">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-lg bg-primary/15 border border-primary/25 text-primary flex items-center justify-center shrink-0">
+            <Settings size={16} />
+          </div>
+          <div class="min-w-0">
+            <h2 id="settings-modal-title" class="text-sm font-bold text-foreground truncate">
+              Configurações — {activeTabMeta.label}
+            </h2>
+            <p class="text-[11px] text-muted-foreground truncate">
+              Preferências do aplicativo, saídas gráficas, bíblias, acervo e sistema
+            </p>
           </div>
         </div>
 
-        <div class="flex items-center gap-1.5">
-          <button
-            type="button"
-            onclick={() => (isMaximized = !isMaximized)}
-            class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800/80 flex items-center justify-center transition-colors cursor-pointer"
-            title={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
-            aria-label={isMaximized ? 'Restaurar tamanho' : 'Maximizar'}
-          >
-            {#if isMaximized}
-              <Minimize2 size={16} />
-            {:else}
-              <Maximize2 size={16} />
-            {/if}
-          </button>
+        <div class="flex items-center gap-2 shrink-0">
+          {#if hasUnsavedChanges}
+            <span class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/35">
+              Alterações não salvas
+            </span>
+          {/if}
 
           <button
             type="button"
-            onclick={onclose}
-            class="w-8 h-8 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800/80 flex items-center justify-center transition-colors cursor-pointer"
-            aria-label="Fechar"
-            title="Fechar (Esc)"
+            onclick={requestClose}
+            aria-label="Fechar configurações"
+            class="w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
+        </div>
+      </header>
+
+      <!-- Barra Compacta de Abas para Telas Menores (< md) -->
+      <div class="md:hidden border-b border-border bg-muted/30 px-3 py-2 space-y-2 shrink-0">
+        <div class="relative">
+          <Search size={13} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <input
+            type="search"
+            bind:value={tabSearch}
+            placeholder="Filtrar configurações..."
+            aria-label="Filtrar abas de configurações"
+            class="w-full h-8 pl-8 pr-3 rounded-lg bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </div>
+        <div
+          role="tablist"
+          aria-label="Seções de configurações"
+          aria-orientation="horizontal"
+          tabindex="-1"
+          onkeydown={handleTablistKeydown}
+          class="flex items-center gap-1 overflow-x-auto pb-0.5"
+        >
+          {#each filteredTabs as tab (tab.id)}
+            {@const IconComp = TAB_ICONS[tab.id]}
+            {@const isActive = activeTab === tab.id}
+            <button
+              type="button"
+              role="tab"
+              data-tab-id={tab.id}
+              aria-selected={isActive}
+              tabindex={isActive ? 0 : -1}
+              onclick={() => selectTab(tab.id)}
+              class="min-h-8 px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring {isActive ? 'bg-primary text-primary-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'}"
+            >
+              <IconComp size={13} class="shrink-0" />
+              <span>{tab.label}</span>
+            </button>
+          {/each}
         </div>
       </div>
 
-      <!-- Corpo com Abas Verticais à Esquerda -->
-      <div class="flex-1 flex overflow-hidden">
-        <!-- Sidebar de Abas Verticais (Agrupada por Categorias) -->
-        <aside class="w-52 sm:w-60 border-r border-neutral-800 bg-neutral-900/30 p-2.5 flex flex-col gap-1 shrink-0 overflow-y-auto">
-          <!-- GRUPO 1: MONITORES E SAÍDAS -->
-          <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-            Telas & Saídas
-          </div>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'public')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'public' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <Monitor size={15} class={activeTab === 'public' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Tela Pública (Public)</span>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'stage')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'stage' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <Tv size={15} class={activeTab === 'stage' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Monitor de Palco (Stage)</span>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'lower_third')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'lower_third' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <Video size={15} class={activeTab === 'lower_third' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Lower Third (OBS)</span>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'lyrics_bg')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'lyrics_bg' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <Sparkles size={15} class={activeTab === 'lyrics_bg' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Fundos de Letras & CSS</span>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'outputs')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'outputs' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <Sliders size={15} class={activeTab === 'outputs' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Monitores & Saídas Físicas</span>
-          </button>
-
-          <!-- GRUPO 2: CONTEÚDO E MÍDIAS -->
-          <div class="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400 border-t border-neutral-800/60 mt-1">
-            Conteúdo & Mídias
-          </div>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'bibles')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'bibles' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <BookOpen size={15} class={activeTab === 'bibles' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Bíblias Sagradas</span>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'songs')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'songs' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <Music size={15} class={activeTab === 'songs' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Músicas & Harpa</span>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'sections')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'sections' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <span class="w-3.5 h-3.5 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-[9px] font-bold text-primary">#</span>
-            <span>Partes e Cores</span>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'files')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'files' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <HardDrive size={15} class={activeTab === 'files' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Arquivos e Pastas</span>
-          </button>
-
-          <!-- GRUPO 3: GERAL E SISTEMA -->
-          <div class="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400 border-t border-neutral-800/60 mt-1">
-            Geral & Sistema
-          </div>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'appearance')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'appearance' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <Palette size={15} class={activeTab === 'appearance' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Aparência & Cores</span>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'church')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'church' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <Church size={15} class={activeTab === 'church' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Marca da Igreja</span>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'shortcuts')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'shortcuts' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <Keyboard size={15} class={activeTab === 'shortcuts' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Atalhos Rápidos</span>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'logs')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer {activeTab === 'logs' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <ScrollText size={15} class={activeTab === 'logs' ? 'text-primary' : 'text-neutral-500'} />
-            <span>Histórico & Logs</span>
-          </button>
-
-          <button
-            type="button"
-            onclick={() => (activeTab = 'about')}
-            class="w-full px-3 py-2 rounded-lg text-left text-xs font-medium flex items-center justify-between transition-colors cursor-pointer {activeTab === 'about' ? 'bg-neutral-800 text-primary font-semibold' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'}"
-          >
-            <div class="flex items-center gap-2.5">
-              <Info size={15} class={activeTab === 'about' ? 'text-primary' : 'text-neutral-500'} />
-              <span>Sobre & Updates</span>
+      <!-- Corpo Principal: Sidebar Desktop + Conteúdo -->
+      <div class="flex-1 min-h-0 flex overflow-hidden">
+        <!-- Sidebar Desktop -->
+        <aside class="hidden md:flex md:w-56 lg:w-60 shrink-0 flex-col border-r border-border bg-muted/25">
+          <div class="p-3 border-b border-border/70">
+            <div class="relative">
+              <Search size={13} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <input
+                type="search"
+                bind:value={tabSearch}
+                placeholder="Buscar ajuste..."
+                aria-label="Buscar aba de configurações"
+                class="w-full h-8 pl-8 pr-2.5 rounded-lg bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
             </div>
-            {#if updateInfo?.update_available}
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            {/if}
-          </button>
+          </div>
+
+          <nav
+            aria-label="Categorias de configurações"
+            class="flex-1 overflow-y-auto p-2.5"
+          >
+            <div
+              role="tablist"
+              aria-label="Categorias de configurações"
+              aria-orientation="vertical"
+              tabindex="-1"
+              onkeydown={handleTablistKeydown}
+              class="space-y-0.5"
+            >
+              {#if filteredTabs.length === 0}
+                <p class="px-2 py-4 text-xs text-muted-foreground text-center">
+                  Nenhuma aba encontrada para "{tabSearch}".
+                </p>
+              {:else}
+                {#each filteredTabs as tab, idx (tab.id)}
+                  {@const prevGroup = idx > 0 ? filteredTabs[idx - 1].group : null}
+                  {@const showGroupLabel = tab.group !== prevGroup}
+                  {@const IconComp = TAB_ICONS[tab.id]}
+                  {@const isActive = activeTab === tab.id}
+
+                  {#if showGroupLabel}
+                    <div class="{idx > 0 ? 'pt-3 mt-2 border-t border-border/60' : 'pt-0.5'} px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {GROUP_LABELS[tab.group] ?? tab.group}
+                    </div>
+                  {/if}
+
+                  <button
+                    type="button"
+                    role="tab"
+                    id="settings-tab-{tab.id}"
+                    data-tab-id={tab.id}
+                    aria-controls="settings-tabpanel"
+                    aria-selected={isActive}
+                    tabindex={isActive ? 0 : -1}
+                    onclick={() => selectTab(tab.id)}
+                    class="w-full min-h-8 px-2.5 py-1.5 rounded-lg text-xs text-left flex items-center gap-2.5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring {isActive ? 'bg-primary/15 text-primary font-semibold border border-primary/30' : 'text-muted-foreground hover:text-foreground hover:bg-muted/70 border border-transparent'}"
+                  >
+                    <IconComp size={14} class="shrink-0" />
+                    <span class="truncate">{tab.label}</span>
+                  </button>
+                {/each}
+              {/if}
+            </div>
+          </nav>
         </aside>
 
-        <!-- Conteúdo da Aba Selecionada -->
-        <main class="flex-1 p-6 overflow-y-auto">
-          <!-- ABA 1: APARÊNCIA & CORES (Shadcn UI Base Color e Theme) -->
+        <!-- Área da Aba Ativa -->
+        <main class="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 bg-background/40">
+          <div
+            id="settings-tabpanel"
+            role="tabpanel"
+            aria-labelledby="settings-tab-{activeTab}"
+            tabindex="-1"
+          >
           {#if activeTab === 'appearance'}
-            <div class="space-y-6 w-full max-w-4xl">
-              <div>
-                <h3 class="text-sm font-semibold text-white">Modo de Exibição</h3>
-                <p class="text-xs text-neutral-400 mt-0.5">
-                  Alterne entre modo escuro, claro ou automático conforme o sistema operacional.
-                </p>
-              </div>
-
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                <button
-                  type="button"
-                  onclick={() => setTheme('system')}
-                  class="p-4 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {$themeStore === 'system' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
-                >
-                  <div class="flex items-center justify-between mb-3">
-                    <Laptop size={20} class={$themeStore === 'system' ? 'text-primary' : 'text-neutral-400'} />
-                    {#if $themeStore === 'system'}
-                      <Check size={16} class="text-primary" />
-                    {/if}
-                  </div>
-                  <div>
-                    <div class="text-xs font-semibold text-white">Sistema</div>
-                    <div class="text-[10px] text-neutral-400 mt-0.5">Automático (OS)</div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onclick={() => setTheme('dark')}
-                  class="p-4 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {$themeStore === 'dark' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
-                >
-                  <div class="flex items-center justify-between mb-3">
-                    <Moon size={20} class={$themeStore === 'dark' ? 'text-primary' : 'text-neutral-400'} />
-                    {#if $themeStore === 'dark'}
-                      <Check size={16} class="text-primary" />
-                    {/if}
-                  </div>
-                  <div>
-                    <div class="text-xs font-semibold text-white">Escuro</div>
-                    <div class="text-[10px] text-neutral-400 mt-0.5">Otimizado p/ cabines</div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onclick={() => setTheme('light')}
-                  class="p-4 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {$themeStore === 'light' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
-                >
-                  <div class="flex items-center justify-between mb-3">
-                    <Sun size={20} class={$themeStore === 'light' ? 'text-primary' : 'text-neutral-400'} />
-                    {#if $themeStore === 'light'}
-                      <Check size={16} class="text-primary" />
-                    {/if}
-                  </div>
-                  <div>
-                    <div class="text-xs font-semibold text-white">Claro</div>
-                    <div class="text-[10px] text-neutral-400 mt-0.5">Ambientes iluminados</div>
-                  </div>
-                </button>
-              </div>
-
-              <!-- CONTROLES ESTILO SHADCN UI: Base Color e Theme Accent -->
-              <div class="pt-4 border-t border-neutral-800 space-y-4">
-                <div>
-                  <h3 class="text-sm font-semibold text-white">Cores e Temas (Shadcn UI)</h3>
-                  <p class="text-xs text-neutral-400 mt-0.5">
-                    Personalize a Base Color (tons de superfície) e o Theme (cor de destaque primária).
-                  </p>
-                </div>
-
-                <!-- 1. BASE COLOR SELECTOR (Conforme Screenshot 2) -->
-                <div class="relative">
-                  <span class="block text-[11px] font-medium text-neutral-400 mb-1.5">Base Color</span>
-                  <button
-                    type="button"
-                    onclick={() => {
-                      isBaseColorMenuOpen = !isBaseColorMenuOpen;
-                      isAccentThemeMenuOpen = false;
-                    }}
-                    class="w-full h-11 px-3 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-between transition-colors hover:border-neutral-700 cursor-pointer"
-                  >
-                    <div class="flex items-center gap-2.5">
-                      <span
-                        class="w-4 h-4 rounded-full border border-white/20 shrink-0 shadow-inner"
-                        style="background-color: {currentBaseColorPreset.previewColor};"
-                      ></span>
-                      <span class="text-xs font-semibold text-white">{currentBaseColorPreset.label}</span>
-                      <span class="text-[11px] text-neutral-400 hidden sm:inline">- {currentBaseColorPreset.description}</span>
-                    </div>
-                    <ChevronDown size={14} class="text-neutral-400" />
-                  </button>
-
-                  {#if isBaseColorMenuOpen}
-                    <div
-                      class="absolute left-0 right-0 top-full mt-1.5 rounded-xl border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl z-40 max-h-56 overflow-y-auto space-y-1 animate-in fade-in zoom-in-95 duration-100"
-                    >
-                      {#each BASE_COLOR_PRESETS as preset}
-                        <button
-                          type="button"
-                          onclick={() => {
-                            setBaseColor(preset.id);
-                            isBaseColorMenuOpen = false;
-                          }}
-                          class="w-full px-3 py-2 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer {$baseColorStore === preset.id ? 'bg-neutral-800 text-white font-semibold' : 'text-neutral-300 hover:bg-neutral-850 hover:text-white'}"
-                        >
-                          <div class="flex items-center gap-2.5">
-                            <span
-                              class="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0"
-                              style="background-color: {preset.previewColor};"
-                            ></span>
-                            <span class="text-xs">{preset.label}</span>
-                          </div>
-                          {#if $baseColorStore === preset.id}
-                            <Check size={14} class="text-primary" />
-                          {/if}
-                        </button>
-                      {/each}
-                    </div>
-                  {/if}
-                </div>
-
-                <!-- 2. THEME ACCENT COLOR (Conforme Screenshot 1) -->
-                <div class="relative">
-                  <span class="block text-[11px] font-medium text-neutral-400 mb-1.5">Theme (Cor de Destaque)</span>
-                  <button
-                    type="button"
-                    onclick={() => {
-                      isAccentThemeMenuOpen = !isAccentThemeMenuOpen;
-                      isBaseColorMenuOpen = false;
-                    }}
-                    class="w-full h-11 px-3 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-between transition-colors hover:border-neutral-700 cursor-pointer"
-                  >
-                    <div class="flex items-center gap-2.5">
-                      <span
-                        class="w-4 h-4 rounded-full border border-white/20 shrink-0 shadow-inner"
-                        style="background-color: {currentAccentPreset.previewColor};"
-                      ></span>
-                      <span class="text-xs font-semibold text-white">{currentAccentPreset.label}</span>
-                    </div>
-                    <ChevronDown size={14} class="text-neutral-400" />
-                  </button>
-
-                  {#if isAccentThemeMenuOpen}
-                    <div
-                      class="absolute left-0 right-0 top-full mt-1.5 rounded-xl border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl z-40 max-h-56 overflow-y-auto space-y-1 animate-in fade-in zoom-in-95 duration-100"
-                    >
-                      {#each ACCENT_THEME_PRESETS as preset}
-                        <button
-                          type="button"
-                          onclick={() => {
-                            setAccentTheme(preset.id);
-                            isAccentThemeMenuOpen = false;
-                          }}
-                          class="w-full px-3 py-2 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer {$accentThemeStore === preset.id ? 'bg-neutral-800 text-white font-semibold' : 'text-neutral-300 hover:bg-neutral-850 hover:text-white'}"
-                        >
-                          <div class="flex items-center gap-2.5">
-                            <span
-                              class="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0"
-                              style="background-color: {preset.previewColor};"
-                            ></span>
-                            <span class="text-xs">{preset.label}</span>
-                          </div>
-                          {#if $accentThemeStore === preset.id}
-                            <Check size={14} class="text-primary" />
-                          {/if}
-                        </button>
-                      {/each}
-                    </div>
-                  {/if}
-                </div>
-              </div>
-
-              <!-- CONTROLE DO PAINEL DE CONTROLE DE SAÍDAS / PREVIEWS -->
-              <div class="pt-4 border-t border-neutral-800 space-y-4">
-                <div>
-                  <h3 class="text-sm font-semibold text-white">Botões da Interface do Operador</h3>
-                  <p class="text-xs text-neutral-400 mt-0.5">
-                    Personalize a exibição dos botões na barra de navegação de slides, controles de saídas e cabeçalho.
-                  </p>
-                </div>
-
-                <div class="flex items-center justify-between p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40">
-                  <div class="space-y-0.5 pr-4">
-                    <div class="text-xs font-semibold text-white">Exibir textos (labels) nos botões</div>
-                    <div class="text-[11px] text-neutral-400">
-                      Quando desativado, exibe apenas os ícones compactos para ganhar espaço de tela e manter o visual minimalista.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-label="Alternar exibição de textos nos botões"
-                    aria-checked={$previewLabelsStore}
-                    onclick={() => setPreviewLabels(!$previewLabelsStore)}
-                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {$previewLabelsStore ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                  >
-                    <span
-                      aria-hidden="true"
-                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {$previewLabelsStore ? 'translate-x-5' : 'translate-x-0'}"
-                    ></span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- CONTROLE DO MODO DA PROGRAMAÇÃO / SETLIST (PROPRESENTER SHOW FLOW) -->
-              <div class="pt-4 border-t border-neutral-800 space-y-4">
-                <div>
-                  <h3 class="text-sm font-semibold text-white">Visualização da Programação (Setlist)</h3>
-                  <p class="text-xs text-neutral-400 mt-0.5">
-                    Escolha a forma padrão como a programação e os slides são apresentados no painel central do operador.
-                  </p>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <button
-                    type="button"
-                    onclick={() => setSetlistViewMode('item')}
-                    class="p-4 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {$setlistViewModeStore === 'item' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
-                  >
-                    <div class="flex items-center justify-between mb-3">
-                      <LayoutGrid size={20} class={$setlistViewModeStore === 'item' ? 'text-primary' : 'text-neutral-400'} />
-                      {#if $setlistViewModeStore === 'item'}
-                        <Check size={16} class="text-primary" />
-                      {/if}
-                    </div>
-                    <div>
-                      <div class="text-xs font-semibold text-white">Item Focado (Tradicional)</div>
-                      <div class="text-[10px] text-neutral-400 mt-0.5">
-                        Exibe na tela central apenas a grade de slides da mídia selecionada na setlist.
-                      </div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onclick={() => setSetlistViewMode('flow')}
-                    class="p-4 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {$setlistViewModeStore === 'flow' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
-                  >
-                    <div class="flex items-center justify-between mb-3">
-                      <Rows3 size={20} class={$setlistViewModeStore === 'flow' ? 'text-primary' : 'text-neutral-400'} />
-                      {#if $setlistViewModeStore === 'flow'}
-                        <Check size={16} class="text-primary" />
-                      {/if}
-                    </div>
-                    <div>
-                      <div class="text-xs font-semibold text-white">Fluxo Contínuo (ProPresenter)</div>
-                      <div class="text-[10px] text-neutral-400 mt-0.5">
-                        Exibe todas as seções e slides em sequência vertical contínua, com colapso e apresentação por seção.
-                      </div>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              <!-- CONTROLE DE NOTIFICAÇÕES (NÃO PERTURBE E POSIÇÃO DOS TOASTS) -->
-              <div class="pt-4 border-t border-neutral-800 space-y-4">
-                <div>
-                  <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                    <Bell size={16} class="text-primary" />
-                    Notificações do Sistema (Toasts)
-                  </h3>
-                  <p class="text-xs text-neutral-400 mt-0.5">
-                    Configure os avisos flutuantes de conexão de aparelhos, início de apresentação e operações do sistema.
-                  </p>
-                </div>
-
-                <!-- 1. MODO NÃO PERTURBE -->
-                <div class="flex items-center justify-between p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40">
-                  <div class="space-y-0.5 pr-4">
-                    <div class="text-xs font-semibold text-white flex items-center gap-1.5">
-                      {#if $toastDndStore}
-                        <BellOff size={14} class="text-amber-400" />
-                        <span>Modo Não Perturbe (Silenciar)</span>
-                      {:else}
-                        <Bell size={14} class="text-neutral-400" />
-                        <span>Modo Não Perturbe</span>
-                      {/if}
-                    </div>
-                    <div class="text-[11px] text-neutral-400">
-                      Oculta todos os toasts de notificação na tela do operador para evitar distrações durante o culto ao vivo.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-label="Alternar modo Não Perturbe"
-                    aria-checked={$toastDndStore}
-                    onclick={() => setToastDnd(!$toastDndStore)}
-                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {$toastDndStore ? 'bg-amber-600' : 'bg-neutral-800'}"
-                  >
-                    <span
-                      aria-hidden="true"
-                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {$toastDndStore ? 'translate-x-5' : 'translate-x-0'}"
-                    ></span>
-                  </button>
-                </div>
-
-                <!-- 2. POSIÇÃO DAS NOTIFICAÇÕES -->
-                <div class="space-y-2">
-                  <div class="flex items-center justify-between">
-                    <span class="block text-[11px] font-medium text-neutral-400">
-                      Posição das Notificações na Tela
-                    </span>
-                    <button
-                      type="button"
-                      onclick={() => {
-                        if ($toastDndStore) {
-                          notifyInfo('Não Perturbe ativado', 'Desative o Não Perturbe para visualizar notificações.');
-                        } else {
-                          notifyInfo('Notificação de Teste', `Exibida no canto: ${
-                            $toastPositionStore === 'top-left' ? 'Superior Esquerdo' :
-                            $toastPositionStore === 'top-right' ? 'Superior Direito' :
-                            $toastPositionStore === 'bottom-right' ? 'Inferior Direito' : 'Inferior Esquerdo'
-                          }`);
-                        }
-                      }}
-                      class="text-[11px] font-medium text-primary hover:underline cursor-pointer flex items-center gap-1"
-                    >
-                      <Sparkles size={12} />
-                      Testar Notificação
-                    </button>
-                  </div>
-
-                  <div class="grid grid-cols-2 gap-2.5">
-                    {#each [
-                      { id: 'top-left', label: 'Superior Esquerdo', hint: 'Canto alto à esquerda' },
-                      { id: 'top-right', label: 'Superior Direito', hint: 'Canto alto à direita (Padrão)' },
-                      { id: 'bottom-left', label: 'Inferior Esquerdo', hint: 'Canto baixo à esquerda' },
-                      { id: 'bottom-right', label: 'Inferior Direito', hint: 'Canto baixo à direita' },
-                    ] as pos}
-                      <button
-                        type="button"
-                        onclick={() => setToastPosition(pos.id as ToastPosition)}
-                        class="p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer {$toastPositionStore === pos.id ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900'}"
-                      >
-                        <div class="flex items-center justify-between mb-1.5">
-                          <span class="text-xs font-semibold text-white">{pos.label}</span>
-                          {#if $toastPositionStore === pos.id}
-                            <Check size={14} class="text-primary" />
-                          {/if}
-                        </div>
-                        <div class="text-[10px] text-neutral-400">
-                          {pos.hint}
-                        </div>
-                      </button>
-                    {/each}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          <!-- ABA: TELA PÚBLICA (PUBLIC) -->
-          {:else if activeTab === 'public'}
-            <div class="space-y-6 max-w-4xl">
-              <div>
-                <h3 class="text-sm font-semibold text-white">Configuração da Projeção Pública</h3>
-                <p class="text-xs text-neutral-400 mt-0.5">
-                  Personalize de forma independente o comportamento de letras de louvor, textos bíblicos e margens seguras.
-                </p>
-              </div>
-
-              <!-- Seletor de Seções da Projeção Pública -->
-              <div class="p-1 bg-neutral-950 rounded-xl border border-neutral-800 grid grid-cols-2 sm:grid-cols-5 gap-1">
-                <button
-                  type="button"
-                  onclick={() => (publicSection = 'lyrics')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'lyrics' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
-                >
-                  <Music size={13} />
-                  <span>Letras</span>
-                </button>
-
-                <button
-                  type="button"
-                  onclick={() => (publicSection = 'scripture')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'scripture' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
-                >
-                  <BookOpen size={13} />
-                  <span>Bíblia</span>
-                </button>
-
-                <button
-                  type="button"
-                  onclick={() => (publicSection = 'schedule')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'schedule' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
-                >
-                  <CalendarDays size={13} />
-                  <span>Agenda</span>
-                </button>
-
-                <button
-                  type="button"
-                  onclick={() => (publicSection = 'timer')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'timer' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
-                >
-                  <Clock size={13} />
-                  <span>Timer & Áudio</span>
-                </button>
-
-                <button
-                  type="button"
-                  onclick={() => (publicSection = 'general')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer {publicSection === 'general' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
-                >
-                  <Sliders size={13} />
-                  <span>Margens</span>
-                </button>
-              </div>
-
-              {#if publicSection === 'lyrics'}
-                <!-- SEÇÃO 1: LETRAS DE LOUVOR -->
-                <div class="space-y-4">
-                  <!-- Alinhamento das Letras -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <div class="text-xs font-semibold text-white flex items-center gap-2">
-                      <Sliders size={14} class="text-primary" />
-                      Alinhamento Padrão das Letras
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <!-- Alinhamento Horizontal -->
-                      <div class="space-y-1.5">
-                        <span class="text-[11px] text-neutral-400">Horizontal</span>
-                        <div class="grid grid-cols-4 gap-1">
-                          {#each [
-                            { id: 'left', label: 'Esq' },
-                            { id: 'center', label: 'Centro' },
-                            { id: 'right', label: 'Dir' },
-                            { id: 'justify', label: 'Just' }
-                          ] as opt}
-                            <button
-                              type="button"
-                              onclick={() => updatePublicField('lyrics_align_h', opt.id as any)}
-                              class="py-1 px-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors {(localPublic.lyrics_align_h || 'center') === opt.id ? 'bg-primary text-primary-foreground font-bold border-primary' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'}"
-                            >
-                              {opt.label}
-                            </button>
-                          {/each}
-                        </div>
-                      </div>
-
-                      <!-- Alinhamento Vertical -->
-                      <div class="space-y-1.5">
-                        <span class="text-[11px] text-neutral-400">Vertical</span>
-                        <div class="grid grid-cols-3 gap-1">
-                          {#each [
-                            { id: 'top', label: 'Topo' },
-                            { id: 'center', label: 'Centro' },
-                            { id: 'bottom', label: 'Base' }
-                          ] as opt}
-                            <button
-                              type="button"
-                              onclick={() => updatePublicField('lyrics_align_v', opt.id as any)}
-                              class="py-1 px-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors {(localPublic.lyrics_align_v || 'center') === opt.id ? 'bg-primary text-primary-foreground font-bold border-primary' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'}"
-                            >
-                              {opt.label}
-                            </button>
-                          {/each}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Auto-scale e Tamanhos de Fonte das Letras -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        <Type size={14} class="text-primary" />
-                        Auto-scale das Letras na Projeção
-                      </div>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        O tamanho da fonte se adapta automaticamente ao volume do texto de cada estrofe.
-                      </p>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-400">Tamanho Máximo (Alvo)</span>
-                          <span class="font-mono text-primary font-bold">{(localPublic.lyrics_max_font_size || localPublic.max_font_size) ?? 128}px</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="64"
-                          max="192"
-                          step="8"
-                          value={(localPublic.lyrics_max_font_size || localPublic.max_font_size) ?? 128}
-                          oninput={(e) => {
-                            const val = Number((e.target as HTMLInputElement).value);
-                            updatePublicField('lyrics_max_font_size', val);
-                            updatePublicField('max_font_size', val);
-                          }}
-                          class="w-full accent-primary"
-                        />
-                      </div>
-
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-400">Tamanho Mínimo</span>
-                          <span class="font-mono text-white font-bold">{(localPublic.lyrics_min_font_size || localPublic.min_font_size) ?? 24}px</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="16"
-                          max="64"
-                          step="4"
-                          value={(localPublic.lyrics_min_font_size || localPublic.min_font_size) ?? 24}
-                          oninput={(e) => {
-                            const val = Number((e.target as HTMLInputElement).value);
-                            updatePublicField('lyrics_min_font_size', val);
-                            updatePublicField('min_font_size', val);
-                          }}
-                          class="w-full accent-primary"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Preenchimento Máximo -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        <Maximize2 size={14} class="text-primary" />
-                        Preencher o Máximo de Espaço nas Letras
-                      </div>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Amplia as letras para preencher a tela, garantindo alta legibilidade no fundo do templo.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Alternar preenchimento máximo de espaço"
-                      onclick={() => updatePublicField('fill_space', !localPublic.fill_space)}
-                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.fill_space ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                      role="switch"
-                      aria-checked={localPublic.fill_space}
-                    >
-                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.fill_space ? 'translate-x-5' : 'translate-x-0'}"></span>
-                    </button>
-                  </div>
-
-                  <!-- Quebra de Linha -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        <Type size={14} class="text-primary" />
-                        Permitir Quebra de Linhas Longas (Word Wrap)
-                      </div>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Se desativado, o texto preserva os versos originais em linha única e o auto-scale reduz a fonte para caber sem reticências (...).
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Alternar quebra de linhas longas"
-                      onclick={() => updatePublicField('word_wrap', !localPublic.word_wrap)}
-                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.word_wrap ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                      role="switch"
-                      aria-checked={localPublic.word_wrap}
-                    >
-                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.word_wrap ? 'translate-x-5' : 'translate-x-0'}"></span>
-                    </button>
-                  </div>
-
-                  <!-- Exibir Metadados -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        <Info size={14} class="text-primary" />
-                        Exibir Metadados do Louvor
-                      </div>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Exibe o título da música e artista/compositor em uma legenda discreta no rodapé da projeção pública.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Alternar exibição de metadados"
-                      onclick={() => updatePublicField('show_metadata', !localPublic.show_metadata)}
-                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.show_metadata ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                      role="switch"
-                      aria-checked={localPublic.show_metadata}
-                    >
-                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.show_metadata ? 'translate-x-5' : 'translate-x-0'}"></span>
-                    </button>
-                  </div>
-                </div>
-
-              {:else if publicSection === 'scripture'}
-                <!-- SEÇÃO 2: TEXTOS BÍBLICOS (ESCRITURAS) -->
-                <div class="space-y-4">
-                  <!-- Alinhamento dos Textos Bíblicos -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <div class="text-xs font-semibold text-white flex items-center gap-2">
-                      <BookOpen size={14} class="text-primary" />
-                      Alinhamento das Passagens Bíblicas
-                    </div>
-                    <p class="text-[11px] text-neutral-400">
-                      Configure o posicionamento do texto dos versículos na tela pública. O padrão recomendado é Centralizado tanto na horizontal quanto na vertical.
-                    </p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <!-- Alinhamento Horizontal Bíblico -->
-                      <div class="space-y-1.5">
-                        <span class="text-[11px] text-neutral-400">Horizontal</span>
-                        <div class="grid grid-cols-4 gap-1">
-                          {#each [
-                            { id: 'left', label: 'Esq' },
-                            { id: 'center', label: 'Centro' },
-                            { id: 'right', label: 'Dir' },
-                            { id: 'justify', label: 'Just' }
-                          ] as opt}
-                            <button
-                              type="button"
-                              onclick={() => updatePublicField('scripture_align_h', opt.id as any)}
-                              class="py-1 px-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors {(localPublic.scripture_align_h || 'center') === opt.id ? 'bg-primary text-primary-foreground font-bold border-primary' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'}"
-                            >
-                              {opt.label}
-                            </button>
-                          {/each}
-                        </div>
-                      </div>
-
-                      <!-- Alinhamento Vertical Bíblico -->
-                      <div class="space-y-1.5">
-                        <span class="text-[11px] text-neutral-400">Vertical</span>
-                        <div class="grid grid-cols-3 gap-1">
-                          {#each [
-                            { id: 'top', label: 'Topo' },
-                            { id: 'center', label: 'Centro' },
-                            { id: 'bottom', label: 'Base' }
-                          ] as opt}
-                            <button
-                              type="button"
-                              onclick={() => updatePublicField('scripture_align_v', opt.id as any)}
-                              class="py-1 px-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors {(localPublic.scripture_align_v || 'center') === opt.id ? 'bg-primary text-primary-foreground font-bold border-primary' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'}"
-                            >
-                              {opt.label}
-                            </button>
-                          {/each}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Auto-scale e Tamanhos de Fonte Bíblicos -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        <Type size={14} class="text-primary" />
-                        Auto-scale Especializado para Versículos
-                      </div>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Como passagens bíblicas contêm mais texto corrido que estrofes de louvor, você pode definir um teto máximo e mínimo próprio para a Bíblia.
-                      </p>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-400">Tamanho Máximo Bíblico</span>
-                          <span class="font-mono text-primary font-bold">{localPublic.scripture_max_font_size ?? 140}px</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="80"
-                          max="200"
-                          step="8"
-                          value={localPublic.scripture_max_font_size ?? 140}
-                          oninput={(e) => updatePublicField('scripture_max_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary"
-                        />
-                        <div class="flex justify-between text-[9px] text-neutral-500 font-mono">
-                          <span>80px</span>
-                          <span>140px (Padrão)</span>
-                          <span>200px</span>
-                        </div>
-                      </div>
-
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-400">Tamanho Mínimo Bíblico</span>
-                          <span class="font-mono text-white font-bold">{localPublic.scripture_min_font_size ?? 28}px</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="18"
-                          max="64"
-                          step="2"
-                          value={localPublic.scripture_min_font_size ?? 28}
-                          oninput={(e) => updatePublicField('scripture_min_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary"
-                        />
-                        <div class="flex justify-between text-[9px] text-neutral-500 font-mono">
-                          <span>18px</span>
-                          <span>28px (Padrão)</span>
-                          <span>64px</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Preenchimento Total da Tela para Versículos -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        <Maximize2 size={14} class="text-primary" />
-                        Aproveitar 100% da Largura da Tela na Bíblia
-                      </div>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Permite que os versículos usem toda a largura útil da projeção, acomodando mais palavras por linha e permitindo que a fonte fique maior.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Alternar preenchimento bíblico"
-                      onclick={() => updatePublicField('scripture_fill_space', localPublic.scripture_fill_space === false ? true : false)}
-                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.scripture_fill_space !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                      role="switch"
-                      aria-checked={localPublic.scripture_fill_space !== false}
-                    >
-                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.scripture_fill_space !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
-                    </button>
-                  </div>
-
-                  <!-- Exibir Referência e Tradução -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <div class="flex items-center justify-between gap-4">
-                      <div>
-                        <div class="text-xs font-semibold text-white flex items-center gap-2">
-                          <BookOpen size={14} class="text-primary" />
-                          Exibir Referência Bíblica e Versão (Ex: João 3:16 • ARA)
-                        </div>
-                        <p class="text-[11px] text-neutral-400 mt-0.5">
-                          Mostra o livro, capítulo, versículo e a sigla da tradução utilizada na projeção pública.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Alternar referência bíblica"
-                        onclick={() => updatePublicField('scripture_show_reference', localPublic.scripture_show_reference === false ? true : false)}
-                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.scripture_show_reference !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                        role="switch"
-                        aria-checked={localPublic.scripture_show_reference !== false}
-                      >
-                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.scripture_show_reference !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
-                      </button>
-                    </div>
-
-                    {#if localPublic.scripture_show_reference !== false}
-                      <!-- Posição da Referência: No Rodapé vs Abaixo do Texto -->
-                      <div class="pt-2 border-t border-neutral-800/80 space-y-2.5">
-                        <span class="text-xs font-medium text-neutral-300">Posição da Referência na Tela</span>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onclick={() => updatePublicField('scripture_reference_position', 'footer')}
-                            class="p-2.5 rounded-lg border text-left transition-all cursor-pointer {(localPublic.scripture_reference_position ?? 'footer') === 'footer' ? 'border-primary bg-primary/10 text-white' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
-                          >
-                            <div class="text-xs font-semibold">{(localPublic.scripture_reference_position ?? 'footer') === 'footer' ? '✓ ' : ''}No Rodapé (Inferior da Tela)</div>
-                            <div class="text-[10px] opacity-70 mt-0.5">Fixado na parte inferior com linha divisória elegante</div>
-                          </button>
-
-                          <button
-                            type="button"
-                            onclick={() => updatePublicField('scripture_reference_position', 'below_text')}
-                            class="p-2.5 rounded-lg border text-left transition-all cursor-pointer {localPublic.scripture_reference_position === 'below_text' ? 'border-primary bg-primary/10 text-white' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
-                          >
-                            <div class="text-xs font-semibold">{localPublic.scripture_reference_position === 'below_text' ? '✓ ' : ''}Abaixo do Texto (Junto ao Versículo)</div>
-                            <div class="text-[10px] opacity-70 mt-0.5">Acompanha o versículo centralizado verticalmente</div>
-                          </button>
-                        </div>
-                      </div>
-
-                      {#if (localPublic.scripture_reference_position ?? 'footer') === 'footer'}
-                        <!-- Tamanho da Fonte da Referência no Rodapé -->
-                        <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2 max-w-md">
-                          <div class="flex justify-between items-center text-xs">
-                            <span class="text-neutral-300 font-medium">Tamanho da Fonte da Referência no Rodapé</span>
-                            <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                              {localPublic.scripture_reference_font_size ?? 28}px
-                            </span>
-                          </div>
-                          <input
-                            type="range"
-                            min="16"
-                            max="64"
-                            step="2"
-                            value={localPublic.scripture_reference_font_size ?? 28}
-                            oninput={(e) => updatePublicField('scripture_reference_font_size', Number((e.target as HTMLInputElement).value))}
-                            class="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                          <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
-                            <span>16px (Discreto)</span>
-                            <span>28px (Padrão)</span>
-                            <span>64px (Grande)</span>
-                          </div>
-                        </div>
-                      {/if}
-                    {/if}
-                  </div>
-                </div>
-
-              {:else if publicSection === 'schedule'}
-                <!-- SEÇÃO: AGENDA & EVENTOS NA PROJEÇÃO PÚBLICA -->
-                <div class="space-y-4">
-                  <!-- Container & Fundo da Agenda -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                          <Layers size={14} class="text-primary" />
-                          Container e Fundo do Card da Agenda
-                        </h4>
-                        <p class="text-[11px] text-neutral-400 mt-0.5">
-                          Personalize a caixa visual onde as informações do evento são exibidas no telão.
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        class="text-[11px] h-7"
-                        onclick={() => {
-                          localPublic = {
-                            ...localPublic,
-                            schedule_box_background: DEFAULT_PUBLIC_SETTINGS.schedule_box_background,
-                            schedule_bg_opacity: DEFAULT_PUBLIC_SETTINGS.schedule_bg_opacity,
-                            schedule_max_width_percent: DEFAULT_PUBLIC_SETTINGS.schedule_max_width_percent,
-                            schedule_padding: DEFAULT_PUBLIC_SETTINGS.schedule_padding,
-                            schedule_align_h: DEFAULT_PUBLIC_SETTINGS.schedule_align_h,
-                            schedule_title_min_font_size: DEFAULT_PUBLIC_SETTINGS.schedule_title_min_font_size,
-                            schedule_title_max_font_size: DEFAULT_PUBLIC_SETTINGS.schedule_title_max_font_size,
-                            schedule_day_font_size: DEFAULT_PUBLIC_SETTINGS.schedule_day_font_size,
-                            schedule_time_font_size: DEFAULT_PUBLIC_SETTINGS.schedule_time_font_size,
-                            schedule_details_font_size: DEFAULT_PUBLIC_SETTINGS.schedule_details_font_size,
-                            schedule_show_badges: DEFAULT_PUBLIC_SETTINGS.schedule_show_badges,
-                            schedule_show_footer: DEFAULT_PUBLIC_SETTINGS.schedule_show_footer,
-                          };
-                          savePublicDisplaySettings(localPublic);
-                        }}
-                      >
-                        Restaurar Padrão
-                      </Button>
-                    </div>
-
-                    <!-- Fundo translúcido (Toggle) -->
-                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
-                      <div>
-                        <div class="text-[11px] font-semibold text-white">Exibir Fundo no Card de Agenda</div>
-                        <p class="text-[10px] text-neutral-400 mt-0.5">
-                          Adiciona uma placa translúcida com borda e efeito de vidro atrás das informações.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Alternar fundo da agenda"
-                        onclick={() => updatePublicField('schedule_box_background', localPublic.schedule_box_background === false ? true : false)}
-                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.schedule_box_background !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                        role="switch"
-                        aria-checked={localPublic.schedule_box_background !== false}
-                      >
-                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.schedule_box_background !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
-                      </button>
-                    </div>
-
-                    <!-- Fundo dos Badges (Dia e Horário) -->
-                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
-                      <div>
-                        <div class="text-[11px] font-semibold text-white">Exibir Fundo das Pílulas (Dia e Horário)</div>
-                        <p class="text-[10px] text-neutral-400 mt-0.5">
-                          Quando ativado, exibe pílulas arredondadas atrás do dia e horário. Quando desativado, exibe apenas os textos limpos.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Alternar fundo das pílulas de dia e horário"
-                        onclick={() => updatePublicField('schedule_badge_bg', localPublic.schedule_badge_bg === false ? true : false)}
-                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.schedule_badge_bg !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                        role="switch"
-                        aria-checked={localPublic.schedule_badge_bg !== false}
-                      >
-                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.schedule_badge_bg !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
-                      </button>
-                    </div>
-
-                    <!-- Cores do Dia da Semana e Horário -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <!-- Cor do Dia da Semana -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Cor do Dia da Semana</div>
-                          <div class="text-[9px] text-neutral-400 font-mono">{localPublic.schedule_day_color || '#fcd34d'}</div>
-                        </div>
-                        <input
-                          type="color"
-                          value={localPublic.schedule_day_color || '#fcd34d'}
-                          oninput={(e) => updatePublicField('schedule_day_color', (e.target as HTMLInputElement).value)}
-                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                        />
-                      </div>
-
-                      <!-- Cor do Horário -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Cor do Horário</div>
-                          <div class="text-[9px] text-neutral-400 font-mono">{localPublic.schedule_time_color || '#ffffff'}</div>
-                        </div>
-                        <input
-                          type="color"
-                          value={localPublic.schedule_time_color || '#ffffff'}
-                          oninput={(e) => updatePublicField('schedule_time_color', (e.target as HTMLInputElement).value)}
-                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                        />
-                      </div>
-                    </div>
-
-                    {#if localPublic.schedule_box_background !== false}
-                      <!-- Opacidade do Fundo -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Opacidade do Fundo</span>
-                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                            {localPublic.schedule_bg_opacity ?? 80}%
-                          </span>
-                        </div>
-                        <input
-                          type="range"
-                          min="10"
-                          max="100"
-                          step="5"
-                          value={localPublic.schedule_bg_opacity ?? 80}
-                          oninput={(e) => updatePublicField('schedule_bg_opacity', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                        <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
-                          <span>10% (Quase transparente)</span>
-                          <span>80% (Padrão)</span>
-                          <span>100% (Sólido)</span>
-                        </div>
-                      </div>
-                    {/if}
-
-                    <!-- Largura Máxima do Container (%) -->
-                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                      <div class="flex justify-between items-center text-xs">
-                        <span class="text-neutral-300 font-medium">Largura Máxima do Container</span>
-                        <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                          {localPublic.schedule_max_width_percent ?? 90}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="50"
-                        max="100"
-                        step="5"
-                        value={localPublic.schedule_max_width_percent ?? 90}
-                        oninput={(e) => updatePublicField('schedule_max_width_percent', Number((e.target as HTMLInputElement).value))}
-                        class="w-full accent-primary cursor-pointer"
-                      />
-                      <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
-                        <span>50% (Estreito / Central)</span>
-                        <span>90% (Padrão)</span>
-                        <span>100% (Largura total)</span>
-                      </div>
-                    </div>
-
-                    <!-- Espaçamento Interno (Padding) e Alinhamento Horizontal -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <!-- Espaçamento Interno -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <span class="text-[11px] font-semibold text-white block">Espaçamento Interno (Padding)</span>
-                        <div class="grid grid-cols-3 gap-1">
-                          {#each [
-                            { id: 'compact', label: 'Compacto' },
-                            { id: 'normal', label: 'Normal' },
-                            { id: 'spacious', label: 'Amplo' }
-                          ] as padOpt}
-                            <button
-                              type="button"
-                              onclick={() => updatePublicField('schedule_padding', padOpt.id as any)}
-                              class="py-1.5 px-2 rounded-md text-[11px] font-medium transition-colors cursor-pointer text-center {(localPublic.schedule_padding ?? 'normal') === padOpt.id ? 'bg-primary text-primary-foreground font-semibold shadow' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
-                            >
-                              {padOpt.label}
-                            </button>
-                          {/each}
-                        </div>
-                      </div>
-
-                      <!-- Alinhamento Horizontal -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <span class="text-[11px] font-semibold text-white block">Alinhamento Horizontal</span>
-                        <div class="grid grid-cols-3 gap-1">
-                          {#each [
-                            { id: 'left', label: 'Esquerda' },
-                            { id: 'center', label: 'Centro' },
-                            { id: 'right', label: 'Direita' }
-                          ] as alignOpt}
-                            <button
-                              type="button"
-                              onclick={() => updatePublicField('schedule_align_h', alignOpt.id as any)}
-                              class="py-1.5 px-2 rounded-md text-[11px] font-medium transition-colors cursor-pointer text-center {(localPublic.schedule_align_h ?? 'center') === alignOpt.id ? 'bg-primary text-primary-foreground font-semibold shadow' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'}"
-                            >
-                              {alignOpt.label}
-                            </button>
-                          {/each}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Tipografia da Agenda -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                      <Type size={14} class="text-primary" />
-                      Tipografia e Tamanho dos Textos
-                    </h4>
-                    <p class="text-[11px] text-neutral-400">
-                      Ajuste fino dos tamanhos de fontes do título, data/hora e detalhes do evento na projeção pública.
-                    </p>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <!-- Título Min -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Título (Mínimo Auto-Scale)</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="10"
-                              max="150"
-                              step="2"
-                              value={localPublic.schedule_title_min_font_size ?? 32}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 10) updatePublicField('schedule_title_min_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho mínimo em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="18"
-                          max={Math.max(64, localPublic.schedule_title_min_font_size ?? 32)}
-                          step="2"
-                          value={localPublic.schedule_title_min_font_size ?? 32}
-                          oninput={(e) => updatePublicField('schedule_title_min_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-
-                      <!-- Título Max -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Título (Máximo Auto-Scale)</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="30"
-                              max="300"
-                              step="4"
-                              value={localPublic.schedule_title_max_font_size ?? 110}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 30) updatePublicField('schedule_title_max_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho máximo em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="48"
-                          max={Math.max(160, localPublic.schedule_title_max_font_size ?? 110)}
-                          step="4"
-                          value={localPublic.schedule_title_max_font_size ?? 110}
-                          oninput={(e) => updatePublicField('schedule_title_max_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-
-                      <!-- Badge Dia -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Texto do Dia da Semana</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="8"
-                              max="200"
-                              step="1"
-                              value={localPublic.schedule_day_font_size ?? 20}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 8) updatePublicField('schedule_day_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho customizado em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="12"
-                          max={Math.max(80, localPublic.schedule_day_font_size ?? 20)}
-                          step="1"
-                          value={localPublic.schedule_day_font_size ?? 20}
-                          oninput={(e) => updatePublicField('schedule_day_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-
-                      <!-- Badge Hora -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Texto do Horário</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="8"
-                              max="200"
-                              step="1"
-                              value={localPublic.schedule_time_font_size ?? 20}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 8) updatePublicField('schedule_time_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho customizado em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="12"
-                          max={Math.max(80, localPublic.schedule_time_font_size ?? 20)}
-                          step="1"
-                          value={localPublic.schedule_time_font_size ?? 20}
-                          oninput={(e) => updatePublicField('schedule_time_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-                    </div>
-
-                    <!-- Detalhes / Descrição -->
-                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                      <div class="flex justify-between items-center text-xs">
-                        <span class="text-neutral-300 font-medium">Texto de Detalhes / Descrição</span>
-                        <div class="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            min="8"
-                            max="200"
-                            step="1"
-                            value={localPublic.schedule_details_font_size ?? 20}
-                            oninput={(e) => {
-                              const val = Number((e.target as HTMLInputElement).value);
-                              if (!isNaN(val) && val >= 8) updatePublicField('schedule_details_font_size', val);
-                            }}
-                            class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                            title="Tamanho customizado em pixels"
-                          />
-                          <span class="text-[10px] font-mono text-neutral-400">px</span>
-                        </div>
-                      </div>
-                      <input
-                        type="range"
-                        min="12"
-                        max={Math.max(80, localPublic.schedule_details_font_size ?? 20)}
-                        step="1"
-                        value={localPublic.schedule_details_font_size ?? 20}
-                        oninput={(e) => updatePublicField('schedule_details_font_size', Number((e.target as HTMLInputElement).value))}
-                        class="w-full accent-primary cursor-pointer"
-                      />
-                    </div>
-                  </div>
-
-                  <!-- Visibilidade de Elementos da Agenda -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                      <Sliders size={14} class="text-primary" />
-                      Visibilidade de Elementos
-                    </h4>
-
-                    <div class="space-y-2">
-                      <!-- Badges Dia e Hora -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Exibir Badges de Dia da Semana e Horário</div>
-                          <p class="text-[10px] text-neutral-400 mt-0.5">
-                            Exibe os distintivos coloridos com dia (ex: QUARTA-FEIRA) e horário (ex: 19:30).
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          aria-label="Alternar badges de dia e horário"
-                          onclick={() => updatePublicField('schedule_show_badges', localPublic.schedule_show_badges === false ? true : false)}
-                          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.schedule_show_badges !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                          role="switch"
-                          aria-checked={localPublic.schedule_show_badges !== false}
-                        >
-                          <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.schedule_show_badges !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
-                        </button>
-                      </div>
-
-                      <!-- Rodapé Nome da Agenda -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Exibir Rodapé com Nome da Programação</div>
-                          <p class="text-[10px] text-neutral-400 mt-0.5">
-                            Exibe a linha divisória e o título geral da agenda no rodapé da projeção pública.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          aria-label="Alternar rodapé da agenda"
-                          onclick={() => updatePublicField('schedule_show_footer', localPublic.schedule_show_footer === false ? true : false)}
-                          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.schedule_show_footer !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                          role="switch"
-                          aria-checked={localPublic.schedule_show_footer !== false}
-                        >
-                          <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.schedule_show_footer !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-              {:else if publicSection === 'timer'}
-                <!-- SEÇÃO: CRONÔMETRO (TIMER) E ÁUDIO NA TELA PÚBLICA -->
-                <div class="space-y-4">
-                  <!-- Customização de Aparência do Timer -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                          <Clock size={14} class="text-primary" />
-                          Aparência do Cronômetro / Timer na Tela Pública
-                        </h4>
-                        <p class="text-[11px] text-neutral-400 mt-0.5">
-                          Personalize a caixa visual, opacidade de fundo, cores e tamanho dos textos ao projetar cronômetros e timers no telão.
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        class="text-[11px] h-7 gap-1"
-                        onclick={() => {
-                          localPublic = {
-                            ...localPublic,
-                            timer_box_background: DEFAULT_PUBLIC_SETTINGS.timer_box_background,
-                            timer_bg_opacity: DEFAULT_PUBLIC_SETTINGS.timer_bg_opacity,
-                            timer_digits_font_size: DEFAULT_PUBLIC_SETTINGS.timer_digits_font_size,
-                            timer_title_font_size: DEFAULT_PUBLIC_SETTINGS.timer_title_font_size,
-                            timer_message_font_size: DEFAULT_PUBLIC_SETTINGS.timer_message_font_size,
-                            timer_text_color: DEFAULT_PUBLIC_SETTINGS.timer_text_color,
-                          };
-                          savePublicSettings();
-                        }}
-                      >
-                        <RotateCcw size={12} />
-                        <span>Padrão</span>
-                      </Button>
-                    </div>
-
-                    <!-- Caixa de Fundo (Glassmorphism) -->
-                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
-                      <div>
-                        <div class="text-[11px] font-semibold text-white">Caixa de Fundo (Placa com Efeito Vidro)</div>
-                        <p class="text-[10px] text-neutral-400 mt-0.5">
-                          Adiciona container translúcido com borda suave e desfoque atrás dos dígitos e mensagens. Se desativado, o texto fica diretamente sobre o papel de parede.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Alternar caixa de fundo do timer"
-                        onclick={() => updatePublicField('timer_box_background', localPublic.timer_box_background === false ? true : false)}
-                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.timer_box_background !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                        role="switch"
-                        aria-checked={localPublic.timer_box_background !== false}
-                      >
-                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.timer_box_background !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
-                      </button>
-                    </div>
-
-                    {#if localPublic.timer_box_background !== false}
-                      <!-- Opacidade do Fundo -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Opacidade do Fundo</span>
-                          <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                            {localPublic.timer_bg_opacity ?? 65}%
-                          </span>
-                        </div>
-                        <input
-                          type="range"
-                          min="10"
-                          max="100"
-                          step="5"
-                          value={localPublic.timer_bg_opacity ?? 65}
-                          oninput={(e) => updatePublicField('timer_bg_opacity', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                        <div class="flex justify-between text-[9px] text-neutral-500 font-mono">
-                          <span>10% (Sutil)</span>
-                          <span>65% (Padrão)</span>
-                          <span>100% (Sólido)</span>
-                        </div>
-                      </div>
-                    {/if}
-
-                    <!-- Cor do Texto -->
-                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
-                      <div>
-                        <div class="text-[11px] font-semibold text-white">Cor do Texto e Dígitos</div>
-                        <p class="text-[10px] text-neutral-400 mt-0.5">
-                          Cor dos números do cronômetro, título e mensagem na tela de projeção.
-                        </p>
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <span class="font-mono text-[11px] text-neutral-300 uppercase">{localPublic.timer_text_color || '#ffffff'}</span>
-                        <input
-                          type="color"
-                          value={localPublic.timer_text_color || '#ffffff'}
-                          oninput={(e) => updatePublicField('timer_text_color', (e.target as HTMLInputElement).value)}
-                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                        />
-                      </div>
-                    </div>
-
-                    <!-- Tamanhos de Fontes -->
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                      <!-- Dígitos do Timer -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Dígitos do Timer</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="50"
-                              max="240"
-                              step="5"
-                              value={localPublic.timer_digits_font_size ?? 130}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 50) updatePublicField('timer_digits_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="50"
-                          max="220"
-                          step="5"
-                          value={localPublic.timer_digits_font_size ?? 130}
-                          oninput={(e) => updatePublicField('timer_digits_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-
-                      <!-- Título do Momento/Culto -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Título do Momento</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="12"
-                              max="80"
-                              step="2"
-                              value={localPublic.timer_title_font_size ?? 22}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 12) updatePublicField('timer_title_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="12"
-                          max="60"
-                          step="2"
-                          value={localPublic.timer_title_font_size ?? 22}
-                          oninput={(e) => updatePublicField('timer_title_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-
-                      <!-- Mensagem / Subtítulo -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Mensagem Abaixo</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="10"
-                              max="60"
-                              step="2"
-                              value={localPublic.timer_message_font_size ?? 18}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 10) updatePublicField('timer_message_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="10"
-                          max="48"
-                          step="2"
-                          value={localPublic.timer_message_font_size ?? 18}
-                          oninput={(e) => updatePublicField('timer_message_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Configuração de Áudio na Tela Pública -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                      <Music size={14} class="text-primary" />
-                      Reprodução de Áudio na Projeção Pública
-                    </h4>
-
-                    <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
-                      <div>
-                        <div class="text-[11px] font-semibold text-white">Exibir Arte com Waveforms Sonoras Animadas</div>
-                        <p class="text-[10px] text-neutral-400 mt-0.5">
-                          Por padrão desativado: a tela pública mantém o papel de parede ativo limpo, sem elementos sobrepostos. Ative se desejar exibir um card elegante com equalizador animado e metadados da faixa.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Alternar waveforms de áudio na tela pública"
-                        onclick={() => updatePublicField('audio_show_waveform_on_public', !localPublic.audio_show_waveform_on_public)}
-                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.audio_show_waveform_on_public ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                        role="switch"
-                        aria-checked={Boolean(localPublic.audio_show_waveform_on_public)}
-                      >
-                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.audio_show_waveform_on_public ? 'translate-x-5' : 'translate-x-0'}"></span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-              {:else}
-                <!-- SEÇÃO 3: MARGENS & GERAL -->
-                <div class="space-y-4">
-                  <!-- Escurecer Plano de Fundo Geral (Backdrop da Tela Toda) -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        <Sun size={14} class="text-primary" />
-                        Escurecer Plano de Fundo Geral (Backdrop Completo)
-                      </div>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Aplica uma película escura translúcida sobre todo o papel de parede quando houver um slide ativo na tela para diminuir o brilho do fundo.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Alternar escurecimento do plano de fundo"
-                      onclick={() => updatePublicField('darken_background', !localPublic.darken_background)}
-                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.darken_background ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                      role="switch"
-                      aria-checked={Boolean(localPublic.darken_background)}
-                    >
-                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.darken_background ? 'translate-x-5' : 'translate-x-0'}"></span>
-                    </button>
-                  </div>
-
-                  <!-- Fundo nas Caixas de Texto (Placa de Leitura / Card) -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        <Layers size={14} class="text-primary" />
-                        Fundo nas Caixas de Texto (Card de Leitura)
-                      </div>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Adiciona uma placa translúcida com cantos arredondados diretamente atrás dos textos e versículos bíblicos.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Alternar fundo nas caixas de texto"
-                      onclick={() => updatePublicField('text_box_background', !localPublic.text_box_background)}
-                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.text_box_background ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                      role="switch"
-                      aria-checked={Boolean(localPublic.text_box_background)}
-                    >
-                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.text_box_background ? 'translate-x-5' : 'translate-x-0'}"></span>
-                    </button>
-                  </div>
-
-                  <!-- Ignorar Margens para Imagens (Edge-to-Edge) -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        <ImageIcon size={14} class="text-primary" />
-                        Projetar Imagens em Tela Cheia (Sem Margens de Texto)
-                      </div>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Quando ativado, imagens 16:9 ocupam 100% da tela sem aplicar as margens seguras de texto, eliminando bordas pretas extras.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Alternar margens para imagens"
-                      onclick={() => updatePublicField('ignore_margins_for_media', !localPublic.ignore_margins_for_media)}
-                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.ignore_margins_for_media !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                      role="switch"
-                      aria-checked={localPublic.ignore_margins_for_media !== false}
-                    >
-                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.ignore_margins_for_media !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
-                    </button>
-                  </div>
-
-                  <!-- Encaixe do Papel de Parede na Projeção (Wallpaper Fit) -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-2.5">
-                    <div class="text-xs font-semibold text-white flex items-center gap-2">
-                      <Maximize2 size={14} class="text-primary" />
-                      Encaixe do Papel de Parede na Projeção (TV / Chromecast)
-                    </div>
-                    <p class="text-[11px] text-neutral-400">
-                      Escolha como a imagem de fundo deve se ajustar à tela. Para TVs ou Chromecast com cortes de borda (overscan), use "Ajustar (Conter)".
-                    </p>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-                      {#each [
-                        { id: 'contain', label: 'Ajustar (Conter)', desc: '100% visível, sem cortes (TV)' },
-                        { id: 'cover', label: 'Preencher (Cobrir)', desc: 'Preenche cortando bordas' },
-                        { id: 'fill', label: 'Esticar', desc: 'Preenche 100% da tela' }
-                      ] as wallFitOpt}
-                        <button
-                          type="button"
-                          onclick={() => updatePublicField('wallpaper_fit', wallFitOpt.id as any)}
-                          class="p-2 rounded-lg border text-left transition-all cursor-pointer {(localPublic.wallpaper_fit || 'contain') === wallFitOpt.id ? 'border-primary bg-primary/10 text-white' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
-                        >
-                          <div class="text-xs font-medium">{(localPublic.wallpaper_fit || 'contain') === wallFitOpt.id ? '✓ ' : ''}{wallFitOpt.label}</div>
-                          <div class="text-[10px] opacity-70 mt-0.5">{wallFitOpt.desc}</div>
-                        </button>
-                      {/each}
-                    </div>
-                  </div>
-
-                  <!-- Margens Seguras no Papel de Parede -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        <Sliders size={14} class="text-primary" />
-                        Margens Seguras no Papel de Parede (Anti-Overscan TV)
-                      </div>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Aplica as margens seguras também ao plano de fundo, evitando que artes com bordas sejam cortadas por televisores ou Chromecast.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Alternar margens seguras no papel de parede"
-                      onclick={() => updatePublicField('wallpaper_safe_margins', !localPublic.wallpaper_safe_margins)}
-                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.wallpaper_safe_margins ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                      role="switch"
-                      aria-checked={Boolean(localPublic.wallpaper_safe_margins)}
-                    >
-                      <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.wallpaper_safe_margins ? 'translate-x-5' : 'translate-x-0'}"></span>
-                    </button>
-                  </div>
-                  <!-- Encaixe Padrão de Imagens de Mídia -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-2.5">
-                    <div class="text-xs font-semibold text-white flex items-center gap-2">
-                      <ImageIcon size={14} class="text-primary" />
-                      Encaixe Padrão de Imagens de Mídia (Slides/Fotos)
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                      {#each [
-                        { id: 'contain', label: 'Ajustar (Conter)', desc: 'Sem cortar' },
-                        { id: 'cover', label: 'Preencher', desc: 'Corta excedente' },
-                        { id: 'fill', label: 'Esticar', desc: 'Preenche 100%' },
-                        { id: 'center', label: 'Original', desc: 'Sem zoom' }
-                      ] as fitOption}
-                        <button
-                          type="button"
-                          onclick={() => updatePublicField('image_fit', fitOption.id as any)}
-                          class="p-2 rounded-lg border text-left transition-all cursor-pointer {(localPublic.image_fit || 'contain') === fitOption.id ? 'border-primary bg-primary/10 text-white' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
-                        >
-                          <div class="text-xs font-medium">{(localPublic.image_fit || 'contain') === fitOption.id ? '✓ ' : ''}{fitOption.label}</div>
-                          <div class="text-[10px] opacity-70 mt-0.5">{fitOption.desc}</div>
-                        </button>
-                      {/each}
-                    </div>
-                  </div>
-
-                  <!-- Transição Suave (Fade) em Imagens e Retorno ao Papel de Parede -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <div class="flex items-center justify-between gap-4">
-                      <div>
-                        <div class="text-xs font-semibold text-white flex items-center gap-2">
-                          <Sparkles size={14} class="text-primary" />
-                          Transição com Fade Suave (Imagens e Papel de Parede)
-                        </div>
-                        <p class="text-[11px] text-neutral-400 mt-0.5">
-                          Aplica desvanecimento suave ao projetar imagens, alternar entre imagens e ao retornar para o papel de parede.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Alternar transição suave de imagens"
-                        onclick={() => updatePublicField('image_fade_enabled', localPublic.image_fade_enabled === false ? true : false)}
-                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localPublic.image_fade_enabled !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                        role="switch"
-                        aria-checked={localPublic.image_fade_enabled !== false}
-                      >
-                        <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localPublic.image_fade_enabled !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
-                      </button>
-                    </div>
-
-                    {#if localPublic.image_fade_enabled !== false}
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Duração da Transição</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="50"
-                              max="3000"
-                              step="50"
-                              value={localPublic.image_fade_duration_ms ?? 500}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 50) updatePublicField('image_fade_duration_ms', val);
-                              }}
-                              class="w-16 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Duração em milissegundos"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">ms</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="50"
-                          max="2000"
-                          step="50"
-                          value={localPublic.image_fade_duration_ms ?? 500}
-                          oninput={(e) => updatePublicField('image_fade_duration_ms', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                        <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
-                          <span>100ms (Rápido)</span>
-                          <span>500ms (Recomendado)</span>
-                          <span>2000ms (Lento)</span>
-                        </div>
-                      </div>
-                    {/if}
-                  </div>
-
-                  <!-- Margens da Projeção -->
-                  <div class="pt-4 border-t border-neutral-800 space-y-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <h4 class="text-xs font-semibold text-white">Margens da Projeção Pública (Safe Area)</h4>
-                        <p class="text-[11px] text-neutral-400 mt-0.5">
-                          Evite que as letras encostem nas bordas do telão ou sofram corte por overscan do projetor/TV.
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        class="text-[11px] h-7"
-                        onclick={() => {
-                          localPublic = {
-                            ...localPublic,
-                            margin_top: DEFAULT_PUBLIC_SETTINGS.margin_top,
-                            margin_bottom: DEFAULT_PUBLIC_SETTINGS.margin_bottom,
-                            margin_horizontal: DEFAULT_PUBLIC_SETTINGS.margin_horizontal,
-                          };
-                          savePublicDisplaySettings(localPublic);
-                        }}
-                      >
-                        Restaurar Margens
-                      </Button>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                        <div class="flex justify-between text-xs">
-                          <span class="text-neutral-400">Margem Topo</span>
-                          <span class="font-mono text-white font-semibold">{localPublic.margin_top}px</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="160"
-                          step="4"
-                          value={localPublic.margin_top}
-                          oninput={(e) => updatePublicField('margin_top', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary"
-                        />
-                      </div>
-
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                        <div class="flex justify-between text-xs">
-                          <span class="text-neutral-400">Margem Base</span>
-                          <span class="font-mono text-white font-semibold">{localPublic.margin_bottom}px</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="160"
-                          step="4"
-                          value={localPublic.margin_bottom}
-                          oninput={(e) => updatePublicField('margin_bottom', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary"
-                        />
-                      </div>
-
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                        <div class="flex justify-between text-xs">
-                          <span class="text-neutral-400">Laterais</span>
-                          <span class="font-mono text-white font-semibold">{localPublic.margin_horizontal}px</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="240"
-                          step="4"
-                          value={localPublic.margin_horizontal}
-                          oninput={(e) => updatePublicField('margin_horizontal', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary"
-                        />
-                      </div>
-                    </div>
-
-                    <!-- Prévia gráfica das margens -->
-                    <div class="p-4 rounded-xl border border-neutral-800 bg-black flex flex-col items-center justify-center">
-                      <div class="text-[10px] text-neutral-500 mb-2 font-mono uppercase">Simulação de Área Útil (16:9)</div>
-                      <div class="w-64 h-36 rounded border border-neutral-700 bg-neutral-950 flex items-center justify-center p-2 relative overflow-hidden">
-                        <div
-                          class="w-full h-full border border-dashed border-primary/60 bg-primary/5 rounded flex items-center justify-center text-center p-1"
-                          style="margin-top: {localPublic.margin_top / 6}px; margin-bottom: {localPublic.margin_bottom / 6}px; margin-left: {localPublic.margin_horizontal / 6}px; margin-right: {localPublic.margin_horizontal / 6}px;"
-                        >
-                          <span class="text-[9px] text-primary/80 font-medium">Área de Letra e Mídia</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              {/if}
-            </div>
-
-          <!-- ABA: FUNDOS DE LETRAS & CSS -->
-          {:else if activeTab === 'lyrics_bg'}
-            <div class="space-y-6">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h3 class="text-sm font-semibold text-white">Estilos, Cores de Texto e Fundos de Letras</h3>
-                  <p class="text-xs text-neutral-400 mt-0.5">
-                    Personalize o CSS dos planos de fundo, defina cores de texto para máxima legibilidade e crie novos fundos exclusivos.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={createNewCustomPreset}
-                  class="gap-1.5 shrink-0 text-xs border-primary/40 text-primary hover:bg-primary/10"
-                >
-                  <Plus size={14} />
-                  <span>Novo Fundo Customizado</span>
-                </Button>
-              </div>
-
-              <!-- Simulação 16:9 em Tempo Real -->
-              <div class="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4 sm:p-5 flex flex-col items-center">
-                <div class="w-full flex flex-col sm:flex-row items-center justify-between gap-2 mb-2 px-1">
-                  <span class="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
-                    <Sparkles size={13} class="text-primary" />
-                    <span>Prévia em Tempo Real (16:9)</span>
-                  </span>
-
-                  <!-- Alternador entre Letra de Louvor, Texto Bíblico e Agenda -->
-                  <div class="flex items-center rounded-lg border border-neutral-800 bg-neutral-900 p-0.5 text-xs">
-                    <button
-                      type="button"
-                      onclick={() => (bgPreviewMode = 'lyrics')}
-                      class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {bgPreviewMode === 'lyrics' ? 'bg-primary text-primary-foreground font-semibold shadow' : 'text-neutral-400 hover:text-white'}"
-                    >
-                      <Music size={12} />
-                      <span>Letra de Louvor</span>
-                    </button>
-                    <button
-                      type="button"
-                      onclick={() => (bgPreviewMode = 'scripture')}
-                      class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {bgPreviewMode === 'scripture' ? 'bg-primary text-primary-foreground font-semibold shadow' : 'text-neutral-400 hover:text-white'}"
-                    >
-                      <BookOpen size={12} />
-                      <span>Texto Bíblico</span>
-                    </button>
-                    <button
-                      type="button"
-                      onclick={() => (bgPreviewMode = 'schedule')}
-                      class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 {bgPreviewMode === 'schedule' ? 'bg-primary text-primary-foreground font-semibold shadow' : 'text-neutral-400 hover:text-white'}"
-                    >
-                      <CalendarDays size={12} />
-                      <span>Agenda</span>
-                    </button>
-                  </div>
-
-                  <div class="flex items-center gap-2">
-                    {#if localBgStyles.defaultBackgroundId === currentSelectedPreset.id}
-                      <span class="text-[10px] bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded-full font-semibold">
-                        Fundo Padrão
-                      </span>
-                    {/if}
-                    <span class="text-[11px] font-mono text-neutral-500">{currentSelectedPreset.name}</span>
-                  </div>
-                </div>
-
-                <div class="w-full max-w-xl aspect-video rounded-xl border border-neutral-800 relative overflow-hidden shadow-2xl flex flex-col justify-between p-6 sm:p-8 select-none">
-                  <!-- Background animado ou estático -->
-                  <div
-                    class="absolute inset-0 w-full h-full {currentSelectedPreset.animationClass === 'none' ? '' : (currentSelectedPreset.animationClass || '')}"
-                    style="background: {currentSelectedPreset.style};"
-                  ></div>
-
-                  {#if bgPreviewMode === 'lyrics'}
-                    <!-- Letra de Louvor centralizada -->
-                    <div class="relative z-10 my-auto text-center flex flex-col items-center justify-center">
-                      <p
-                        class="text-base sm:text-2xl font-bold leading-relaxed tracking-tight drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]"
-                        style="color: {currentSelectedPreset.textColor || '#ffffff'};"
-                      >
-                        Grandioso és Tu, Senhor,<br />
-                        ao contemplar os céus e a terra!
-                      </p>
-                      <span class="text-[10px] sm:text-xs mt-2 opacity-75 font-medium tracking-wide" style="color: {currentSelectedPreset.textColor || '#ffffff'};">
-                        Harpa Cristã • 526
-                      </span>
-                    </div>
-                  {:else if bgPreviewMode === 'scripture'}
-                    <!-- Versículo Bíblico centralizado com rodapé ou abaixo do texto -->
-                    <div class="relative z-10 my-auto text-center flex flex-col items-center justify-center">
-                      <p
-                        class="text-sm sm:text-lg font-bold leading-relaxed tracking-tight drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]"
-                        style="color: {currentSelectedPreset.textColor || '#ffffff'};"
-                      >
-                        Disse também Deus: Haja luzeiros no firmamento dos céus, para fazerem separação entre o dia e a noite; e sejam eles para sinais, para estações, para dias e anos.
-                      </p>
-
-                      {#if localPublic.scripture_show_reference !== false && localPublic.scripture_reference_position === 'below_text'}
-                        <div class="mt-3 flex items-center justify-center gap-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                          <span class="text-xs sm:text-sm font-bold tracking-tight opacity-90" style="color: {currentSelectedPreset.textColor || '#ffffff'};">
-                            Gênesis 1:14
-                          </span>
-                          <span class="text-[8px] px-1.5 py-0.5 rounded bg-white/15 border border-white/20 uppercase font-mono font-bold text-neutral-100">
-                            ARA
-                          </span>
-                        </div>
-                      {/if}
-                    </div>
-
-                    {#if localPublic.scripture_show_reference !== false && (localPublic.scripture_reference_position ?? 'footer') === 'footer'}
-                      <!-- Rodapé com referência bíblica -->
-                      <div class="relative z-10 flex items-center justify-between border-t border-white/10 pt-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                        <span
-                          class="font-bold tracking-tight"
-                          style="color: {currentSelectedPreset.textColor || '#ffffff'}; font-size: {Math.max(12, Math.round((localPublic.scripture_reference_font_size ?? 28) * 0.45))}px;"
-                        >
-                          Gênesis 1:14
-                        </span>
-                        <span class="text-[9px] px-2 py-0.5 rounded bg-white/15 border border-white/20 uppercase font-mono font-bold text-neutral-100 shadow">
-                          ARA
-                        </span>
-                      </div>
-                    {/if}
-                  {:else}
-                    <!-- Card de Agenda em tempo real -->
-                    <div
-                      class="relative z-10 my-auto w-full flex flex-col {localPublic.schedule_align_h === 'left' ? 'items-start text-left' : localPublic.schedule_align_h === 'right' ? 'items-end text-right' : 'items-center text-center'}"
-                    >
-                      <div
-                        class="rounded-xl transition-all duration-300 w-full {localPublic.schedule_box_background !== false ? 'border border-white/20 shadow-2xl backdrop-blur-md' : ''} {localPublic.schedule_padding === 'compact' ? 'p-3' : localPublic.schedule_padding === 'spacious' ? 'p-6' : 'p-4'}"
-                        style="
-                          max-width: {localPublic.schedule_max_width_percent ?? 90}%;
-                          background-color: {localPublic.schedule_box_background !== false ? `rgba(0, 0, 0, ${(localPublic.schedule_bg_opacity ?? 80) / 100})` : 'transparent'};
-                        "
-                      >
-                        {#if localPublic.schedule_show_badges !== false}
-                          <div class="flex flex-wrap items-center gap-1.5 mb-2 {localPublic.schedule_align_h === 'left' ? 'justify-start' : localPublic.schedule_align_h === 'right' ? 'justify-end' : 'justify-center'}">
-                            <span
-                              class="px-2 py-0.5 rounded font-black tracking-wider uppercase border border-amber-400/40 bg-amber-400/20 text-amber-300 shadow-sm"
-                              style="font-size: {Math.max(8, Math.round((localPublic.schedule_day_font_size ?? 18) * 0.45))}px;"
-                            >
-                              Quarta-Feira
-                            </span>
-                            <span
-                              class="px-2 py-0.5 rounded font-bold font-mono border border-cyan-400/40 bg-cyan-400/20 text-cyan-200 shadow-sm"
-                              style="font-size: {Math.max(8, Math.round((localPublic.schedule_time_font_size ?? 16) * 0.45))}px;"
-                            >
-                              19:30
-                            </span>
-                          </div>
-                        {/if}
-
-                        <h2
-                          class="font-black leading-tight tracking-tight drop-shadow-md"
-                          style="font-size: {Math.max(14, Math.round((localPublic.schedule_title_max_font_size ?? 96) * 0.28))}px; color: {currentSelectedPreset.textColor || '#ffffff'};"
-                        >
-                          Culto de Oração e Estudo da Palavra
-                        </h2>
-
-                        <p
-                          class="mt-2 font-medium leading-relaxed opacity-90"
-                          style="font-size: {Math.max(9, Math.round((localPublic.schedule_details_font_size ?? 22) * 0.45))}px; color: {currentSelectedPreset.textColor || '#ffffff'};"
-                        >
-                          Momento de oração com toda a igreja e reflexão bíblica no templo central.
-                        </p>
-                      </div>
-
-                      {#if localPublic.schedule_show_footer !== false}
-                        <div
-                          class="mt-2 pt-1 border-t border-white/20 w-full flex items-center justify-between text-white/70 font-bold uppercase tracking-wider text-[9px]"
-                          style="max-width: {localPublic.schedule_max_width_percent ?? 90}%;"
-                        >
-                          <span>Programação Semanal</span>
-                          <span>2026</span>
-                        </div>
-                      {/if}
-                    </div>
-                  {/if}
-                </div>
-              </div>
-
-              <!-- Editor do Fundo Selecionado -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Coluna 1: Cor do Texto & Ações de Preset -->
-                <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
-                  <div class="flex items-center justify-between">
-                    <h4 class="text-xs font-semibold text-neutral-200 uppercase tracking-wider flex items-center gap-1.5">
-                      <Type size={14} class="text-primary" />
-                      <span>Cor do Texto de Projeção</span>
-                    </h4>
-                    {#if localBgStyles.overrides[currentSelectedPreset.id] && !currentSelectedPreset.isCustom}
-                      <button
-                        type="button"
-                        onclick={() => restorePresetDefault(currentSelectedPreset.id)}
-                        class="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer"
-                        title="Restaurar valores padrão deste preset"
-                      >
-                        <RotateCcw size={12} />
-                        <span>Restaurar Padrão</span>
-                      </button>
-                    {/if}
-                  </div>
-
-                  <div>
-                    <span class="text-[11px] text-neutral-400 mb-1.5 block">Seletor de Cor Hexadecimal</span>
-                    <div class="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={currentSelectedPreset.textColor || '#ffffff'}
-                        oninput={(e) => updateCurrentTextColor((e.target as HTMLInputElement).value)}
-                        class="w-9 h-9 rounded-lg border border-neutral-700 bg-neutral-900 p-0.5 cursor-pointer shrink-0"
-                      />
-                      <input
-                        type="text"
-                        value={currentSelectedPreset.textColor || '#ffffff'}
-                        oninput={(e) => updateCurrentTextColor((e.target as HTMLInputElement).value)}
-                        placeholder="#ffffff"
-                        class="flex-1 h-9 px-3 rounded-lg border border-neutral-800 bg-neutral-900 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary uppercase"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <span class="text-[11px] text-neutral-400 mb-1.5 block">Atalhos de Contraste Recomendados</span>
-                    <div class="grid grid-cols-4 gap-1.5">
-                      {#each QUICK_TEXT_COLORS as color}
-                        <button
-                          type="button"
-                          onclick={() => updateCurrentTextColor(color.hex)}
-                          class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[11px] font-medium transition-all cursor-pointer {(currentSelectedPreset.textColor || '#ffffff').toLowerCase() === color.hex.toLowerCase() ? 'border-primary bg-primary/10 text-white' : 'border-neutral-800 bg-neutral-900/60 text-neutral-300 hover:border-neutral-700'}"
-                        >
-                          <span class="w-3 h-3 rounded-full border border-black/40 shrink-0" style="background-color: {color.hex};"></span>
-                          <span class="truncate">{color.label}</span>
-                        </button>
-                      {/each}
-                    </div>
-                  </div>
-
-                  <!-- Botões de Ação do Preset -->
-                  <div class="pt-2 border-t border-neutral-800/80 flex flex-wrap items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onclick={() => setDefaultBackground(currentSelectedPreset.id)}
-                      class="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-colors cursor-pointer {localBgStyles.defaultBackgroundId === currentSelectedPreset.id ? 'bg-primary text-primary-foreground border-primary' : 'border-neutral-700 bg-neutral-800 text-neutral-300 hover:text-white'}"
-                    >
-                      <Check size={13} />
-                      <span>{localBgStyles.defaultBackgroundId === currentSelectedPreset.id ? 'Fundo Padrão Ativo' : 'Definir como Padrão de Letras'}</span>
-                    </button>
-
-                    {#if currentSelectedPreset.isCustom}
-                      <button
-                        type="button"
-                        onclick={() => deleteCustomPreset(currentSelectedPreset.id)}
-                        class="px-2.5 py-1.5 rounded-lg text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 flex items-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <Trash2 size={13} />
-                        <span>Excluir</span>
-                      </button>
-                    {/if}
-                  </div>
-                </div>
-
-                <!-- Coluna 2: Nome, CSS do Fundo & Animação -->
-                <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
-                  <h4 class="text-xs font-semibold text-neutral-200 uppercase tracking-wider flex items-center gap-1.5">
-                    <Sliders size={14} class="text-primary" />
-                    <span>Propriedades do Fundo CSS</span>
-                  </h4>
-
-                  {#if currentSelectedPreset.isCustom}
-                    <div>
-                      <label for="bg-custom-name" class="text-[11px] text-neutral-400 mb-1.5 block">Nome do Fundo</label>
-                      <input
-                        id="bg-custom-name"
-                        type="text"
-                        value={currentSelectedPreset.name}
-                        oninput={(e) => updateCurrentName((e.target as HTMLInputElement).value)}
-                        placeholder="Nome do preset..."
-                        class="w-full h-8 px-3 rounded-lg border border-neutral-800 bg-neutral-900 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                  {/if}
-
-                  <div>
-                    <label for="bg-anim-select" class="text-[11px] text-neutral-400 mb-1.5 block">Efeito de Animação CSS</label>
-                    <select
-                      id="bg-anim-select"
-                      value={currentSelectedPreset.animationClass || 'none'}
-                      onchange={(e) => updateCurrentAnimation((e.target as HTMLSelectElement).value)}
-                      class="w-full h-8 px-2.5 rounded-lg border border-neutral-800 bg-neutral-900 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      <option value="none">Nenhuma animação (Estático)</option>
-                      <option value="animate-bg-pulse">Pulsar Brilho Sutil (animate-bg-pulse)</option>
-                      <option value="animate-bg-flow">Fluxo Gradiente Dinâmico (animate-bg-flow)</option>
-                      <option value="animate-bg-aurora">Aurora Boreal Cósmica (animate-bg-aurora)</option>
-                      <option value="animate-bg-nebula">Nebulosa Cósmica (animate-bg-nebula)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                      <label for="bg-css-style" class="text-[11px] text-neutral-400">CSS da Propriedade `background`</label>
-                      <span class="text-[10px] text-neutral-500 font-mono">linear-gradient / radial-gradient / solid</span>
-                    </div>
-                    <textarea
-                      id="bg-css-style"
-                      value={currentSelectedPreset.style}
-                      oninput={(e) => updateCurrentStyle((e.target as HTMLTextAreaElement).value)}
-                      rows="3"
-                      class="w-full p-2.5 rounded-lg border border-neutral-800 bg-neutral-900 font-mono text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
-                    ></textarea>
-                  </div>
-
-                  <!-- Templates rápidos de gradiente -->
-                  <div>
-                    <span class="text-[10px] text-neutral-400 mb-1 block">Modelos de Gradiente Rápidos</span>
-                    <div class="flex flex-wrap gap-1">
-                      {#each QUICK_GRADIENTS as tpl}
-                        <button
-                          type="button"
-                          onclick={() => updateCurrentStyle(tpl.css)}
-                          class="text-[10px] px-2 py-0.5 rounded border border-neutral-800 bg-neutral-900/80 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors cursor-pointer"
-                        >
-                          {tpl.name}
-                        </button>
-                      {/each}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Seletor de Fundos Disponíveis (Grade de Navegação) -->
-              <div class="rounded-xl border border-neutral-800 bg-neutral-900/20 p-4 space-y-3">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <h4 class="text-xs font-semibold text-neutral-300">Escolha um Fundo para Personalizar</h4>
-                  
-                  <div class="flex items-center gap-2">
-                    <input
-                      type="text"
-                      bind:value={bgSearchTerm}
-                      placeholder="Pesquisar fundo..."
-                      class="h-7 px-2.5 rounded-md border border-neutral-800 bg-neutral-900 text-xs text-foreground placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary w-36 sm:w-48"
-                    />
-                    <div class="flex items-center rounded-lg border border-neutral-800 bg-neutral-900 p-0.5 text-xs">
-                      {#each [
-                        { id: 'all', label: 'Todos' },
-                        { id: 'gradients', label: 'Gradientes' },
-                        { id: 'mesh', label: 'Mesh' },
-                        { id: 'animated', label: 'Animados' },
-                        { id: 'custom', label: 'Custom' }
-                      ] as cat}
-                        <button
-                          type="button"
-                          onclick={() => (bgCategoryFilter = cat.id as any)}
-                          class="px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer {bgCategoryFilter === cat.id ? 'bg-primary text-primary-foreground font-semibold' : 'text-neutral-400 hover:text-neutral-200'}"
-                        >
-                          {cat.label}
-                        </button>
-                      {/each}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Grade de Cartões com Prévia -->
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 max-h-56 overflow-y-auto pr-1">
-                  {#each filteredBgList as preset (preset.id)}
-                    {@const isSelected = preset.id === currentSelectedPreset.id}
-                    {@const isOverridden = !!localBgStyles.overrides[preset.id]}
-                    {@const isDefault = localBgStyles.defaultBackgroundId === preset.id}
-                    <button
-                      type="button"
-                      onclick={() => (selectedPresetId = preset.id)}
-                      class="group relative rounded-lg border overflow-hidden flex flex-col text-left transition-all cursor-pointer bg-neutral-900/80 {isSelected ? 'border-primary ring-2 ring-primary/80 shadow-lg' : 'border-neutral-800 hover:border-neutral-700'}"
-                    >
-                      <div class="aspect-video w-full relative overflow-hidden flex items-center justify-center">
-                        <div
-                          class="absolute inset-0 w-full h-full {preset.animationClass === 'none' ? '' : (preset.animationClass || '')}"
-                          style="background: {preset.style};"
-                        ></div>
-                        <span
-                          class="relative z-10 text-[10px] font-bold drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"
-                          style="color: {preset.textColor || '#ffffff'};"
-                        >
-                          Aa
-                        </span>
-
-                        {#if isDefault}
-                          <span class="absolute top-1 left-1 bg-primary text-primary-foreground text-[8px] font-bold px-1 rounded shadow">
-                            Padrão
-                          </span>
-                        {/if}
-                        {#if isOverridden}
-                          <span class="absolute top-1 right-1 bg-amber-500/90 text-black text-[8px] font-bold px-1 rounded shadow">
-                            Modificado
-                          </span>
-                        {:else if preset.isCustom}
-                          <span class="absolute top-1 right-1 bg-emerald-500/90 text-black text-[8px] font-bold px-1 rounded shadow">
-                            Custom
-                          </span>
-                        {/if}
-                      </div>
-
-                      <div class="p-1.5 flex items-center justify-between">
-                        <span class="text-[11px] font-medium text-neutral-200 truncate">{preset.name}</span>
-                      </div>
-                    </button>
-                  {/each}
-                </div>
-              </div>
-            </div>
-
-          <!-- ABA: MONITOR DE PALCO (STAGE) -->
-          {:else if activeTab === 'stage'}
-            <div class="space-y-6 max-w-4xl">
-              <div>
-                <h3 class="text-sm font-semibold text-white">Layout e Cores do Monitor de Retorno</h3>
-                <p class="text-xs text-neutral-400 mt-0.5">
-                  Configure de forma independente o retorno de letras de louvor, versículos bíblicos e o layout/timer do palco.
-                </p>
-              </div>
-
-              <!-- Seletor de Seções do Monitor de Retorno (Stage) -->
-              <div class="p-1 bg-neutral-950 rounded-xl border border-neutral-800 grid grid-cols-2 sm:grid-cols-4 gap-1">
-                <button
-                  type="button"
-                  onclick={() => (stageSection = 'lyrics')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {stageSection === 'lyrics' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
-                >
-                  <Music size={13} />
-                  <span>Letras de Louvor</span>
-                </button>
-
-                <button
-                  type="button"
-                  onclick={() => (stageSection = 'scripture')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {stageSection === 'scripture' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
-                >
-                  <BookOpen size={13} />
-                  <span>Textos Bíblicos</span>
-                </button>
-
-                <button
-                  type="button"
-                  onclick={() => (stageSection = 'schedule')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {stageSection === 'schedule' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
-                >
-                  <CalendarDays size={13} />
-                  <span>Agenda</span>
-                </button>
-
-                <button
-                  type="button"
-                  onclick={() => (stageSection = 'general')}
-                  class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer {stageSection === 'general' ? 'bg-primary text-primary-foreground shadow' : 'text-neutral-400 hover:text-white'}"
-                >
-                  <Sliders size={13} />
-                  <span>Layout & Tempo</span>
-                </button>
-              </div>
-
-              {#if stageSection === 'lyrics'}
-                <!-- SEÇÃO 1: LETRAS DE LOUVOR NO PALCO -->
-                <div class="space-y-4">
-                  <!-- Auto-scale das Letras no Palco -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <div>
-                      <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                        <Type size={14} class="text-primary" />
-                        Tamanho Mínimo da Fonte para Louvores
-                      </h4>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Define o menor tamanho aceitável para letras de músicas no monitor de retorno, evitando que estrofes longas fiquem ilegíveis para a equipe de louvor.
-                      </p>
-                    </div>
-                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2 max-w-md">
-                      <div class="flex justify-between items-center text-xs">
-                        <span class="text-neutral-300 font-medium">Tamanho Mínimo das Letras</span>
-                        <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                          {localStage.lyrics_min_font_size ?? localStage.min_font_size ?? 24}px
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="14"
-                        max="64"
-                        step="2"
-                        value={localStage.lyrics_min_font_size ?? localStage.min_font_size ?? 24}
-                        oninput={(e) => {
-                          const val = Number((e.target as HTMLInputElement).value);
-                          localStage = { ...localStage, lyrics_min_font_size: val, min_font_size: val };
-                          saveStageDisplaySettings(localStage);
-                        }}
-                        class="w-full accent-primary cursor-pointer"
-                      />
-                      <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
-                        <span>14px (Mais linhas)</span>
-                        <span>24px (Padrão)</span>
-                        <span>64px (Super legível)</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Cores das Letras de Louvor no Palco -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                          <Sliders size={14} class="text-primary" />
-                          Cores das Letras e Molduras do Palco
-                        </h4>
-                        <p class="text-[11px] text-neutral-400 mt-0.5">
-                          Personalize as cores do slide ao vivo e do próximo slide da música para contraste com a iluminação do palco.
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        class="text-[11px] h-7"
-                        onclick={() => {
-                          localStage = {
-                            ...localStage,
-                            current_text_color: DEFAULT_STAGE_SETTINGS.current_text_color,
-                            next_text_color: DEFAULT_STAGE_SETTINGS.next_text_color,
-                            current_border_color: DEFAULT_STAGE_SETTINGS.current_border_color,
-                            next_border_color: DEFAULT_STAGE_SETTINGS.next_border_color,
-                          };
-                          saveStageDisplaySettings(localStage);
-                        }}
-                      >
-                        Restaurar Cores
-                      </Button>
-                    </div>
-
-                    <div class="grid grid-cols-2 sm:grid-cols-2 gap-3">
-                      <!-- Texto Slide Atual -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Texto do Slide Atual</div>
-                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.current_text_color}</div>
-                        </div>
-                        <input
-                          type="color"
-                          value={localStage.current_text_color}
-                          oninput={(e) => updateStageField('current_text_color', (e.target as HTMLInputElement).value)}
-                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                        />
-                      </div>
-
-                      <!-- Borda Slide Atual -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Moldura do Slide Atual</div>
-                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.current_border_color}</div>
-                        </div>
-                        <input
-                          type="color"
-                          value={localStage.current_border_color}
-                          oninput={(e) => updateStageField('current_border_color', (e.target as HTMLInputElement).value)}
-                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                        />
-                      </div>
-
-                      <!-- Texto Próximo Slide -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Texto do Próximo Slide</div>
-                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.next_text_color}</div>
-                        </div>
-                        <input
-                          type="color"
-                          value={localStage.next_text_color}
-                          oninput={(e) => updateStageField('next_text_color', (e.target as HTMLInputElement).value)}
-                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                        />
-                      </div>
-
-                      <!-- Borda Próximo Slide -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Moldura do Próximo Slide</div>
-                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.next_border_color}</div>
-                        </div>
-                        <input
-                          type="color"
-                          value={localStage.next_border_color}
-                          oninput={(e) => updateStageField('next_border_color', (e.target as HTMLInputElement).value)}
-                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-              {:else if stageSection === 'scripture'}
-                <!-- SEÇÃO 2: TEXTOS BÍBLICOS NO PALCO -->
-                <div class="space-y-4">
-                  <!-- Auto-scale dos Versículos Bíblicos no Palco -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <div>
-                      <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                        <Type size={14} class="text-primary" />
-                        Tamanho Mínimo da Fonte para Passagens Bíblicas
-                      </h4>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Versículos contêm blocos narrativos mais extensos. Ajuste o tamanho mínimo para garantir que o pregador no púlpito consiga ler confortavelmente no monitor de retorno.
-                      </p>
-                    </div>
-                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2 max-w-md">
-                      <div class="flex justify-between items-center text-xs">
-                        <span class="text-neutral-300 font-medium">Tamanho Mínimo Bíblico</span>
-                        <span class="font-mono text-primary font-bold bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
-                          {localStage.scripture_min_font_size ?? 24}px
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="14"
-                        max="64"
-                        step="2"
-                        value={localStage.scripture_min_font_size ?? 24}
-                        oninput={(e) => updateStageField('scripture_min_font_size', Number((e.target as HTMLInputElement).value))}
-                        class="w-full accent-primary cursor-pointer"
-                      />
-                      <div class="flex justify-between text-[10px] text-neutral-500 font-mono">
-                        <span>14px (Mais compacto)</span>
-                        <span>24px (Padrão)</span>
-                        <span>64px (Máxima visibilidade)</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Cores de Exibição Bíblica no Palco -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                          <Sliders size={14} class="text-primary" />
-                          Cores do Versículo no Monitor de Palco
-                        </h4>
-                        <p class="text-[11px] text-neutral-400 mt-0.5">
-                          Defina cores personalizadas para as passagens bíblicas no retorno do pregador.
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        class="text-[11px] h-7"
-                        onclick={() => {
-                          localStage = {
-                            ...localStage,
-                            scripture_text_color: DEFAULT_STAGE_SETTINGS.scripture_text_color,
-                            scripture_border_color: DEFAULT_STAGE_SETTINGS.scripture_border_color,
-                          };
-                          saveStageDisplaySettings(localStage);
-                        }}
-                      >
-                        Restaurar Padrão
-                      </Button>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <!-- Cor do Texto Bíblico -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Cor do Texto do Versículo</div>
-                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.scripture_text_color || '#FFFFFF'}</div>
-                        </div>
-                        <input
-                          type="color"
-                          value={localStage.scripture_text_color || '#FFFFFF'}
-                          oninput={(e) => updateStageField('scripture_text_color', (e.target as HTMLInputElement).value)}
-                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                        />
-                      </div>
-
-                      <!-- Cor da Moldura Bíblica -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Moldura do Bloco Bíblico</div>
-                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.scripture_border_color || '#3B82F6'}</div>
-                        </div>
-                        <input
-                          type="color"
-                          value={localStage.scripture_border_color || '#3B82F6'}
-                          oninput={(e) => updateStageField('scripture_border_color', (e.target as HTMLInputElement).value)}
-                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-              {:else if stageSection === 'schedule'}
-                <!-- SEÇÃO: AGENDA NO MONITOR DE PALCO -->
-                <div class="space-y-4">
-                  <!-- Fontes do Slide Atual da Agenda -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                          <Type size={14} class="text-primary" />
-                          Slide Atual da Agenda (Ao Vivo no Palco)
-                        </h4>
-                        <p class="text-[11px] text-neutral-400 mt-0.5">
-                          Ajuste as fontes do evento ativo exibido em destaque para os ministrantes e equipe de apoio.
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        class="text-[11px] h-7"
-                        onclick={() => {
-                          localStage = {
-                            ...localStage,
-                            stage_schedule_title_min_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_title_min_font_size,
-                            stage_schedule_title_max_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_title_max_font_size,
-                            stage_schedule_day_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_day_font_size,
-                            stage_schedule_time_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_time_font_size,
-                            stage_schedule_details_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_details_font_size,
-                            stage_schedule_next_min_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_next_min_font_size,
-                            stage_schedule_next_max_font_size: DEFAULT_STAGE_SETTINGS.stage_schedule_next_max_font_size,
-                          };
-                          saveStageDisplaySettings(localStage);
-                        }}
-                      >
-                        Restaurar Padrão
-                      </Button>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <!-- Título Min Slide Atual -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Título (Mínimo Auto-Scale)</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="12"
-                              max="200"
-                              step="2"
-                              value={localStage.stage_schedule_title_min_font_size ?? 28}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 12) updateStageField('stage_schedule_title_min_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho customizado em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="14"
-                          max={Math.max(100, localStage.stage_schedule_title_min_font_size ?? 28)}
-                          step="2"
-                          value={localStage.stage_schedule_title_min_font_size ?? 28}
-                          oninput={(e) => updateStageField('stage_schedule_title_min_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-
-                      <!-- Título Max Slide Atual -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Título (Máximo Auto-Scale)</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="20"
-                              max="300"
-                              step="4"
-                              value={localStage.stage_schedule_title_max_font_size ?? 120}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 20) updateStageField('stage_schedule_title_max_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho customizado em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="40"
-                          max={Math.max(240, localStage.stage_schedule_title_max_font_size ?? 120)}
-                          step="4"
-                          value={localStage.stage_schedule_title_max_font_size ?? 120}
-                          oninput={(e) => updateStageField('stage_schedule_title_max_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-
-                      <!-- Dia da Semana -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Badge do Dia da Semana</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="8"
-                              max="200"
-                              step="1"
-                              value={localStage.stage_schedule_day_font_size ?? 18}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 8) updateStageField('stage_schedule_day_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho customizado em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="12"
-                          max={Math.max(80, localStage.stage_schedule_day_font_size ?? 18)}
-                          step="1"
-                          value={localStage.stage_schedule_day_font_size ?? 18}
-                          oninput={(e) => updateStageField('stage_schedule_day_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-
-                      <!-- Horário -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Badge do Horário</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="8"
-                              max="200"
-                              step="1"
-                              value={localStage.stage_schedule_time_font_size ?? 18}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 8) updateStageField('stage_schedule_time_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho customizado em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="12"
-                          max={Math.max(80, localStage.stage_schedule_time_font_size ?? 18)}
-                          step="1"
-                          value={localStage.stage_schedule_time_font_size ?? 18}
-                          oninput={(e) => updateStageField('stage_schedule_time_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-                    </div>
-
-                    <!-- Detalhes / Descrição -->
-                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                      <div class="flex justify-between items-center text-xs">
-                        <span class="text-neutral-300 font-medium">Texto de Detalhes / Descrição</span>
-                        <div class="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            min="8"
-                            max="200"
-                            step="1"
-                            value={localStage.stage_schedule_details_font_size ?? 18}
-                            oninput={(e) => {
-                              const val = Number((e.target as HTMLInputElement).value);
-                              if (!isNaN(val) && val >= 8) updateStageField('stage_schedule_details_font_size', val);
-                            }}
-                            class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                            title="Tamanho customizado em pixels"
-                          />
-                          <span class="text-[10px] font-mono text-neutral-400">px</span>
-                        </div>
-                      </div>
-                      <input
-                        type="range"
-                        min="12"
-                        max={Math.max(80, localStage.stage_schedule_details_font_size ?? 18)}
-                        step="1"
-                        value={localStage.stage_schedule_details_font_size ?? 18}
-                        oninput={(e) => updateStageField('stage_schedule_details_font_size', Number((e.target as HTMLInputElement).value))}
-                        class="w-full accent-primary cursor-pointer"
-                      />
-                    </div>
-
-                    <!-- Cores e Fundo das Pílulas da Agenda no Palco -->
-                    <div class="pt-3 border-t border-neutral-800 space-y-3">
-                      <!-- Fundo das Pílulas -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-4">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Exibir Fundo das Pílulas no Palco</div>
-                          <p class="text-[10px] text-neutral-400 mt-0.5">
-                            Adiciona molduras arredondadas atrás do dia e horário no retorno dos ministrantes.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-label="Alternar fundo das pílulas no palco"
-                          aria-checked={localStage.stage_schedule_badge_bg !== false}
-                          onclick={() => updateStageField('stage_schedule_badge_bg', localStage.stage_schedule_badge_bg === false ? true : false)}
-                          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localStage.stage_schedule_badge_bg !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                        >
-                          <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localStage.stage_schedule_badge_bg !== false ? 'translate-x-5' : 'translate-x-0'}"></span>
-                        </button>
-                      </div>
-
-                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <!-- Cor do Dia no Palco -->
-                        <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
-                          <div>
-                            <div class="text-[11px] font-semibold text-white">Cor do Dia no Palco</div>
-                            <div class="text-[9px] text-neutral-400 font-mono">{localStage.stage_schedule_day_color || '#fcd34d'}</div>
-                          </div>
-                          <input
-                            type="color"
-                            value={localStage.stage_schedule_day_color || '#fcd34d'}
-                            oninput={(e) => updateStageField('stage_schedule_day_color', (e.target as HTMLInputElement).value)}
-                            class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                          />
-                        </div>
-
-                        <!-- Cor do Horário no Palco -->
-                        <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
-                          <div>
-                            <div class="text-[11px] font-semibold text-white">Cor do Horário no Palco</div>
-                            <div class="text-[9px] text-neutral-400 font-mono">{localStage.stage_schedule_time_color || '#ffffff'}</div>
-                          </div>
-                          <input
-                            type="color"
-                            value={localStage.stage_schedule_time_color || '#ffffff'}
-                            oninput={(e) => updateStageField('stage_schedule_time_color', (e.target as HTMLInputElement).value)}
-                            class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Fontes do Próximo Slide (A Seguir no Palco) -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                      <Sliders size={14} class="text-primary" />
-                      Próximo Slide da Agenda (A Seguir no Palco)
-                    </h4>
-                    <p class="text-[11px] text-neutral-400">
-                      Configure os limites de auto-scale para o título do próximo evento da agenda no bloco "A Seguir".
-                    </p>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <!-- Próximo Título Min -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Título Mínimo A Seguir</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="10"
-                              max="150"
-                              step="2"
-                              value={localStage.stage_schedule_next_min_font_size ?? 18}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 10) updateStageField('stage_schedule_next_min_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho customizado em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="12"
-                          max={Math.max(80, localStage.stage_schedule_next_min_font_size ?? 18)}
-                          step="2"
-                          value={localStage.stage_schedule_next_min_font_size ?? 18}
-                          oninput={(e) => updateStageField('stage_schedule_next_min_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-
-                      <!-- Próximo Título Max -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-300 font-medium">Título Máximo A Seguir</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="20"
-                              max="300"
-                              step="4"
-                              value={localStage.stage_schedule_next_max_font_size ?? 64}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 20) updateStageField('stage_schedule_next_max_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho customizado em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="30"
-                          max={Math.max(160, localStage.stage_schedule_next_max_font_size ?? 64)}
-                          step="4"
-                          value={localStage.stage_schedule_next_max_font_size ?? 64}
-                          oninput={(e) => updateStageField('stage_schedule_next_max_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Simulação Gráfica Interativa da Agenda no Retorno -->
-                  <div class="p-4 rounded-xl border border-neutral-800 bg-black flex flex-col items-center justify-center">
-                    <div class="flex items-center justify-between w-full max-w-sm mb-2">
-                      <span class="text-[10px] text-neutral-500 font-mono uppercase">Simulação do Retorno (Agenda)</span>
-                      <span class="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary font-mono font-semibold uppercase">
-                        Preset: {localStage.preset}
-                      </span>
-                    </div>
-
-                    <div class="w-80 max-w-full">
-                      <StagePreviewBox
-                        stageSettings={localStage}
-                        activeSlide={{
-                          id: 'demo_sched_cur',
-                          label: 'Culto de Oração',
-                          content: 'Momento de oração com toda a igreja e estudo bíblico',
-                          metadata: {
-                            schedule_day: 'Quarta-Feira',
-                            schedule_time: '19:30',
-                            schedule_details: 'Momento de oração com toda a igreja e estudo bíblico',
-                          },
-                        }}
-                        nextSlide={{
-                          id: 'demo_sched_next',
-                          label: 'Culto da Família',
-                          content: 'Celebração com santa ceia e ministração da palavra',
-                          metadata: {
-                            schedule_day: 'Domingo',
-                            schedule_time: '18:00',
-                            schedule_details: 'Celebração com santa ceia e ministração da palavra',
-                          },
-                        }}
-                        activeMedia={{
-                          id: 'demo_sched_med',
-                          title: 'Programação da Semana',
-                          kind: 'schedule',
-                          artist_or_ref: '',
-                          slides: [],
-                        }}
-                        timer={{
-                          duration_seconds: 600,
-                          remaining_seconds: 450,
-                          running: true,
-                          is_overtime: false,
-                          allow_overtime: false,
-                          warning_threshold_seconds: 60,
-                          stage_message: 'Aviso Palco',
-                        }}
-                        stageClock="19:45:00"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-              {:else if stageSection === 'general'}
-                <!-- SEÇÃO 3: LAYOUT & TEMPO -->
-                <div class="space-y-4">
-                  <!-- Preset do Palco (Grid Moderno Pro Padronizado) -->
-                  <div class="p-4 rounded-xl border border-primary bg-primary/10 ring-1 ring-primary/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div class="space-y-1">
-                      <div class="flex items-center gap-2">
-                        <div class="text-sm font-bold text-white">Grid Moderno Pro</div>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                          Padrão Ativo
-                        </span>
-                      </div>
-                      <p class="text-xs text-neutral-300">
-                        Slide atual em destaque com auto-scale, próximo slide abaixo e coluna lateral dedicada com aviso sempre visível, relógio e cronômetro. Sem gaps nem bordas arredondadas para aproveitamento máximo da tela.
-                      </p>
-                    </div>
-                    <div class="h-16 w-36 bg-neutral-950 rounded border border-neutral-800 p-1 flex gap-1 shrink-0">
-                      <div class="flex-[2] flex flex-col gap-0.5">
-                        <div class="flex-1 border border-blue-500/40 bg-blue-500/10 text-[7px] text-blue-300 font-bold flex items-center justify-center">Slide Atual</div>
-                        <div class="h-4 border border-yellow-500/40 bg-yellow-500/10 text-[6px] text-yellow-300 font-bold flex items-center justify-center">A Seguir</div>
-                      </div>
-                      <div class="flex-1 border border-neutral-700 bg-neutral-900 text-[6px] text-neutral-300 font-bold flex flex-col items-center justify-center gap-0.5">
-                        <span class="text-emerald-400">Aviso</span>
-                        <span class="text-neutral-400">12:00</span>
-                        <span class="text-red-400 font-mono">10:00</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Cores do Timer e Relógio -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                      <Clock size={14} class="text-primary" />
-                      Cores do Relógio e Cronômetro
-                    </h4>
-                    <div class="grid grid-cols-2 gap-3">
-                      <!-- Cor do Timer -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Cor do Timer / Cronômetro</div>
-                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.timer_color}</div>
-                        </div>
-                        <input
-                          type="color"
-                          value={localStage.timer_color}
-                          oninput={(e) => updateStageField('timer_color', (e.target as HTMLInputElement).value)}
-                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                        />
-                      </div>
-
-                      <!-- Cor do Relógio -->
-                      <div class="p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between">
-                        <div>
-                          <div class="text-[11px] font-semibold text-white">Cor do Relógio</div>
-                          <div class="text-[9px] text-neutral-400 font-mono">{localStage.clock_color}</div>
-                        </div>
-                        <input
-                          type="color"
-                          value={localStage.clock_color}
-                          oninput={(e) => updateStageField('clock_color', (e.target as HTMLInputElement).value)}
-                          class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Formato e Exibição do Relógio Oficial (Segundos e Data) -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <div>
-                      <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                        <Clock size={14} class="text-primary" />
-                        Formato e Exibição do Relógio Oficial
-                      </h4>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Defina a visibilidade dos segundos e da data no rodapé do palco e na tela de descanso.
-                      </p>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <!-- Exibir Segundos -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-3">
-                        <div>
-                          <div class="text-xs font-semibold text-white">Exibir Segundos no Horário</div>
-                          <div class="text-[10px] text-neutral-400">
-                            {localStage.clock_show_seconds !== false ? 'Formato completo (ex: 10:42:15)' : 'Formato limpo (ex: 10:42)'}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-label="Alternar exibição de segundos no relógio do palco"
-                          aria-checked={localStage.clock_show_seconds !== false}
-                          onclick={() => updateStageField('clock_show_seconds', localStage.clock_show_seconds === false ? true : false)}
-                          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localStage.clock_show_seconds !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                        >
-                          <span
-                            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localStage.clock_show_seconds !== false ? 'translate-x-5' : 'translate-x-0'}"
-                          ></span>
-                        </button>
-                      </div>
-
-                      <!-- Exibir Data -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 flex items-center justify-between gap-3">
-                        <div>
-                          <div class="text-xs font-semibold text-white">Exibir Data Abaixo do Horário</div>
-                          <div class="text-[10px] text-neutral-400">
-                            {localStage.clock_show_date !== false ? 'Data por extenso visível' : 'Data oculta'}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-label="Alternar exibição da data no relógio do palco"
-                          aria-checked={localStage.clock_show_date !== false}
-                          onclick={() => updateStageField('clock_show_date', localStage.clock_show_date === false ? true : false)}
-                          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localStage.clock_show_date !== false ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                        >
-                          <span
-                            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localStage.clock_show_date !== false ? 'translate-x-5' : 'translate-x-0'}"
-                          ></span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Tamanhos das Fontes do Palco (Timer, Relógio e Aviso) -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                          <Sliders size={14} class="text-primary" />
-                          Tamanhos das Fontes de Palco (Relógio, Timer & Aviso)
-                        </h4>
-                        <p class="text-[11px] text-neutral-400 mt-0.5">
-                          Ajuste o tamanho dos números e textos para máxima visibilidade e leitura à distância no retorno.
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        class="text-[11px] h-7"
-                        onclick={() => {
-                          localStage = {
-                            ...localStage,
-                            clock_font_size: DEFAULT_STAGE_SETTINGS.clock_font_size,
-                            timer_font_size: DEFAULT_STAGE_SETTINGS.timer_font_size,
-                            alert_font_size: DEFAULT_STAGE_SETTINGS.alert_font_size,
-                            standby_alert_font_size: DEFAULT_STAGE_SETTINGS.standby_alert_font_size,
-                          };
-                          saveStageDisplaySettings(localStage);
-                        }}
-                      >
-                        Restaurar Padrão
-                      </Button>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                      <!-- Tamanho do Timer -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-400">Timer / Cronômetro</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="14"
-                              max="200"
-                              step="2"
-                              value={localStage.timer_font_size ?? 56}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 14) updateStageField('timer_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho customizado em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="20"
-                          max={Math.max(120, localStage.timer_font_size ?? 56)}
-                          step="2"
-                          value={localStage.timer_font_size ?? 56}
-                          oninput={(e) => updateStageField('timer_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                        <div class="text-[9px] text-neutral-500">Contagem regressiva e tempo em palco</div>
-                      </div>
-
-                      <!-- Tamanho do Relógio -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-400">Relógio Oficial</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="14"
-                              max="200"
-                              step="2"
-                              value={localStage.clock_font_size ?? 48}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 14) updateStageField('clock_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho customizado em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="20"
-                          max={Math.max(120, localStage.clock_font_size ?? 48)}
-                          step="2"
-                          value={localStage.clock_font_size ?? 48}
-                          oninput={(e) => updateStageField('clock_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                        <div class="text-[9px] text-neutral-500">Horário atual de parede</div>
-                      </div>
-
-                      <!-- Tamanho do Aviso no Grid (Ao Vivo) -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-400">Aviso (Ao Vivo)</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="12"
-                              max="150"
-                              step="2"
-                              value={localStage.alert_font_size ?? 28}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 12) updateStageField('alert_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho customizado em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="14"
-                          max={Math.max(80, localStage.alert_font_size ?? 28)}
-                          step="2"
-                          value={localStage.alert_font_size ?? 28}
-                          oninput={(e) => updateStageField('alert_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                        <div class="text-[9px] text-neutral-500">Rodapé do grid durante slides</div>
-                      </div>
-
-                      <!-- Tamanho do Aviso na Espera (Standby) -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-neutral-400">Aviso (Espera)</span>
-                          <div class="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="14"
-                              max="150"
-                              step="2"
-                              value={localStage.standby_alert_font_size ?? 36}
-                              oninput={(e) => {
-                                const val = Number((e.target as HTMLInputElement).value);
-                                if (!isNaN(val) && val >= 14) updateStageField('standby_alert_font_size', val);
-                              }}
-                              class="w-14 h-6 px-1 text-right font-mono font-bold text-xs bg-neutral-900 border border-neutral-700 rounded text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                              title="Tamanho customizado em pixels"
-                            />
-                            <span class="text-[10px] font-mono text-neutral-400">px</span>
-                          </div>
-                        </div>
-                        <input
-                          type="range"
-                          min="16"
-                          max={Math.max(100, localStage.standby_alert_font_size ?? 36)}
-                          step="2"
-                          value={localStage.standby_alert_font_size ?? 36}
-                          oninput={(e) => updateStageField('standby_alert_font_size', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                        <div class="text-[9px] text-neutral-500">Banner na tela sem slide ativo</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Aviso para o Palco em Tela Cheia Temporária -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <div class="flex items-center justify-between">
-                      <div class="space-y-0.5">
-                        <h4 class="text-xs font-semibold text-white flex items-center gap-2">
-                          <MessageSquare size={14} class="text-primary" />
-                          Aviso para o Palco em Tela Cheia Temporária
-                        </h4>
-                        <p class="text-[11px] text-neutral-400">
-                          Ao disparar uma nova mensagem, exibe o texto em tela cheia com destaque gigante antes de recolher para o rodapé.
-                        </p>
-                      </div>
-                      <label class="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={localStage.alert_fullscreen_flash !== false}
-                          onchange={(e) => updateStageField('alert_fullscreen_flash', (e.target as HTMLInputElement).checked)}
-                          class="sr-only peer"
-                        />
-                        <div class="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                      </label>
-                    </div>
-
-                    {#if localStage.alert_fullscreen_flash !== false}
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between text-xs">
-                          <span class="text-neutral-300">Tempo de exibição em tela cheia</span>
-                          <span class="font-mono text-white font-semibold">{localStage.alert_flash_duration_seconds ?? 5}s</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="2"
-                          max="20"
-                          step="1"
-                          value={localStage.alert_flash_duration_seconds ?? 5}
-                          oninput={(e) => updateStageField('alert_flash_duration_seconds', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary"
-                        />
-                        <p class="text-[10px] text-neutral-500">
-                          Após {localStage.alert_flash_duration_seconds ?? 5} segundos (ou com um clique na tela), o aviso volta à caixa do rodapé.
-                        </p>
-                      </div>
-                    {/if}
-                  </div>
-
-                  <!-- Modo de Layout do Stage -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
-                    <div>
-                      <h4 class="text-xs font-semibold text-white">Modo de Layout do Monitor de Palco</h4>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">
-                        Escolha a disposição visual dos slides e das informações de tempo no retorno.
-                      </p>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <!-- 3 Linhas Horizontais -->
-                      <button
-                        type="button"
-                        onclick={() => updateStageField('stage_layout', 'stacked-rows')}
-                        class="p-3 rounded-lg border text-left transition-all cursor-pointer flex flex-col justify-between {(!localStage.stage_layout || localStage.stage_layout === 'stacked-rows') ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-950/60 hover:bg-neutral-900'}"
-                      >
-                        <div class="space-y-1">
-                          <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold text-white">3 Linhas Horizontais (Recomendado)</span>
-                            {#if !localStage.stage_layout || localStage.stage_layout === 'stacked-rows'}
-                              <span class="w-2 h-2 rounded-full bg-primary"></span>
-                            {/if}
-                          </div>
-                          <p class="text-[11px] text-neutral-400">
-                            Aviso, relógio e timer ficam alinhados embaixo do próximo slide, aproveitando 100% da largura útil da tela para os textos.
-                          </p>
-                        </div>
-                      </button>
-
-                      <!-- Coluna Lateral Direita -->
-                      <button
-                        type="button"
-                        onclick={() => updateStageField('stage_layout', 'side-column')}
-                        class="p-3 rounded-lg border text-left transition-all cursor-pointer flex flex-col justify-between {localStage.stage_layout === 'side-column' ? 'border-primary bg-primary/10 ring-1 ring-primary/40' : 'border-neutral-800 bg-neutral-950/60 hover:bg-neutral-900'}"
-                      >
-                        <div class="space-y-1">
-                          <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold text-white">Coluna Lateral Direita (Clássico)</span>
-                            {#if localStage.stage_layout === 'side-column'}
-                              <span class="w-2 h-2 rounded-full bg-primary"></span>
-                            {/if}
-                          </div>
-                          <p class="text-[11px] text-neutral-400">
-                            Slides na coluna esquerda e uma coluna lateral dedicada à direita para aviso, relógio e timer.
-                          </p>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Proporções de Preenchimento das Linhas na Tela -->
-                  <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <div class="flex items-center gap-2">
-                          <h4 class="text-xs font-semibold text-white">Distribuição de Altura na Tela</h4>
-                          <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-600/40">
-                            Soma: 100%
-                          </span>
-                        </div>
-                        <p class="text-[11px] text-neutral-400 mt-0.5">
-                          Defina a porcentagem de altura dedicada a cada linha. Ao ajustar qualquer linha, as demais recalculam automaticamente para totalizar 100%.
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        class="text-[11px] h-7"
-                        onclick={() => {
-                          localStage = {
-                            ...localStage,
-                            current_slide_percent: DEFAULT_STAGE_SETTINGS.current_slide_percent,
-                            next_slide_percent: DEFAULT_STAGE_SETTINGS.next_slide_percent,
-                            footer_time_percent: DEFAULT_STAGE_SETTINGS.footer_time_percent,
-                          };
-                          saveStageDisplaySettings(localStage);
-                        }}
-                      >
-                        Restaurar Padrão (50/30/20)
-                      </Button>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between text-xs">
-                          <span class="text-neutral-400">1. Slide Atual</span>
-                          <span class="font-mono text-white font-semibold">{localStage.current_slide_percent ?? 50}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="20"
-                          max="80"
-                          step="1"
-                          value={localStage.current_slide_percent ?? 50}
-                          oninput={(e) => updateStageRatio('current_slide_percent', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary"
-                        />
-                        <div class="text-[9px] text-neutral-500">Área principal do texto ao vivo</div>
-                      </div>
-
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between text-xs">
-                          <span class="text-neutral-400">2. Próximo Slide</span>
-                          <span class="font-mono text-white font-semibold">{localStage.next_slide_percent ?? 30}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="10"
-                          max="60"
-                          step="1"
-                          value={localStage.next_slide_percent ?? 30}
-                          oninput={(e) => updateStageRatio('next_slide_percent', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary"
-                        />
-                        <div class="text-[9px] text-neutral-500">Prévia do próximo trecho</div>
-                      </div>
-
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-2">
-                        <div class="flex justify-between text-xs">
-                          <span class="text-neutral-400">3. Aviso, Relógio & Timer</span>
-                          <span class="font-mono text-white font-semibold">{localStage.footer_time_percent ?? 20}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="10"
-                          max="50"
-                          step="1"
-                          value={localStage.footer_time_percent ?? 20}
-                          oninput={(e) => updateStageRatio('footer_time_percent', Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary"
-                        />
-                        <div class="text-[9px] text-neutral-500">Barra de informações auxiliar</div>
-                      </div>
-                    </div>
-
-                    <!-- Amostra Gráfica Interativa da Divisão Proporcional -->
-                    <div class="p-4 rounded-xl border border-neutral-800 bg-black flex flex-col items-center justify-center">
-                      <div class="flex items-center justify-between w-full max-w-sm mb-2">
-                        <span class="text-[10px] text-neutral-500 font-mono uppercase">Simulação do Retorno</span>
-                        <span class="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary font-mono font-semibold uppercase">
-                          Preset: {localStage.preset}
-                        </span>
-                      </div>
-
-                      <div class="w-80 max-w-full">
-                        <StagePreviewBox
-                          stageSettings={localStage}
-                          activeSlide={{
-                            id: 'demo_cur',
-                            label: 'João 3:16',
-                            content: 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito',
-                          }}
-                          nextSlide={{
-                            id: 'demo_next',
-                            label: 'João 3:17',
-                            content: 'Para que todo aquele que nele crê não pereça, mas tenha a vida eterna',
-                          }}
-                          activeMedia={{
-                            id: 'demo_med',
-                            title: 'Evangelho de João',
-                            kind: 'scripture',
-                            artist_or_ref: 'ARA',
-                            slides: [],
-                          }}
-                          timer={{
-                            duration_seconds: 600,
-                            remaining_seconds: 450,
-                            running: true,
-                            is_overtime: false,
-                            allow_overtime: false,
-                            warning_threshold_seconds: 60,
-                            stage_message: 'Aviso Palco',
-                          }}
-                          stageClock="19:45:00"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              {/if}
-            </div>
-
-          <!-- ABA: LOWER THIRD (OBS / TRANSMISSÃO) -->
-          {:else if activeTab === 'lower_third'}
-            <div class="space-y-6">
-              <div class="flex items-center justify-between pb-3 border-b border-neutral-800">
-                <div>
-                  <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                    <Video size={16} class="text-primary" />
-                    <span>Saída Lower Third Transparente para OBS Studio / vMix</span>
-                  </h3>
-                  <p class="text-xs text-neutral-400 mt-0.5">
-                    Projeta letras e passagens bíblicas no terço inferior da tela com fundo transparente (canal alfa nativo).
-                  </p>
-                </div>
-
-                <!-- Botão Testar / Abrir -->
-                <a
-                  href="/lower-third"
-                  target="_blank"
-                  rel="noreferrer"
-                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold text-neutral-200 transition-colors"
-                >
-                  <ExternalLink size={13} />
-                  <span>Abrir /lower-third</span>
-                </a>
-              </div>
-
-              <!-- URL e Instruções Rápidas para OBS -->
-              <div class="p-3.5 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2">
-                <span class="text-xs font-bold text-neutral-200 block">URL da Fonte de Navegador (Browser Source):</span>
-                <div class="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readonly
-                    value="{typeof window !== 'undefined' ? window.location.origin : 'http://localhost:18080'}/lower-third"
-                    class="flex-1 px-3 py-1.5 rounded-lg bg-black border border-neutral-800 text-xs font-mono text-emerald-400 select-all"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onclick={() => {
-                      if (typeof window !== 'undefined') {
-                        navigator.clipboard.writeText(`${window.location.origin}/lower-third`);
-                      }
-                    }}
-                    class="shrink-0 gap-1 text-xs"
-                  >
-                    <Copy size={13} />
-                    <span>Copiar</span>
-                  </Button>
-                </div>
-                <p class="text-[11px] text-neutral-400">
-                  No OBS Studio, adicione uma fonte <strong>"Navegador" (Browser Source)</strong> com resolução <strong>1920x1080</strong> e marque <em>"Desligar fonte quando invisível"</em>.
-                </p>
-              </div>
-
-              <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <!-- Coluna de Controles (Esquerda) -->
-                <div class="lg:col-span-7 space-y-5">
-                  <!-- Ativação Geral -->
-                  <div class="p-4 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between">
-                    <div>
-                      <span class="text-xs font-bold text-white block">Ativar Saída Lower Third</span>
-                      <p class="text-[11px] text-neutral-400">
-                        Quando desativado, o texto é ocultado automaticamente da transmissão.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-label="Ativar Saída Lower Third"
-                      aria-checked={localLowerThird.enabled}
-                      onclick={() => (localLowerThird.enabled = !localLowerThird.enabled)}
-                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localLowerThird.enabled ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                    >
-                      <span
-                        class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localLowerThird.enabled ? 'translate-x-5' : 'translate-x-0'}"
-                      ></span>
-                    </button>
-                  </div>
-
-                  <!-- Seletor de Tema / Estilo Visual -->
-                  <div class="space-y-2">
-                    <span class="text-xs font-bold text-neutral-200 block">Estilo Visual do Lower Third:</span>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <button
-                        type="button"
-                        onclick={() => (localLowerThird.theme = 'gradient')}
-                        class="p-2.5 rounded-xl border text-left transition-all cursor-pointer {localLowerThird.theme === 'gradient' ? 'border-primary bg-primary/10 text-white font-bold' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
-                      >
-                        <span class="text-xs block">Gradiente Central</span>
-                        <span class="text-[10px] opacity-70 font-normal">Suave & Dinâmico</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onclick={() => (localLowerThird.theme = 'bar')}
-                        class="p-2.5 rounded-xl border text-left transition-all cursor-pointer {localLowerThird.theme === 'bar' ? 'border-primary bg-primary/10 text-white font-bold' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
-                      >
-                        <span class="text-xs block">Barra Inferior</span>
-                        <span class="text-[10px] opacity-70 font-normal">Estilo TV / Notícias</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onclick={() => (localLowerThird.theme = 'floating')}
-                        class="p-2.5 rounded-xl border text-left transition-all cursor-pointer {localLowerThird.theme === 'floating' ? 'border-primary bg-primary/10 text-white font-bold' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
-                      >
-                        <span class="text-xs block">Caixa Flutuante</span>
-                        <span class="text-[10px] opacity-70 font-normal">Glassmorphism</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onclick={() => (localLowerThird.theme = 'minimal')}
-                        class="p-2.5 rounded-xl border text-left transition-all cursor-pointer {localLowerThird.theme === 'minimal' ? 'border-primary bg-primary/10 text-white font-bold' : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white'}"
-                      >
-                        <span class="text-xs block">Minimalista</span>
-                        <span class="text-[10px] opacity-70 font-normal">Apenas Tipografia</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Cores e Fundo da Caixa -->
-                  <div class="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-4">
-                    <h4 class="text-xs font-bold text-neutral-200">Cores & Composição de Fundo</h4>
-
-                    <!-- Tipo de Fundo da Caixa (Cor vs Imagem) -->
-                    <div class="space-y-1.5">
-                      <span class="text-xs font-semibold text-neutral-300 block">Tipo de Fundo da Caixa:</span>
-                      <div class="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onclick={() => (localLowerThird.box_bg_type = 'color')}
-                          class="p-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer {(localLowerThird.box_bg_type || 'color') === 'color' ? 'border-primary bg-primary/20 text-white font-bold' : 'border-neutral-800 bg-neutral-950 text-neutral-400'}"
-                        >
-                          Cor & Gradiente
-                        </button>
-                        <button
-                          type="button"
-                          onclick={() => (localLowerThird.box_bg_type = 'image')}
-                          class="p-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer {localLowerThird.box_bg_type === 'image' ? 'border-primary bg-primary/20 text-white font-bold' : 'border-neutral-800 bg-neutral-950 text-neutral-400'}"
-                        >
-                          Imagem Personalizada (PNG/JPG)
-                        </button>
-                      </div>
-                    </div>
-
-                    {#if localLowerThird.box_bg_type === 'image'}
-                      <!-- Controles da Imagem de Fundo -->
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-3">
-                        <div class="flex items-center justify-between gap-3">
-                          <div class="flex items-center gap-2 min-w-0">
-                            {#if localLowerThird.box_bg_image_url}
-                              <img
-                                src={localLowerThird.box_bg_image_url}
-                                alt="Fundo Lower Third"
-                                class="w-12 h-8 object-cover rounded border border-neutral-700 shrink-0"
-                              />
-                              <span class="text-xs text-neutral-300 truncate max-w-xs">{localLowerThird.box_bg_image_url.split('/').pop()}</span>
-                            {:else}
-                              <div class="w-12 h-8 rounded border border-dashed border-neutral-700 flex items-center justify-center text-neutral-500 text-[10px] shrink-0">
-                                Sem foto
-                              </div>
-                              <span class="text-xs text-neutral-400">Nenhuma imagem selecionada</span>
-                            {/if}
-                          </div>
-
-                          <div class="flex items-center gap-1.5 shrink-0">
-                            <input
-                              type="file"
-                              accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                              bind:this={settingsLtBgFileInputEl}
-                              onchange={handleLtBgUpload}
-                              class="hidden"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              class="h-7 text-xs gap-1"
-                              onclick={() => settingsLtBgFileInputEl?.click()}
-                              disabled={isUploadingLtBg}
-                            >
-                              <Upload size={12} />
-                              <span>{isUploadingLtBg ? 'Enviando...' : localLowerThird.box_bg_image_url ? 'Alterar' : 'Enviar'}</span>
-                            </Button>
-                            {#if localLowerThird.box_bg_image_url}
-                              <button
-                                type="button"
-                                onclick={() => (localLowerThird.box_bg_image_url = '')}
-                                class="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive cursor-pointer"
-                                title="Remover imagem de fundo"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            {/if}
-                          </div>
-                        </div>
-
-                        <!-- Arredondamento das Bordas -->
-                        <div class="space-y-1 pt-1">
-                          <div class="flex justify-between text-xs text-neutral-300">
-                            <span>Arredondamento das Bordas:</span>
-                            <span class="font-mono text-primary font-bold">{localLowerThird.box_border_radius ?? 16}px</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0"
-                            max="48"
-                            step="2"
-                            value={localLowerThird.box_border_radius ?? 16}
-                            oninput={(e) => (localLowerThird.box_border_radius = Number((e.target as HTMLInputElement).value))}
-                            class="w-full accent-primary cursor-pointer"
-                          />
-                        </div>
-
-                        <!-- Suavizar Bordas com Fade (Feather) -->
-                        <div class="flex items-center justify-between pt-2 border-t border-neutral-800">
-                          <div>
-                            <span class="text-xs font-semibold text-neutral-300 block">Suavizar Bordas com Fade (Feather)</span>
-                            <span class="text-[10px] text-neutral-500">Aplica desvanecimento radial suave nas extremidades da caixa.</span>
-                          </div>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-label="Suavizar Bordas com Fade"
-                            aria-checked={Boolean(localLowerThird.box_edge_fade)}
-                            onclick={() => (localLowerThird.box_edge_fade = !localLowerThird.box_edge_fade)}
-                            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localLowerThird.box_edge_fade ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                          >
-                            <span
-                              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localLowerThird.box_edge_fade ? 'translate-x-5' : 'translate-x-0'}"
-                            ></span>
-                          </button>
-                        </div>
-
-                        {#if localLowerThird.box_edge_fade}
-                          <div class="space-y-1 pt-1">
-                            <div class="flex justify-between text-xs text-neutral-300">
-                              <span>Intensidade do Fade:</span>
-                              <span class="font-mono text-primary font-bold">{localLowerThird.box_edge_fade_amount ?? 20}%</span>
-                            </div>
-                            <input
-                              type="range"
-                              min="5"
-                              max="40"
-                              step="5"
-                              value={localLowerThird.box_edge_fade_amount ?? 20}
-                              oninput={(e) => (localLowerThird.box_edge_fade_amount = Number((e.target as HTMLInputElement).value))}
-                              class="w-full accent-primary cursor-pointer"
-                            />
-                          </div>
-                        {/if}
-                      </div>
-                    {:else}
-                      <div class="flex items-center justify-between">
-                        <div>
-                          <span class="text-xs font-semibold text-neutral-300 block">Vincular Cor ao Fundo Público Ativo</span>
-                          <span class="text-[11px] text-neutral-500">Adapta automaticamente o gradiente à cor do tema de projeção.</span>
-                        </div>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-label="Vincular Cor ao Fundo Público Ativo"
-                          aria-checked={localLowerThird.use_public_bg}
-                          onclick={() => (localLowerThird.use_public_bg = !localLowerThird.use_public_bg)}
-                          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localLowerThird.use_public_bg ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                        >
-                          <span
-                            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localLowerThird.use_public_bg ? 'translate-x-5' : 'translate-x-0'}"
-                          ></span>
-                        </button>
-                      </div>
-
-                      {#if !localLowerThird.use_public_bg}
-                        <div class="flex items-center justify-between pt-2 border-t border-neutral-800">
-                          <span class="text-xs text-neutral-300">Cor Base do Gradiente / Barra:</span>
-                          <div class="flex items-center gap-2">
-                            <input
-                              type="color"
-                              bind:value={localLowerThird.bg_color}
-                              class="w-8 h-8 rounded border border-neutral-700 bg-transparent cursor-pointer"
-                            />
-                            <input
-                              type="text"
-                              bind:value={localLowerThird.bg_color}
-                              class="w-20 px-2 py-1 rounded bg-black border border-neutral-800 text-xs font-mono uppercase text-center"
-                            />
-                          </div>
-                        </div>
-                      {/if}
-                    {/if}
-
-                    <!-- Opacidade do Fundo -->
-                    <div class="space-y-1 pt-1">
-                      <div class="flex justify-between text-xs text-neutral-300">
-                        <span>Opacidade do Fundo:</span>
-                        <span class="font-mono text-primary font-bold">{localLowerThird.bg_opacity}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="10"
-                        max="100"
-                        step="5"
-                        bind:value={localLowerThird.bg_opacity}
-                        class="w-full accent-primary cursor-pointer"
-                      />
-                    </div>
-
-                    <!-- Margem Inferior -->
-                    <div class="space-y-1 pt-1">
-                      <div class="flex justify-between text-xs text-neutral-300">
-                        <span>Distância da Margem Inferior:</span>
-                        <span class="font-mono text-primary font-bold">{localLowerThird.margin_bottom}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="16"
-                        max="80"
-                        step="4"
-                        bind:value={localLowerThird.margin_bottom}
-                        class="w-full accent-primary cursor-pointer"
-                      />
-                    </div>
-
-                    <!-- Largura Máxima -->
-                    <div class="space-y-1 pt-1">
-                      <div class="flex justify-between text-xs text-neutral-300">
-                        <span>Aproveitamento Máximo de Largura:</span>
-                        <span class="font-mono text-primary font-bold">{localLowerThird.max_width_percent}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="50"
-                        max="95"
-                        step="5"
-                        bind:value={localLowerThird.max_width_percent}
-                        class="w-full accent-primary cursor-pointer"
-                      />
-                    </div>
-                  </div>
-
-                  <!-- Tipografia e Sombra -->
-                  <div class="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-4">
-                    <h4 class="text-xs font-bold text-neutral-200">Tipografia & Contraste para Transmissão</h4>
-
-                    <!-- Tamanhos de Fontes (Louvor e Versículos) -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-1.5">
-                        <div class="flex justify-between text-xs text-neutral-300">
-                          <span>Fonte de Músicas:</span>
-                          <span class="font-mono text-primary font-bold">{localLowerThird.font_size}px</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="18"
-                          max="60"
-                          step="2"
-                          bind:value={localLowerThird.font_size}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-
-                      <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-950 space-y-1.5">
-                        <div class="flex justify-between text-xs text-neutral-300">
-                          <span>Fonte de Versículos:</span>
-                          <span class="font-mono text-primary font-bold">{localLowerThird.scripture_font_size ?? 28}px</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="16"
-                          max="56"
-                          step="2"
-                          value={localLowerThird.scripture_font_size ?? 28}
-                          oninput={(e) => (localLowerThird.scripture_font_size = Number((e.target as HTMLInputElement).value))}
-                          class="w-full accent-primary cursor-pointer"
-                        />
-                      </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3 pt-1">
-                      <!-- Alinhamento -->
-                      <div>
-                        <span class="text-xs text-neutral-300 block mb-1">Alinhamento:</span>
-                        <select
-                          bind:value={localLowerThird.text_align}
-                          class="w-full px-2.5 py-1.5 rounded-lg bg-black border border-neutral-800 text-xs text-neutral-200 font-semibold"
-                        >
-                          <option value="left">Esquerda</option>
-                          <option value="center">Centralizado</option>
-                          <option value="right">Direita</option>
-                        </select>
-                      </div>
-
-                      <!-- Peso da Fonte -->
-                      <div>
-                        <span class="text-xs text-neutral-300 block mb-1">Peso da Fonte:</span>
-                        <select
-                          bind:value={localLowerThird.font_weight}
-                          class="w-full px-2.5 py-1.5 rounded-lg bg-black border border-neutral-800 text-xs text-neutral-200 font-semibold"
-                        >
-                          <option value="normal">Normal (400)</option>
-                          <option value="semibold">Semibold (600)</option>
-                          <option value="bold">Negrito (700)</option>
-                          <option value="extrabold">Extra Negrito (800)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3 pt-1">
-                      <!-- Força da Sombra -->
-                      <div>
-                        <span class="text-xs text-neutral-300 block mb-1">Força da Sombra do Texto:</span>
-                        <select
-                          bind:value={localLowerThird.shadow_strength}
-                          class="w-full px-2.5 py-1.5 rounded-lg bg-black border border-neutral-800 text-xs text-neutral-200 font-semibold"
-                        >
-                          <option value="none">Nenhuma</option>
-                          <option value="subtle">Suave</option>
-                          <option value="medium">Média</option>
-                          <option value="strong">Forte (Alto Contraste)</option>
-                        </select>
-                      </div>
-
-                      <!-- Animação -->
-                      <div>
-                        <span class="text-xs text-neutral-300 block mb-1">Animação de Transição:</span>
-                        <select
-                          bind:value={localLowerThird.animation}
-                          class="w-full px-2.5 py-1.5 rounded-lg bg-black border border-neutral-800 text-xs text-neutral-200 font-semibold"
-                        >
-                          <option value="fade">Fade Suave</option>
-                          <option value="slide">Deslize Vertical (Slide)</option>
-                          <option value="zoom">Zoom Leve</option>
-                          <option value="none">Instantânea</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <!-- Exibir Referência -->
-                    <div class="flex items-center justify-between pt-2 border-t border-neutral-800">
-                      <div>
-                        <span class="text-xs font-semibold text-neutral-300 block">Exibir Referência Bíblica / Título</span>
-                        <span class="text-[11px] text-neutral-500">Mostra etiqueta identificadora no topo do Lower Third.</span>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-label="Exibir Referência Bíblica ou Título"
-                        aria-checked={localLowerThird.show_reference}
-                        onclick={() => (localLowerThird.show_reference = !localLowerThird.show_reference)}
-                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out {localLowerThird.show_reference ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                      >
-                        <span
-                          class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localLowerThird.show_reference ? 'translate-x-5' : 'translate-x-0'}"
-                        ></span>
-                      </button>
-                    </div>
-
-                    <!-- ═══════════════════════════════════════ -->
-                    <!-- Exibição de Imagens no Lower Third     -->
-                    <!-- ═══════════════════════════════════════ -->
-                    <div class="pt-3 border-t border-neutral-800 space-y-3">
-                      <div>
-                        <span class="text-xs font-bold text-neutral-200 block">Exibição de Imagens no Lower Third</span>
-                        <span class="text-[11px] text-neutral-500">Define como imagens projetadas serão exibidas na saída de Lower Third (OBS).</span>
-                      </div>
-
-                      <!-- Modo de Exibição -->
-                      <div class="space-y-1.5">
-                        <span class="text-[11px] font-medium text-neutral-400">Modo de Exibição de Imagens:</span>
-                        <div class="grid grid-cols-3 gap-1.5">
-                          <button
-                            type="button"
-                            onclick={() => (localLowerThird.image_display_mode = 'fullscreen')}
-                            class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer {(localLowerThird.image_display_mode ?? 'fullscreen') === 'fullscreen' ? 'bg-primary text-primary-foreground border-primary' : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:border-neutral-700'}"
-                          >
-                            Tela Cheia
-                          </button>
-                          <button
-                            type="button"
-                            onclick={() => (localLowerThird.image_display_mode = 'lower_third')}
-                            class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer {(localLowerThird.image_display_mode ?? 'fullscreen') === 'lower_third' ? 'bg-primary text-primary-foreground border-primary' : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:border-neutral-700'}"
-                          >
-                            Banner
-                          </button>
-                          <button
-                            type="button"
-                            onclick={() => (localLowerThird.image_display_mode = 'hide')}
-                            class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer {(localLowerThird.image_display_mode ?? 'fullscreen') === 'hide' ? 'bg-red-600/80 text-white border-red-500' : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:border-neutral-700'}"
-                          >
-                            Ocultar
-                          </button>
-                        </div>
-                        <p class="text-[10px] text-neutral-500 leading-relaxed">
-                          {#if (localLowerThird.image_display_mode ?? 'fullscreen') === 'fullscreen'}
-                            A imagem projetada será exibida em tela cheia sobre a transmissão, ideal para avisos, cartazes e flyers.
-                          {:else if (localLowerThird.image_display_mode ?? 'fullscreen') === 'lower_third'}
-                            A imagem será exibida como banner no terço inferior da tela, ajustada dentro da barra do Lower Third.
-                          {:else}
-                            Imagens projetadas não serão exibidas na saída Lower Third.
-                          {/if}
-                        </p>
-                      </div>
-
-                      <!-- Ajuste da Imagem (contain / cover) -->
-                      {#if (localLowerThird.image_display_mode ?? 'fullscreen') !== 'hide'}
-                        <div class="space-y-1.5">
-                          <span class="text-[11px] font-medium text-neutral-400">Ajuste da Imagem:</span>
-                          <div class="inline-flex rounded-lg bg-neutral-900 border border-neutral-800 p-0.5">
-                            <button
-                              type="button"
-                              onclick={() => (localLowerThird.image_fit = 'contain')}
-                              class="px-3 py-1 text-[10px] font-bold rounded transition-colors cursor-pointer {(localLowerThird.image_fit ?? 'contain') === 'contain' ? 'bg-primary text-primary-foreground' : 'text-neutral-400 hover:text-neutral-200'}"
-                            >
-                              Conter (Contain)
-                            </button>
-                            <button
-                              type="button"
-                              onclick={() => (localLowerThird.image_fit = 'cover')}
-                              class="px-3 py-1 text-[10px] font-bold rounded transition-colors cursor-pointer {(localLowerThird.image_fit ?? 'contain') === 'cover' ? 'bg-primary text-primary-foreground' : 'text-neutral-400 hover:text-neutral-200'}"
-                            >
-                              Cobrir (Cover)
-                            </button>
-                          </div>
-                        </div>
-                      {/if}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Coluna de Prévia Interativa 16:9 (Direita) -->
-                <div class="lg:col-span-5 space-y-3">
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-neutral-200">Prévia 16:9 (Simulação de Vídeo OBS):</span>
-                    <!-- Alternador de Conteúdo da Prévia -->
-                    <div class="inline-flex rounded-lg bg-neutral-900 border border-neutral-800 p-0.5">
-                      <button
-                        type="button"
-                        onclick={() => (ltPreviewMode = 'lyrics')}
-                        class="px-2 py-0.5 text-[10px] font-bold rounded {ltPreviewMode === 'lyrics' ? 'bg-primary text-primary-foreground' : 'text-neutral-400'}"
-                      >
-                        Louvor
-                      </button>
-                      <button
-                        type="button"
-                        onclick={() => (ltPreviewMode = 'scripture')}
-                        class="px-2 py-0.5 text-[10px] font-bold rounded {ltPreviewMode === 'scripture' ? 'bg-primary text-primary-foreground' : 'text-neutral-400'}"
-                      >
-                        Bíblia
-                      </button>
-                      <button
-                        type="button"
-                        onclick={() => (ltPreviewMode = 'image')}
-                        class="px-2 py-0.5 text-[10px] font-bold rounded {ltPreviewMode === 'image' ? 'bg-primary text-primary-foreground' : 'text-neutral-400'}"
-                      >
-                        Imagem
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Container 16:9 com Fundo de Simulação de Câmera/Vídeo -->
-                  <div class="relative w-full aspect-video rounded-xl overflow-hidden border border-neutral-800 shadow-2xl flex flex-col justify-end bg-gradient-to-tr from-slate-900 via-indigo-950 to-neutral-900">
-                    <!-- Overlay de iluminação simulando câmera de palco -->
-                    <div class="absolute inset-0 bg-radial from-transparent via-black/20 to-black/60 pointer-events-none"></div>
-
-                    <!-- Indicador simulador de Live OBS -->
-                    <div class="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-red-600/80 text-white font-mono text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 z-10">
-                      <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-                      <span>LIVE OBS</span>
-                    </div>
-
-                    <!-- Lower Third na Prévia -->
-                    <div
-                      class="w-full flex flex-col items-center justify-end z-10 p-3 transition-all"
-                      style="padding-bottom: {Math.max(8, Math.round((localLowerThird.margin_bottom ?? 36) * 0.35))}px;"
-                    >
-                      <div
-                        class="w-full transition-all"
-                        style="max-width: {localLowerThird.max_width_percent ?? 85}%;"
-                      >
-                        {#if localLowerThird.enabled}
-                          {#if ltPreviewMode === 'image'}
-                            <!-- Prévia de Imagem no Lower Third -->
-                            {#if (localLowerThird.image_display_mode ?? 'fullscreen') === 'hide'}
-                              <div class="p-3 text-center text-[10px] text-neutral-400 italic">
-                                Imagens ocultas no Lower Third.
-                              </div>
-                            {:else if (localLowerThird.image_display_mode ?? 'fullscreen') === 'fullscreen'}
-                              <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/30">
-                                <div class="w-3/4 h-3/4 bg-gradient-to-br from-blue-900/60 via-purple-900/60 to-pink-900/60 rounded-lg border border-white/20 flex items-center justify-center">
-                                  <span class="text-[10px] text-white/80 font-bold">Imagem em Tela Cheia</span>
-                                </div>
-                              </div>
-                            {:else}
-                              <div class="max-h-10 overflow-hidden rounded-lg border border-white/20 bg-black/60 flex items-center justify-center mx-auto w-2/3">
-                                <span class="text-[9px] text-white/80 font-bold py-1">Banner Imagem</span>
-                              </div>
-                            {/if}
-                          {:else}
-                          {@const effectivePreviewFontSize = ltPreviewMode === 'scripture'
-                            ? Math.max(8, Math.round((localLowerThird.scripture_font_size ?? 28) * 0.35))
-                            : Math.max(9, Math.round((localLowerThird.font_size ?? 32) * 0.35))}
-                          {@const previewHasImage = localLowerThird.box_bg_type === 'image' && !!localLowerThird.box_bg_image_url}
-                          {@const previewBorderRadius = localLowerThird.box_border_radius ?? 16}
-                          {@const previewFadeMask = (localLowerThird.box_edge_fade ?? false)
-                            ? `radial-gradient(ellipse at center, black ${Math.max(10, 100 - (localLowerThird.box_edge_fade_amount ?? 30) * 1.8)}%, transparent 100%)`
-                            : undefined}
-
-                          <!-- Prévia Gradiente -->
-                          {#if localLowerThird.theme === 'gradient'}
-                            <div
-                              class="px-4 py-2.5 text-center flex flex-col items-center justify-center overflow-hidden transition-all"
-                              style="background: radial-gradient(ellipse at center, rgba(0,0,0,{(localLowerThird.bg_opacity ?? 75) / 100}) 0%, rgba(0,0,0,{((localLowerThird.bg_opacity ?? 75) / 100) * 0.75}) 40%, rgba(0,0,0,{((localLowerThird.bg_opacity ?? 75) / 100) * 0.2}) 70%, transparent 100%); -webkit-mask-image: radial-gradient(ellipse at center, black 55%, transparent 100%); mask-image: radial-gradient(ellipse at center, black 55%, transparent 100%);"
-                            >
-                              {#if localLowerThird.show_reference}
-                                <span class="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider mb-1 bg-black/60 border border-white/20 text-white shadow">
-                                  {ltPreviewMode === 'scripture' ? 'João 3:16 (ARA)' : 'Porque Ele Vive'}
-                                </span>
-                              {/if}
-                              <p
-                                class="leading-tight {localLowerThird.text_align === 'left' ? 'text-left' : localLowerThird.text_align === 'right' ? 'text-right' : 'text-center'}"
-                                style="font-size: {effectivePreviewFontSize}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : localLowerThird.font_weight === 'semibold' ? '600' : '400'}; color: {localLowerThird.text_color || '#ffffff'}; text-shadow: 0 1px 3px rgba(0,0,0,0.9);"
-                              >
-                                {ltPreviewMode === 'scripture'
-                                  ? 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito'
-                                  : 'Porque Ele vive, eu posso crer no amanhã'}
-                              </p>
-                            </div>
-
-                          <!-- Prévia Barra -->
-                          {:else if localLowerThird.theme === 'bar'}
-                            <div
-                              class="w-full px-4 py-1.5 rounded-lg border-l-4 border-primary text-left bg-black/75 shadow-lg"
-                            >
-                              {#if localLowerThird.show_reference}
-                                <span class="text-[8px] font-bold uppercase text-emerald-400 block">
-                                  {ltPreviewMode === 'scripture' ? 'João 3:16 (ARA)' : 'Porque Ele Vive'}
-                                </span>
-                              {/if}
-                              <p
-                                class="leading-tight {localLowerThird.text_align === 'left' ? 'text-left' : localLowerThird.text_align === 'right' ? 'text-right' : 'text-center'}"
-                                style="font-size: {effectivePreviewFontSize}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : '600'}; color: {localLowerThird.text_color || '#ffffff'};"
-                              >
-                                {ltPreviewMode === 'scripture'
-                                  ? 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito'
-                                  : 'Porque Ele vive, eu posso crer no amanhã'}
-                              </p>
-                            </div>
-
-                          <!-- Prévia Floating -->
-                          {:else if localLowerThird.theme === 'floating'}
-                            <div
-                              class="px-4 py-2 border border-white/20 shadow-lg backdrop-blur-sm relative overflow-hidden transition-all {localLowerThird.text_align === 'left' ? 'text-left mr-auto' : localLowerThird.text_align === 'right' ? 'text-right ml-auto' : 'text-center mx-auto'}"
-                              style="border-radius: {previewBorderRadius}px; {previewFadeMask ? `-webkit-mask-image: ${previewFadeMask}; mask-image: ${previewFadeMask};` : ''} background-color: {previewHasImage ? 'transparent' : 'rgba(0,0,0,0.7)'};"
-                            >
-                              {#if previewHasImage}
-                                <img
-                                  src={localLowerThird.box_bg_image_url}
-                                  alt=""
-                                  class="absolute inset-0 w-full h-full object-cover pointer-events-none -z-10"
-                                  style="opacity: {(localLowerThird.bg_opacity ?? 75) / 100}; border-radius: {previewBorderRadius}px;"
-                                />
-                              {/if}
-                              {#if localLowerThird.show_reference}
-                                <span class="text-[8px] font-bold uppercase text-white/80 block mb-0.5">
-                                  {ltPreviewMode === 'scripture' ? 'João 3:16' : 'Porque Ele Vive'}
-                                </span>
-                              {/if}
-                              <p
-                                class="leading-tight {localLowerThird.text_align === 'left' ? 'text-left' : localLowerThird.text_align === 'right' ? 'text-right' : 'text-center'}"
-                                style="font-size: {effectivePreviewFontSize}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : '600'}; color: {localLowerThird.text_color || '#ffffff'};"
-                              >
-                                {ltPreviewMode === 'scripture'
-                                  ? 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito'
-                                  : 'Porque Ele vive, eu posso crer no amanhã'}
-                              </p>
-                            </div>
-
-                          <!-- Prévia Minimal -->
-                          {:else}
-                            <div class="text-center w-full">
-                              {#if localLowerThird.show_reference}
-                                <span class="text-[8px] font-bold uppercase text-amber-300 block mb-0.5 drop-shadow">
-                                  {ltPreviewMode === 'scripture' ? 'João 3:16' : 'Porque Ele Vive'}
-                                </span>
-                              {/if}
-                              <p
-                                class="leading-tight drop-shadow-lg {localLowerThird.text_align === 'left' ? 'text-left' : localLowerThird.text_align === 'right' ? 'text-right' : 'text-center'}"
-                                style="font-size: {effectivePreviewFontSize}px; font-weight: {localLowerThird.font_weight === 'extrabold' ? '800' : localLowerThird.font_weight === 'bold' ? '700' : '600'}; color: {localLowerThird.text_color || '#ffffff'}; text-shadow: 0 2px 6px rgba(0,0,0,1);"
-                              >
-                                {ltPreviewMode === 'scripture'
-                                  ? 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito'
-                                  : 'Porque Ele vive, eu posso crer no amanhã'}
-                              </p>
-                            </div>
-                          {/if}
-                          {/if}
-                        {:else}
-                          <div class="p-3 text-center text-[10px] text-neutral-400 italic">
-                            Lower Third desativado.
-                          </div>
-                        {/if}
-                      </div>
-                    </div>
-                  </div>
-
-                  <p class="text-[11px] text-neutral-400">
-                    A visualização acima simula como o texto aparecerá no OBS Studio sobreposto ao feed da câmera de transmissão.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-          <!-- ABA: MARCA DA IGREJA (CHURCH BRAND) -->
-          {:else if activeTab === 'church'}
-            <div class="space-y-6 w-full max-w-4xl">
-              <div>
-                <h3 class="text-sm font-semibold text-white">Identidade Visual da Igreja</h3>
-                <p class="text-xs text-neutral-400 mt-0.5">
-                  Faça o upload dos logotipos oficiais da sua igreja para sobreposição nas projeções públicas e transmissões.
-                </p>
-              </div>
-
-              <!-- Nome da Igreja -->
-              <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-2">
-                <label for="church_name" class="block text-xs font-semibold text-white">Nome da Congregação / Ministério</label>
-                <input
-                  id="church_name"
-                  type="text"
-                  value={localBrand.name}
-                  oninput={(e) => updateBrandField('name', (e.target as HTMLInputElement).value)}
-                  placeholder="Ex: Igreja Batista Central"
-                  class="w-full h-8 px-2.5 rounded bg-neutral-900 border border-neutral-700 text-xs text-white focus:outline-none focus:border-primary"
-                />
-              </div>
-
-              <!-- Cards de Upload dos 4 formatos de Logotipo -->
-              <div class="space-y-2">
-                <span class="block text-xs font-semibold text-white">Arquivos de Logotipo</span>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {#each [
-                    { key: 'primary', label: 'Logo Principal', desc: 'Símbolo ou ícone padrão' },
-                    { key: 'dark', label: 'Versão Escura', desc: 'Para fundos muito claros' },
-                    { key: 'light', label: 'Versão Clara / Branca', desc: 'Para fundos escuros e projeção' },
-                    { key: 'full', label: 'Logo Completo (Horizontal)', desc: 'Símbolo com nome por extenso' },
-                  ] as variant}
-                    <div class="p-3 rounded-xl border border-neutral-800 bg-neutral-900/40 flex flex-col justify-between gap-3">
-                      <div class="flex items-center justify-between">
-                        <div>
-                          <div class="text-xs font-semibold text-white">{variant.label}</div>
-                          <div class="text-[10px] text-neutral-400">{variant.desc}</div>
-                        </div>
-                        {#if localBrand[`logo_${variant.key}` as keyof ChurchBrandSettings]}
-                          <Badge variant="outline" class="text-[9px] text-emerald-400 border-emerald-500/30">Ativo</Badge>
-                        {/if}
-                      </div>
-
-                      <!-- Preview do Logo -->
-                      <div class="h-20 w-full rounded-lg bg-neutral-950 border border-neutral-800 flex items-center justify-center p-2 relative overflow-hidden">
-                        {#if localBrand[`logo_${variant.key}` as keyof ChurchBrandSettings]}
-                          <img
-                            src={String(localBrand[`logo_${variant.key}` as keyof ChurchBrandSettings])}
-                            alt={variant.label}
-                            class="max-h-full max-w-full object-contain"
-                          />
-                        {:else}
-                          <div class="text-[10px] text-neutral-600 flex flex-col items-center gap-1">
-                            <Church size={18} class="opacity-40" />
-                            <span>Sem arquivo</span>
-                          </div>
-                        {/if}
-                      </div>
-
-                      <div class="flex items-center justify-between pt-1">
-                        <label class="cursor-pointer">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            class="hidden"
-                            onchange={(e) => handleLogoUpload(variant.key as any, e)}
-                          />
-                          <span class="px-2.5 py-1 text-xs rounded bg-neutral-800 hover:bg-neutral-700 text-white font-medium flex items-center gap-1.5 transition-colors">
-                            <Upload size={12} />
-                            <span>{localBrand[`logo_${variant.key}` as keyof ChurchBrandSettings] ? 'Substituir...' : 'Enviar...'}</span>
-                          </span>
-                        </label>
-
-                        {#if localBrand[`logo_${variant.key}` as keyof ChurchBrandSettings]}
-                          <button
-                            type="button"
-                            onclick={() => updateBrandField(`logo_${variant.key}` as any, '')}
-                            class="text-xs text-neutral-500 hover:text-red-400 transition-colors cursor-pointer"
-                          >
-                            Remover
-                          </button>
-                        {/if}
-                      </div>
-
-                      {#if uploadStatus[variant.key]}
-                        <div class="text-[10px] text-primary">{uploadStatus[variant.key]}</div>
-                      {/if}
-                    </div>
-                  {/each}
-                </div>
-              </div>
-
-              <!-- Configuração de Exibição no Público -->
-              <div class="pt-4 border-t border-neutral-800 space-y-4">
-                <div>
-                  <h4 class="text-xs font-semibold text-white">Sobreposição no Telão Público (Public Screen)</h4>
-                  <p class="text-[11px] text-neutral-400 mt-0.5">
-                    Defina se e onde o logotipo oficial da igreja ficará fixado durante a projeção.
-                  </p>
-                </div>
-
-                <!-- Toggle de Exibir no Telão -->
-                <div class="p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between gap-4">
-                  <div>
-                    <div class="text-xs font-semibold text-white">Exibir Logotipo na Tela Pública</div>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">
-                      Mantém o logo visível sobre os slides e vídeos da projeção.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Alternar exibição de logotipo na tela pública"
-                    onclick={() => updateBrandField('show_logo_on_public', !localBrand.show_logo_on_public)}
-                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {localBrand.show_logo_on_public ? 'bg-emerald-600' : 'bg-neutral-800'}"
-                    role="switch"
-                    aria-checked={localBrand.show_logo_on_public}
-                  >
-                    <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {localBrand.show_logo_on_public ? 'translate-x-5' : 'translate-x-0'}"></span>
-                  </button>
-                </div>
-
-                {#if localBrand.show_logo_on_public}
-                  <!-- Variante Selecionada -->
-                  <div class="space-y-1.5">
-                    <span class="text-xs font-medium text-neutral-300">Variante a Exibir</span>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {#each [
-                        { key: 'primary', label: 'Principal' },
-                        { key: 'light', label: 'Clara / Branca' },
-                        { key: 'dark', label: 'Escura' },
-                        { key: 'full', label: 'Completa' },
-                      ] as opt}
-                        <button
-                          type="button"
-                          onclick={() => updateBrandField('logo_variant', opt.key as any)}
-                          class="p-2 rounded-lg border text-xs font-medium text-center transition-all cursor-pointer {localBrand.logo_variant === opt.key ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-neutral-800 bg-neutral-900/30 text-neutral-400 hover:text-white'}"
-                        >
-                          {opt.label}
-                        </button>
-                      {/each}
-                    </div>
-                  </div>
-
-                  <!-- Posição no Telão (4 Cantos) -->
-                  <div class="space-y-1.5">
-                    <span class="text-xs font-medium text-neutral-300">Posição no Slide</span>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {#each [
-                        { key: 'top-left', label: 'Superior Esquerdo' },
-                        { key: 'top-right', label: 'Superior Direito' },
-                        { key: 'bottom-left', label: 'Inferior Esquerdo' },
-                        { key: 'bottom-right', label: 'Inferior Direito' },
-                      ] as pos}
-                        <button
-                          type="button"
-                          onclick={() => updateBrandField('logo_position', pos.key as any)}
-                          class="p-2.5 rounded-lg border text-xs font-medium text-center transition-all cursor-pointer {localBrand.logo_position === pos.key ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-neutral-800 bg-neutral-900/30 text-neutral-400 hover:text-white'}"
-                        >
-                          {pos.label}
-                        </button>
-                      {/each}
-                    </div>
-                  </div>
-
-                  <!-- Tamanho e Opacidade -->
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                      <div class="flex justify-between text-xs">
-                        <span class="text-neutral-400">Tamanho Máximo</span>
-                        <span class="font-mono text-white font-semibold">{localBrand.logo_size}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="32"
-                        max="240"
-                        step="4"
-                        value={localBrand.logo_size}
-                        oninput={(e) => updateBrandField('logo_size', Number((e.target as HTMLInputElement).value))}
-                        class="w-full accent-primary"
-                      />
-                    </div>
-
-                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                      <div class="flex justify-between text-xs">
-                        <span class="text-neutral-400">Opacidade</span>
-                        <span class="font-mono text-white font-semibold">{localBrand.logo_opacity}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="10"
-                        max="100"
-                        step="5"
-                        value={localBrand.logo_opacity}
-                        oninput={(e) => updateBrandField('logo_opacity', Number((e.target as HTMLInputElement).value))}
-                        class="w-full accent-primary"
-                      />
-                    </div>
-                  </div>
-
-                  <!-- Margens em Relação às Bordas -->
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                      <div class="flex justify-between text-xs">
-                        <span class="text-neutral-400">Margem Horizontal</span>
-                        <span class="font-mono text-white font-semibold">{localBrand.logo_margin_horizontal ?? 24}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="160"
-                        step="4"
-                        value={localBrand.logo_margin_horizontal ?? 24}
-                        oninput={(e) => updateBrandField('logo_margin_horizontal', Number((e.target as HTMLInputElement).value))}
-                        class="w-full accent-primary"
-                      />
-                    </div>
-
-                    <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/30 space-y-2">
-                      <div class="flex justify-between text-xs">
-                        <span class="text-neutral-400">Margem Vertical</span>
-                        <span class="font-mono text-white font-semibold">{localBrand.logo_margin_vertical ?? 24}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="160"
-                        step="4"
-                        value={localBrand.logo_margin_vertical ?? 24}
-                        oninput={(e) => updateBrandField('logo_margin_vertical', Number((e.target as HTMLInputElement).value))}
-                        class="w-full accent-primary"
-                      />
-                    </div>
-                  </div>
-                {/if}
-              </div>
-            </div>
-
-          <!-- ABA: BÍBLIAS (VERSÕES SQLITE) -->
-          {:else if activeTab === 'bibles'}
-            <div class="space-y-6 w-full max-w-5xl">
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <h3 class="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <BookOpen size={16} class="text-primary" />
-                    Versões da Bíblia Sagrada
-                  </h3>
-                  <p class="text-xs text-muted-foreground mt-0.5">
-                    Gerencie e importe versões da Bíblia em formato SQLite (.sqlite). Os arquivos são copiados automaticamente para a pasta local de dados.
-                  </p>
-                </div>
-
-                <div class="flex items-center gap-2 shrink-0">
-                  <input
-                    type="file"
-                    multiple
-                    accept=".sqlite,.db,.sqlite3"
-                    bind:this={bibleFileInput}
-                    onchange={handleBibleFileSelect}
-                    class="hidden"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="text-xs gap-1.5"
-                    onclick={() => (showPathImport = !showPathImport)}
-                  >
-                    Por Caminho...
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    class="text-xs gap-1.5"
-                    disabled={isImportingBible}
-                    onclick={() => bibleFileInput?.click()}
-                  >
-                    <Upload size={13} class={isImportingBible ? 'animate-bounce' : ''} />
-                    {isImportingBible
-                      ? `Importando (${importProgress.current}/${importProgress.total})...`
-                      : 'Importar Bíblias (.sqlite)'}
-                  </Button>
-                </div>
-              </div>
-
-              {#if isImportingBible}
-                <div class="p-3.5 rounded-xl border border-primary/30 bg-primary/10 flex flex-col gap-2.5 animate-in fade-in duration-200">
-                  <div class="flex items-center justify-between text-xs font-semibold text-primary">
-                    <span class="flex items-center gap-2">
-                      <RefreshCw size={14} class="animate-spin text-primary" />
-                      <span>
-                        Importando versões da Bíblia ({importProgress.current} de {importProgress.total})
-                      </span>
-                    </span>
-                    <span class="font-mono text-xs font-bold">
-                      {importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0}%
-                    </span>
-                  </div>
-
-                  <div class="w-full bg-neutral-800 rounded-full h-2 overflow-hidden">
-                    <div
-                      class="bg-primary h-full transition-all duration-300 rounded-full"
-                      style="width: {importProgress.total > 0 ? Math.max(8, Math.round((importProgress.current / importProgress.total) * 100)) : 0}%"
-                    ></div>
-                  </div>
-
-                  <div class="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span class="truncate max-w-[80%]">
-                      Arquivo atual: <strong class="text-foreground font-mono">{importProgress.currentFileName || 'Preparando...'}</strong>
-                    </span>
-                    {#if importProgress.successCount > 0}
-                      <span class="text-emerald-400 font-medium">
-                        ✓ {importProgress.successCount} concluída(s)
-                      </span>
-                    {/if}
-                  </div>
-                </div>
-              {/if}
-
-              {#if bibleError}
-                <div class="p-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 text-xs flex items-center justify-between gap-2">
-                  <div class="flex items-center gap-2">
-                    <AlertCircle size={15} class="shrink-0" />
-                    <span>{bibleError}</span>
-                  </div>
-                  <button
-                    type="button"
-                    class="text-red-400 hover:text-white text-xs underline cursor-pointer"
-                    onclick={() => (bibleError = '')}
-                  >
-                    Fechar
-                  </button>
-                </div>
-              {/if}
-
-              <!-- Formulário Opcional para Importação Direta por Caminho Local -->
-              {#if showPathImport}
-                <div class="p-4 rounded-xl border border-border bg-card/60 space-y-3">
-                  <div class="flex items-center justify-between">
-                    <h4 class="text-xs font-semibold text-foreground">Importar por Caminho de Arquivo Local</h4>
-                    <button
-                      type="button"
-                      class="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-                      onclick={() => (showPathImport = false)}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                  <div class="flex gap-2">
-                    <input
-                      type="text"
-                      bind:value={importPathInput}
-                      placeholder="/caminho/para/biblia1.sqlite, /caminho/para/biblia2.sqlite"
-                      class="flex-1 h-8 px-3 rounded-md bg-neutral-900 border border-neutral-700 text-xs text-foreground placeholder:text-neutral-500 focus:outline-none focus:border-primary"
-                    />
-                    <Button
-                      variant="default"
-                      size="sm"
-                      class="text-xs"
-                      disabled={isImportingBible}
-                      onclick={handleImportBibleByPath}
-                    >
-                      {isImportingBible ? 'Copiando...' : 'Importar'}
-                    </Button>
-                  </div>
-                  <p class="text-[11px] text-muted-foreground">
-                    Separe múltiplos caminhos por vírgula ou nova linha. Os arquivos serão validados e copiados sequencialmente para a pasta de dados do OpenPresenter (<code class="text-neutral-300">bibles/</code>).
-                  </p>
-                </div>
-              {/if}
-
-              <!-- Lista de Bíblias Importadas -->
-              <div class="space-y-3">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs font-semibold text-neutral-300 uppercase tracking-wider">
-                    Versões Instaladas ({biblesList.length})
-                  </span>
-                  {#if isLoadingBibles}
-                    <span class="text-[11px] text-muted-foreground animate-pulse">Carregando...</span>
-                  {/if}
-                </div>
-
-                {#if biblesList.length === 0 && !isLoadingBibles}
-                  <div class="p-8 rounded-xl border border-dashed border-border bg-neutral-900/20 text-center space-y-3">
-                    <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
-                      <BookOpen size={20} />
-                    </div>
-                    <div class="max-w-sm mx-auto">
-                      <h4 class="text-xs font-semibold text-foreground">Nenhuma versão bíblica instalada</h4>
-                      <p class="text-[11px] text-muted-foreground mt-1">
-                        Importe um arquivo de Bíblia SQLite (.sqlite) para habilitar a pesquisa de passagens, projeção de versículos e controle de slides.
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="text-xs gap-1.5"
-                      onclick={() => bibleFileInput?.click()}
-                    >
-                      <Upload size={13} />
-                      Selecionar Arquivo(s) SQLite
-                    </Button>
-                  </div>
-                {:else}
-                  <div class="grid grid-cols-1 gap-2.5">
-                    {#each biblesList as bible (bible.id)}
-                      <div class="p-3.5 rounded-xl border border-border bg-neutral-900/40 hover:bg-neutral-900/70 transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div class="flex items-center gap-3 min-w-0">
-                          <div class="w-9 h-9 rounded-lg bg-primary/15 border border-primary/25 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase tracking-wider">
-                            {bible.abbreviation || 'BIB'}
-                          </div>
-
-                          <div class="min-w-0">
-                            <div class="flex items-center gap-2">
-                              <span class="text-xs font-bold text-foreground truncate">{bible.name}</span>
-                              <Badge variant="outline" class="text-[10px] uppercase font-mono py-0 px-1.5">
-                                {bible.abbreviation}
-                              </Badge>
-                              {#if bible.is_default}
-                                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30 flex items-center gap-1">
-                                  <Check size={10} />
-                                  Padrão
-                                </span>
-                              {/if}
-                            </div>
-                            <div class="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 font-mono">
-                              <span>{bible.book_count} livros</span>
-                              <span>•</span>
-                              <span>{bible.verse_count.toLocaleString()} versículos</span>
-                              <span>•</span>
-                              <span class="truncate text-neutral-500 max-w-[200px]" title={bible.filename}>{bible.filename}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <!-- Ações da Versão -->
-                        <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
-                          {#if !bible.is_default}
-                            <button
-                              type="button"
-                              onclick={() => handleSetDefaultBible(bible.id)}
-                              class="px-2.5 py-1 rounded text-xs text-neutral-400 hover:text-emerald-400 hover:bg-neutral-800 transition-colors cursor-pointer"
-                              title="Definir como versão padrão para projeção rápida"
-                            >
-                              Tornar Padrão
-                            </button>
-                          {/if}
-
-                          <button
-                            type="button"
-                            onclick={() => handleStartEditBible(bible)}
-                            class="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
-                            title="Renomear versão e abreviação"
-                          >
-                            <Edit3 size={14} />
-                          </button>
-
-                          <button
-                            type="button"
-                            onclick={() => handleDeleteBible(bible.id, bible.name)}
-                            class="p-1.5 rounded text-neutral-400 hover:text-red-400 hover:bg-neutral-800 transition-colors cursor-pointer"
-                            title="Remover Bíblia do app"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            </div>
-
-            <!-- Modal Inline de Edição da Versão da Bíblia (Nome / Sigla / Padrão) -->
-            {#if isEditingBible}
-              <div
-                class="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Editar Versão da Bíblia"
-              >
-                <div class="w-full max-w-sm rounded-xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl space-y-4 text-foreground">
-                  <div>
-                    <h4 class="text-sm font-bold text-white">Editar Versão da Bíblia</h4>
-                    <p class="text-xs text-neutral-400 mt-0.5">
-                      Ajuste o nome de exibição e a sigla canônica da versão (ex: NVI, ARA, ARC, NVT).
-                    </p>
-                  </div>
-
-                  <div class="space-y-3">
-                    <div>
-                      <label for="edit_bible_name" class="block text-xs font-semibold text-neutral-300 mb-1">
-                        Nome da Versão
-                      </label>
-                      <input
-                        id="edit_bible_name"
-                        type="text"
-                        bind:value={editBibleName}
-                        placeholder="Ex: Almeida Revista e Atualizada"
-                        class="w-full h-8 px-2.5 rounded bg-neutral-950 border border-neutral-700 text-xs text-white focus:outline-none focus:border-primary"
-                      />
-                    </div>
-
-                    <div>
-                      <label for="edit_bible_abbr" class="block text-xs font-semibold text-neutral-300 mb-1">
-                        Sigla / Abreviação
-                      </label>
-                      <input
-                        id="edit_bible_abbr"
-                        type="text"
-                        bind:value={editBibleAbbr}
-                        placeholder="Ex: ARA"
-                        maxlength="10"
-                        class="w-full h-8 px-2.5 rounded bg-neutral-950 border border-neutral-700 text-xs text-white uppercase font-mono focus:outline-none focus:border-primary"
-                      />
-                    </div>
-
-                    <label class="flex items-center gap-2 cursor-pointer pt-1">
-                      <input
-                        type="checkbox"
-                        bind:checked={editBibleIsDefault}
-                        class="rounded border-neutral-700 text-primary focus:ring-0 accent-primary"
-                      />
-                      <span class="text-xs text-neutral-300">Definir como versão padrão</span>
-                    </label>
-                  </div>
-
-                  <div class="flex items-center justify-end gap-2 pt-2 border-t border-neutral-800">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      class="text-xs"
-                      onclick={() => {
-                        isEditingBible = false;
-                        editingBibleId = null;
-                      }}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      class="text-xs"
-                      onclick={handleSaveEditBible}
-                    >
-                      Salvar Alterações
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            {/if}
-
-          <!-- ABA: MÚSICAS, HARPA CRISTÃ E REPERTÓRIO -->
-          {:else if activeTab === 'songs'}
-            <div class="space-y-6 w-full max-w-5xl">
-              <div>
-                <h3 class="text-sm font-semibold text-foreground">Catálogo de Músicas e Harpa Cristã</h3>
-                <p class="text-xs text-muted-foreground mt-0.5">
-                  Gerencie o acervo de louvores, instale a Harpa Cristã completa (540 hinos) e defina o padrão de divisão de slides.
-                </p>
-              </div>
-
-              <!-- CARD 1: HARPA CRISTÃ -->
-              <div class="p-4 rounded-xl border border-border bg-card/60 shadow-xs space-y-4">
-                <div class="flex items-start justify-between gap-3">
-                  <div class="flex items-start gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
-                      <BookOpen size={20} />
-                    </div>
-                    <div>
-                      <div class="flex items-center gap-2">
-                        <h4 class="text-sm font-bold text-foreground">Harpa Cristã Completa</h4>
-                        <Badge variant="outline" class="text-[10px] text-emerald-400 border-emerald-500/30 font-mono">
-                          540 Hinos
-                        </Badge>
-                        <Badge variant="secondary" class="text-[10px]">
-                          Oficial
-                        </Badge>
-                      </div>
-                      <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
-                        Instale todos os 540 hinos tradicionais da Harpa Cristã com numeração, estrofes, refrãos e classificação automática de tags (<code class="text-primary font-mono text-[11px]">#harpa</code>, <code class="text-primary font-mono text-[11px]">#hinos</code>, <code class="text-primary font-mono text-[11px]">#tradicional</code>).
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-border/60">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onclick={handleInstallHarpa}
-                    disabled={isInstallingHarpa}
-                    class="text-xs gap-1.5 font-bold cursor-pointer"
-                  >
-                    {#if isInstallingHarpa}
-                      <RefreshCw size={13} class="animate-spin text-primary-foreground" />
-                      <span>Instalando 540 Hinos...</span>
-                    {:else}
-                      <Download size={13} />
-                      <span>Instalar Harpa Cristã (540 Hinos)</span>
-                    {/if}
-                  </Button>
-
-                  {#if harpaInstallMessage}
-                    <div class="flex items-center gap-1.5 text-xs {harpaInstallSuccess ? 'text-emerald-400 font-semibold' : 'text-red-400'}">
-                      {#if harpaInstallSuccess}
-                        <Check size={14} class="text-emerald-400 shrink-0" />
-                      {:else}
-                        <AlertCircle size={14} class="text-red-400 shrink-0" />
-                      {/if}
-                      <span>{harpaInstallMessage}</span>
-                    </div>
-                  {/if}
-                </div>
-              </div>
-
-              <!-- CARD 2: PADRÃO DE LINHAS POR SLIDE -->
-              <div class="p-4 rounded-xl border border-border bg-card/60 shadow-xs space-y-4">
-                <div>
-                  <div class="flex items-center gap-2">
-                    <h4 class="text-sm font-bold text-foreground">Padrão de Linhas por Slide</h4>
-                    <Badge variant="outline" class="text-[10px] text-primary border-primary/30">
-                      Recomendado: 2 linhas
-                    </Badge>
-                  </div>
-                  <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Define o número ideal de linhas de letra em cada slide ao pesquisar músicas na internet (Holyrics/Vagalume), ao importar arquivos e no botão "2 Linhas/Slide" do editor de músicas.
-                  </p>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                  {#each [
-                    { lines: 2, label: '2 Linhas / Slide', desc: 'Padrão da indústria (Holyrics / ProPresenter). Ideal para projeção e retorno de palco.' },
-                    { lines: 1, label: '1 Linha / Slide', desc: 'Minimalista e de leitura rápida. Ótimo para transmissões ao vivo e lower thirds.' },
-                    { lines: 3, label: '3 Linhas / Slide', desc: 'Estrofes médias em telas grandes com mais espaço vertical.' },
-                    { lines: 4, label: '4 Linhas / Slide', desc: 'Estrofes completas de 4 versos por slide.' },
-                    { lines: 0, label: 'Sem divisão automática', desc: 'Preserva estritamente as quebras originais sem reformatar.' },
-                  ] as opt}
-                    <button
-                      type="button"
-                      onclick={() => handleSaveSongLines(opt.lines)}
-                      class="p-3 rounded-lg border text-left transition-all cursor-pointer flex flex-col justify-between {localSongSettings.lines_per_slide === opt.lines ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-background/50 hover:bg-muted/40 text-muted-foreground'}"
-                    >
-                      <div class="flex items-center justify-between mb-1">
-                        <span class="text-xs font-bold {localSongSettings.lines_per_slide === opt.lines ? 'text-primary' : 'text-foreground'}">
-                          {opt.label}
-                        </span>
-                        {#if localSongSettings.lines_per_slide === opt.lines}
-                          <Check size={14} class="text-primary shrink-0" />
-                        {/if}
-                      </div>
-                      <p class="text-[11px] text-muted-foreground leading-snug">
-                        {opt.desc}
-                      </p>
-                    </button>
-                  {/each}
-                </div>
-              </div>
-
-              <!-- CARD 3: IMPORTAÇÃO DE ARQUIVOS (JSON, TEXT, MARKDOWN) -->
-              <div class="p-4 rounded-xl border border-border bg-card/60 shadow-xs space-y-4">
-                <div>
-                  <h4 class="text-sm font-bold text-foreground">Importar Arquivos de Músicas</h4>
-                  <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Importe músicas individuais ou coletâneas em lote a partir de arquivos JSON, texto puro (.txt) ou Markdown (.md).
-                  </p>
-                </div>
-
-                <div class="space-y-3">
-                  <div>
-                    <label for="settings-import-tags-input" class="block text-xs font-medium text-foreground mb-1">
-                      Tags automáticas para as músicas importadas (opcional):
-                    </label>
-                    <input
-                      id="settings-import-tags-input"
-                      type="text"
-                      bind:value={settingsImportTags}
-                      placeholder="Ex: louvor, jovens, especial, culto"
-                      class="w-full h-8 px-3 bg-neutral-900 border border-neutral-800 rounded-md text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-primary"
-                    />
-                    <p class="text-[11px] text-muted-foreground mt-1">
-                      Separe as tags por vírgula. Serão adicionadas ao catálogo para facilitar busca e filtragem.
-                    </p>
-                  </div>
-
-                  <div class="flex items-center gap-3 pt-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onclick={triggerSettingsSongImport}
-                      disabled={isSettingsImporting}
-                      class="text-xs gap-1.5 cursor-pointer"
-                    >
-                      {#if isSettingsImporting}
-                        <RefreshCw size={13} class="animate-spin text-primary" />
-                        <span>Processando arquivos...</span>
-                      {:else}
-                        <Upload size={13} class="text-primary" />
-                        <span>Selecionar Arquivos (.json, .txt, .md)</span>
-                      {/if}
-                    </Button>
-                    <input
-                      type="file"
-                      bind:this={settingsSongFileInputEl}
-                      onchange={handleSettingsSongFilesSelected}
-                      accept=".json,.txt,.md,text/plain,application/json,text/markdown"
-                      multiple
-                      class="hidden"
-                    />
-
-                    {#if settingsImportResult}
-                      <span class="text-xs text-emerald-400 font-medium">
-                        {settingsImportResult}
-                      </span>
-                    {/if}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          <!-- ABA 2: ARQUIVOS E PASTAS (Mapeamento Zero-Copy e Pastas do Sistema) -->
-          {:else if activeTab === 'files'}
-            <div class="space-y-6 w-full max-w-5xl">
-              <div>
-                <h3 class="text-sm font-semibold text-foreground">Arquivos e Pastas do Sistema</h3>
-                <p class="text-xs text-muted-foreground mt-0.5">
-                  Estrutura de dados local do OpenPresenter e integração com diretórios externos de fotos e vídeos.
-                </p>
-              </div>
-
-              <!-- Input invisível de fallback para picker de pasta no navegador -->
-              <input
-                type="file"
-                bind:this={folderPickerInput}
-                onchange={handleHtmlFolderSelected}
-                webkitdirectory
-                class="hidden"
-              />
-
-              <!-- Pasta Raiz de Dados do Sistema em Destaque -->
-              {#if systemPaths}
-                <div class="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
-                  <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                      <div class="w-8 h-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center">
-                        <HardDrive size={18} />
-                      </div>
-                      <div>
-                        <h4 class="text-xs font-bold text-foreground">Pasta de Dados do Sistema (Data Dir)</h4>
-                        <p class="text-[11px] text-muted-foreground">Onde ficam salvos o banco de dados SQLite, arquivos e mídias do usuário</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" class="text-[10px] text-primary border-primary/40 font-mono">
-                      data_dir
-                    </Badge>
-                  </div>
-
-                  <div class="p-2.5 rounded-lg bg-background border border-border flex items-center justify-between gap-3">
-                    <code class="text-xs font-mono text-foreground break-all select-all flex-1">
-                      {systemPaths.data_dir}
-                    </code>
-
-                    <div class="flex items-center gap-1.5 shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onclick={() => handleCopyText(systemPaths?.data_dir || '')}
-                        class="h-7 text-xs gap-1"
-                        title="Copiar caminho da pasta de dados"
-                      >
-                        {#if isCopiedDataDir}
-                          <Check size={12} class="text-emerald-400" />
-                          <span class="text-emerald-400">Copiado</span>
-                        {:else}
-                          <Copy size={12} />
-                          <span>Copiar</span>
-                        {/if}
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onclick={() => handleOpenInFinder(systemPaths?.data_dir || '')}
-                        class="h-7 text-xs gap-1"
-                        title="Abrir pasta no Finder / Explorador de Arquivos"
-                      >
-                        <FolderOpen size={12} />
-                        <span>Abrir</span>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Subdiretórios Padrão do Sistema -->
-                <div class="space-y-2.5">
-                  <span class="text-xs font-semibold text-foreground uppercase tracking-wider block">
-                    Subdiretórios da Aplicação
-                  </span>
-                  <div class="grid grid-cols-1 gap-2 text-xs">
-                    <div class="p-2.5 rounded-lg border border-border bg-card/60 flex items-center justify-between gap-3">
-                      <div class="min-w-0 flex-1">
-                        <div class="font-semibold text-foreground">Banco de Dados SQLite</div>
-                        <div class="text-[11px] text-muted-foreground font-mono mt-0.5 truncate" title={systemPaths.db_path}>
-                          {systemPaths.db_path}
-                        </div>
-                      </div>
-                      <div class="flex items-center gap-2 shrink-0">
-                        <Badge variant="outline" class="text-[10px]">openpresenter.db</Badge>
-                        <button
-                          type="button"
-                          onclick={() => handleOpenInFinder(systemPaths?.data_dir || '')}
-                          class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                          title="Abrir no Finder"
-                        >
-                          <FolderOpen size={13} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div class="p-2.5 rounded-lg border border-border bg-card/60 flex items-center justify-between gap-3">
-                      <div class="min-w-0 flex-1">
-                        <div class="font-semibold text-foreground">Imagens do Aplicativo</div>
-                        <div class="text-[11px] text-muted-foreground font-mono mt-0.5 truncate" title={systemPaths.images_path}>
-                          {systemPaths.images_path}
-                        </div>
-                      </div>
-                      <div class="flex items-center gap-2 shrink-0">
-                        <Badge variant="outline" class="text-[10px]">media/images</Badge>
-                        <button
-                          type="button"
-                          onclick={() => handleOpenInFinder(systemPaths?.images_path || '')}
-                          class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                          title="Abrir no Finder"
-                        >
-                          <FolderOpen size={13} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div class="p-2.5 rounded-lg border border-border bg-card/60 flex items-center justify-between gap-3">
-                      <div class="min-w-0 flex-1">
-                        <div class="font-semibold text-foreground">Papéis de Parede</div>
-                        <div class="text-[11px] text-muted-foreground font-mono mt-0.5 truncate" title={systemPaths.wallpapers_path}>
-                          {systemPaths.wallpapers_path}
-                        </div>
-                      </div>
-                      <div class="flex items-center gap-2 shrink-0">
-                        <Badge variant="outline" class="text-[10px]">media/wallpapers</Badge>
-                        <button
-                          type="button"
-                          onclick={() => handleOpenInFinder(systemPaths?.wallpapers_path || '')}
-                          class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                          title="Abrir no Finder"
-                        >
-                          <FolderOpen size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              {/if}
-
-              <!-- Backup & Migração de Instalação -->
-              <div class="pt-4 border-t border-border space-y-3">
-                <div>
-                  <h3 class="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <HardDrive size={16} class="text-primary" />
-                    <span>Backup & Migração de Instalação</span>
-                  </h3>
-                  <p class="text-xs text-muted-foreground mt-0.5">
-                    Mova sua instalação para outro computador ou guarde uma cópia de segurança completa contendo músicas, setlists, equipe, mídias importadas e configurações.
-                  </p>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <!-- Card Exportar Dados -->
-                  <div class="p-3.5 rounded-xl border border-border bg-card/60 space-y-3 flex flex-col justify-between">
-                    <div class="space-y-1.5">
-                      <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-lg bg-primary/20 text-primary flex items-center justify-center shrink-0">
-                          <Download size={14} />
-                        </div>
-                        <h4 class="text-xs font-bold text-foreground">Exportar Dados (.opbackup)</h4>
-                      </div>
-                      <p class="text-[11px] text-muted-foreground leading-relaxed">
-                        Gera um arquivo portátil contendo todo o banco SQLite e arquivos de imagens, wallpapers, vídeos, áudios, bíblias e fontes.
-                      </p>
-                    </div>
-
-                    <div class="pt-1">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onclick={handleExportBackup}
-                        disabled={isExportingBackup}
-                        class="w-full gap-2 text-xs font-semibold"
-                      >
-                        {#if isExportingBackup}
-                          <RefreshCw size={13} class="animate-spin" />
-                          <span>Gerando pacote...</span>
-                        {:else}
-                          <Download size={13} />
-                          <span>Exportar Todos os Dados</span>
-                        {/if}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <!-- Card Importar Dados -->
-                  <div class="p-3.5 rounded-xl border border-border bg-card/60 space-y-3 flex flex-col justify-between">
-                    <div class="space-y-1.5">
-                      <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                          <Upload size={14} />
-                        </div>
-                        <h4 class="text-xs font-bold text-foreground">Importar / Restaurar Instalação</h4>
-                      </div>
-                      <p class="text-[11px] text-muted-foreground leading-relaxed">
-                        Restaure os dados de outro computador a partir de um arquivo <code class="font-mono text-[10px] bg-background px-1 py-0.5 rounded border border-border">.opbackup</code> ou <code class="font-mono text-[10px] bg-background px-1 py-0.5 rounded border border-border">.zip</code>.
-                      </p>
-                    </div>
-
-                    <div class="pt-1">
-                      <input
-                        type="file"
-                        accept=".opbackup,.zip"
-                        bind:this={backupFileInput}
-                        onchange={handleBackupFileSelected}
-                        class="hidden"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onclick={handleSelectBackupFile}
-                        disabled={isInspectingBackup || isRestoringBackup}
-                        class="w-full gap-2 text-xs font-semibold hover:border-emerald-500/50 hover:text-emerald-400"
-                      >
-                        {#if isInspectingBackup}
-                          <RefreshCw size={13} class="animate-spin text-emerald-400" />
-                          <span>Analisando arquivo...</span>
-                        {:else}
-                          <Upload size={13} />
-                          <span>Selecionar Arquivo de Backup...</span>
-                        {/if}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {#if backupError}
-                  <div class="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-center gap-2">
-                    <AlertCircle size={14} class="shrink-0" />
-                    <span>{backupError}</span>
-                  </div>
-                {/if}
-
-                {#if backupSuccessMessage}
-                  <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2">
-                    <CheckCircle2 size={14} class="shrink-0" />
-                    <span>{backupSuccessMessage}</span>
-                  </div>
-                {/if}
-
-                <!-- Diálogo / Card de Confirmação e Inspeção do Backup Selecionado -->
-                {#if inspectedBackup}
-                  <div class="p-4 rounded-xl border border-amber-500/40 bg-amber-500/5 space-y-3.5">
-                    <div class="flex items-start justify-between gap-3">
-                      <div class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-                          <AlertTriangle size={18} />
-                        </div>
-                        <div>
-                          <h4 class="text-xs font-bold text-foreground">Confirmar Restauração de Dados</h4>
-                          <p class="text-[11px] text-muted-foreground">Revise o conteúdo do pacote antes de aplicar as alterações.</p>
-                        </div>
-                      </div>
-                      <Badge variant="outline" class="text-[10px] text-amber-400 border-amber-500/40 font-mono">
-                        {inspectedBackup.filename}
-                      </Badge>
-                    </div>
-
-                    {#if inspectedBackup.manifest}
-                      {@const m = inspectedBackup.manifest}
-                      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                        <div class="p-2.5 rounded-lg bg-background/80 border border-border">
-                          <span class="text-[10px] text-muted-foreground block">Músicas</span>
-                          <span class="font-bold text-foreground text-sm">{m.stats.songs_count}</span>
-                        </div>
-                        <div class="p-2.5 rounded-lg bg-background/80 border border-border">
-                          <span class="text-[10px] text-muted-foreground block">Setlists</span>
-                          <span class="font-bold text-foreground text-sm">{m.stats.setlists_count}</span>
-                        </div>
-                        <div class="p-2.5 rounded-lg bg-background/80 border border-border">
-                          <span class="text-[10px] text-muted-foreground block">Voluntários</span>
-                          <span class="font-bold text-foreground text-sm">{m.stats.team_members_count}</span>
-                        </div>
-                        <div class="p-2.5 rounded-lg bg-background/80 border border-border">
-                          <span class="text-[10px] text-muted-foreground block">Mídias (Arquivos)</span>
-                          <span class="font-bold text-foreground text-sm">
-                            {m.stats.images_count + m.stats.videos_count + m.stats.audios_count + m.stats.wallpapers_count}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div class="text-[11px] text-muted-foreground flex items-center justify-between px-1">
-                        <span>Criado em: {new Date(m.created_at).toLocaleString('pt-BR')} (OpenPresenter v{m.app_version})</span>
-                        <span>Tamanho: {(inspectedBackup.file_size_bytes / (1024 * 1024)).toFixed(1)} MB</span>
-                      </div>
-                    {/if}
-
-                    <div class="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 leading-relaxed">
-                      <strong>Aviso:</strong> A restauração substituirá os dados atuais do banco de dados SQLite e sincronizará os arquivos de mídia. A aplicação será recarregada automaticamente após a conclusão.
-                    </div>
-
-                    <div class="flex items-center justify-end gap-2 pt-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onclick={handleCancelRestore}
-                        disabled={isRestoringBackup}
-                        class="text-xs"
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onclick={handleConfirmRestore}
-                        disabled={isRestoringBackup}
-                        class="gap-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white"
-                      >
-                        {#if isRestoringBackup}
-                          <RefreshCw size={13} class="animate-spin" />
-                          <span>Restaurando dados...</span>
-                        {:else}
-                          <CheckCircle2 size={13} />
-                          <span>Substituir e Restaurar Dados</span>
-                        {/if}
-                      </Button>
-                    </div>
-                  </div>
-                {/if}
-              </div>
-
-              <!-- Pastas Externas Mapeadas (Zero-Copy) -->
-              <div class="pt-4 border-t border-border space-y-3">
-                <div>
-                  <h3 class="text-sm font-semibold text-foreground">Pastas de Mídia Externas Mapeadas</h3>
-                  <p class="text-xs text-muted-foreground mt-0.5">
-                    Mapeie diretórios do seu computador (fotos, vídeos ou áudios). O OpenPresenter indexa os arquivos diretamente sem copiar nem duplicar espaço em disco.
-                  </p>
-                </div>
-
-                <!-- Formulário para Mapear Nova Pasta -->
-                <div class="p-3.5 rounded-xl border border-border bg-card/60 space-y-3">
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div>
-                      <label for="folder-name-input" class="block text-[11px] text-muted-foreground mb-1">Rótulo da Pasta</label>
-                      <input
-                        id="folder-name-input"
-                        type="text"
-                        bind:value={newFolderName}
-                        placeholder="Ex: Mídias do Culto (Fotos, Vídeos, Áudios)"
-                        class="w-full h-8 px-2.5 rounded bg-background border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
-                      />
-                    </div>
-                    <div>
-                      <label for="folder-path-input" class="block text-[11px] text-muted-foreground mb-1">Caminho no Computador *</label>
-                      <div class="flex items-center gap-1.5">
-                        <input
-                          id="folder-path-input"
-                          type="text"
-                          bind:value={newFolderPath}
-                          placeholder="Ex: /Users/usuario/Imagens/Culto"
-                          class="flex-1 h-8 px-2.5 rounded bg-background border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary font-mono text-[11px]"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onclick={handleNativePickFolder}
-                          class="h-8 text-xs gap-1.5 shrink-0"
-                          title="Selecionar Pasta graficamente no computador"
-                        >
-                          <Folder size={13} class="text-primary" />
-                          <span>Selecionar...</span>
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {#if folderError}
-                    <div class="p-2 rounded bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-center gap-1.5">
-                      <AlertCircle size={13} class="shrink-0" />
-                      <span>{folderError}</span>
-                    </div>
-                  {/if}
-
-                  <div class="flex justify-end">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onclick={handleAddFolder}
-                      disabled={isAddingFolder}
-                      class="gap-1.5 text-xs font-semibold"
-                    >
-                      <FolderPlus size={13} />
-                      <span>{isAddingFolder ? 'Validando...' : 'Mapear Pasta'}</span>
-                    </Button>
-                  </div>
-                </div>
-
-                <!-- Lista de Pastas Mapeadas -->
-                <div class="space-y-2">
-                  {#if mediaFolders.length === 0}
-                    <div class="p-4 rounded-lg border border-dashed border-border text-center text-xs text-muted-foreground">
-                      Nenhuma pasta externa mapeada ainda. Clique em "Selecionar..." para importar sua primeira pasta.
-                    </div>
-                  {:else}
-                    {#each mediaFolders as folder (folder.id)}
-                      <div class="p-3 rounded-lg border border-border bg-card/60 flex items-center justify-between gap-3">
-                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                          <Folder size={16} class="text-primary shrink-0" />
-                          <div class="min-w-0 flex-1">
-                            <div class="text-xs font-semibold text-foreground truncate">{folder.name}</div>
-                            <div class="text-[10px] text-muted-foreground font-mono truncate" title={folder.path}>{folder.path}</div>
-                          </div>
-                        </div>
-
-                        <div class="flex items-center gap-1.5 shrink-0">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onclick={() => handleOpenInFinder(folder.path)}
-                            class="h-7 text-[11px] gap-1 px-2"
-                            title="Abrir no Finder"
-                          >
-                            <FolderOpen size={12} />
-                            <span>Abrir</span>
-                          </Button>
-
-                          <button
-                            type="button"
-                            onclick={() => handleDeleteFolder(folder.id)}
-                            title="Remover pasta mapeada"
-                            class="w-7 h-7 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center transition-colors cursor-pointer"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </div>
-                    {/each}
-                  {/if}
-                </div>
-              </div>
-            </div>
-
-          <!-- ABA 3: PARTES DA MÚSICA E CORES -->
-          {:else if activeTab === 'sections'}
-            <div class="space-y-5 w-full max-w-4xl">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h3 class="text-sm font-semibold text-white">Partes da Música e Atalhos</h3>
-                  <p class="text-xs text-neutral-400 mt-0.5">
-                    Personalize o rótulo, a cor de destaque e a tecla de atalho de cada parte da música.
-                  </p>
-                </div>
-
-                <Button variant="outline" size="sm" onclick={handleResetSections} class="text-xs gap-1.5">
-                  <RotateCcw size={13} />
-                  Restaurar Padrões
-                </Button>
-              </div>
-
-              <!-- Lista de Partes Configuráveis -->
-              <div class="space-y-2.5">
-                {#each editableSections as section, idx (section.id)}
-                  <div class="p-3 rounded-lg border border-neutral-800 bg-neutral-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div class="flex items-center gap-3">
-                      <!-- Amostra Visual da Seção -->
-                      <div class="px-2.5 py-1 rounded text-xs font-semibold border flex items-center gap-1.5 {section.bg} {section.border} {section.text} min-w-[90px] justify-center">
-                        <span class="w-2 h-2 rounded-full {section.accent}"></span>
-                        <span>{section.name}</span>
-                      </div>
-
-                      <!-- Nome Editável -->
-                      <input
-                        type="text"
-                        value={section.name}
-                        oninput={(e) => handleNameChange(idx, (e.target as HTMLInputElement).value)}
-                        class="h-7 w-28 px-2 rounded bg-neutral-900 border border-neutral-700 text-xs text-white focus:outline-none focus:border-primary"
-                        title="Nome da parte"
-                      />
-                    </div>
-
-                    <div class="flex items-center gap-3">
-                      <!-- Atalho de Tecla -->
-                      <div class="flex items-center gap-1.5">
-                        <span class="text-[11px] text-neutral-400">Atalho:</span>
-                        <input
-                          type="text"
-                          maxlength="1"
-                          value={section.shortcut.toUpperCase()}
-                          oninput={(e) => handleShortcutChange(idx, (e.target as HTMLInputElement).value)}
-                          class="h-7 w-9 text-center font-mono font-bold uppercase rounded bg-neutral-900 border border-neutral-700 text-xs text-primary focus:outline-none focus:border-primary"
-                          title="Pressione esta letra para ir diretamente a esta parte durante a música"
-                        />
-                      </div>
-
-                      <!-- Seletor de Paleta de Cores -->
-                      <div class="flex items-center gap-1">
-                        {#each COLOR_PRESETS as preset}
-                          <button
-                            type="button"
-                            title={preset.name}
-                            onclick={() => handleColorChange(idx, preset.id)}
-                            class="w-5 h-5 rounded-full {preset.accent} transition-transform hover:scale-110 flex items-center justify-center cursor-pointer {section.colorName === preset.name ? 'ring-2 ring-white ring-offset-1 ring-offset-neutral-950 scale-105' : 'opacity-70'}"
-                          >
-                            {#if section.colorName === preset.name}
-                              <Check size={11} class="text-black font-bold" />
-                            {/if}
-                          </button>
-                        {/each}
-                      </div>
-                    </div>
-                  </div>
-                {/each}
-              </div>
-            </div>
-
-          <!-- ABA 4: TELAS E SAÍDAS -->
-          {:else if activeTab === 'outputs'}
-            <div class="space-y-6 w-full max-w-4xl">
-              <div>
-                <h3 class="text-sm font-semibold text-white">Saídas Gráficas</h3>
-                <p class="text-xs text-neutral-400 mt-0.5">
-                  Gerencie as telas de saída do projetor e do retorno de palco conforme a especificação multi-telas.
-                </p>
-              </div>
-
-              <div class="space-y-3.5">
-                <!-- Saída Pública -->
-                <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between">
-                  <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
-                      <Monitor size={18} />
-                    </div>
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        Tela Pública (Public)
-                        <Badge variant="outline" class="text-[9px] text-emerald-400 border-emerald-500/30">16:9 Nativo</Badge>
-                      </div>
-                      <div class="text-[11px] text-neutral-400 mt-0.5">
-                        Projetada para a congregação e captura via OBS em <code>/public</code>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onclick={() => window.open('/public', 'OpenPresenterPublic', 'width=1280,height=720')}
-                    class="text-xs gap-1.5"
-                  >
-                    <span>Abrir</span>
-                    <ExternalLink size={12} />
-                  </Button>
-                </div>
-
-                <!-- Saída do Palco (Stage) -->
-                <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-900/40 flex items-center justify-between">
-                  <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
-                      <Tv size={18} />
-                    </div>
-                    <div>
-                      <div class="text-xs font-semibold text-white flex items-center gap-2">
-                        Retorno do Palco (Stage)
-                        <Badge variant="outline" class="text-[9px] text-emerald-400 border-emerald-500/30">Relógio + Prévia</Badge>
-                      </div>
-                      <div class="text-[11px] text-neutral-400 mt-0.5">
-                        Exibe o slide atual, próximo slide e relógio digital em <code>/stage</code>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onclick={() => window.open('/stage', 'OpenPresenterStage', 'width=1280,height=720')}
-                    class="text-xs gap-1.5"
-                  >
-                    <span>Abrir</span>
-                    <ExternalLink size={12} />
-                  </Button>
-                </div>
-              </div>
-
-              <!-- Ajuste de Papel de Parede Padrão -->
-              <div class="pt-4 border-t border-neutral-800 space-y-3">
-                <div>
-                  <h3 class="text-sm font-semibold text-white">Ajuste de Papel de Parede</h3>
-                  <p class="text-xs text-neutral-400 mt-0.5">
-                    Modo padrão de renderização do papel de parede quando nenhuma música estiver sendo projetada.
-                  </p>
-                </div>
-
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {#each [
-                    { id: 'cover', label: 'Preencher', desc: 'Preenche toda a tela 16:9' },
-                    { id: 'contain', label: 'Ajustar', desc: 'Preserva proporção sem cortes' },
-                    { id: 'center', label: 'Centralizar', desc: 'Exibe no centro sem zoom' },
-                    { id: 'repeat', label: 'Repetir', desc: 'Lado a lado em mosaico' },
-                  ] as mode}
-                    <button
-                      type="button"
-                      onclick={() => setWallpaperFit(mode.id as any)}
-                      class="p-2.5 rounded-lg border text-left transition-all cursor-pointer {$wallpaperFitStore === mode.id ? 'border-primary bg-primary/10 ring-1 ring-primary/40 text-primary font-semibold' : 'border-neutral-800 bg-neutral-900/40 hover:bg-neutral-900 text-neutral-300'}"
-                    >
-                      <div class="text-xs">{mode.label}</div>
-                      <div class="text-[10px] text-neutral-400 font-normal mt-0.5">{mode.desc}</div>
-                    </button>
-                  {/each}
-                </div>
-              </div>
-            </div>
-
-          <!-- ABA 5: ATALHOS RÁPIDOS -->
+            <AppearanceTab
+              {openSelectId}
+              onSetOpenSelect={(id) => (openSelectId = id)}
+            />
           {:else if activeTab === 'shortcuts'}
-            <div class="space-y-4 w-full max-w-5xl">
-              <div>
-                <h3 class="text-sm font-semibold text-white">Atalhos Operacionais de Teclado</h3>
-                <p class="text-xs text-neutral-400 mt-0.5">
-                  Agilidade durante o culto e eventos ao vivo sem tirar as mãos do teclado.
-                </p>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
-                <!-- Coluna 1: Navegação e Apresentação -->
-                <div class="rounded-xl border border-neutral-800 bg-neutral-900/30 divide-y divide-neutral-800/80">
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Apresentar slide selecionado</span>
-                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-emerald-400">Enter</kbd>
-                  </div>
-
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Parar apresentação ao vivo</span>
-                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-red-400">Esc</kbd>
-                  </div>
-
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Avançar para o próximo slide</span>
-                    <div class="flex gap-1">
-                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">→</kbd>
-                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Espaço</kbd>
-                    </div>
-                  </div>
-
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Retornar ao slide anterior</span>
-                    <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">←</kbd>
-                  </div>
-
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Pular direto para slide ordinal</span>
-                    <span class="text-neutral-400"><kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">[Número]</kbd> + <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Enter</kbd></span>
-                  </div>
-
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Abrir Paleta de Comandos</span>
-                    <div class="flex gap-1">
-                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">⌘K</kbd>
-                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Ctrl+K</kbd>
-                    </div>
-                  </div>
-
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Blackout (tela preta total)</span>
-                    <div class="flex gap-1.5 items-center">
-                      <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-primary font-bold">.</kbd>
-                      <span class="text-[10px] text-neutral-500">ou</span>
-                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Alt+B</kbd>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Coluna 2: Seções de Música e Efeitos -->
-                <div class="rounded-xl border border-neutral-800 bg-neutral-900/30 divide-y divide-neutral-800/80">
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Pular para o Refrão</span>
-                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-emerald-400">R</kbd>
-                  </div>
-
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Pular para o Verso</span>
-                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-blue-400">V</kbd>
-                  </div>
-
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Pular para a Ponte</span>
-                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-amber-400">P</kbd>
-                  </div>
-
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Pular para a Introdução</span>
-                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-cyan-400">I</kbd>
-                  </div>
-
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Pular para o Final / Encerramento</span>
-                    <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-purple-400">F</kbd>
-                  </div>
-
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Limpar Texto (mantém o fundo)</span>
-                    <div class="flex gap-1.5 items-center">
-                      <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-primary font-bold">,</kbd>
-                      <span class="text-[10px] text-neutral-500">ou</span>
-                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Alt+C</kbd>
-                    </div>
-                  </div>
-
-                  <div class="p-2.5 flex items-center justify-between">
-                    <span class="text-neutral-300">Papel de Parede (Tela de Repouso)</span>
-                    <div class="flex gap-1.5 items-center">
-                      <kbd class="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[11px] text-primary font-bold">/</kbd>
-                      <span class="text-[10px] text-neutral-500">ou</span>
-                      <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono text-[10px]">Alt+W</kbd>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          <!-- ABA: HISTÓRICO & LOGS DO SISTEMA -->
+            <ShortcutsTab />
+          {:else if activeTab === 'sections'}
+            <SectionsTab
+              sections={editableSections}
+              onNameChange={handleSectionNameChange}
+              onShortcutChange={handleSectionShortcutChange}
+              onColorChange={handleSectionColorChange}
+              onReset={handleResetSections}
+            />
+          {:else if activeTab === 'public'}
+            <PublicDisplayTab
+              {localPublic}
+              onUpdatePublic={(next) => (localPublic = next)}
+              onSelectWallpaperFit={handleSelectWallpaperFit}
+            />
+          {:else if activeTab === 'stage'}
+            <StageMonitorTab
+              {localStage}
+              onUpdateStage={(next) => (localStage = next)}
+            />
+          {:else if activeTab === 'lower_third'}
+            <LowerThirdTab
+              {localLowerThird}
+              onUpdateLowerThird={(next) => (localLowerThird = next)}
+              onSaveLowerThirdNow={handleSaveLowerThirdNow}
+              onRequestConfirm={openConfirm}
+            />
+          {:else if activeTab === 'lyrics_bg'}
+            <LyricsBackgroundsTab
+              {localBgStyles}
+              {localPublic}
+              onUpdateStyles={(next) => (localBgStyles = next)}
+              onRequestConfirm={openConfirm}
+            />
+          {:else if activeTab === 'outputs'}
+            <OutputsTab
+              {localPublic}
+              onSelectWallpaperFit={handleSelectWallpaperFit}
+              onNavigateToPublicTab={() => selectTab('public')}
+            />
+          {:else if activeTab === 'songs'}
+            <SongsTab
+              songSettings={localSongSettings}
+              onSelectLinesPerSlide={handleSelectLinesPerSlide}
+            />
+          {:else if activeTab === 'bibles'}
+            <BiblesTab
+              {biblesList}
+              {isLoadingBibles}
+              {bibleError}
+              onReloadBibles={loadBibles}
+              onDismissError={() => (bibleError = '')}
+              onRequestConfirm={openConfirm}
+            />
+          {:else if activeTab === 'church'}
+            <ChurchBrandTab
+              {localBrand}
+              onUpdateField={handleUpdateBrandField}
+              onSaveBrandNow={handleSaveBrandNow}
+              onRequestConfirm={openConfirm}
+            />
+          {:else if activeTab === 'files'}
+            <FilesTab
+              {systemPaths}
+              {isLoadingPaths}
+              {pathsError}
+              {mediaFolders}
+              {isLoadingFolders}
+              {foldersError}
+              onRetryPaths={() => void loadSystemPaths()}
+              onReloadFolders={loadMediaFolders}
+              onRequestConfirm={openConfirm}
+            />
           {:else if activeTab === 'logs'}
-            <div class="space-y-6 w-full max-w-6xl">
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <h3 class="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <ScrollText size={16} class="text-primary" />
-                    <span>Histórico de Ações e Auditoria</span>
-                  </h3>
-                  <p class="text-xs text-muted-foreground mt-0.5">
-                    Registro de ações executadas no sistema, identificando dispositivo, instância e horário.
-                  </p>
-                </div>
-
-                <div class="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="gap-1.5 text-xs"
-                    onclick={fetchLogs}
-                    disabled={isLoadingLogs}
-                  >
-                    <RefreshCw size={13} class={isLoadingLogs ? 'animate-spin' : ''} />
-                    <span>Atualizar</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="gap-1.5 text-xs text-destructive hover:bg-destructive/10"
-                    onclick={clearAllLogs}
-                  >
-                    <Trash2 size={13} />
-                    <span>Limpar Logs</span>
-                  </Button>
-                </div>
-              </div>
-
-              <!-- Filtro de Categorias -->
-              <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-                {#each [
-                  { id: 'all', label: 'Todas as Ações' },
-                  { id: 'presentation', label: 'Apresentação' },
-                  { id: 'bibles', label: 'Bíblia' },
-                  { id: 'songs', label: 'Músicas' },
-                  { id: 'setlists', label: 'Setlists' },
-                  { id: 'timer', label: 'Cronômetro' },
-                  { id: 'connections', label: 'Conexões' },
-                  { id: 'settings', label: 'Configurações' }
-                ] as cat}
-                  <button
-                    type="button"
-                    onclick={() => { selectedLogCategory = cat.id; fetchLogs(); }}
-                    class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors shrink-0 cursor-pointer {selectedLogCategory === cat.id ? 'bg-primary text-primary-foreground font-semibold' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'}"
-                  >
-                    {cat.label}
-                  </button>
-                {/each}
-              </div>
-
-              <!-- Lista de Logs -->
-              <div class="rounded-xl border border-neutral-800 bg-neutral-900/60 overflow-hidden">
-                {#if isLoadingLogs}
-                  <div class="p-8 text-center text-neutral-500 text-xs">
-                    <RefreshCw size={18} class="animate-spin mx-auto mb-2" />
-                    <span>Carregando histórico de ações...</span>
-                  </div>
-                {:else if actionLogs.length === 0}
-                  <div class="p-8 text-center text-neutral-500 text-xs">
-                    <ScrollText size={24} class="opacity-40 mx-auto mb-2" />
-                    <p class="font-medium text-neutral-400">Nenhum registro de log encontrado</p>
-                    <p class="text-[11px] text-neutral-500 mt-0.5">As ações realizadas no sistema aparecerão aqui.</p>
-                  </div>
-                {:else}
-                  <div class="divide-y divide-neutral-800 max-h-[500px] overflow-y-auto">
-                    {#each actionLogs as log (log.id)}
-                      <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-neutral-850/50 transition-colors">
-                        <div class="flex items-start gap-3">
-                          <span class="mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider {getCategoryBadgeClass(log.category)}">
-                            {getCategoryLabel(log.category)}
-                          </span>
-                          <div>
-                            <p class="text-xs font-semibold text-foreground">{log.details}</p>
-                            <div class="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-neutral-400">
-                              {#if log.device_info}
-                                <span class="flex items-center gap-1 font-mono text-neutral-300">
-                                  <Laptop size={11} />
-                                  {log.device_info}
-                                </span>
-                              {/if}
-                              {#if log.ip_address}
-                                <span class="text-neutral-500">• IP: {log.ip_address}</span>
-                              {/if}
-                              {#if log.client_type}
-                                <span class="text-neutral-500">• Tipo: {log.client_type}</span>
-                              {/if}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div class="text-[11px] font-mono text-neutral-500 shrink-0 self-end sm:self-center">
-                          {formatTimestamp(log.timestamp)}
-                        </div>
-                      </div>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            </div>
-
-          <!-- ABA 6: SOBRE & UPDATES -->
+            <LogsTab
+              {actionLogs}
+              selectedCategory={selectedLogCategory}
+              isLoading={isLoadingLogs}
+              error={logsError}
+              onSelectCategory={handleSelectLogCategory}
+              onRefresh={() => void fetchLogs()}
+              onRequestClear={requestClearLogs}
+            />
           {:else if activeTab === 'about'}
-            <div class="space-y-6 w-full max-w-5xl">
-              <!-- Banner da Marca -->
-              <div class="p-6 rounded-xl border border-neutral-800 bg-neutral-900/40 text-center space-y-3">
-                <img
-                  src="/branding/open-presenter-wordmark-dark.svg"
-                  alt="OpenPresenter"
-                  class="h-10 mx-auto"
-                />
-                <p class="text-xs text-neutral-400">
-                  Sistema moderno e aberto de projeção para igrejas e eventos.
-                </p>
-                <div class="flex items-center justify-center gap-2 pt-1 flex-wrap">
-                  <Badge variant="secondary" class="text-[10px] font-mono">
-                    v{updateInfo?.current_version || '0.6.0'}
-                  </Badge>
-                  <Badge variant="outline" class="text-[10px] text-primary border-primary/40">GPL-3.0</Badge>
-                  <Badge variant="outline" class="text-[10px] text-neutral-400">Rust · Axum · Svelte · SQLite</Badge>
-                </div>
-              </div>
-
-              <!-- Grid com Atualizações e Documentação Offline -->
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                <!-- Seção do Auto-Updater -->
-                <div class="p-5 rounded-xl border border-neutral-800 bg-neutral-900/30 space-y-4">
-                  <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                      <Sparkles size={16} class="text-primary" />
-                      <h4 class="text-xs font-semibold text-white">Atualizações do Sistema</h4>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="h-7 text-xs gap-1.5"
-                      onclick={handleCheckForUpdates}
-                      disabled={isCheckingUpdate}
-                    >
-                      <RefreshCw size={12} class={isCheckingUpdate ? 'animate-spin' : ''} />
-                      <span>{isCheckingUpdate ? 'Verificando...' : 'Verificar Atualizações'}</span>
-                    </Button>
-                  </div>
-
-                  {#if updaterError}
-                    <div class="p-3 rounded-lg bg-rose-950/40 border border-rose-600/40 text-rose-300 text-xs flex items-start gap-2">
-                      <AlertTriangle size={15} class="shrink-0 mt-0.5 text-rose-400" />
-                      <span>{updaterError}</span>
-                    </div>
-                  {/if}
-
-                  {#if updaterStatus?.stage?.type === 'ReadyToRestart'}
-                    <div class="p-4 rounded-xl bg-emerald-950/40 border border-emerald-600/60 text-emerald-200 text-xs space-y-3">
-                      <div class="flex items-center gap-2 font-semibold text-emerald-300">
-                        <CheckCircle2 size={16} class="text-emerald-400" />
-                        <span>Atualização Instalada com Sucesso!</span>
-                      </div>
-                      <p class="text-[11px] text-emerald-300/80">
-                        A nova versão foi gravada no executável. Reinicie o aplicativo OpenPresenter para aplicar todas as novidades.
-                      </p>
-                      <div class="pt-1">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs h-8 gap-2 shadow-sm"
-                          onclick={handleRestartApplication}
-                          disabled={isRestarting}
-                        >
-                          <RotateCcw size={14} class={isRestarting ? 'animate-spin' : ''} />
-                          <span>{isRestarting ? 'Reiniciando Servidor...' : 'Reiniciar Aplicativo Agora'}</span>
-                        </Button>
-                      </div>
-                    </div>
-                  {:else if updaterStatus?.stage?.type === 'Downloading'}
-                    <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/60 space-y-3">
-                      <div class="flex items-center justify-between text-xs">
-                        <span class="text-neutral-300 font-medium flex items-center gap-1.5">
-                          <Download size={14} class="animate-pulse text-primary transition-transform duration-300" />
-                          Baixando nova versão...
-                        </span>
-                        <span class="font-mono text-primary font-bold">
-                          {updaterStatus.stage.percent}%
-                        </span>
-                      </div>
-                      <div class="w-full h-2 rounded-full bg-neutral-800 overflow-hidden">
-                        <div
-                          class="h-full bg-primary transition-all duration-200 rounded-full"
-                          style="width: {updaterStatus.stage.percent}%"
-                        ></div>
-                      </div>
-                      <div class="text-[10px] text-neutral-500 font-mono text-right">
-                        {(updaterStatus.stage.downloaded_bytes / (1024 * 1024)).toFixed(1)} MB / {(updaterStatus.stage.total_bytes / (1024 * 1024)).toFixed(1)} MB
-                      </div>
-                    </div>
-                  {:else if updaterStatus?.stage?.type === 'Extracting'}
-                    <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-950/60 flex items-center gap-3 text-xs text-neutral-300">
-                      <RefreshCw size={16} class="animate-spin text-primary shrink-0" />
-                      <span>Extraindo arquivos e aplicando a substituição atômica no executável...</span>
-                    </div>
-                  {:else if updaterStatus?.stage?.type === 'Error'}
-                    <div class="p-4 rounded-xl bg-rose-950/30 border border-rose-600/40 text-xs text-rose-300 space-y-2">
-                      <div class="flex items-center gap-2 font-semibold">
-                        <AlertTriangle size={15} class="text-rose-400" />
-                        <span>Erro ao aplicar atualização</span>
-                      </div>
-                      <p class="text-[11px] text-rose-200/80">{updaterStatus.stage.message}</p>
-                      <Button variant="outline" size="sm" class="h-7 text-xs" onclick={handleStartUpdate}>
-                        Tentar Novamente
-                      </Button>
-                    </div>
-                  {:else if updateInfo?.update_available}
-                    <!-- Banner de Atualização Disponível -->
-                    <div class="p-4 rounded-xl border border-emerald-600/40 bg-emerald-950/20 space-y-3">
-                      <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                          <Badge variant="default" class="bg-emerald-600 text-white hover:bg-emerald-600 text-[10px] font-bold">
-                            NOVO
-                          </Badge>
-                          <span class="text-xs font-bold text-white">Versão {updateInfo.latest_version} disponível</span>
-                        </div>
-                        {#if updateInfo.published_at}
-                          <span class="text-[10px] text-neutral-400">
-                            {new Date(updateInfo.published_at).toLocaleDateString('pt-BR')}
-                          </span>
-                        {/if}
-                      </div>
-
-                      <div class="text-xs text-neutral-200 font-medium">
-                        {updateInfo.release_name}
-                      </div>
-
-                      {#if updateInfo.release_notes}
-                        <div class="p-2.5 rounded-lg bg-neutral-950/70 border border-neutral-800/80 max-h-36 overflow-y-auto text-[11px] text-neutral-300 font-mono whitespace-pre-wrap leading-relaxed">
-                          {updateInfo.release_notes}
-                        </div>
-                      {/if}
-
-                      <div class="flex items-center justify-between pt-1 text-[11px] text-neutral-400">
-                        <span>Arquivo: {updateInfo.asset_name || 'Pacote multiplataforma'}</span>
-                        {#if updateInfo.asset_size}
-                          <span>{(updateInfo.asset_size / (1024 * 1024)).toFixed(1)} MB</span>
-                        {/if}
-                      </div>
-
-                      <div class="pt-2 flex items-center justify-end gap-2">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          class="gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
-                          onclick={handleStartUpdate}
-                          disabled={!updateInfo.download_url}
-                        >
-                          <Download size={14} />
-                          <span>Baixar e Atualizar Agora</span>
-                        </Button>
-                      </div>
-                    </div>
-                  {:else if updateInfo && !updateInfo.update_available}
-                    <div class="p-3.5 rounded-lg border border-neutral-800 bg-neutral-950/40 flex items-center gap-2.5 text-xs text-neutral-300">
-                      <CheckCircle2 size={16} class="text-emerald-400 shrink-0" />
-                      <span>O OpenPresenter está na versão mais recente (v{updateInfo.current_version}).</span>
-                    </div>
-                  {:else}
-                    <div class="p-3.5 rounded-lg border border-neutral-800 bg-neutral-950/40 text-xs text-neutral-400 flex items-center justify-between">
-                      <span>Nenhuma verificação de atualização realizada nesta sessão.</span>
-                      <Button variant="ghost" size="sm" class="h-6 text-xs" onclick={handleCheckForUpdates}>
-                        Checar agora
-                      </Button>
-                    </div>
-                  {/if}
-                </div>
-
-                <!-- Documentação da API & Integrações Externas (100% Offline) -->
-                <div class="p-5 rounded-xl border border-neutral-800 bg-neutral-900/30 space-y-4">
-                  <div class="flex items-start justify-between gap-4">
-                    <div>
-                      <div class="flex items-center gap-2">
-                        <h4 class="text-xs font-semibold text-neutral-200">Documentação da API & Integrações</h4>
-                        <Badge variant="outline" class="text-[10px] text-purple-400 border-purple-500/30">
-                          100% Offline
-                        </Badge>
-                      </div>
-                      <p class="text-[11px] text-neutral-400 mt-1 leading-relaxed">
-                        O OpenPresenter embute documentação OpenAPI 3.0 interativa que funciona 100% offline. Ideal para integrar com ferramentas de gestão e escalas (estilo Voluts, Planning Center) ou automações externas via REST e WebSockets.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div class="flex flex-wrap items-center gap-2 pt-1">
-                    <a
-                      href="/docs"
-                      target="_blank"
-                      rel="noreferrer"
-                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-semibold transition-colors"
-                    >
-                      <ExternalLink size={13} />
-                      <span>Abrir Scalar (/docs)</span>
-                    </a>
-                    <a
-                      href="/swagger"
-                      target="_blank"
-                      rel="noreferrer"
-                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700 text-xs font-semibold transition-colors"
-                    >
-                      <ExternalLink size={13} />
-                      <span>Abrir Swagger (/swagger)</span>
-                    </a>
-                    <a
-                      href="/api/openapi.json"
-                      target="_blank"
-                      rel="noreferrer"
-                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 text-xs font-mono transition-colors"
-                    >
-                      <span>openapi.json</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Reinicialização do Servidor -->
-              <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-900/30 space-y-2">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h4 class="text-xs font-semibold text-neutral-200">Reiniciar Servidor e Aplicação</h4>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">
-                      Recarrega o executável do OpenPresenter e reinicia os serviços sem perder dados ou configurações.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="h-7 text-xs gap-1.5 border-neutral-700 hover:bg-neutral-800"
-                    onclick={handleRestartApplication}
-                    disabled={isRestarting}
-                  >
-                    <RotateCcw size={12} class={isRestarting ? 'animate-spin' : ''} />
-                    <span>{isRestarting ? 'Reiniciando...' : 'Reiniciar Servidor'}</span>
-                  </Button>
-                </div>
-              </div>
-
-              <!-- Informações adicionais -->
-              <div class="text-[11px] text-neutral-500 space-y-1.5 text-center">
-                <p>Repositório de código aberto: <a href="https://github.com/open-mission/openpresenter" target="_blank" rel="noreferrer" class="text-primary hover:underline">github.com/open-mission/openpresenter</a></p>
-                <p>Todos os seus dados (banco SQLite, mídias e bíblias) permanecem preservados em qualquer atualização.</p>
-              </div>
-            </div>
+            <AboutTab
+              {updateInfo}
+              {updaterStatus}
+              {isCheckingUpdate}
+              {isRestarting}
+              {updaterError}
+              onCheckUpdates={handleCheckUpdates}
+              onStartUpdate={handleStartUpdate}
+              onRequestRestart={requestRestartApplication}
+            />
           {/if}
+          </div>
         </main>
       </div>
 
-      <!-- Rodapé do Modal -->
-      <div class="h-14 px-6 border-t border-neutral-800 bg-neutral-900/60 flex items-center justify-between shrink-0 text-xs text-neutral-500">
-        <div class="flex items-center gap-3">
-          <span>Pressione <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 font-mono text-[10px]">Esc</kbd> para fechar</span>
-          {#if saveStatusMessage}
-            <span class="text-xs text-emerald-400 font-medium flex items-center gap-1.5 animate-in fade-in">
-              <Check size={14} class="text-emerald-400" />
-              {saveStatusMessage}
-            </span>
+      <!-- Rodapé com Status Acessível e Ações -->
+      <footer class="px-5 py-3 border-t border-border bg-card flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div class="min-w-0 flex-1">
+          {#if saveError}
+            <p role="alert" class="text-xs text-red-700 dark:text-red-300 font-medium truncate">
+              {saveError}
+            </p>
+          {:else if saveMessage}
+            <p role="status" class="text-xs text-emerald-700 dark:text-emerald-300 font-medium flex items-center gap-1.5">
+              <Check size={14} class="shrink-0" />
+              <span>{saveMessage}</span>
+            </p>
+          {:else if hasUnsavedChanges}
+            <p role="status" class="text-xs text-amber-800 dark:text-amber-300">
+              Você possui alterações não salvas no servidor.
+            </p>
+          {:else}
+            <p class="text-[11px] text-muted-foreground">
+              Todas as configurações estão sincronizadas.
+            </p>
           {/if}
         </div>
 
-        <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" onclick={onclose}>
+        <div class="flex items-center gap-2 shrink-0">
+          <Button variant="ghost" size="sm" onclick={requestClose} class="text-xs">
             Fechar
           </Button>
-          <Button variant="default" size="sm" onclick={handleSaveAllSettings} disabled={isSaving} class="gap-1.5 font-semibold">
+          <Button
+            variant="default"
+            size="sm"
+            disabled={!hasUnsavedChanges || isSaving}
+            onclick={saveAllChanges}
+            class="gap-1.5 text-xs"
+          >
             {#if isSaving}
+              <RefreshCw size={13} class="animate-spin" />
               <span>Salvando...</span>
             {:else}
-              <Save size={14} />
+              <Save size={13} />
               <span>Salvar Alterações</span>
             {/if}
           </Button>
         </div>
-      </div>
-    </div>
-  </div>
-{/if}
+      </footer>
 
-{#if isRestarting}
-  <div class="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex flex-col items-center justify-center gap-4 text-center p-6 animate-in fade-in">
-    <div class="w-12 h-12 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
-    <div class="space-y-1">
-      <h3 class="text-base font-semibold text-white">Reiniciando o OpenPresenter...</h3>
-      <p class="text-xs text-neutral-400 max-w-sm">
-        O servidor está reiniciando e aplicando as alterações. Esta tela será atualizada automaticamente assim que os serviços estiverem online.
-      </p>
+      <!-- Sobreposição durante Reinicialização -->
+      {#if isRestarting}
+        <div
+          role="status"
+          aria-live="polite"
+          class="absolute inset-0 z-20 bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center gap-3"
+        >
+          <RefreshCw size={28} class="text-primary animate-spin" />
+          <div class="text-sm font-bold text-foreground">Reiniciando servidor do OpenPresenter...</div>
+          <p class="text-xs text-muted-foreground max-w-sm">
+            A página será recarregada automaticamente assim que o serviço voltar a responder.
+          </p>
+        </div>
+      {/if}
     </div>
   </div>
+
+  <!-- Modal Unificado de Confirmação -->
+  <ConfirmModal
+    open={pendingConfirm !== null}
+    title={pendingConfirm?.title ?? ''}
+    message={pendingConfirm?.message ?? ''}
+    confirmLabel={pendingConfirm?.confirmLabel ?? 'Confirmar'}
+    cancelLabel={pendingConfirm?.cancelLabel ?? 'Cancelar'}
+    destructive={pendingConfirm?.destructive ?? false}
+    isProcessing={isConfirmProcessing}
+    onconfirm={executePendingConfirm}
+    onclose={() => {
+      if (!isConfirmProcessing) pendingConfirm = null;
+    }}
+  />
 {/if}

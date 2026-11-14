@@ -311,8 +311,9 @@
             {/key}
           {:else if activeMedia?.kind === 'video'}
             <div class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden">
-              <!-- svelte-ignore a11y_media_has_caption -->
-              <video src={resolveMediaUrl(activeSlide.content)} class="w-full h-full object-contain" autoplay loop muted playsinline></video>
+              <video src={resolveMediaUrl(activeSlide.content)} class="w-full h-full object-contain" autoplay loop muted playsinline>
+                <track kind="captions" label="Sem áudio no preview" />
+              </video>
             </div>
           {:else if activeMedia?.kind === 'timer'}
             {@const remainingSecs = timer && timer.duration_seconds > 0 ? timer.remaining_seconds : parseInt(activeSlide.content || '0', 10) || 0}
@@ -333,7 +334,7 @@
                     class="flex items-center gap-1.5 font-bold uppercase tracking-wider {isNearEnd ? 'text-amber-300' : ''}"
                     style="font-size: {titleSize}px; color: {!isNearEnd ? textColor : undefined};"
                   >
-                    <Hourglass size={Math.round(titleSize * 0.9)} class={timer?.running ? 'animate-spin' : ''} />
+                    <Hourglass size={Math.round(titleSize * 0.9)} />
                     <span>{activeMedia?.title || timer?.label || 'Cronômetro'}</span>
                   </div>
                   <div
@@ -370,8 +371,8 @@
                   <div class="flex items-end justify-center gap-0.5 h-5 w-24">
                     {#each [40, 75, 55, 95, 30, 85, 60, 100, 45, 90, 70, 35] as baseH, i}
                       <div
-                        class="w-1 rounded-full bg-emerald-400"
-                        style="height: {baseH}%; animation: pulse {(0.6 + (i % 4) * 0.2).toFixed(2)}s ease-in-out infinite alternate;"
+                        class="w-1 rounded-full bg-emerald-400 animate-audio-bar"
+                        style="height: {baseH}%; animation-delay: {(i % 4) * 0.16}s;"
                       ></div>
                     {/each}
                   </div>
@@ -541,7 +542,7 @@
   </div>
 
   <!-- Indicador 16:9 discreto -->
-  <span class="absolute top-1 right-1.5 text-[8px] text-neutral-500 font-mono pointer-events-none opacity-50 z-20">
+  <span class="absolute top-1.5 right-1.5 text-[11px] leading-none text-neutral-200 bg-black/75 border border-white/15 px-1.5 py-0.5 rounded font-mono pointer-events-none z-20">
     16:9
   </span>
 </div>

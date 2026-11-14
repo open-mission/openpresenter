@@ -22,7 +22,7 @@ export type AccentTheme =
   | 'violet'
   | 'yellow';
 
-export type WallpaperFitMode = 'cover' | 'contain' | 'center' | 'repeat';
+export type WallpaperFitMode = 'contain' | 'cover' | 'fill' | 'center' | 'repeat';
 export type SetlistViewMode = 'item' | 'flow';
 export type ToastPosition = 'top-left' | 'top-right' | 'bottom-right' | 'bottom-left';
 
@@ -87,65 +87,65 @@ export const COLOR_PRESETS = [
   {
     name: 'Esmeralda',
     id: 'emerald',
-    bg: 'bg-emerald-950/40',
-    text: 'text-emerald-300',
-    border: 'border-emerald-600/40',
+    bg: 'bg-emerald-500/15',
+    text: 'text-emerald-800 dark:text-emerald-300',
+    border: 'border-emerald-600/35 dark:border-emerald-500/40',
     accent: 'bg-emerald-500',
   },
   {
     name: 'Azul',
     id: 'blue',
-    bg: 'bg-blue-950/40',
-    text: 'text-blue-300',
-    border: 'border-blue-600/40',
+    bg: 'bg-blue-500/15',
+    text: 'text-blue-800 dark:text-blue-300',
+    border: 'border-blue-600/35 dark:border-blue-500/40',
     accent: 'bg-blue-500',
   },
   {
     name: 'Âmbar',
     id: 'amber',
-    bg: 'bg-amber-950/40',
-    text: 'text-amber-300',
-    border: 'border-amber-600/40',
+    bg: 'bg-amber-500/15',
+    text: 'text-amber-800 dark:text-amber-300',
+    border: 'border-amber-600/35 dark:border-amber-500/40',
     accent: 'bg-amber-500',
   },
   {
     name: 'Ciano',
     id: 'cyan',
-    bg: 'bg-cyan-950/40',
-    text: 'text-cyan-300',
-    border: 'border-cyan-600/40',
+    bg: 'bg-cyan-500/15',
+    text: 'text-cyan-800 dark:text-cyan-300',
+    border: 'border-cyan-600/35 dark:border-cyan-500/40',
     accent: 'bg-cyan-500',
   },
   {
     name: 'Teal',
     id: 'teal',
-    bg: 'bg-teal-950/40',
-    text: 'text-teal-300',
-    border: 'border-teal-600/40',
+    bg: 'bg-teal-500/15',
+    text: 'text-teal-800 dark:text-teal-300',
+    border: 'border-teal-600/35 dark:border-teal-500/40',
     accent: 'bg-teal-500',
   },
   {
     name: 'Roxo',
     id: 'purple',
-    bg: 'bg-purple-950/40',
-    text: 'text-purple-300',
-    border: 'border-purple-600/40',
+    bg: 'bg-purple-500/15',
+    text: 'text-purple-800 dark:text-purple-300',
+    border: 'border-purple-600/35 dark:border-purple-500/40',
     accent: 'bg-purple-500',
   },
   {
     name: 'Rosa',
     id: 'rose',
-    bg: 'bg-rose-950/40',
-    text: 'text-rose-300',
-    border: 'border-rose-600/40',
+    bg: 'bg-rose-500/15',
+    text: 'text-rose-800 dark:text-rose-300',
+    border: 'border-rose-600/35 dark:border-rose-500/40',
     accent: 'bg-rose-500',
   },
   {
     name: 'Índigo',
     id: 'indigo',
-    bg: 'bg-indigo-950/40',
-    text: 'text-indigo-300',
-    border: 'border-indigo-600/40',
+    bg: 'bg-indigo-500/15',
+    text: 'text-indigo-800 dark:text-indigo-300',
+    border: 'border-indigo-600/35 dark:border-indigo-500/40',
     accent: 'bg-indigo-500',
   },
 ];
@@ -156,9 +156,9 @@ export const DEFAULT_SECTIONS: CustomSectionConfig[] = [
     name: 'Verso',
     shortcut: 'v',
     colorName: 'Azul',
-    bg: 'bg-blue-950/40',
-    text: 'text-blue-300',
-    border: 'border-blue-600/40',
+    bg: 'bg-blue-500/15',
+    text: 'text-blue-800 dark:text-blue-300',
+    border: 'border-blue-600/35 dark:border-blue-500/40',
     accent: 'bg-blue-500',
   },
   {
@@ -166,9 +166,9 @@ export const DEFAULT_SECTIONS: CustomSectionConfig[] = [
     name: 'Refrão',
     shortcut: 'r',
     colorName: 'Esmeralda',
-    bg: 'bg-emerald-950/40',
-    text: 'text-emerald-300',
-    border: 'border-emerald-600/40',
+    bg: 'bg-emerald-500/15',
+    text: 'text-emerald-800 dark:text-emerald-300',
+    border: 'border-emerald-600/35 dark:border-emerald-500/40',
     accent: 'bg-emerald-500',
   },
   {
@@ -176,9 +176,9 @@ export const DEFAULT_SECTIONS: CustomSectionConfig[] = [
     name: 'Pré-Refrão',
     shortcut: 'c',
     colorName: 'Teal',
-    bg: 'bg-teal-950/40',
-    text: 'text-teal-300',
-    border: 'border-teal-600/40',
+    bg: 'bg-teal-500/15',
+    text: 'text-teal-800 dark:text-teal-300',
+    border: 'border-teal-600/35 dark:border-teal-500/40',
     accent: 'bg-teal-500',
   },
   {
@@ -186,9 +186,9 @@ export const DEFAULT_SECTIONS: CustomSectionConfig[] = [
     name: 'Ponte',
     shortcut: 'p',
     colorName: 'Âmbar',
-    bg: 'bg-amber-950/40',
-    text: 'text-amber-300',
-    border: 'border-amber-600/40',
+    bg: 'bg-amber-500/15',
+    text: 'text-amber-800 dark:text-amber-300',
+    border: 'border-amber-600/35 dark:border-amber-500/40',
     accent: 'bg-amber-500',
   },
   {
@@ -196,9 +196,9 @@ export const DEFAULT_SECTIONS: CustomSectionConfig[] = [
     name: 'Intro',
     shortcut: 'i',
     colorName: 'Ciano',
-    bg: 'bg-cyan-950/40',
-    text: 'text-cyan-300',
-    border: 'border-cyan-600/40',
+    bg: 'bg-cyan-500/15',
+    text: 'text-cyan-800 dark:text-cyan-300',
+    border: 'border-cyan-600/35 dark:border-cyan-500/40',
     accent: 'bg-cyan-500',
   },
   {
@@ -206,9 +206,9 @@ export const DEFAULT_SECTIONS: CustomSectionConfig[] = [
     name: 'Final',
     shortcut: 'f',
     colorName: 'Roxo',
-    bg: 'bg-purple-950/40',
-    text: 'text-purple-300',
-    border: 'border-purple-600/40',
+    bg: 'bg-purple-500/15',
+    text: 'text-purple-800 dark:text-purple-300',
+    border: 'border-purple-600/35 dark:border-purple-500/40',
     accent: 'bg-purple-500',
   },
   {
@@ -216,9 +216,9 @@ export const DEFAULT_SECTIONS: CustomSectionConfig[] = [
     name: 'Instrumental',
     shortcut: 'm',
     colorName: 'Rosa',
-    bg: 'bg-rose-950/40',
-    text: 'text-rose-300',
-    border: 'border-rose-600/40',
+    bg: 'bg-rose-500/15',
+    text: 'text-rose-800 dark:text-rose-300',
+    border: 'border-rose-600/35 dark:border-rose-500/40',
     accent: 'bg-rose-500',
   },
   {
@@ -226,9 +226,9 @@ export const DEFAULT_SECTIONS: CustomSectionConfig[] = [
     name: 'Tag',
     shortcut: 't',
     colorName: 'Índigo',
-    bg: 'bg-indigo-950/40',
-    text: 'text-indigo-300',
-    border: 'border-indigo-600/40',
+    bg: 'bg-indigo-500/15',
+    text: 'text-indigo-800 dark:text-indigo-300',
+    border: 'border-indigo-600/35 dark:border-indigo-500/40',
     accent: 'bg-indigo-500',
   },
 ];
@@ -297,16 +297,16 @@ function loadInitialAccentTheme(): AccentTheme {
 function loadInitialWallpaperFit(): WallpaperFitMode {
   if (typeof window === 'undefined') return 'cover';
   const saved = localStorage.getItem(STORAGE_WALLPAPER_FIT_KEY);
-  if (saved === 'cover' || saved === 'contain' || saved === 'center' || saved === 'repeat') {
+  if (saved === 'cover' || saved === 'contain' || saved === 'fill' || saved === 'center' || saved === 'repeat') {
     return saved;
   }
   return 'cover';
 }
 
 function loadInitialPreviewLabels(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') return true;
   const saved = localStorage.getItem(STORAGE_PREVIEW_LABELS_KEY);
-  return saved === 'true';
+  return saved !== 'false';
 }
 
 function loadInitialSetlistViewMode(): SetlistViewMode {
@@ -318,6 +318,20 @@ function loadInitialSetlistViewMode(): SetlistViewMode {
   return 'item';
 }
 
+function normalizeSectionThemeClasses(sec: CustomSectionConfig): CustomSectionConfig {
+  const matchedPreset = COLOR_PRESETS.find((p) => p.name === sec.colorName || sec.bg?.includes(p.id));
+  if (!matchedPreset || (sec.text.includes('dark:') && !sec.bg.includes('-950/'))) {
+    return sec;
+  }
+  return {
+    ...sec,
+    bg: matchedPreset.bg,
+    text: matchedPreset.text,
+    border: matchedPreset.border,
+    accent: matchedPreset.accent,
+  };
+}
+
 function loadInitialSections(): CustomSectionConfig[] {
   if (typeof window === 'undefined') return DEFAULT_SECTIONS;
   try {
@@ -325,7 +339,7 @@ function loadInitialSections(): CustomSectionConfig[] {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return parsed.map(normalizeSectionThemeClasses);
       }
     }
   } catch {
@@ -380,62 +394,79 @@ export function setSetlistViewMode(mode: SetlistViewMode) {
   }
 }
 
+const BASE_COLOR_TOKENS: Record<
+  BaseColor,
+  {
+    dark: { bg: string; card: string; border: string; muted: string; mutedFg: string; fg: string };
+    light: { bg: string; card: string; border: string; muted: string; mutedFg: string; fg: string };
+  }
+> = {
+  neutral: {
+    dark: { bg: '#0a0a0a', card: '#141414', border: '#262626', muted: '#262626', mutedFg: '#a3a3a3', fg: '#fafafa' },
+    light: { bg: '#ffffff', card: '#fafafa', border: '#e5e5e5', muted: '#f5f5f5', mutedFg: '#525252', fg: '#0a0a0a' },
+  },
+  stone: {
+    dark: { bg: '#0c0a09', card: '#1c1917', border: '#292524', muted: '#292524', mutedFg: '#a8a29e', fg: '#f5f5f4' },
+    light: { bg: '#ffffff', card: '#fafaf9', border: '#e7e5e4', muted: '#f5f5f4', mutedFg: '#57534e', fg: '#0c0a09' },
+  },
+  zinc: {
+    dark: { bg: '#09090b', card: '#18181b', border: '#27272a', muted: '#27272a', mutedFg: '#a1a1aa', fg: '#f4f4f5' },
+    light: { bg: '#ffffff', card: '#fafafa', border: '#e4e4e7', muted: '#f4f4f5', mutedFg: '#52525b', fg: '#09090b' },
+  },
+  mauve: {
+    dark: { bg: '#0d0b12', card: '#181522', border: '#282338', muted: '#282338', mutedFg: '#a69fb7', fg: '#f5f3fa' },
+    light: { bg: '#ffffff', card: '#faf9fc', border: '#e5e1ed', muted: '#f4f2f8', mutedFg: '#554f68', fg: '#0d0b12' },
+  },
+  olive: {
+    dark: { bg: '#0b0e0c', card: '#141a16', border: '#222b25', muted: '#222b25', mutedFg: '#9fae9f', fg: '#f3f7f4' },
+    light: { bg: '#ffffff', card: '#f9faf9', border: '#e1e8e3', muted: '#f1f5f2', mutedFg: '#48594d', fg: '#0b0e0c' },
+  },
+  mist: {
+    dark: { bg: '#0a0d10', card: '#141920', border: '#202936', muted: '#202936', mutedFg: '#9daab9', fg: '#f4f7fa' },
+    light: { bg: '#ffffff', card: '#f8fafc', border: '#e2e8f0', muted: '#f1f5f9', mutedFg: '#475569', fg: '#020617' },
+  },
+  taupe: {
+    dark: { bg: '#0e0d0b', card: '#1b1916', border: '#2e2b26', muted: '#2e2b26', mutedFg: '#aba49b', fg: '#f7f6f4' },
+    light: { bg: '#ffffff', card: '#faf9f7', border: '#e8e4de', muted: '#f5f3ef', mutedFg: '#57524a', fg: '#0e0d0b' },
+  },
+};
+
 export function applyBaseColor(color: BaseColor, isDark = true) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   root.setAttribute('data-base-color', color);
 
-  if (color === 'neutral') {
-    root.style.setProperty('--background', isDark ? '#0a0a0a' : '#ffffff');
-    root.style.setProperty('--card', isDark ? '#141414' : '#fafafa');
-    root.style.setProperty('--border', isDark ? '#262626' : '#e5e5e5');
-    root.style.setProperty('--muted', isDark ? '#262626' : '#f5f5f5');
-    root.style.setProperty('--muted-foreground', isDark ? '#a3a3a3' : '#737373');
-    root.style.setProperty('--foreground', isDark ? '#fafafa' : '#0a0a0a');
-  } else if (color === 'stone') {
-    root.style.setProperty('--background', isDark ? '#0c0a09' : '#ffffff');
-    root.style.setProperty('--card', isDark ? '#1c1917' : '#fafaf9');
-    root.style.setProperty('--border', isDark ? '#292524' : '#e7e5e4');
-    root.style.setProperty('--muted', isDark ? '#292524' : '#f5f5f4');
-    root.style.setProperty('--muted-foreground', isDark ? '#a8a29e' : '#78716c');
-    root.style.setProperty('--foreground', isDark ? '#f5f5f4' : '#0c0a09');
-  } else if (color === 'zinc') {
-    root.style.setProperty('--background', isDark ? '#09090b' : '#ffffff');
-    root.style.setProperty('--card', isDark ? '#18181b' : '#fafafa');
-    root.style.setProperty('--border', isDark ? '#27272a' : '#e4e4e7');
-    root.style.setProperty('--muted', isDark ? '#27272a' : '#f4f4f5');
-    root.style.setProperty('--muted-foreground', isDark ? '#a1a1aa' : '#71717a');
-    root.style.setProperty('--foreground', isDark ? '#f4f4f5' : '#09090b');
-  } else if (color === 'mauve') {
-    root.style.setProperty('--background', isDark ? '#0d0b12' : '#ffffff');
-    root.style.setProperty('--card', isDark ? '#181522' : '#faf9fc');
-    root.style.setProperty('--border', isDark ? '#282338' : '#e5e1ed');
-    root.style.setProperty('--muted', isDark ? '#282338' : '#f4f2f8');
-    root.style.setProperty('--muted-foreground', isDark ? '#9e97af' : '#736d85');
-    root.style.setProperty('--foreground', isDark ? '#f5f3fa' : '#0d0b12');
-  } else if (color === 'olive') {
-    root.style.setProperty('--background', isDark ? '#0b0e0c' : '#ffffff');
-    root.style.setProperty('--card', isDark ? '#141a16' : '#f9faf9');
-    root.style.setProperty('--border', isDark ? '#222b25' : '#e1e8e3');
-    root.style.setProperty('--muted', isDark ? '#222b25' : '#f1f5f2');
-    root.style.setProperty('--muted-foreground', isDark ? '#98a69c' : '#6e7d72');
-    root.style.setProperty('--foreground', isDark ? '#f3f7f4' : '#0b0e0c');
-  } else if (color === 'mist') {
-    root.style.setProperty('--background', isDark ? '#0a0d10' : '#ffffff');
-    root.style.setProperty('--card', isDark ? '#141920' : '#f8fafc');
-    root.style.setProperty('--border', isDark ? '#202936' : '#e2e8f0');
-    root.style.setProperty('--muted', isDark ? '#202936' : '#f1f5f9');
-    root.style.setProperty('--muted-foreground', isDark ? '#94a1b2' : '#64748b');
-    root.style.setProperty('--foreground', isDark ? '#f4f7fa' : '#020617');
-  } else if (color === 'taupe') {
-    root.style.setProperty('--background', isDark ? '#0e0d0b' : '#ffffff');
-    root.style.setProperty('--card', isDark ? '#1b1916' : '#faf9f7');
-    root.style.setProperty('--border', isDark ? '#2e2b26' : '#e8e4de');
-    root.style.setProperty('--muted', isDark ? '#2e2b26' : '#f5f3ef');
-    root.style.setProperty('--muted-foreground', isDark ? '#aba49b' : '#787268');
-    root.style.setProperty('--foreground', isDark ? '#f7f6f4' : '#0e0d0b');
-  }
+  const family = BASE_COLOR_TOKENS[color] ?? BASE_COLOR_TOKENS.neutral;
+  const palette = isDark ? family.dark : family.light;
+
+  root.style.setProperty('--background', palette.bg);
+  root.style.setProperty('--card', palette.card);
+  root.style.setProperty('--card-foreground', palette.fg);
+  root.style.setProperty('--popover', isDark ? palette.card : '#ffffff');
+  root.style.setProperty('--popover-foreground', palette.fg);
+  root.style.setProperty('--secondary', palette.muted);
+  root.style.setProperty('--secondary-foreground', palette.fg);
+  root.style.setProperty('--muted', palette.muted);
+  root.style.setProperty('--muted-foreground', palette.mutedFg);
+  root.style.setProperty('--accent', palette.muted);
+  root.style.setProperty('--accent-foreground', palette.fg);
+  root.style.setProperty('--border', palette.border);
+  root.style.setProperty('--input', palette.border);
+  root.style.setProperty('--foreground', palette.fg);
+  root.style.setProperty('--destructive', isDark ? '#dc2626' : '#b91c1c');
+  root.style.setProperty('--destructive-foreground', '#ffffff');
 }
+
+const LIGHT_MODE_ACCESSIBLE_PRIMARIES: Partial<Record<AccentTheme, string>> = {
+  blue: '#2563eb',
+  fuchsia: '#a21caf',
+  indigo: '#4f46e5',
+  orange: '#c2410c',
+  pink: '#be185d',
+  purple: '#7e22ce',
+  rose: '#be123c',
+  violet: '#6d28d9',
+};
 
 export function applyAccentTheme(theme: AccentTheme, isDark = true) {
   if (typeof document === 'undefined') return;
@@ -446,11 +477,12 @@ export function applyAccentTheme(theme: AccentTheme, isDark = true) {
   if (theme === 'neutral') {
     root.style.setProperty('--primary', isDark ? '#fafafa' : '#171717');
     root.style.setProperty('--primary-foreground', isDark ? '#0a0a0a' : '#fafafa');
-    root.style.setProperty('--ring', isDark ? '#a3a3a3' : '#737373');
+    root.style.setProperty('--ring', isDark ? '#a3a3a3' : '#525252');
   } else {
-    root.style.setProperty('--primary', preset.primaryColor);
+    const primary = isDark ? preset.primaryColor : (LIGHT_MODE_ACCESSIBLE_PRIMARIES[theme] ?? preset.primaryColor);
+    root.style.setProperty('--primary', primary);
     root.style.setProperty('--primary-foreground', preset.primaryForeground);
-    root.style.setProperty('--ring', preset.ringColor);
+    root.style.setProperty('--ring', primary);
   }
 }
 
@@ -459,8 +491,7 @@ export function setBaseColor(color: BaseColor) {
     localStorage.setItem(STORAGE_BASE_COLOR_KEY, color);
   }
   baseColorStore.set(color);
-  const isDark =
-    document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
+  const isDark = document.documentElement.classList.contains('dark');
   applyBaseColor(color, isDark);
 }
 
@@ -477,8 +508,7 @@ export function setAccentTheme(theme: AccentTheme) {
     localStorage.setItem(STORAGE_ACCENT_THEME_KEY, theme);
   }
   accentThemeStore.set(theme);
-  const isDark =
-    document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
+  const isDark = document.documentElement.classList.contains('dark');
   applyAccentTheme(theme, isDark);
 }
 
@@ -573,9 +603,9 @@ export function getSectionStyle(
 
   // Padrão (Verso)
   return {
-    bg: 'bg-blue-950/40',
-    text: 'text-blue-300',
-    border: 'border-blue-600/40',
+    bg: 'bg-blue-500/15',
+    text: 'text-blue-800 dark:text-blue-300',
+    border: 'border-blue-600/35 dark:border-blue-500/40',
     accent: 'bg-blue-500',
   };
 }

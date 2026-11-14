@@ -6,7 +6,7 @@
   import RemoteView from '$lib/views/RemoteView.svelte';
   import LowerThirdView from '$lib/views/LowerThirdView.svelte';
   import Sonner from '$lib/components/ui/Sonner.svelte';
-  import { toastPositionStore } from '$lib/settings';
+  import { initAppTheme, themeStore, toastPositionStore } from '$lib/settings';
 
   let currentPath = $state(window.location.pathname);
 
@@ -23,13 +23,34 @@
       currentPath = '/remote';
     }
 
+    if (
+      !window.location.pathname.startsWith('/public') &&
+      !window.location.pathname.startsWith('/stage') &&
+      !window.location.pathname.startsWith('/lower') &&
+      !window.location.pathname.startsWith('/obs')
+    ) {
+      initAppTheme();
+    }
+
     const handlePopState = () => {
       currentPath = window.location.pathname;
     };
 
+    const handleStorage = (event: StorageEvent) => {
+      if (
+        event.key === 'openpresenter:theme' ||
+        event.key === 'openpresenter:base-color' ||
+        event.key === 'openpresenter:accent-theme'
+      ) {
+        initAppTheme();
+      }
+    };
+
     window.addEventListener('popstate', handlePopState);
+    window.addEventListener('storage', handleStorage);
     return () => {
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('storage', handleStorage);
     };
   });
 
@@ -97,6 +118,17 @@
     } else {
       document.documentElement.classList.remove('is-lower-third');
       document.body.classList.remove('is-lower-third');
+    }
+
+    const themeColorMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (themeColorMeta && (viewMode === 'remote' || viewMode === 'admin')) {
+      const currentTheme = $themeStore;
+      const prefersDark =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const isDark =
+        currentTheme === 'dark' || (currentTheme === 'system' && prefersDark);
+      themeColorMeta.content = isDark ? '#0a0a0a' : '#fafafa';
     }
   });
 </script>

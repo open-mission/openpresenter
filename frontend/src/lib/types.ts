@@ -26,6 +26,12 @@ export interface Slide {
   align_h?: 'left' | 'center' | 'right' | 'justify';
   align_v?: 'top' | 'center' | 'bottom';
   lower_content?: string;
+  metadata?: {
+    schedule_day?: string;
+    schedule_time?: string;
+    schedule_details?: string;
+    [key: string]: string | undefined;
+  };
 }
 
 export interface MediaItem {
@@ -197,6 +203,7 @@ export interface AudioPlaybackState {
   duration_seconds: number;
   title: string;
   artist_or_ref?: string;
+  url?: string;
 }
 
 export interface PresentationState {
@@ -322,7 +329,7 @@ export interface PublicDisplaySettings {
   max_font_size?: number;
 
   // Encaixe e Margens do Plano de Fundo (Wallpaper)
-  wallpaper_fit?: ImageFitMode;
+  wallpaper_fit?: ImageFitMode | 'repeat';
   wallpaper_safe_margins?: boolean;
 
   // Letras de Músicas

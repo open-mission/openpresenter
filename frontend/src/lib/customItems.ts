@@ -1,4 +1,5 @@
 import { writable, get } from 'svelte/store';
+import { readHttpError } from './media';
 import type { MediaItem } from './types';
 
 const CUSTOM_ITEMS_KEY = 'custom_media_items';
@@ -95,15 +96,37 @@ export const DEFAULT_CUSTOM_ITEMS: MediaItem[] = [
 ];
 
 export const customItemsStore = writable<MediaItem[]>([]);
+export const customItemsErrorStore = writable<string | null>(null);
 
 let isInitialized = false;
+let inFlightLoad: Promise<MediaItem[]> | null = null;
+let hasSeededDefaults = false;
 
-export async function loadCustomItems(): Promise<MediaItem[]> {
-  try {
-    const res = await fetch(`/api/settings/${CUSTOM_ITEMS_KEY}`);
-    if (res.ok) {
+export async function loadCustomItems(force = false): Promise<MediaItem[]> {
+  if (!force) {
+    if (isInitialized && !get(customItemsErrorStore)) {
+      return get(customItemsStore);
+    }
+    if (inFlightLoad) {
+      return inFlightLoad;
+    }
+  }
+
+  inFlightLoad = (async () => {
+    customItemsErrorStore.set(null);
+    try {
+      const res = await fetch(`/api/settings/${CUSTOM_ITEMS_KEY}`);
+      if (!res.ok) {
+        const message = `Falha ao carregar catálogo Outros (HTTP ${res.status}).`;
+        customItemsErrorStore.set(message);
+        if (get(customItemsStore).length === 0) {
+          customItemsStore.set(DEFAULT_CUSTOM_ITEMS);
+        }
+        return get(customItemsStore);
+      }
+
       const data = await res.json();
-      if (data.value) {
+      if (data?.value) {
         const parsed: MediaItem[] = JSON.parse(data.value);
         if (Array.isArray(parsed) && parsed.length > 0) {
           customItemsStore.set(parsed);
@@ -111,28 +134,54 @@ export async function loadCustomItems(): Promise<MediaItem[]> {
           return parsed;
         }
       }
-    }
-  } catch (err) {
-    console.error('Falha ao buscar itens customizados do backend:', err);
-  }
 
-  // Se não houver itens salvos, inicializa com os exemplos padrão
-  customItemsStore.set(DEFAULT_CUSTOM_ITEMS);
-  saveCustomItems(DEFAULT_CUSTOM_ITEMS).catch(() => {});
-  isInitialized = true;
-  return DEFAULT_CUSTOM_ITEMS;
+      // Backend respondeu 200 sem itens salvos ainda: inicializa exemplos padrão uma única vez
+      customItemsStore.set(DEFAULT_CUSTOM_ITEMS);
+      isInitialized = true;
+      if (!hasSeededDefaults) {
+        hasSeededDefaults = true;
+        await persistCustomItemsToBackend(DEFAULT_CUSTOM_ITEMS).catch(() => {});
+      }
+      return DEFAULT_CUSTOM_ITEMS;
+    } catch (err) {
+      console.error('Falha ao buscar itens customizados do backend:', err);
+      customItemsErrorStore.set('Não foi possível conectar ao servidor para carregar o catálogo.');
+      if (get(customItemsStore).length === 0) {
+        customItemsStore.set(DEFAULT_CUSTOM_ITEMS);
+      }
+      return get(customItemsStore);
+    } finally {
+      inFlightLoad = null;
+    }
+  })();
+
+  return inFlightLoad;
+}
+
+async function persistCustomItemsToBackend(items: MediaItem[]): Promise<void> {
+  const res = await fetch(`/api/settings/${CUSTOM_ITEMS_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: JSON.stringify(items) }),
+  });
+  if (!res.ok) {
+    throw new Error(await readHttpError(res, 'Falha ao salvar catálogo Outros'));
+  }
 }
 
 export async function saveCustomItems(items: MediaItem[]): Promise<void> {
+  const previous = get(customItemsStore);
   customItemsStore.set(items);
+  customItemsErrorStore.set(null);
   try {
-    await fetch(`/api/settings/${CUSTOM_ITEMS_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: JSON.stringify(items) }),
-    });
+    await persistCustomItemsToBackend(items);
+    isInitialized = true;
   } catch (err) {
+    customItemsStore.set(previous);
+    const message = err instanceof Error ? err.message : 'Falha ao salvar itens customizados no servidor.';
+    customItemsErrorStore.set(message);
     console.error('Falha ao salvar itens customizados no backend:', err);
+    throw err;
   }
 }
 
@@ -156,7 +205,7 @@ export async function deleteCustomItem(id: string): Promise<void> {
 }
 
 export async function importItemsFromSetlist(setlistItems: MediaItem[]): Promise<number> {
-  const supportedKinds = new Set(['schedule', 'text', 'announcement', 'header']);
+  const supportedKinds = new Set(['schedule', 'text', 'announcement', 'header', 'timer']);
   const candidates = setlistItems.filter((i) => supportedKinds.has(i.kind));
   if (candidates.length === 0) return 0;
 

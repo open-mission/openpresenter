@@ -13,6 +13,8 @@
     'aria-expanded'?: boolean | 'true' | 'false';
     'aria-haspopup'?: boolean | 'true' | 'false' | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog';
     'aria-controls'?: string;
+    'aria-pressed'?: boolean | 'true' | 'false' | 'mixed';
+    'aria-current'?: boolean | 'page' | 'step' | 'location' | 'date' | 'time' | 'true' | 'false';
     id?: string;
     onclick?: (e: MouseEvent) => void;
     children?: Snippet;
@@ -29,6 +31,8 @@
     'aria-expanded': ariaExpanded,
     'aria-haspopup': ariaHasPopup,
     'aria-controls': ariaControls,
+    'aria-pressed': ariaPressed,
+    'aria-current': ariaCurrent,
     id,
     onclick,
     children,
@@ -40,7 +44,7 @@
     outline: 'border border-border text-foreground hover:bg-muted hover:text-foreground',
     destructive: 'bg-destructive text-destructive-foreground hover:opacity-90 shadow-sm font-medium',
     ghost: 'text-muted-foreground hover:bg-muted hover:text-foreground',
-    live: 'bg-primary text-primary-foreground font-semibold ring-2 ring-ring/60 shadow-md animate-pulse',
+    live: 'bg-primary text-primary-foreground font-semibold ring-2 ring-ring/60 shadow-md',
     subtle: 'bg-card text-foreground hover:bg-muted border border-border',
   };
 
@@ -62,6 +66,8 @@
   aria-expanded={ariaExpanded}
   aria-haspopup={ariaHasPopup}
   aria-controls={ariaControls}
+  aria-pressed={ariaPressed}
+  aria-current={ariaCurrent}
   class={cn(
     'inline-flex items-center justify-center gap-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none',
     variantClasses[variant],

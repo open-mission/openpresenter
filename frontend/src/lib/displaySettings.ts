@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { readHttpError } from './media';
 import { customItemsStore } from './customItems';
 import type {
   PublicDisplaySettings,
@@ -294,71 +295,80 @@ export async function syncDisplaySettingsFromBackend() {
   }
 }
 
+async function postDisplaySetting(
+  endpoint: string,
+  payload: unknown,
+  fallbackError: string
+): Promise<void> {
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: JSON.stringify(payload) }),
+  });
+  if (!res.ok) {
+    throw new Error(await readHttpError(res, fallbackError));
+  }
+}
+
 // Funções de salvamento que atualizam Store, localStorage e Backend
 export async function savePublicDisplaySettings(settings: PublicDisplaySettings) {
   publicSettingsStore.set(settings);
   saveLocal('public_settings', settings);
-
-  fetch('/api/settings/public_display', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ value: JSON.stringify(settings) }),
-  }).catch(() => {});
+  await postDisplaySetting(
+    '/api/settings/public_display',
+    settings,
+    'Falha ao salvar configurações da Tela Pública'
+  );
 }
 
 export async function saveChurchBrandSettings(settings: ChurchBrandSettings) {
   churchBrandStore.set(settings);
   saveLocal('church_brand', settings);
-
-  fetch('/api/settings/church_brand', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ value: JSON.stringify(settings) }),
-  }).catch(() => {});
+  await postDisplaySetting(
+    '/api/settings/church_brand',
+    settings,
+    'Falha ao salvar identidade visual da igreja'
+  );
 }
 
 export async function saveStageDisplaySettings(settings: StageDisplaySettings) {
   stageSettingsStore.set(settings);
   saveLocal('stage_settings', settings);
-
-  fetch('/api/settings/stage_display', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ value: JSON.stringify(settings) }),
-  }).catch(() => {});
+  await postDisplaySetting(
+    '/api/settings/stage_display',
+    settings,
+    'Falha ao salvar configurações do Monitor de Palco'
+  );
 }
 
 export async function saveBackgroundStyles(styles: BackgroundStylesMap) {
   backgroundStylesStore.set(styles);
   saveLocal('background_styles', styles);
-
-  fetch('/api/settings/background_styles_config', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ value: JSON.stringify(styles) }),
-  }).catch(() => {});
+  await postDisplaySetting(
+    '/api/settings/background_styles_config',
+    styles,
+    'Falha ao salvar estilos de fundo de letras'
+  );
 }
 
 export async function saveLowerThirdSettings(settings: LowerThirdSettings) {
   lowerThirdSettingsStore.set(settings);
   saveLocal('lower_third_settings', settings);
-
-  fetch('/api/settings/lower_third_display', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ value: JSON.stringify(settings) }),
-  }).catch(() => {});
+  await postDisplaySetting(
+    '/api/settings/lower_third_display',
+    settings,
+    'Falha ao salvar configurações de Lower Third'
+  );
 }
 
 export async function saveSongSettings(settings: SongSettings) {
   songSettingsStore.set(settings);
   saveLocal('song_settings', settings);
-
-  fetch('/api/settings/song_settings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ value: JSON.stringify(settings) }),
-  }).catch(() => {});
+  await postDisplaySetting(
+    '/api/settings/song_settings',
+    settings,
+    'Falha ao salvar configurações de Músicas'
+  );
 }
 
 // Aplica atualizações de configuração recebidas via WebSocket em tempo real

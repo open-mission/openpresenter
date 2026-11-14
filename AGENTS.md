@@ -14,6 +14,15 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
+Quando houver mudanças em `frontend/`, execute também os portões de frontend e valide em navegador (`1440×900` e `1024×768`, temas `Escuro` e `Claro` via configurações reais do app):
+
+```bash
+cd frontend
+npm run check
+npm run build
+npx impeccable detect --json
+```
+
 ## Regras
 
 1. Antes de implementar qualquer funcionalidade ou mudança relevante, criar ou atualizar uma spec em `docs/specs/` com intenção, escopo, decisões e critérios de aceite; para mudanças com várias etapas, criar o plano correspondente em `docs/plans/`.
@@ -30,6 +39,7 @@ cargo test --workspace
 12. Manter `AGENTS.md` e `GEMINI.md` sincronizados; em caso de divergência, `AGENTS.md` é a fonte canônica.
 13. Preservar a licença GPL-3.0-only e a política de marca: forks não podem usar o nome ou a identidade visual do OpenPresenter como se fossem oficiais.
 14. TODO.md tem os itens pendentes a ser implementado em Backlog, quando o usuário pedir para Continuar o trabalho pendente no Backlog, analisar o arquivo e ver o que está em Backlog, e a medida que for fazendo e concluindo, atualizar o status da tarefa. E sempre commit de forma organizada e seguindo o GitFlow.
+15. Em qualquer tarefa de interface ou lógica em `frontend/`, seguir rigorosamente [`docs/architecture/frontend-standards.md`](docs/architecture/frontend-standards.md) (tokens semânticos dark/light, proteção de atalhos globais, zero loops de retry em `$effect`, WAI-ARIA sem controles aninhados, alvos `>= 24px`, texto funcional `>= 11px` e modularização).
 
 ## Sincronização
 

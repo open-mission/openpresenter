@@ -184,6 +184,22 @@ export function getDepartmentEmoji(deptName: string): string {
   return '👥';
 }
 
+export function isRosterLeadRole(role?: string | null): boolean {
+  return role === 'lead' || role === 'titular';
+}
+
+export function formatRosterRoleLabel(role?: string | null): string {
+  if (isRosterLeadRole(role)) return 'Titular';
+  if (role === 'backup') return 'Apoio';
+  return 'Auxiliar';
+}
+
+export function formatMemberRoleLabel(role?: string | null): string {
+  if (role === 'leader') return 'Líder da Equipe';
+  if (role === 'vice_leader') return 'Vice-Líder';
+  return 'Voluntário';
+}
+
 export function formatRosterWhatsApp(
   roster: ServiceRoster,
   departments: TeamDepartment[],
@@ -233,7 +249,7 @@ export function formatRosterWhatsApp(
     for (const item of items) {
       const member = memberMap.get(item.member_id);
       const name = member ? member.name : 'Voluntário';
-      const roleLabel = item.role === 'assistant' ? 'Auxiliar' : item.role === 'backup' ? 'Apoio' : 'Titular';
+      const roleLabel = formatRosterRoleLabel(item.role);
       
       let statusEmoji = '⏳ Pendente';
       if (item.status === 'confirmed') statusEmoji = '✅ Confirmado';

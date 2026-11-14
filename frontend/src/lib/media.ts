@@ -33,10 +33,49 @@ export async function createMediaDirectory(
     }),
   });
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || 'Falha ao criar pasta');
+    throw new Error(await readHttpError(res, 'Falha ao criar pasta'));
   }
   return res.json();
+}
+
+export function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      if (!result) {
+        reject(new Error(`Arquivo "${file.name}" vazio ou ilegível.`));
+        return;
+      }
+      resolve(result);
+    };
+    reader.onerror = () => {
+      reject(new Error(`Falha ao ler arquivo "${file.name}".`));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+export function readFileAsBase64(file: File): Promise<string> {
+  return readFileAsDataUrl(file).then((result) => {
+    const b64 = result.includes(',') ? result.split(',')[1] : result;
+    if (!b64) {
+      throw new Error(`Arquivo "${file.name}" vazio ou ilegível.`);
+    }
+    return b64;
+  });
+}
+
+export async function readHttpError(res: Response, fallback: string): Promise<string> {
+  try {
+    const txt = (await res.text()).trim();
+    if (!txt || txt.startsWith('<')) {
+      return `${fallback} (HTTP ${res.status})`;
+    }
+    return txt.length > 220 ? `${txt.slice(0, 220)}…` : txt;
+  } catch {
+    return `${fallback} (HTTP ${res.status})`;
+  }
 }
 
 export async function uploadImage(
@@ -55,13 +94,13 @@ export async function uploadImage(
       subfolder,
     }),
   });
-  if (!res.ok) throw new Error('Falha ao enviar imagem');
+  if (!res.ok) throw new Error(await readHttpError(res, 'Falha ao enviar imagem'));
   return res.json();
 }
 
 export async function fetchVideos(): Promise<VideoMediaItem[]> {
   const res = await fetch('/api/media/videos');
-  if (!res.ok) throw new Error('Falha ao carregar vídeos');
+  if (!res.ok) throw new Error(await readHttpError(res, 'Falha ao carregar vídeos'));
   return res.json();
 }
 
@@ -81,13 +120,13 @@ export async function uploadVideo(
       subfolder,
     }),
   });
-  if (!res.ok) throw new Error('Falha ao enviar vídeo');
+  if (!res.ok) throw new Error(await readHttpError(res, 'Falha ao enviar vídeo'));
   return res.json();
 }
 
 export async function fetchAudios(): Promise<AudioMediaItem[]> {
   const res = await fetch('/api/media/audios');
-  if (!res.ok) throw new Error('Falha ao carregar áudios');
+  if (!res.ok) throw new Error(await readHttpError(res, 'Falha ao carregar áudios'));
   return res.json();
 }
 
@@ -100,7 +139,20 @@ export async function uploadAudio(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ filename, content_base64: contentBase64 }),
   });
-  if (!res.ok) throw new Error('Falha ao enviar áudio');
+  if (!res.ok) throw new Error(await readHttpError(res, 'Falha ao enviar áudio'));
+  return res.json();
+}
+
+export async function uploadWallpaper(
+  filename: string,
+  contentBase64: string
+): Promise<{ url: string; filename: string }> {
+  const res = await fetch('/api/media/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename, content_base64: contentBase64 }),
+  });
+  if (!res.ok) throw new Error(await readHttpError(res, 'Falha ao enviar fundo'));
   return res.json();
 }
 

@@ -14,8 +14,17 @@ Esta página descreve a arquitetura vigente do OpenPresenter Minimal. Ela deve s
 │   ├── src/
 │   │   ├── lib/
 │   │   │   ├── components/ui/  # componentes no padrão shadcn-svelte (Button, Badge, Card, MediaItemRow)
-│   │   │   ├── components/     # CommandPalette, SongEditorModal (Música/Texto), SettingsModal, SetlistModal, QuickItemModal, ContextMenu, BottomPanel, TimerControlPanel
-│   │   │   ├── views/          # visões principais: AdminView, PublicView, StageView (com 4 presets)
+│   │   │   ├── components/bottom-panel/ # subcomponentes e modais do BottomPanel (SongsTab, ImagesTab, VideosTab, AudiosTab, BackgroundsTab, OthersTab, ConfirmModal, CreateFolderModal, folderTree)
+│   │   │   ├── components/remote/ # subcomponentes modulares do RemoteView (/remote): RemoteDialog, RemoteHeader, RemoteLiveControlCard, RemoteBottomNav, RemoteHomeTab, RemoteSetlistTab, RemoteSongsTab, RemoteBibleTab, RemoteTeamTab
+│   │   │   ├── components/settings/ # subcomponentes, abas e primitivos do SettingsModal (tabs/*, BibleEditModal, SettingsRangeField, SettingsSelectMenu, SettingsToggle, types.ts)
+│   │   │   ├── components/     # CommandPalette, SongEditorModal (Música/Texto), SettingsModal, SetlistModal, QuickItemModal, ContextMenu, BottomPanel, BiblePanel, TimerControlPanel, RemoteLogin
+│   │   │   ├── views/          # visões principais: AdminView, PublicView, StageView (com 4 presets), LowerThirdView, RemoteView
+│   │   │   ├── audioPlayer.ts  # estado global persistente de reprodução de áudio
+│   │   │   ├── customItems.ts  # catálogo persistente da aba Outros e utilitários de API
+│   │   │   ├── media.ts        # helpers de upload, pastas externas e tratamento de erro HTTP (readHttpError)
+│   │   │   ├── remoteAuth.ts   # sessão persistida no /remote (voluntário + desbloqueio PIN)
+│   │   │   ├── remoteData.ts   # fetchers tipados, verificação de PIN, Safe Dispatch e formatadores do /remote
+│   │   │   ├── bibles.ts       # carregamento e estado compartilhado de versões da Bíblia
 │   │   │   ├── settings.ts     # gerenciamento de tema (dark/light/system), Base Colors e Theme Accents (Shadcn), seções customizadas
 │   │   │   ├── displaySettings.ts # gerenciamento persistente de margens públicas, marca da igreja e presets do monitor de palco
 │   │   │   ├── songParser.ts   # segmentador de letras e textos estilo Holyrics (## Partes, quebras de slides)

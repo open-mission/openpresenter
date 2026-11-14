@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 import type { DisplayMode, MediaItem, PresentationState, Setlist, WsMessage, ClientConnection, ActionLog } from './types';
 import { handleSettingBroadcast } from './displaySettings';
 import { getInstanceId, getDeviceInfo } from './instance';
-import { handleActionLogNotification } from './toast';
+import { handleActionLogNotification, notifyError } from './toast';
 
 export const presentationState = writable<PresentationState>({
   active_media_id: null,
@@ -41,8 +41,56 @@ export const audioControlCommandStore = writable<{
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let pingInterval: ReturnType<typeof setInterval> | null = null;
+let reconnectAttempts = 0;
+let activeClientType: 'admin' | 'public' | 'stage' | 'remote' | 'lower-third' = 'admin';
+let visibilityListenerAttached = false;
+let shouldReconnect = true;
+
+function scheduleReconnect() {
+  if (!shouldReconnect || reconnectTimer) return;
+  if (typeof document !== 'undefined' && document.hidden) return;
+  const delayMs = Math.min(2000 * Math.pow(2, reconnectAttempts), 15000);
+  reconnectAttempts = Math.min(reconnectAttempts + 1, 4);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    initWebSocket(activeClientType);
+  }, delayMs);
+}
+
+function attachVisibilityResume() {
+  if (visibilityListenerAttached || typeof document === 'undefined') return;
+  visibilityListenerAttached = true;
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && shouldReconnect && (!socket || socket.readyState === WebSocket.CLOSED)) {
+      reconnectAttempts = 0;
+      initWebSocket(activeClientType);
+    }
+  });
+}
+
+export function closeWebSocket() {
+  shouldReconnect = false;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (pingInterval) {
+    clearInterval(pingInterval);
+    pingInterval = null;
+  }
+  if (socket) {
+    socket.onclose = null;
+    socket.close();
+    socket = null;
+  }
+  isWsConnected.set(false);
+}
 
 export function initWebSocket(clientType: 'admin' | 'public' | 'stage' | 'remote' | 'lower-third' = 'admin') {
+  activeClientType = clientType;
+  shouldReconnect = true;
+  attachVisibilityResume();
+
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
     return;
   }
@@ -56,6 +104,7 @@ export function initWebSocket(clientType: 'admin' | 'public' | 'stage' | 'remote
 
     socket.onopen = () => {
       isWsConnected.set(true);
+      reconnectAttempts = 0;
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
@@ -91,14 +140,11 @@ export function initWebSocket(clientType: 'admin' | 'public' | 'stage' | 'remote
 
     socket.onclose = () => {
       isWsConnected.set(false);
-      if (pingInterval) clearInterval(pingInterval);
-      // Tenta reconectar a cada 2 segundos
-      if (!reconnectTimer) {
-        reconnectTimer = setTimeout(() => {
-          reconnectTimer = null;
-          initWebSocket(clientType);
-        }, 2000);
+      if (pingInterval) {
+        clearInterval(pingInterval);
+        pingInterval = null;
       }
+      scheduleReconnect();
     };
 
     socket.onerror = (err) => {
@@ -163,6 +209,38 @@ export function reloadOutputs(target: 'all' | 'public' | 'stage' = 'all') {
   });
 }
 
+let lastCommandErrorAt = 0;
+
+function reportCommandFailure(label: string) {
+  const now = Date.now();
+  if (now - lastCommandErrorAt < 4000) return;
+  lastCommandErrorAt = now;
+  notifyError('Falha ao comunicar com o servidor', `Não foi possível executar: ${label}. Verifique se o backend está online.`);
+}
+
+async function postCommand(url: string, body?: unknown, label = 'comando') {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) {
+      reportCommandFailure(label);
+    }
+  } catch {
+    reportCommandFailure(label);
+  }
+}
+
+export function reconnectWebSocket(clientType: 'admin' | 'public' | 'stage' | 'remote' | 'lower-third' = 'admin') {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  initWebSocket(clientType);
+}
+
 export function sendWsMessage(msg: WsMessage) {
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(msg));
@@ -176,11 +254,7 @@ export function selectSlide(mediaId: string, slideIndex: number) {
   });
 
   // Também dispara fetch HTTP como fallback garantido
-  fetch('/api/presentation/live', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ media_id: mediaId, slide_index: slideIndex }),
-  }).catch(() => {});
+  void postCommand('/api/presentation/live', { media_id: mediaId, slide_index: slideIndex }, 'selecionar slide');
 }
 
 export function setDisplayMode(mode: DisplayMode) {
@@ -189,11 +263,7 @@ export function setDisplayMode(mode: DisplayMode) {
     payload: { mode },
   });
 
-  fetch('/api/presentation/mode', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode }),
-  }).catch(() => {});
+  void postCommand('/api/presentation/mode', { mode }, `alterar saída (${mode})`);
 }
 
 export function stopPresentation() {
@@ -201,9 +271,7 @@ export function stopPresentation() {
     type: 'stop_presentation',
   });
 
-  fetch('/api/presentation/stop', {
-    method: 'POST',
-  }).catch(() => {});
+  void postCommand('/api/presentation/stop', undefined, 'parar projeção');
 }
 
 export function setPresentationWallpaper(path?: string, mode: string = 'cover') {
@@ -212,19 +280,15 @@ export function setPresentationWallpaper(path?: string, mode: string = 'cover') 
     payload: { path, mode },
   });
 
-  fetch('/api/presentation/wallpaper', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path, mode }),
-  }).catch(() => {});
+  void postCommand('/api/presentation/wallpaper', { path, mode }, 'alterar papel de parede');
 }
 
 export function toggleBlackout() {
-  fetch('/api/presentation/blackout', { method: 'POST' }).catch(() => {});
+  void postCommand('/api/presentation/blackout', undefined, 'alternar blackout');
 }
 
 export function toggleClearText() {
-  fetch('/api/presentation/clear', { method: 'POST' }).catch(() => {});
+  void postCommand('/api/presentation/clear', undefined, 'limpar texto');
 }
 
 export async function removeSetlistItem(itemId: string) {
@@ -264,13 +328,15 @@ export async function renameSetlistItem(itemId: string, newTitle: string) {
 
 export async function reorderSetlistItems(items: MediaItem[]) {
   try {
-    await fetch('/api/setlists/items/reorder', {
+    const res = await fetch('/api/setlists/items/reorder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items }),
     });
+    if (!res.ok) reportCommandFailure('reordenar setlist');
   } catch (err) {
     console.error('Erro ao reordenar setlist:', err);
+    reportCommandFailure('reordenar setlist');
   }
 }
 
@@ -283,25 +349,28 @@ export async function switchActiveSetlist(setlistId: string) {
       const data: Setlist = await res.json();
       activeSetlist.set(data);
       mediaItemsList.set(data.items);
+    } else {
+      reportCommandFailure('trocar setlist');
     }
   } catch (err) {
     console.error('Erro ao ativar setlist:', err);
+    reportCommandFailure('trocar setlist');
   }
 }
 
 export function startTimer() {
   sendWsMessage({ type: 'start_timer' });
-  fetch('/api/timer/start', { method: 'POST' }).catch(() => {});
+  void postCommand('/api/timer/start', undefined, 'iniciar cronômetro');
 }
 
 export function pauseTimer() {
   sendWsMessage({ type: 'pause_timer' });
-  fetch('/api/timer/pause', { method: 'POST' }).catch(() => {});
+  void postCommand('/api/timer/pause', undefined, 'pausar cronômetro');
 }
 
 export function resetTimer() {
   sendWsMessage({ type: 'reset_timer' });
-  fetch('/api/timer/reset', { method: 'POST' }).catch(() => {});
+  void postCommand('/api/timer/reset', undefined, 'reiniciar cronômetro');
 }
 
 export function setTimer(durationSeconds: number, label?: string, allowOvertime?: boolean) {
@@ -309,11 +378,7 @@ export function setTimer(durationSeconds: number, label?: string, allowOvertime?
     type: 'set_timer',
     payload: { duration_seconds: durationSeconds, label, allow_overtime: allowOvertime },
   });
-  fetch('/api/timer/set', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ duration_seconds: durationSeconds, label, allow_overtime: allowOvertime }),
-  }).catch(() => {});
+  void postCommand('/api/timer/set', { duration_seconds: durationSeconds, label, allow_overtime: allowOvertime }, 'definir cronômetro');
 }
 
 export function setTimerOvertime(allowOvertime: boolean) {
@@ -321,11 +386,7 @@ export function setTimerOvertime(allowOvertime: boolean) {
     type: 'set_timer_overtime',
     payload: { allow_overtime: allowOvertime },
   });
-  fetch('/api/timer/overtime', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ allow_overtime: allowOvertime }),
-  }).catch(() => {});
+  void postCommand('/api/timer/overtime', { allow_overtime: allowOvertime }, 'alternar hora extra');
 }
 
 export function quickPresentMedia(item: MediaItem, slideIndex: number = 0) {
@@ -333,11 +394,7 @@ export function quickPresentMedia(item: MediaItem, slideIndex: number = 0) {
     type: 'quick_present_media',
     payload: { item, slide_index: slideIndex },
   });
-  fetch('/api/presentation/quick-media', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ item, slide_index: slideIndex }),
-  }).catch(() => {});
+  void postCommand('/api/presentation/quick-media', { item, slide_index: slideIndex }, 'apresentar mídia rápida');
 }
 
 export function setStageMessage(message?: string) {
@@ -345,11 +402,7 @@ export function setStageMessage(message?: string) {
     type: 'set_stage_message',
     payload: { message },
   });
-  fetch('/api/timer/message', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
-  }).catch(() => {});
+  void postCommand('/api/timer/message', { message }, 'enviar mensagem de palco');
 }
 
 export function updateAudioPlayback(
@@ -369,26 +422,20 @@ export function updateAudioPlayback(
       artist_or_ref: artistOrRef,
     },
   });
-  fetch('/api/presentation/audio-playback', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      is_playing: isPlaying,
-      current_time_seconds: currentTimeSeconds,
-      duration_seconds: durationSeconds,
-      title,
-      artist_or_ref: artistOrRef,
-    }),
-  }).catch(() => {});
+  void postCommand('/api/presentation/audio-playback', {
+    is_playing: isPlaying,
+    current_time_seconds: currentTimeSeconds,
+    duration_seconds: durationSeconds,
+    title,
+    artist_or_ref: artistOrRef,
+  }, 'atualizar reprodução de áudio');
 }
 
 export function clearAudioPlayback() {
   sendWsMessage({
     type: 'clear_audio_playback',
   });
-  fetch('/api/presentation/audio-playback/clear', {
-    method: 'POST',
-  }).catch(() => {});
+  void postCommand('/api/presentation/audio-playback/clear', undefined, 'limpar reprodução de áudio');
 }
 
 export function controlAudioPlayback(

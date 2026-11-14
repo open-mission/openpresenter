@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { cn } from '$lib/utils';
 
   export interface MenuItem {
@@ -25,33 +26,84 @@
   let menuElement = $state<HTMLDivElement | null>(null);
   let adjustedX = $state(0);
   let adjustedY = $state(0);
+  let previousFocusedElement: HTMLElement | null = null;
+
+  function closeMenu() {
+    onclose();
+    if (previousFocusedElement && document.contains(previousFocusedElement)) {
+      previousFocusedElement.focus();
+    }
+    previousFocusedElement = null;
+  }
 
   $effect(() => {
     if (open) {
-      const menuWidth = 200;
-      const menuHeight = items.length * 36;
-      const maxX = window.innerWidth - menuWidth - 10;
-      const maxY = window.innerHeight - menuHeight - 10;
-      adjustedX = Math.max(10, Math.min(x, maxX));
-      adjustedY = Math.max(10, Math.min(y, maxY));
+      previousFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const estimatedWidth = 220;
+      const estimatedHeight = items.length * 36;
+      adjustedX = Math.max(10, Math.min(x, window.innerWidth - estimatedWidth - 10));
+      adjustedY = Math.max(10, Math.min(y, window.innerHeight - estimatedHeight - 10));
+
+      void tick().then(() => {
+        if (!menuElement || !open) return;
+        const rect = menuElement.getBoundingClientRect();
+        const maxX = window.innerWidth - rect.width - 10;
+        const maxY = window.innerHeight - rect.height - 10;
+        adjustedX = Math.max(10, Math.min(x, maxX));
+        adjustedY = Math.max(10, Math.min(y, maxY));
+        const firstEnabled = menuElement.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)');
+        firstEnabled?.focus();
+      });
     }
   });
 
   function handleBackdrop(e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    onclose();
+    closeMenu();
   }
 
-  function handleKeydown(e: KeyboardEvent) {
+  function handleMenuKeydown(e: KeyboardEvent) {
+    if (!open || !menuElement) return;
+    const enabledItems = Array.from(
+      menuElement.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')
+    );
     if (e.key === 'Escape') {
+      e.preventDefault();
       e.stopPropagation();
-      onclose();
+      closeMenu();
+      return;
+    }
+    if (enabledItems.length === 0) return;
+
+    const currentIdx = enabledItems.indexOf(document.activeElement as HTMLButtonElement);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = currentIdx < 0 ? 0 : (currentIdx + 1) % enabledItems.length;
+      enabledItems[next].focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = currentIdx <= 0 ? enabledItems.length - 1 : currentIdx - 1;
+      enabledItems[prev].focus();
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      enabledItems[0].focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      enabledItems[enabledItems.length - 1].focus();
+    }
+  }
+
+  function handleWindowKeydown(e: KeyboardEvent) {
+    if (open && e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMenu();
     }
   }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleWindowKeydown} />
 
 {#if open}
   <!-- Backdrop transparente para capturar cliques fora -->
@@ -63,35 +115,36 @@
   ></div>
 
   <!-- Menu Flutuante -->
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     bind:this={menuElement}
     style="left: {adjustedX}px; top: {adjustedY}px;"
-    class="fixed z-50 min-w-[200px] max-h-[85vh] overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-2xl text-xs text-neutral-200 select-none animate-in fade-in zoom-in-95 duration-100"
-    onclick={(e) => e.stopPropagation()}
+    class="fixed z-50 min-w-[210px] max-h-[85vh] overflow-y-auto rounded-lg border border-border bg-popover/95 backdrop-blur-md p-1.5 shadow-2xl text-xs text-popover-foreground select-none animate-in fade-in zoom-in-95 duration-100"
+    onkeydown={handleMenuKeydown}
     role="menu"
+    aria-label="Menu de contexto"
     tabindex="-1"
   >
     {#each items as item (item.id)}
       {#if item.divider}
-        <div class="h-[1px] bg-neutral-800/80 my-1 mx-1"></div>
+        <div role="separator" class="h-[1px] bg-border my-1 mx-1"></div>
       {:else}
         <button
           type="button"
+          role="menuitem"
           disabled={item.disabled}
           onclick={() => {
             if (!item.disabled && item.onclick) {
               item.onclick();
-              onclose();
+              closeMenu();
             }
           }}
           class={cn(
-            'w-full flex items-center justify-between px-2.5 py-1.5 rounded-md transition-colors text-left cursor-pointer group',
+            'w-full min-h-8 flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-md transition-colors text-left cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             item.disabled
-              ? 'opacity-40 cursor-not-allowed text-neutral-500'
+              ? 'opacity-45 cursor-not-allowed text-muted-foreground'
               : item.destructive
-                ? 'hover:bg-red-500/20 text-red-400 hover:text-red-300'
-                : 'hover:bg-neutral-800 hover:text-white text-neutral-200'
+                ? 'hover:bg-red-500/15 focus-visible:bg-red-500/15 text-red-700 dark:text-red-400'
+                : 'hover:bg-muted focus-visible:bg-muted text-popover-foreground'
           )}
         >
           <div class="flex items-center gap-2">
@@ -101,7 +154,9 @@
                 size={14}
                 class={cn(
                   'shrink-0',
-                  item.destructive ? 'text-red-400' : 'text-neutral-400 group-hover:text-white'
+                  item.destructive
+                    ? 'text-red-700 dark:text-red-400'
+                    : 'text-muted-foreground group-hover:text-popover-foreground'
                 )}
               />
             {/if}
@@ -109,7 +164,7 @@
           </div>
 
           {#if item.shortcut}
-            <kbd class="text-[10px] font-mono text-neutral-500 px-1 py-0.5 rounded bg-neutral-950/60 border border-neutral-800">
+            <kbd class="text-[11px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-muted border border-border">
               {item.shortcut}
             </kbd>
           {/if}

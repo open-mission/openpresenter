@@ -21,6 +21,7 @@ export const audioDurationStore = writable<number>(0);
 export const audioVolumeStore = writable<number>(1.0);
 export const isAudioMutedStore = writable<boolean>(false);
 export const isAudioLoopingStore = writable<boolean>(false);
+export const audioErrorStore = writable<string | null>(null);
 
 let audioElement: HTMLAudioElement | null = null;
 let lastWsSyncSec = -1;
@@ -31,6 +32,8 @@ function ensureAudioElement(): HTMLAudioElement {
     audioElement = new Audio();
     audioElement.preload = 'metadata';
     audioElement.loop = get(isAudioLoopingStore);
+    audioElement.volume = get(audioVolumeStore);
+    audioElement.muted = get(isAudioMutedStore);
 
     audioElement.ontimeupdate = () => {
       if (!audioElement) return;
@@ -68,6 +71,7 @@ function ensureAudioElement(): HTMLAudioElement {
     };
 
     audioElement.onplay = () => {
+      audioErrorStore.set(null);
       isAudioPlayingStore.set(true);
       const track = get(currentTrackStore);
       if (track && audioElement) {
@@ -105,6 +109,12 @@ function ensureAudioElement(): HTMLAudioElement {
         audioCurrentTimeStore.set(0);
         clearAudioPlayback();
       }
+    };
+
+    audioElement.onerror = () => {
+      isAudioPlayingStore.set(false);
+      audioErrorStore.set('Não foi possível carregar ou reproduzir o arquivo de áudio selecionado.');
+      clearAudioPlayback();
     };
   }
   return audioElement!;
@@ -195,6 +205,7 @@ export function playTrack(
     return;
   }
 
+  audioErrorStore.set(null);
   currentTrackStore.set(track);
   el.src = track.url;
   el.currentTime = 0;
@@ -207,6 +218,8 @@ export function playTrack(
     })
     .catch((err) => {
       console.warn('Falha ao iniciar reprodução:', err);
+      isAudioPlayingStore.set(false);
+      audioErrorStore.set('Falha ao iniciar reprodução de áudio.');
     });
 }
 
@@ -287,22 +300,29 @@ export function seekTrack(seconds: number) {
 }
 
 export function setTrackVolume(vol: number) {
-  if (!audioElement) return;
   const clamped = Math.max(0, Math.min(vol, 1.0));
-  audioElement.volume = clamped;
   audioVolumeStore.set(clamped);
   if (clamped === 0) {
     isAudioMutedStore.set(true);
   } else if (get(isAudioMutedStore)) {
     isAudioMutedStore.set(false);
   }
+  if (audioElement) {
+    audioElement.volume = clamped;
+    audioElement.muted = clamped === 0;
+  }
 }
 
 export function toggleTrackMute() {
-  if (!audioElement) return;
   const muted = !get(isAudioMutedStore);
-  audioElement.muted = muted;
   isAudioMutedStore.set(muted);
+  if (!muted && get(audioVolumeStore) === 0) {
+    audioVolumeStore.set(0.5);
+    if (audioElement) audioElement.volume = 0.5;
+  }
+  if (audioElement) {
+    audioElement.muted = muted;
+  }
 }
 
 export function toggleTrackLoop(): boolean {

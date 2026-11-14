@@ -1,3 +1,5 @@
+import { readHttpError } from './media';
+
 export interface UpdateCheckResponse {
   update_available: boolean;
   current_version: string;
@@ -27,8 +29,7 @@ export interface UpdaterStatusPayload {
 export async function fetchUpdateCheck(): Promise<UpdateCheckResponse> {
   const resp = await fetch('/api/updater/check');
   if (!resp.ok) {
-    const errorText = await resp.text();
-    throw new Error(errorText || 'Falha ao consultar atualizações');
+    throw new Error(await readHttpError(resp, 'Falha ao consultar atualizações'));
   }
   return resp.json();
 }
@@ -36,7 +37,7 @@ export async function fetchUpdateCheck(): Promise<UpdateCheckResponse> {
 export async function fetchUpdaterStatus(): Promise<UpdaterStatusPayload> {
   const resp = await fetch('/api/updater/status');
   if (!resp.ok) {
-    throw new Error('Falha ao obter status do updater');
+    throw new Error(await readHttpError(resp, 'Falha ao obter status do updater'));
   }
   return resp.json();
 }
@@ -52,8 +53,7 @@ export async function triggerInstallUpdate(payload?: {
     body: JSON.stringify(payload || {})
   });
   if (!resp.ok) {
-    const errorText = await resp.text();
-    throw new Error(errorText || 'Falha ao iniciar atualização');
+    throw new Error(await readHttpError(resp, 'Falha ao iniciar atualização'));
   }
 }
 
@@ -62,7 +62,6 @@ export async function triggerSystemRestart(): Promise<void> {
     method: 'POST'
   });
   if (!resp.ok) {
-    const errorText = await resp.text();
-    throw new Error(errorText || 'Falha ao solicitar reinicialização do sistema');
+    throw new Error(await readHttpError(resp, 'Falha ao solicitar reinicialização do sistema'));
   }
 }

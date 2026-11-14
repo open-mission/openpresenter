@@ -331,6 +331,7 @@
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
+- [Padrões e regras de implementação frontend](architecture/frontend-standards.md)
 - [Índice de decisões (ADRs)](decisions/README.md)
 - [ADR 0001 — Workspace, rusqlite e Slint Material](decisions/0001-workspace-rusqlite-slint.md)
 - [ADR 0002 — Licença GPL-3.0-only e política de marca](decisions/0002-licenca-gpl-3.0.md)
