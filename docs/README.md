@@ -343,6 +343,11 @@
 - [Spec — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](specs/2026-11-14-refatoracao-modulo-6-command-palette.md)
 - [Plano — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](plans/2026-11-14-refatoracao-modulo-6-command-palette.md)
 
+## Refatoração do Módulo 12 (Compartilhamento e Streaming de Saídas)
+
+- [Spec — Refatoração do Módulo 12 (Compartilhamento e Streaming de Saídas)](specs/2026-11-14-refatoracao-modulo-12-compartilhamento-de-saidas.md)
+- [Plano — Refatoração do Módulo 12 (Compartilhamento e Streaming de Saídas)](plans/2026-11-14-refatoracao-modulo-12-compartilhamento-de-saidas.md)
+
 ## Refatoração do Módulo 11 (Seletor de Imagens & Mídias Locais)
 
 - [Spec — Refatoração do Módulo 11 (Seletor de Imagens & Mídias Locais)](specs/2026-11-14-refatoracao-modulo-11-seletor-de-imagens.md)

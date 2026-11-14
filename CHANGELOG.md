@@ -13,6 +13,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - O modo é reiniciado ao fechar e reabrir o editor e não participa do estado de alterações não salvas.
 
 ### Refatorado
+- **Módulo 12 — Compartilhamento e Streaming de Saídas (`ShareOutputsModal.svelte`, `lib/components/share-outputs/*`):**
+  - Decomposição do monólito de 313 linhas em um orquestrador enxuto de 100 linhas (`ShareOutputsModal.svelte`) e submódulos coesos em `frontend/src/lib/components/share-outputs/`: `ShareOutputsHeader`, `ShareOutputsTabs`, `ShareOutputsQrView`, `ShareOutputsFooter`, `controller.svelte.ts`, `types.ts` e `defaults.ts`.
+  - Tema Claro/Escuro real: eliminação total de classes fixas escuras (`neutral-*`, `zinc-*`, `bg-black/80`) em favor de tokens semânticos completos (`bg-card`, `bg-background`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`), garantindo contraste WCAG AA tanto no tema escuro quanto no claro.
+  - Acessibilidade WAI-ARIA completa: estrutura correta de diálogo com `role="presentation"` no overlay backdrop e `role="dialog"`, `aria-modal="true"`, `aria-labelledby="share-outputs-title"` e `aria-describedby="share-outputs-desc"` no painel interno. Foco aprisionado via `focusTrap.ts`, fechamento no `Escape` e navegação acessível nas abas com `tabindex` dinâmico.
+  - Linha de abas acessível: `role="tablist"` com `role="tab"`, estados `aria-selected`, navegação por setas (`ArrowLeft`/`ArrowRight`/`Home`/`End`) e alvos táteis confortáveis `>= 32px`.
+  - Apresentação e cópia acessíveis: QR Code de alto contraste, caixa de URL com botão Copiar com anúncio em região viva acessível (`aria-live="polite"`) e prevenção de cliques múltiplos via debounce.
+  - Piso tipográfico `>= 11px` em legendas, badges e rodapé, e alvos táteis confortáveis em botões e links de navegação.
 - **Módulo 11 — Seletor de Imagens & Mídias Locais (`ImageSelectorModal.svelte`, `lib/components/image-selector/*`):**
   - Decomposição do monólito de 470 linhas em um orquestrador enxuto de 145 linhas (`ImageSelectorModal.svelte`) e módulos coesos em `frontend/src/lib/components/image-selector/`: `ImageSelectorHeader`, `ImageSelectorModeTabs`, `ImageSelectorFolderFilter`, `ImageSelectorGrid`, `ImageSelectorFolderList`, `ImageSelectorFooter`, `controller.svelte.ts`, `types.ts` e `defaults.ts`.
   - Eliminação de `alert()` nativo bloqueante em favor de banner inline acessível (`role="alert"`), sem bloqueio da thread da aplicação.
