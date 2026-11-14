@@ -15,25 +15,55 @@ import type {
 // API REST CLIENT
 // ==========================================
 
+const ERROR_MESSAGE_LIMIT = 220;
+
+/**
+ * Normaliza uma mensagem de erro para exibição na interface: colapsa quebras de
+ * linha e espaços repetidos e limita o comprimento total a 220 caracteres.
+ */
+function normalizeErrorMessage(text: string): string {
+  const collapsed = text.replace(/\s+/g, ' ').trim();
+  if (collapsed.length <= ERROR_MESSAGE_LIMIT) return collapsed;
+  return `${collapsed.slice(0, ERROR_MESSAGE_LIMIT - 3).trimEnd()}...`;
+}
+
+/**
+ * Detecta se o texto recebido é um documento HTML (página de erro de proxy etc.).
+ */
+function looksLikeHtmlDocument(text: string): boolean {
+  return /^<!doctype|^<html/i.test(text.trim());
+}
+
 /**
  * Converte respostas HTTP de erro em `Error` com a mensagem do backend.
  * O corpo pode ser texto puro ou JSON (`error` / `message` / `detail`).
+ * Corpos HTML são descartados em favor de uma mensagem curta com o status HTTP.
  */
 async function ensureOk(res: Response, fallbackMessage: string): Promise<void> {
   if (res.ok) return;
   const body = await res.text().catch(() => '');
   const trimmed = body.trim();
-  let detail = '';
-  if (trimmed) {
-    try {
-      const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-      const raw = parsed.error ?? parsed.message ?? parsed.detail;
-      if (typeof raw === 'string') detail = raw.trim();
-    } catch {
-      // Corpo não é JSON: usa o texto puro abaixo.
-    }
+  if (!trimmed) throw new Error(fallbackMessage);
+
+  const contentType = (res.headers.get('content-type') ?? '').toLowerCase();
+  if (contentType.includes('text/html') || looksLikeHtmlDocument(trimmed)) {
+    throw new Error(`${fallbackMessage} (HTTP ${res.status})`);
   }
-  throw new Error(detail || trimmed || fallbackMessage);
+
+  let detail = '';
+  try {
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+    const raw = parsed.error ?? parsed.message ?? parsed.detail;
+    if (typeof raw === 'string') detail = raw;
+  } catch {
+    // Corpo não é JSON: usa o texto puro abaixo.
+  }
+
+  const message = normalizeErrorMessage(detail || trimmed);
+  if (!message || looksLikeHtmlDocument(message)) {
+    throw new Error(`${fallbackMessage} (HTTP ${res.status})`);
+  }
+  throw new Error(message);
 }
 
 export async function fetchDepartments(signal?: AbortSignal): Promise<TeamDepartment[]> {

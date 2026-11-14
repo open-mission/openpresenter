@@ -28,6 +28,7 @@
   import DeptFormModal from './teams/DeptFormModal.svelte';
   import TeamsConfirmDialog from './teams/TeamsConfirmDialog.svelte';
   import type { ConfirmTarget, TeamsTabId } from './teams/teamConstants';
+  import { focusInitialElement, trapTabKey } from './focusTrap';
 
   interface Props {
     open: boolean;
@@ -66,6 +67,7 @@
   let abortController: AbortController | null = null;
   let returnFocus: HTMLElement | null = null;
   let wasOpen = false;
+  let dialogEl = $state<HTMLDivElement | null>(null);
 
   const shellClass = $derived(
     cn(
@@ -156,6 +158,10 @@
           typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
         resetDialogs();
         void loadAllData();
+        queueMicrotask(() => {
+          if (open && dialogEl && !subDialog && !confirmTarget)
+            focusInitialElement(dialogEl, '[role="tab"][aria-selected="true"]', dialogEl);
+        });
         return;
       }
       abortController?.abort();
@@ -183,7 +189,12 @@
   }
 
   function handleWindowKeydown(e: KeyboardEvent) {
-    if (!open || e.key !== 'Escape') return;
+    if (!open) return;
+    if (e.key === 'Tab') {
+      if (!subDialog && !confirmTarget && dialogEl) trapTabKey(e, dialogEl);
+      return;
+    }
+    if (e.key !== 'Escape') return;
     e.preventDefault();
     e.stopPropagation();
     if (confirmTarget) {
@@ -272,61 +283,48 @@
 {#if open}
   <div class="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-0 {isMaximized ? '' : 'sm:p-4'}"
     role="presentation">
-    <div class={shellClass} role="dialog" aria-modal="true" aria-labelledby="teams-modal-title"
-      tabindex="-1">
+    <div bind:this={dialogEl} class={shellClass} role="dialog" aria-modal="true"
+      aria-labelledby="teams-modal-title" tabindex="-1">
       <TeamsHeader {activeTab} membersCount={members.length} departmentsCount={departments.length}
         {isMaximized} onSelectTab={selectTab} onToggleMaximize={() => (isMaximized = !isMaximized)}
         onClose={onclose} />
+
+      {#if loadError}
+        <div class="px-4 sm:px-6 pt-3 shrink-0">
+          <p role="alert" class="flex flex-wrap items-center gap-2 max-h-24 overflow-y-auto text-xs text-red-700 dark:text-red-300 bg-red-500/10 border border-red-500/35 rounded-lg px-3 py-2">
+            <span class="flex-1 min-w-[180px] [overflow-wrap:anywhere] break-words">{loadError}</span>
+            <button type="button" onclick={() => void loadAllData()} class="shrink-0 min-h-[26px] px-2.5 py-1 rounded-md border border-red-500/35 bg-background/60 text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-500/15 transition-colors cursor-pointer">Tentar novamente</button>
+          </p>
+        </div>
+      {/if}
 
       <div class="flex-1 min-h-0 flex flex-col">
         <div class="flex-1 min-h-0 flex flex-col" role="tabpanel" id="teams-panel-roster"
           aria-labelledby="teams-tab-roster" class:hidden={activeTab !== 'roster'}>
           <TeamsRosterTab
-            {rosterSummaries}
-            {selectedRosterId}
-            roster={selectedRoster}
-            {departments}
-            {members}
-            {isLoading}
-            errorMessage={loadError}
-            {viewMode}
-            onSelectRoster={selectRoster}
-            onCreateRoster={() => openRosterForm()}
-            onEditRoster={() => openRosterForm(selectedRoster)}
-            onAssign={openAssign}
-            onActivateRoster={handleActivateRoster}
-            onDeleteRoster={requestDeleteRoster}
-            onRemoveItem={requestRemoveItem}
-            onUpdateItemStatus={handleUpdateItemStatus}
-            onSetViewMode={(mode) => (viewMode = mode)}
+            {rosterSummaries} {selectedRosterId} roster={selectedRoster} {departments} {members}
+            {isLoading} {viewMode} onSelectRoster={selectRoster}
+            onCreateRoster={() => openRosterForm()} onEditRoster={() => openRosterForm(selectedRoster)}
+            onAssign={openAssign} onActivateRoster={handleActivateRoster}
+            onDeleteRoster={requestDeleteRoster} onRemoveItem={requestRemoveItem}
+            onUpdateItemStatus={handleUpdateItemStatus} onSetViewMode={(mode) => (viewMode = mode)}
             onAddMemberToDept={openAssign}
-            onRetry={() => loadAllData()}
           />
         </div>
         <div class="flex-1 min-h-0 flex flex-col" role="tabpanel" id="teams-panel-members"
           aria-labelledby="teams-tab-members" class:hidden={activeTab !== 'members'}>
           {#if visitedTabs.members}
-            <TeamsMembersTab
-              {members}
-              {departments}
-              {isLoading}
-              onNewMember={() => openMemberForm()}
-              onEditMember={(member) => openMemberForm(member)}
-              onDeleteMember={requestDeleteMember}
-            />
+            <TeamsMembersTab {members} {departments} {isLoading} onNewMember={() => openMemberForm()}
+              onEditMember={(member) => openMemberForm(member)} onDeleteMember={requestDeleteMember} />
           {/if}
         </div>
         <div class="flex-1 min-h-0 flex flex-col" role="tabpanel" id="teams-panel-departments"
           aria-labelledby="teams-tab-departments" class:hidden={activeTab !== 'departments'}>
           {#if visitedTabs.departments}
-            <TeamsDepartmentsTab
-              {departments}
-              {members}
-              {isLoading}
+            <TeamsDepartmentsTab {departments} {members} {isLoading}
               onNewDepartment={() => openDeptForm()}
               onEditDepartment={(department) => openDeptForm(department)}
-              onDeleteDepartment={requestDeleteDepartment}
-            />
+              onDeleteDepartment={requestDeleteDepartment} />
           {/if}
         </div>
       </div>

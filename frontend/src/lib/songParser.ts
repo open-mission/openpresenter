@@ -36,48 +36,48 @@ export function getSectionColor(name: string): { bg: string; text: string; borde
   const lower = name.toLowerCase();
   if (lower.includes('refr') || lower.includes('coro')) {
     return {
-      bg: 'bg-emerald-950/40',
-      text: 'text-emerald-300',
+      bg: 'bg-emerald-500/10 dark:bg-emerald-950/40',
+      text: 'text-emerald-800 dark:text-emerald-300',
       border: 'border-emerald-600/40',
       accent: 'bg-emerald-500',
     };
   }
   if (lower.includes('ponte') || lower.includes('bridge')) {
     return {
-      bg: 'bg-amber-950/40',
-      text: 'text-amber-300',
+      bg: 'bg-amber-500/10 dark:bg-amber-950/40',
+      text: 'text-amber-800 dark:text-amber-300',
       border: 'border-amber-600/40',
       accent: 'bg-amber-500',
     };
   }
   if (lower.includes('intro') || lower.includes('início')) {
     return {
-      bg: 'bg-cyan-950/40',
-      text: 'text-cyan-300',
+      bg: 'bg-cyan-500/10 dark:bg-cyan-950/40',
+      text: 'text-cyan-800 dark:text-cyan-300',
       border: 'border-cyan-600/40',
       accent: 'bg-cyan-500',
     };
   }
   if (lower.includes('final') || lower.includes('outro')) {
     return {
-      bg: 'bg-purple-950/40',
-      text: 'text-purple-300',
+      bg: 'bg-purple-500/10 dark:bg-purple-950/40',
+      text: 'text-purple-800 dark:text-purple-300',
       border: 'border-purple-600/40',
       accent: 'bg-purple-500',
     };
   }
   if (lower.includes('pre-refr') || lower.includes('pré-refr')) {
     return {
-      bg: 'bg-teal-950/40',
-      text: 'text-teal-300',
+      bg: 'bg-teal-500/10 dark:bg-teal-950/40',
+      text: 'text-teal-800 dark:text-teal-300',
       border: 'border-teal-600/40',
       accent: 'bg-teal-500',
     };
   }
   // Padrão para Verso / Outros
   return {
-    bg: 'bg-blue-950/40',
-    text: 'text-blue-300',
+    bg: 'bg-blue-500/10 dark:bg-blue-950/40',
+    text: 'text-blue-800 dark:text-blue-300',
     border: 'border-blue-600/40',
     accent: 'bg-blue-500',
   };

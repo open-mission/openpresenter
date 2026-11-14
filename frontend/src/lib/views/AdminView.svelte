@@ -356,7 +356,7 @@
     });
   });
 
-  export interface SetlistSectionGroup {
+  interface SetlistSectionGroup {
     id: string;
     title: string;
     headerItem?: MediaItem;
@@ -452,11 +452,11 @@
   );
 
   const activePlaybackArtist = $derived(
-    $isAudioPlayingStore && $currentTrackStore?.artist
-      ? $currentTrackStore.artist
+    $isAudioPlayingStore && $currentTrackStore?.artist_or_ref
+      ? $currentTrackStore.artist_or_ref
       : selectedMedia?.artist_or_ref ||
         liveMedia?.artist_or_ref ||
-        $currentTrackStore?.artist ||
+        $currentTrackStore?.artist_or_ref ||
         ''
   );
 
@@ -975,6 +975,10 @@
         }
         // TeamsModal gerencia a própria pilha de submodais e confirmações (Escape fecha só o topo)
         if (isTeamsModalOpen) {
+          return;
+        }
+        // SongEditorModal gerencia a própria pilha (descartar -> modal) e a confirmação de alterações
+        if (isSongEditorOpen) {
           return;
         }
         e.preventDefault();
@@ -1895,11 +1899,13 @@
   }
 
   function handleOpenCreate() {
+    songEditorMode = 'song';
     editingSong = null;
     isSongEditorOpen = true;
   }
 
   function handleImportSong(song: Song) {
+    songEditorMode = 'song';
     editingSong = song;
     isSongEditorOpen = true;
   }

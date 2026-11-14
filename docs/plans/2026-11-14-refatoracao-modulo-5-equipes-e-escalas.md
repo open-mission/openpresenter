@@ -61,3 +61,27 @@
 - [x] `cd frontend && npm run build`.
 - [x] `impeccable detect --json frontend/src/lib/components/TeamsModal.svelte frontend/src/lib/components/teams/ frontend/src/lib/teams.ts` → `[]`.
 - [x] Inspeção manual em `1440×900` e `1024×768`, temas Claro e Escuro (backend headless real com dados de exemplo; tema trocado via Configurações → Aparência; tablist com setas/`Home`/`End`, pilha de `Escape`, retorno de foco e ausência de overflow do diálogo verificados via CDP).
+
+## Etapa 10 — Rodada cirúrgica de acessibilidade e consistência
+
+- [x] Criar `teams/focusTrap.ts` com `getFocusableElements`, `focusInitialElement` e `trapTabKey` documentados (JSDoc).
+- [x] `TeamsModal.svelte`: `bind:this={dialogEl}`, foco inicial na aba ativa via `queueMicrotask` e armadilha de `Tab` mantendo a pilha de `Escape`.
+- [x] `TeamsModal.svelte`: banner `role="alert"` com **Tentar novamente** logo abaixo do `TeamsHeader`, visível em todas as abas; arquivo com 348 linhas.
+- [x] `TeamsRosterTab.svelte`: remover props `errorMessage`/`onRetry` e o banner duplicado.
+- [x] `TeamsSubDialog.svelte`: usar `$props.id()` para `titleId`/`descId` e o helper compartilhado de foco/`Tab`.
+- [x] `MemberFormModal.svelte`: `canControlRemote` inicia em `false`; labels de departamento com `min-h-[28px]` e checkbox `w-4 h-4 shrink-0`.
+- [x] `cd frontend && npm run check` (0 erros nos arquivos do Módulo 5; 17 erros pré-existentes fora do escopo).
+- [x] `cd frontend && npm run build`.
+- [x] `impeccable detect --json` nos arquivos do módulo → `[]`.
+- [x] Inspeção manual em `1440×900` e `1024×768`, temas Claro e Escuro (offline e backend headless isolado): foco inicial na aba ativa, ciclo de `Tab` contido no diálogo, erro offline nas três abas com `ensureOk` saneando respostas HTML/longas (`max 220` chars) e banner com `max-h-24` + `[overflow-wrap:anywhere]`, pilha de `Escape` com retorno de foco ao botão `Equipe`, `canControlRemote` em `false` e labels de departamento `>= 28px`.
+
+## Etapa 11 — Layout flex do estado vazio em `1024×768` com banner offline
+
+- [x] `TeamsRosterTab.svelte`: contêiner principal com `overflow-y-auto` quando `!roster` e `overflow-hidden` quando há escala (SvelteFlow/Grade intactos).
+- [x] `TeamsRosterTab.svelte`: estado vazio com `min-h-full` (sem `h-full`) e `p-4 sm:p-8`; ícone e botão **Criar Primeira Escala** com `shrink-0` e `min-h-[36px]`.
+- [x] `TeamsMembersTab.svelte`: estado vazio com `min-h-full` e `p-4 sm:p-8`; contêiner do ícone com `shrink-0`.
+- [x] `TeamsDepartmentsTab.svelte`: estado vazio com `min-h-full` e `p-4 sm:p-8`; contêiner do ícone com `shrink-0`.
+- [x] `cd frontend && npm run check` (0 erros nos arquivos do Módulo 5; 17 erros pré-existentes fora do escopo).
+- [x] `cd frontend && npm run build`.
+- [x] `impeccable detect --json src/lib/components/TeamsModal.svelte src/lib/components/teams/ src/lib/teams.ts` → `[]`.
+- [x] Inspeção em browser do estado vazio em `1024×768` e `1440×900`, temas Claro e Escuro, com banner offline real (backend derrubado): Escala, Membros e Departamentos centralizados, ícone `56×56` e botão **Criar Primeira Escala** em `36px`; em `1024×420` o painel passa a rolar (`scrollHeight 280 > clientHeight 198`) sem esmagar ícone/botão.

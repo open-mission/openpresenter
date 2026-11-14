@@ -17,8 +17,9 @@ Esta página descreve a arquitetura vigente do OpenPresenter Minimal. Ela deve s
 │   │   │   ├── components/bottom-panel/ # subcomponentes e modais do BottomPanel (SongsTab, ImagesTab, VideosTab, AudiosTab, BackgroundsTab, OthersTab, ConfirmModal, CreateFolderModal, folderTree)
 │   │   │   ├── components/remote/ # subcomponentes modulares do RemoteView (/remote): RemoteDialog, RemoteHeader, RemoteLiveControlCard, RemoteBottomNav, RemoteHomeTab, RemoteSetlistTab, RemoteSongsTab, RemoteBibleTab, RemoteTeamTab
 │   │   │   ├── components/settings/ # subcomponentes, abas e primitivos do SettingsModal (tabs/*, BibleEditModal, SettingsRangeField, SettingsSelectMenu, SettingsToggle, types.ts)
+│   │   │   ├── components/song-editor/ # editor de Músicas/Texto (SongEditorHeader, SongEditorMetadata, SongEditorToolbar, SongEditorLyrics, SongEditorPreview, SongEditorConfirmDiscard, controller.svelte.ts, defaults, menus, payload, slides, songEditorApi e types)
 │   │   │   ├── components/teams/ # subcomponentes do TeamsModal (TeamsHeader, TeamsRosterTab, TeamsMembersTab, TeamsDepartmentsTab, TeamsSubDialog, TeamsConfirmDialog, RosterFormModal, AssignMemberModal, MemberFormModal, DeptFormModal, RosterFlowCanvas, ServiceNode, DepartmentNode, MemberNode, teamConstants.ts)
-│   │   │   ├── components/     # CommandPalette, SongEditorModal (Música/Texto), SettingsModal, SetlistModal, QuickItemModal, ContextMenu, BottomPanel, BiblePanel, TimerControlPanel, RemoteLogin
+│   │   │   ├── components/     # CommandPalette, SongEditorModal (orquestrador Música/Texto), SettingsModal, SetlistModal, QuickItemModal, ContextMenu, BottomPanel, BiblePanel, TimerControlPanel, RemoteLogin e helper compartilhado focusTrap.ts
 │   │   │   ├── views/          # visões principais: AdminView, PublicView, StageView (com 4 presets), LowerThirdView, RemoteView
 │   │   │   ├── audioPlayer.ts  # estado global persistente de reprodução de áudio
 │   │   │   ├── customItems.ts  # catálogo persistente da aba Outros e utilitários de API

@@ -50,6 +50,7 @@ O `TeamsModal.svelte` foi construído antes da consolidação dos padrões de in
 | `AssignMemberModal.svelte` | Escalar voluntário com `'lead' | 'assistant' | 'backup'` (Titular/Auxiliar/Apoio), observações e aviso de vínculo duplicado. |
 | `MemberFormModal.svelte` | Criar/editar voluntário (dados, cargo, departamentos, controle remoto, ativo, PIN numérico). |
 | `DeptFormModal.svelte` | Criar/editar departamento sem `is_active`, com paleta de cores e 10 ícones. |
+| `focusTrap.ts` | Helpers de foco compartilhados: `getFocusableElements`, `focusInitialElement` e `trapTabKey` (armadilha de `Tab`, foco inicial e visibilidade por `offsetParent`/`position: fixed`). |
 
 ### 3.3 Orquestrador (`TeamsModal.svelte`, alvo ≤ 350 linhas)
 
@@ -75,6 +76,35 @@ O `TeamsModal.svelte` foi construído antes da consolidação dos padrões de in
 - `AdminView.svelte`: adicionar `if (isTeamsModalOpen) return;` imediatamente após `if (isSettingsOpen) return;`
   no tratamento global de `Escape`, para o módulo gerenciar sua própria pilha.
 
+### 3.6 Rodada cirúrgica de acessibilidade e consistência
+
+Correções observadas na auditoria ao vivo em `1440×900` e `1024×768`:
+
+- **Foco de entrada e armadilha de `Tab` no modal principal:** `TeamsModal.svelte` guarda o `dialogEl`, agenda o foco para
+  a aba ativa (`[role="tab"][aria-selected="true"]`, com o próprio diálogo como fallback) após abrir e prende `Tab`/`Shift+Tab`
+  ao diálogo quando nenhum submodal ou confirmação está no topo. A implementação vive em `teams/focusTrap.ts`, junto da
+  captura de foco do `TeamsSubDialog.svelte`, sem duplicação.
+- **Banner de erro em todas as abas:** o `role="alert"` com **Tentar novamente** sobe de `TeamsRosterTab.svelte` para
+  `TeamsModal.svelte`, logo abaixo do `TeamsHeader`, e aparece também nas abas Membros e Departamentos em modo offline.
+- **IDs estáveis nos subdiálogos:** `TeamsSubDialog.svelte` troca `Math.random()` por `$props.id()` para `titleId`/`descId`,
+  ligados por `aria-labelledby` e `aria-describedby`.
+- **Alvos e estado inicial do formulário:** cada `<label>` de departamento em `MemberFormModal.svelte` tem `min-h-[28px]`
+  com checkbox `w-4 h-4 shrink-0`; `canControlRemote` inicia em `false`, consistente com o reset de abertura.
+
+### 3.7 Estado vazio das abas em `1024×768` com banner offline
+
+Em `1024×768`, o banner `role="alert"` do orquestrador reduz a altura útil do painel e o estado vazio de cada aba era
+comprimido: `h-full` somado ao `p-8` estourava o contêiner e o `flex-col` encolhia o ícone e o botão de ação abaixo do
+mínimo de toque.
+
+- **Rolagem condicional na aba Escala:** o contêiner de `TeamsRosterTab.svelte` usa `overflow-y-auto` quando não há escala
+  (`!roster`) e mantém `overflow-hidden` com escala definida, preservando o `SvelteFlow` e a grade.
+- **Estado vazio sem altura fixa:** os três estados vazios (`TeamsRosterTab.svelte`, `TeamsMembersTab.svelte` e
+  `TeamsDepartmentsTab.svelte`) trocam `h-full min-h-full` por `min-h-full` e o `p-8` por `p-4 sm:p-8`, deixando o conteúdo
+  rolar em vez de ser esmagado.
+- **Itens que não encolhem:** o contêiner do ícone `w-14 h-14` recebe `shrink-0` nas três abas e o botão
+  **Criar Primeira Escala** recebe `shrink-0 min-h-[36px]`, garantindo altura `>= 24px` em `1024×768`.
+
 ## 4. Decisões
 
 1. **Um único dono do `Escape`:** o orquestrador centraliza a pilha; submodais não escutam `Escape` para evitar
@@ -84,6 +114,11 @@ O `TeamsModal.svelte` foi construído antes da consolidação dos padrões de in
 3. **`role_notes` e `status` preservados:** editar escala não altera itens; escalar define `status: 'pending'`.
 4. **Sem `is_active` em `UpsertTeamDepartment`:** o backend não possui o campo; a versão anterior gerava erro de tipo.
 5. **Filtros de abas preservados:** painéis ficam montados (`class:hidden`) após a primeira visita.
+6. **Foco compartilhado em um único helper:** `teams/focusTrap.ts` concentra seletor de focáveis, foco inicial e ciclo de `Tab`;
+   o modal principal e os subdiálogos apenas informam o contêiner e o seletor preferido.
+7. **Estado vazio rola, não encolhe:** os estados vazios usam `min-h-full` (sem `h-full`) dentro de uma área com
+   `overflow-y-auto`, e ícone/botão recebem `shrink-0`; assim o conteúdo mantém alvo mínimo em telas baixas em vez de
+   comprimir o `flex-col`.
 
 ## 5. Critérios de Aceite
 

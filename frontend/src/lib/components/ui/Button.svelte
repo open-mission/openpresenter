@@ -14,6 +14,7 @@
     'aria-haspopup'?: boolean | 'true' | 'false' | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog';
     'aria-controls'?: string;
     'aria-pressed'?: boolean | 'true' | 'false' | 'mixed';
+    'aria-busy'?: boolean | 'true' | 'false';
     'aria-current'?: boolean | 'page' | 'step' | 'location' | 'date' | 'time' | 'true' | 'false';
     id?: string;
     onclick?: (e: MouseEvent) => void;
@@ -32,6 +33,7 @@
     'aria-haspopup': ariaHasPopup,
     'aria-controls': ariaControls,
     'aria-pressed': ariaPressed,
+    'aria-busy': ariaBusy,
     'aria-current': ariaCurrent,
     id,
     onclick,
@@ -67,6 +69,7 @@
   aria-haspopup={ariaHasPopup}
   aria-controls={ariaControls}
   aria-pressed={ariaPressed}
+  aria-busy={ariaBusy}
   aria-current={ariaCurrent}
   class={cn(
     'inline-flex items-center justify-center gap-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none',

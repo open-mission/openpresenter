@@ -29,7 +29,7 @@
   let role = $state<TeamMemberRole>('member');
   let notes = $state('');
   let departmentIds = $state<string[]>([]);
-  let canControlRemote = $state(true);
+  let canControlRemote = $state(false);
   let isActive = $state(true);
   let pin = $state('');
   let isSaving = $state(false);
@@ -186,13 +186,13 @@
           >
             {#each departments as dept (dept.id)}
               <label
-                class="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted cursor-pointer select-none text-[11px] text-foreground"
+                class="flex items-center gap-2 px-2 py-1.5 min-h-[28px] rounded-md hover:bg-muted cursor-pointer select-none text-[11px] text-foreground"
               >
                 <input
                   type="checkbox"
                   checked={departmentIds.includes(dept.id)}
                   onchange={(e) => toggleDepartment(dept.id, e.currentTarget.checked)}
-                  class="rounded accent-primary"
+                  class="w-4 h-4 rounded accent-primary shrink-0"
                 />
                 <span
                   class="w-2 h-2 rounded-full shrink-0"

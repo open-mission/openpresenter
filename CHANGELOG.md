@@ -7,6 +7,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Refatorado
+- **Módulo 7 — Editor de Músicas e Repertório (`SongEditorModal.svelte`, `lib/components/song-editor/*`):**
+  - Decomposição do monólito de 1.362 linhas em um orquestrador de 198 linhas e módulos coesos em `frontend/src/lib/components/song-editor/`: `SongEditorHeader`, `SongEditorMetadata`, `SongEditorToolbar`, `SongEditorLyrics`, `SongEditorPreview`, `SongEditorConfirmDiscard`, `controller.svelte.ts`, `defaults.ts`, `menus.ts`, `payload.ts`, `slides.ts`, `songEditorApi.ts` e `types.ts`.
+  - Tema Claro/Escuro real: remoção de `neutral-*`, `bg-black/80` e `text-white` em favor de tokens semânticos (`bg-card`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`); o preview usa formatação segura por tema e as badges de seção ganharam contraste no tema claro.
+  - Diálogo acessível de descarte com `role="alertdialog"`, `aria-labelledby`/`aria-describedby`, armadilha de `Tab`, `Escape` e retorno de foco no lugar de `confirm()` nativo.
+  - Pilha de `Escape` corrigida (menu de contexto → confirmação de descarte → modal) no `AdminView`, que deixou de fechar o editor diretamente e passou a delegar a tecla ao módulo; foco inicial no título, `Tab` preso ao diálogo e atalhos de formatação/`⌘S` preservados.
+  - Piso tipográfico `>= 11px`, alvos interativos `>= 28×28px`, `aria-busy` no botão de salvar e contadores de linhas/seções no editor de letras.
 - **Módulo 6 — Paleta de Comandos ⌘K (`CommandPalette.svelte`, `lib/components/command-palette/*`):**
   - Decomposição do monólito de 1.311 linhas em um orquestrador de 167 linhas e subcomponentes coesos (`CommandPaletteHeader`, `CommandPaletteTabs`, `LocalSongsResults`, `BibleSearchResults`, `OnlineLyricsResults`, `CommandPaletteShortcuts`), com estado e regras centralizados em `controller.svelte.ts`.
   - Tema Claro/Escuro real em todo o módulo: remoção total de `zinc-*`, `bg-black/80` e `text-white` em favor de tokens semânticos (`bg-popover`, `bg-card`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`).
@@ -14,7 +20,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Buscas bíblica e online com `AbortController` e sequência de requisições, eliminando respostas fora de ordem em digitação rápida; falhas exibem `role="alert"` com “Tentar novamente”.
   - Piso tipográfico de 11px em dicas e `<kbd>`, alvos interativos `>= 24×24px` e remoção da classe Tailwind inválida `py-0.2`.
 - **Módulo 5 — Equipes & Escalas (`TeamsModal.svelte`, `lib/components/teams/*`, `lib/teams.ts`):**
-  - Decomposição do modal monolítico (1.788 → 350 linhas) em um orquestrador enxuto e módulos coesos: `TeamsHeader.svelte`, `TeamsRosterTab.svelte`, `TeamsMembersTab.svelte`, `TeamsDepartmentsTab.svelte`, `TeamsSubDialog.svelte`, `TeamsConfirmDialog.svelte`, `RosterFormModal.svelte`, `AssignMemberModal.svelte`, `MemberFormModal.svelte`, `DeptFormModal.svelte` e `teamConstants.ts`.
+  - Decomposição do modal monolítico (1.788 → 348 linhas) em um orquestrador enxuto e módulos coesos: `TeamsHeader.svelte`, `TeamsRosterTab.svelte`, `TeamsMembersTab.svelte`, `TeamsDepartmentsTab.svelte`, `TeamsSubDialog.svelte`, `TeamsConfirmDialog.svelte`, `RosterFormModal.svelte`, `AssignMemberModal.svelte`, `MemberFormModal.svelte`, `DeptFormModal.svelte`, `teamConstants.ts` e `focusTrap.ts`.
   - Carga acionada apenas na borda de abertura (`open: false → true`) com `AbortController` e sequência de requisições, eliminando loops em `$effect` e respostas fora de ordem; abas visitadas permanecem montadas (`class:hidden` + `visitedTabs`).
   - Pilha de `Escape` fecha somente o topo (confirmação → submodal → modal) e o foco retorna ao gatilho ao fechar.
   - Abas WAI-ARIA (`tablist`/`tabpanel`) com navegação por setas, `Home` e `End`; alvos de toque `>= 24×24px`, texto funcional `>= 11px` e `aria-label` em controles apenas com ícone.
@@ -22,6 +28,22 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Zero `alert()`/`confirm()` nativos: confirmações destrutivas usam `ConfirmModal` (z-50), submodais em `z-[45]` e o backdrop principal em `z-40`; falhas exibem banner `role="alert"` com “Tentar novamente” e toasts.
   - Funções reais de escala (`Titular`, `Auxiliar`, `Apoio`) propagadas para o fluxo, a grade e o controle remoto por meio de `isRosterLeadRole`/`formatRosterRoleLabel`.
   - `lib/teams.ts` ganhou `ensureOk` (mensagens de erro reais do backend) nas mutações e `AbortSignal` nas leituras.
+
+### Corrigido
+- **Módulo 7 — Editor de Músicas e Repertório (`AdminView.svelte`, `SongEditorModal.svelte`):**
+  - A tecla `Escape` no editor volta a fechar primeiro o menu de contexto e depois a confirmação de descarte; o `AdminView` não fecha mais o editor à força, preservando as alterações não salvas até a confirmação explícita.
+  - O foco retorna ao elemento que abriu o editor após fechar, e o botão de salvar expõe `aria-busy` durante a gravação.
+- **Módulo 5 — Equipes & Escalas (`TeamsModal.svelte`, `lib/components/teams/*`):**
+  - Ao abrir o modal principal, o foco vai para a aba ativa e a tecla `Tab` fica presa ao diálogo (novo helper compartilhado `teams/focusTrap.ts`), em vez de escapar para os controles do `AdminView` atrás do backdrop.
+  - O banner `role="alert"` com **Tentar novamente** passou para o orquestrador e continua visível nas abas Escala, Membros e Departamentos quando a carga falha offline.
+  - `TeamsSubDialog.svelte` usa `$props.id()` para gerar `aria-labelledby`/`aria-describedby` estáveis, eliminando o `Math.random()` frágil, e reaproveita a armadilha de `Tab` compartilhada.
+  - Checkboxes de departamento em `MemberFormModal.svelte` com linha de `28px` e caixa `w-4 h-4 shrink-0`; `canControlRemote` agora inicia desligado, igual ao reset de abertura do formulário.
+  - Estados vazios de Escala, Membros e Departamentos deixam de ser esmagados em `1024×768` com o banner offline visível: a aba Escala rola (`overflow-y-auto` sem escala, `overflow-hidden` com escala), os três estados vazios usam `min-h-full` + `p-4 sm:p-8` e ícone/botão **Criar Primeira Escala** recebem `shrink-0` (altura mínima de `36px`).
+  - `ensureOk` em `lib/teams.ts` descarta corpos HTML de proxy/erro (`text/html`, `<!doctype`, `<html`) em favor de `"{fallbackMessage} (HTTP {status})"` e limita mensagens a 220 caracteres; o banner `role="alert"` em `TeamsModal.svelte` usa `max-h-24 overflow-y-auto` e `[overflow-wrap:anywhere]` para não deformar os painéis de aba.
+- **Integridade de tipos e revisão visual (`AdminView.svelte`, `ScheduleEditorModal.svelte`, `ShareOutputsModal.svelte`, `LowerThirdView.svelte`):**
+  - `AdminView.svelte` deixa de exportar a interface `SetlistSectionGroup` dentro da instância do componente e passa a ler `artist_or_ref` do playback de áudio (o tipo `AudioTrack` não possui `artist`).
+  - `ScheduleEditorModal.svelte` tolera `details` ausente na programação (`(ev.details || '').trim()`) e `ShareOutputsModal.svelte` valida `networkInfo` antes de comparar o IP local.
+  - Tema `bar` do Lower Third troca a barra lateral de `6px` por um realce `inset 3px` em `box-shadow` (preservando a sombra `shadow-2xl`), eliminando o padrão de aba lateral apontado pelo detector.
 
 ## [0.6.1] - 2026-11-14
 

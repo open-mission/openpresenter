@@ -127,9 +127,9 @@
         <span class="text-sm">Carregando voluntários...</span>
       </div>
     {:else if filteredMembers.length === 0}
-      <div class="h-full min-h-full flex flex-col items-center justify-center text-center p-8">
+      <div class="min-h-full flex flex-col items-center justify-center text-center p-4 sm:p-8">
         <div
-          class="w-14 h-14 rounded-2xl bg-muted border border-border flex items-center justify-center text-muted-foreground mb-4"
+          class="shrink-0 w-14 h-14 rounded-2xl bg-muted border border-border flex items-center justify-center text-muted-foreground mb-4"
         >
           <Users size={26} />
         </div>

@@ -42,7 +42,6 @@
     departments: TeamDepartment[];
     members: TeamMember[];
     isLoading: boolean;
-    errorMessage: string;
     viewMode: 'flow' | 'grid';
     onSelectRoster: (id: string) => void;
     onCreateRoster: () => void;
@@ -54,7 +53,6 @@
     onUpdateItemStatus: (itemId: string, status: RosterStatus) => void | Promise<void>;
     onSetViewMode: (mode: 'flow' | 'grid') => void;
     onAddMemberToDept: (deptId: string) => void;
-    onRetry: () => void;
   }
 
   let {
@@ -64,7 +62,6 @@
     departments,
     members,
     isLoading,
-    errorMessage,
     viewMode,
     onSelectRoster,
     onCreateRoster,
@@ -76,7 +73,6 @@
     onUpdateItemStatus,
     onSetViewMode,
     onAddMemberToDept,
-    onRetry,
   }: Props = $props();
 
   const memberMap = $derived.by(() => {
@@ -268,24 +264,6 @@
     {/if}
   </div>
 
-  {#if errorMessage}
-    <div class="px-4 sm:px-6 pt-3 shrink-0">
-      <p
-        role="alert"
-        class="flex flex-wrap items-center gap-2 text-xs text-red-700 dark:text-red-300 bg-red-500/10 border border-red-500/35 rounded-lg px-3 py-2"
-      >
-        <span class="flex-1 min-w-[180px]">{errorMessage}</span>
-        <button
-          type="button"
-          onclick={onRetry}
-          class="shrink-0 min-h-[26px] px-2.5 py-1 rounded-md border border-red-500/35 bg-background/60 text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-500/15 transition-colors cursor-pointer"
-        >
-          Tentar novamente
-        </button>
-      </p>
-    </div>
-  {/if}
-
   {#if roster}
     <div
       class="px-4 sm:px-6 py-2 border-b border-border flex flex-wrap items-center gap-2 text-[11px] shrink-0"
@@ -314,15 +292,17 @@
     </div>
   {/if}
 
-  <div class="flex-1 min-h-0 p-3 sm:p-4 overflow-hidden relative">
+  <div
+    class="flex-1 min-h-0 p-3 sm:p-4 {roster ? 'overflow-hidden' : 'overflow-y-auto'} relative"
+  >
     {#if isLoading}
       <div class="h-full min-h-[240px] flex items-center justify-center text-muted-foreground">
         <span class="text-sm">Carregando dados da equipe...</span>
       </div>
     {:else if !roster}
-      <div class="h-full min-h-full flex flex-col items-center justify-center text-center p-8">
+      <div class="min-h-full flex flex-col items-center justify-center text-center p-4 sm:p-8">
         <div
-          class="w-14 h-14 rounded-2xl bg-muted border border-border flex items-center justify-center text-muted-foreground mb-4"
+          class="shrink-0 w-14 h-14 rounded-2xl bg-muted border border-border flex items-center justify-center text-muted-foreground mb-4"
         >
           <Calendar size={26} />
         </div>
@@ -333,7 +313,7 @@
         <button
           type="button"
           onclick={onCreateRoster}
-          class="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 text-xs font-semibold transition-opacity cursor-pointer"
+          class="shrink-0 min-h-[36px] inline-flex items-center gap-2 h-9 px-3.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 text-xs font-semibold transition-opacity cursor-pointer"
         >
           <Plus size={15} />
           <span>Criar Primeira Escala</span>

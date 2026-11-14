@@ -1,6 +1,7 @@
 <script lang="ts">
   import { X } from 'lucide-svelte';
   import type { Snippet } from 'svelte';
+  import { focusInitialElement, trapTabKey } from '../focusTrap';
 
   interface Props {
     open: boolean;
@@ -17,28 +18,17 @@
   let dialogEl: HTMLDivElement | null = $state(null);
   let previouslyFocused: HTMLElement | null = null;
 
-  const titleId = `teams-subdialog-title-${Math.random().toString(36).slice(2, 9)}`;
+  const uid = $props.id();
+  const titleId = `${uid}-title`;
+  const descId = `${uid}-desc`;
   const sizeClass = $derived(
     size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-3xl' : 'max-w-lg'
   );
-
-  function getFocusable(): HTMLElement[] {
-    if (!dialogEl) return [];
-    return Array.from(
-      dialogEl.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      )
-    ).filter((el) => el.offsetParent !== null);
-  }
+  const fieldSelector =
+    'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])';
 
   function focusFirstField() {
-    if (!dialogEl) return;
-    const fields = Array.from(
-      dialogEl.querySelectorAll<HTMLElement>(
-        'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
-      )
-    ).filter((el) => el.offsetParent !== null);
-    (fields[0] ?? getFocusable()[0] ?? dialogEl).focus();
+    if (dialogEl) focusInitialElement(dialogEl, fieldSelector, dialogEl);
   }
 
   $effect(() => {
@@ -55,18 +45,8 @@
   });
 
   function handleKeyDown(e: KeyboardEvent) {
-    if (!open || e.key !== 'Tab') return;
-    const focusable = getFocusable();
-    if (focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
+    if (!open || !dialogEl) return;
+    trapTabKey(e, dialogEl);
   }
 </script>
 
@@ -85,13 +65,14 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
+      aria-describedby={description ? descId : undefined}
       tabindex="-1"
     >
       <div class="px-4 py-3 border-b border-border flex items-start justify-between gap-3 shrink-0">
         <div class="min-w-0">
           <h3 id={titleId} class="text-sm font-bold text-foreground truncate">{title}</h3>
           {#if description}
-            <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">{description}</p>
+            <p id={descId} class="text-xs text-muted-foreground mt-0.5 leading-relaxed">{description}</p>
           {/if}
         </div>
         <button
