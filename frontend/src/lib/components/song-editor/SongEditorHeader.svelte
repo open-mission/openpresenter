@@ -42,7 +42,7 @@
           {displayTitle}
         </h2>
         <Badge variant="outline" class="text-[11px] text-muted-foreground font-mono shrink-0">
-          {slideCount} slides
+          {slideCount === 1 ? '1 slide' : `${slideCount} slides`}
         </Badge>
         {#if isDirty}
           <Badge
@@ -59,6 +59,9 @@
           ? 'Editor de letras e partes no padrão Holyrics e ProPresenter'
           : 'Editor de slides rápidos, avisos e comunicados com formatação rica'}
       </p>
+      <span class="sr-only" role="status" aria-live="polite">
+        {isDirty ? 'Existem alterações não salvas.' : ''}
+      </span>
     </div>
   </div>
 

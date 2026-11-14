@@ -9,6 +9,8 @@
     AlignVerticalJustifyStart,
     Bold,
     ChevronDown,
+    ChevronsDownUp,
+    ChevronsUpDown,
     Hash,
     Highlighter,
     Italic,
@@ -28,6 +30,8 @@
     onformatlines: () => void;
     oninsertsection: (label: string) => void;
     onopensectionmenu: (event: MouseEvent) => void;
+    isLyricsMaximized?: boolean;
+    ontogglelyricsmaximize?: () => void;
   }
 
   let {
@@ -41,6 +45,8 @@
     onformatlines,
     oninsertsection,
     onopensectionmenu,
+    isLyricsMaximized = false,
+    ontogglelyricsmaximize,
   }: Props = $props();
 
   const iconButtonClass =
@@ -210,5 +216,30 @@
     <Hash size={13} class="text-primary" aria-hidden="true" />
     <span>+ Seção</span>
     <ChevronDown size={11} class="text-muted-foreground" aria-hidden="true" />
+  </button>
+
+  <button
+    type="button"
+    onclick={ontogglelyricsmaximize}
+    class="{textButtonClass} ml-auto"
+    aria-pressed={isLyricsMaximized}
+    title={isLyricsMaximized
+      ? mode === 'song'
+        ? 'Restaurar campos de dados da música'
+        : 'Restaurar campos de dados da apresentação'
+      : 'Maximizar verticalmente a área de edição'}
+    aria-label={isLyricsMaximized
+      ? mode === 'song'
+        ? 'Restaurar campos de dados da música'
+        : 'Restaurar campos de dados da apresentação'
+      : 'Maximizar verticalmente a área de edição'}
+  >
+    {#if isLyricsMaximized}
+      <ChevronsDownUp size={13} class="text-primary" aria-hidden="true" />
+      <span>Restaurar</span>
+    {:else}
+      <ChevronsUpDown size={13} class="text-primary" aria-hidden="true" />
+      <span>Maximizar</span>
+    {/if}
   </button>
 </div>

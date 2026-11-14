@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Editor de Músicas — Maximização vertical da área de letra (`SongEditorModal.svelte`, `lib/components/song-editor/*`):**
+  - Novo modo de edição expandida que recolhe o formulário de metadados e entrega toda a altura livre da coluna esquerda à barra de formatação e ao `textarea`, com barra compacta exibindo título, artista, tom e BPM.
+  - Ações simétricas **Maximizar/Restaurar** na toolbar, **Recolher** no cabeçalho de metadados e **Editar metadados** na barra compacta, todas com `aria-pressed`, rótulos em português e alvos `>= 28px`.
+  - O modo é reiniciado ao fechar e reabrir o editor e não participa do estado de alterações não salvas.
+
 ### Refatorado
 - **Módulo 7 — Editor de Músicas e Repertório (`SongEditorModal.svelte`, `lib/components/song-editor/*`):**
   - Decomposição do monólito de 1.362 linhas em um orquestrador de 198 linhas e módulos coesos em `frontend/src/lib/components/song-editor/`: `SongEditorHeader`, `SongEditorMetadata`, `SongEditorToolbar`, `SongEditorLyrics`, `SongEditorPreview`, `SongEditorConfirmDiscard`, `controller.svelte.ts`, `defaults.ts`, `menus.ts`, `payload.ts`, `slides.ts`, `songEditorApi.ts` e `types.ts`.

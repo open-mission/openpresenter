@@ -25,13 +25,15 @@
     id={hintId}
     class="px-4 py-1.5 bg-muted/30 text-[11px] text-muted-foreground flex items-center justify-between gap-3 shrink-0 border-b border-border/60"
   >
-    <span class="truncate">
+    <span class="min-w-0 leading-snug">
       Use <code class="font-mono text-foreground">## Rótulo</code> para nomear slides. Linha em branco
       separa slides. Suporta <code class="font-mono text-foreground">**negrito**</code> e
       <code class="font-mono text-foreground">==destaque==</code>.
     </span>
     <span class="font-mono shrink-0">
-      {lineCount} linhas · {sectionCount} seções · {lyrics.length} chars
+      {lineCount} {lineCount === 1 ? 'linha' : 'linhas'} · {sectionCount}
+      {sectionCount === 1 ? 'seção' : 'seções'} · {lyrics.length}
+      {lyrics.length === 1 ? 'caractere' : 'caracteres'}
     </span>
   </div>
 

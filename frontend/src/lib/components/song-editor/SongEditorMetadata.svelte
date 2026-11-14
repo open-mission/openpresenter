@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { Check, ChevronDown, Music, Play, Square, Trash2, Upload, X } from 'lucide-svelte';
+  import { Check, ChevronDown, ChevronUp, Music, Play, Square, Trash2, Upload, X } from 'lucide-svelte';
   import { fetchAudios, uploadAudio } from '$lib/media';
   import { toast } from '$lib/toast';
   import type { AudioMediaItem } from '$lib/types';
@@ -17,6 +17,7 @@
     audioUrl?: string;
     titleError?: string;
     ontitleinput?: () => void;
+    oncollapsemadata?: () => void;
   }
 
   let {
@@ -30,6 +31,7 @@
     audioUrl = $bindable(''),
     titleError = '',
     ontitleinput,
+    oncollapsemadata,
   }: Props = $props();
 
   const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
@@ -166,6 +168,23 @@
 </script>
 
 <div class="p-4 border-b border-border bg-muted/20 space-y-3 shrink-0">
+  <div class="flex items-center justify-between gap-3 min-h-[28px]">
+    <h2 class="text-xs font-semibold text-foreground">
+      {mode === 'song' ? 'Informações da Música' : 'Informações da Apresentação'}
+    </h2>
+    {#if oncollapsemadata}
+      <button
+        type="button"
+        onclick={oncollapsemadata}
+        class="h-7 px-2 rounded-md bg-muted hover:bg-secondary text-muted-foreground hover:text-foreground text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        title="Recolher formulário de metadados"
+      >
+        <ChevronUp size={12} aria-hidden="true" />
+        <span>Recolher</span>
+      </button>
+    {/if}
+  </div>
+
   {#if mode === 'song'}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div>

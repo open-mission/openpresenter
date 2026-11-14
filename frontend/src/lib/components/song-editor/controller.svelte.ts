@@ -25,6 +25,7 @@ export class SongEditorController {
   open = $state(false);
   id = $state('');
   isMaximized = $state(false);
+  isLyricsMaximized = $state(false);
   title = $state('');
   artist = $state('');
   composer = $state('');
@@ -38,6 +39,9 @@ export class SongEditorController {
   errorMessage = $state('');
   titleError = $state('');
   showDiscardConfirm = $state(false);
+  showSectionName = $state(false);
+  sectionName = $state('');
+  sectionNameError = $state('');
   alignH = $state<AlignH>('center');
   alignV = $state<AlignV>('center');
 
@@ -55,6 +59,7 @@ export class SongEditorController {
   #initialSnapshot = '';
   #wasOpen = false;
   #previouslyFocused: HTMLElement | null = null;
+  #sectionNameTarget: number | null = null;
 
   parsed = $derived(parseRawLyrics(this.lyricsRaw));
   isDirty = $derived(this.open && this.#snapshot() !== this.#initialSnapshot);
@@ -74,6 +79,7 @@ export class SongEditorController {
 
     if (open && !this.#wasOpen) {
       this.#wasOpen = true;
+      this.isLyricsMaximized = false;
       const values = getInitialValues(mode, initialSong, initialItem);
       this.id = values.id;
       this.title = values.title;
@@ -90,6 +96,10 @@ export class SongEditorController {
       this.errorMessage = '';
       this.titleError = '';
       this.showDiscardConfirm = false;
+      this.showSectionName = false;
+      this.sectionName = '';
+      this.sectionNameError = '';
+      this.#sectionNameTarget = null;
       this.contextMenuOpen = false;
       this.#initialSnapshot = this.#snapshot();
       this.#previouslyFocused =
@@ -106,6 +116,7 @@ export class SongEditorController {
     } else if (!open && this.#wasOpen) {
       this.#wasOpen = false;
       this.showDiscardConfirm = false;
+      this.showSectionName = false;
       this.contextMenuOpen = false;
       if (this.#previouslyFocused && document.contains(this.#previouslyFocused)) {
         this.#previouslyFocused.focus();
@@ -141,6 +152,7 @@ export class SongEditorController {
       event.preventDefault();
       event.stopPropagation();
       if (this.showDiscardConfirm) this.cancelDiscard();
+      else if (this.showSectionName) this.cancelSectionName();
       else if (this.contextMenuOpen) this.closeContextMenu();
       else this.requestClose();
       return;
@@ -172,6 +184,10 @@ export class SongEditorController {
         this.applyUnderline();
       }
     }
+  }
+
+  toggleLyricsMaximized() {
+    this.isLyricsMaximized = !this.isLyricsMaximized;
   }
 
   requestClose() {
@@ -265,22 +281,48 @@ export class SongEditorController {
     }, 10);
   }
 
-  #promptSectionName(): string | null {
-    const customName = prompt(
-      'Digite o nome da nova seção (Ex: Ministração, Espontâneo, Refrão 2, Solo):'
-    );
-    return customName && customName.trim() ? customName.trim() : null;
+  get sectionNameIsInsert(): boolean {
+    return this.#sectionNameTarget === null;
+  }
+
+  #openSectionName(target: number | null) {
+    this.closeContextMenu();
+    this.#sectionNameTarget = target;
+    this.sectionName = '';
+    this.sectionNameError = '';
+    this.showSectionName = true;
   }
 
   promptInsertNewSection = () => {
-    const customName = this.#promptSectionName();
-    if (customName) this.insertSectionTag(customName);
+    this.#openSectionName(null);
   };
 
   promptSlideSection = (slideIdx: number) => {
-    const customName = this.#promptSectionName();
-    if (customName) this.handleSetSlideSection(slideIdx, customName);
+    this.#openSectionName(slideIdx);
   };
+
+  confirmSectionName() {
+    const name = this.sectionName.trim();
+    if (!name) {
+      this.sectionNameError = 'Informe um nome para a seção.';
+      return;
+    }
+
+    const target = this.#sectionNameTarget;
+    this.showSectionName = false;
+    this.sectionNameError = '';
+    this.#sectionNameTarget = null;
+
+    if (target === null) this.insertSectionTag(name);
+    else this.handleSetSlideSection(target, name);
+  }
+
+  cancelSectionName() {
+    this.showSectionName = false;
+    this.sectionName = '';
+    this.sectionNameError = '';
+    this.#sectionNameTarget = null;
+  }
 
   handleSetSlideSection(slideIdx: number, label: string) {
     const next = setSlideSection(this.lyricsRaw, slideIdx, label);
@@ -325,16 +367,18 @@ export class SongEditorController {
     this.#openContextMenu(
       rect.left,
       rect.bottom + 4,
-      buildInsertSectionMenu(this.#mode, this.insertSectionTag, this.promptInsertNewSection)
+      buildInsertSectionMenu(
+        this.#mode,
+        (label) => this.insertSectionTag(label),
+        this.promptInsertNewSection
+      )
     );
   };
 
-  handleSlideContextMenu = (event: MouseEvent, slide: Slide, slideIdx: number) => {
-    event.preventDefault();
-    event.stopPropagation();
+  #openSlideMenu(x: number, y: number, slide: Slide, slideIdx: number) {
     this.#openContextMenu(
-      event.clientX,
-      event.clientY,
+      x,
+      y,
       buildSlideContextMenu(this.#mode, slide.label, slideIdx, {
         onSetSection: (idx, label) => this.handleSetSlideSection(idx, label),
         onNewSection: (idx) => this.promptSlideSection(idx),
@@ -342,6 +386,17 @@ export class SongEditorController {
         onDelete: (idx) => this.handleDeleteSlide(idx),
       })
     );
+  }
+
+  handleSlideContextMenu = (event: MouseEvent, slide: Slide, slideIdx: number) => {
+    event.preventDefault();
+    event.stopPropagation();
+    this.#openSlideMenu(event.clientX, event.clientY, slide, slideIdx);
+  };
+
+  handleSlideActionsMenu = (event: Event, slide: Slide, slideIdx: number) => {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.#openSlideMenu(rect.left, rect.bottom + 4, slide, slideIdx);
   };
 
   closeContextMenu() {
@@ -353,6 +408,8 @@ export class SongEditorController {
   }
 
   async saveContent() {
+    this.errorMessage = '';
+
     if (!this.title.trim()) {
       this.titleError =
         this.#mode === 'song'
@@ -365,8 +422,17 @@ export class SongEditorController {
       return;
     }
 
+    if (
+      this.#mode === 'song' &&
+      this.bpm !== undefined &&
+      (!Number.isFinite(this.bpm) || this.bpm < 20 || this.bpm > 400)
+    ) {
+      this.errorMessage = 'O BPM deve estar entre 20 e 400.';
+      this.dialogEl?.querySelector<HTMLInputElement>('#song-bpm-input')?.focus();
+      return;
+    }
+
     this.isSaving = true;
-    this.errorMessage = '';
 
     try {
       if (this.#mode === 'song') {

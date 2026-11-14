@@ -9,6 +9,7 @@
   import SongEditorLyrics from './song-editor/SongEditorLyrics.svelte';
   import SongEditorPreview from './song-editor/SongEditorPreview.svelte';
   import SongEditorConfirmDiscard from './song-editor/SongEditorConfirmDiscard.svelte';
+  import SongEditorSectionName from './song-editor/SongEditorSectionName.svelte';
   import { SongEditorController } from './song-editor/controller.svelte';
   import type { SongEditorMode } from './song-editor/types';
 
@@ -41,6 +42,16 @@
   $effect(() => {
     editor.syncOpen(open, mode, initialSong, initialItem);
   });
+
+  const metadataSummary = $derived.by(() => {
+    const parts: string[] = [];
+    if (editor.artist.trim()) parts.push(editor.artist.trim());
+    if (mode === 'song') {
+      if (editor.songKey.trim()) parts.push(editor.songKey.trim());
+      if (editor.bpm) parts.push(`${editor.bpm} BPM`);
+    }
+    return parts;
+  });
 </script>
 
 <svelte:window onkeydown={(event) => editor.handleKeydown(event)} />
@@ -54,7 +65,7 @@
       : 'p-3 sm:p-6'}"
     role="presentation"
     onclick={() => {
-      if (!editor.showDiscardConfirm) editor.requestClose();
+      if (!editor.showDiscardConfirm && !editor.showSectionName) editor.requestClose();
     }}
   >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -69,7 +80,7 @@
       role="dialog"
       aria-modal="true"
       aria-label={mode === 'song' ? 'Editor de Música' : 'Editor de Apresentação e Texto'}
-      inert={editor.showDiscardConfirm}
+      inert={editor.showDiscardConfirm || editor.showSectionName}
       tabindex="-1"
     >
       <SongEditorHeader
@@ -96,20 +107,49 @@
         class="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden divide-y lg:divide-y-0 lg:divide-x divide-border"
       >
         <div
-          class="w-full lg:w-1/2 flex flex-col overflow-y-auto overflow-x-hidden bg-card min-h-0"
+          class="{editor.isLyricsMaximized
+            ? 'overflow-hidden'
+            : 'overflow-y-auto overflow-x-hidden'} w-full lg:w-1/2 flex flex-col bg-card min-h-0"
         >
-          <SongEditorMetadata
-            {mode}
-            bind:title={editor.title}
-            bind:artist={editor.artist}
-            bind:composer={editor.composer}
-            bind:songKey={editor.songKey}
-            bind:bpm={editor.bpm}
-            bind:tags={editor.tags}
-            bind:audioUrl={editor.audioUrl}
-            titleError={editor.titleError}
-            ontitleinput={() => editor.clearTitleError()}
-          />
+          {#if editor.isLyricsMaximized}
+            <div
+              class="px-4 py-2 border-b border-border bg-muted/40 flex items-center justify-between gap-3 text-xs shrink-0 select-none"
+            >
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="font-medium text-foreground truncate">
+                  {editor.title.trim() || 'Sem título'}
+                </span>
+                {#each metadataSummary as part}
+                  <span class="text-muted-foreground shrink-0" aria-hidden="true">·</span>
+                  <span class="text-muted-foreground truncate">{part}</span>
+                {/each}
+              </div>
+              <button
+                type="button"
+                onclick={() => editor.toggleLyricsMaximized()}
+                class="h-7 px-2 rounded-md bg-secondary hover:bg-muted border border-border text-foreground text-[11px] font-medium flex items-center shrink-0 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                title={mode === 'song'
+                  ? 'Abrir formulário de metadados da música'
+                  : 'Abrir formulário de metadados da apresentação'}
+              >
+                Editar metadados
+              </button>
+            </div>
+          {:else}
+            <SongEditorMetadata
+              {mode}
+              bind:title={editor.title}
+              bind:artist={editor.artist}
+              bind:composer={editor.composer}
+              bind:songKey={editor.songKey}
+              bind:bpm={editor.bpm}
+              bind:tags={editor.tags}
+              bind:audioUrl={editor.audioUrl}
+              titleError={editor.titleError}
+              ontitleinput={() => editor.clearTitleError()}
+              oncollapsemadata={() => editor.toggleLyricsMaximized()}
+            />
+          {/if}
           <SongEditorToolbar
             {mode}
             bind:alignH={editor.alignH}
@@ -121,6 +161,8 @@
             onformatlines={() => editor.applyLinesPerSlide()}
             oninsertsection={(label) => editor.insertSectionTag(label)}
             onopensectionmenu={(event) => editor.handleOpenSectionMenu(event)}
+            isLyricsMaximized={editor.isLyricsMaximized}
+            ontogglelyricsmaximize={() => editor.toggleLyricsMaximized()}
           />
           <SongEditorLyrics
             {mode}
@@ -137,6 +179,7 @@
           onfocusblock={(idx) => editor.focusSlideBlock(idx)}
           onslidecontextmenu={(event, slide, idx) =>
             editor.handleSlideContextMenu(event, slide, idx)}
+          onslideactions={(event, slide, idx) => editor.handleSlideActionsMenu(event, slide, idx)}
         />
       </div>
 
@@ -188,6 +231,16 @@
         </div>
       </footer>
     </div>
+
+    <SongEditorSectionName
+      open={editor.showSectionName}
+      bind:value={editor.sectionName}
+      error={editor.sectionNameError}
+      isInsert={editor.sectionNameIsInsert}
+      oninput={() => (editor.sectionNameError = '')}
+      onconfirm={() => editor.confirmSectionName()}
+      oncancel={() => editor.cancelSectionName()}
+    />
 
     <SongEditorConfirmDiscard
       open={editor.showDiscardConfirm}

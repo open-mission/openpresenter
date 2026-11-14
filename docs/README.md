@@ -348,6 +348,11 @@
 - [Spec — Refatoração do Módulo 7 (Editor de Músicas e Repertório)](specs/2026-11-14-refatoracao-modulo-7-editor-de-musicas.md)
 - [Plano — Refatoração do Módulo 7 (Editor de Músicas e Repertório)](plans/2026-11-14-refatoracao-modulo-7-editor-de-musicas.md)
 
+## Maximização Vertical da Área de Letra no Editor de Músicas
+
+- [Spec — Maximização vertical da área de edição de letra no Editor de Músicas](specs/2026-11-14-editor-musicas-maximizar-area-letra.md)
+- [Plano — Maximização vertical da área de edição de letra](plans/2026-11-14-editor-musicas-maximizar-area-letra.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

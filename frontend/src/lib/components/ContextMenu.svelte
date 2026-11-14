@@ -68,6 +68,12 @@
     const enabledItems = Array.from(
       menuElement.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')
     );
+    if (e.key === 'Tab') {
+      // Fecha o menu e devolve o foco ao gatilho. O Tab padrão continua a
+      // partir dali, permanecendo dentro do diálogo que abriu o menu.
+      closeMenu();
+      return;
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
@@ -119,6 +125,8 @@
     bind:this={menuElement}
     style="left: {adjustedX}px; top: {adjustedY}px;"
     class="fixed z-50 min-w-[210px] max-h-[85vh] overflow-y-auto rounded-lg border border-border bg-popover/95 backdrop-blur-md p-1.5 shadow-2xl text-xs text-popover-foreground select-none animate-in fade-in zoom-in-95 duration-100"
+    onclick={(e) => e.stopPropagation()}
+    oncontextmenu={(e) => e.stopPropagation()}
     onkeydown={handleMenuKeydown}
     role="menu"
     aria-label="Menu de contexto"

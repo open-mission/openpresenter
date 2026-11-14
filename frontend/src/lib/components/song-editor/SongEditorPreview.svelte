@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { FileText, Music, Sparkles } from 'lucide-svelte';
+  import { FileText, MoreVertical, Music, Sparkles } from 'lucide-svelte';
   import { renderFormattedText } from '$lib/markdown';
   import { getSectionColor } from '../../songParser';
   import type { Slide } from '$lib/types';
@@ -12,9 +12,31 @@
     alignV: AlignV;
     onfocusblock: (slideIdx: number) => void;
     onslidecontextmenu: (event: MouseEvent, slide: Slide, slideIdx: number) => void;
+    onslideactions: (event: Event, slide: Slide, slideIdx: number) => void;
   }
 
-  let { mode, slides, alignH, alignV, onfocusblock, onslidecontextmenu }: Props = $props();
+  let {
+    mode,
+    slides,
+    alignH,
+    alignV,
+    onfocusblock,
+    onslidecontextmenu,
+    onslideactions,
+  }: Props = $props();
+
+  const alignLabels: Record<AlignH, string> = {
+    left: 'esquerda',
+    center: 'centro',
+    right: 'direita',
+    justify: 'justificado',
+  };
+  const valignLabels: Record<AlignV, string> = {
+    top: 'topo',
+    center: 'centro',
+    bottom: 'base',
+  };
+  const alignmentLabel = $derived(`Alinhamento: ${alignLabels[alignH]} / ${valignLabels[alignV]}`);
 
   const verticalClass = $derived(
     alignV === 'top' ? 'justify-start' : alignV === 'bottom' ? 'justify-end' : 'justify-center'
@@ -45,7 +67,7 @@
       <span class="truncate">Prévia dos Slides ({slides.length})</span>
     </span>
     <div class="flex items-center gap-2 text-[11px] text-muted-foreground font-mono shrink-0">
-      <span class="hidden sm:inline">Alinhamento: {alignH} / {alignV}</span>
+      <span class="hidden sm:inline">{alignmentLabel}</span>
       <span aria-hidden="true" class="hidden sm:inline">•</span>
       <span>16:9</span>
     </div>
@@ -75,12 +97,18 @@
               type="button"
               onclick={() => onfocusblock(idx)}
               oncontextmenu={(event) => onslidecontextmenu(event, slide, idx)}
+              onkeydown={(event) => {
+                if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+                  event.preventDefault();
+                  onslideactions(event, slide, idx);
+                }
+              }}
               class="w-full aspect-video bg-card text-card-foreground rounded-lg border border-border overflow-hidden flex flex-col shadow-sm transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer text-left"
-              title="Clique para editar este trecho; botão direito para mudar seção, duplicar ou excluir slide"
+              title="Clique para editar este trecho; use o menu de ações para mudar seção, duplicar ou excluir"
               aria-label={`Editar texto do slide ${idx + 1}: ${slide.label}`}
             >
               <span
-                class="h-6 px-2.5 flex items-center justify-between border-b border-border/70 text-[11px] font-medium {color.bg} shrink-0"
+                class="h-6 pl-2.5 pr-9 flex items-center justify-between border-b border-border/70 text-[11px] font-medium {color.bg} shrink-0"
               >
                 <span class="flex items-center gap-1.5 min-w-0">
                   <span class="w-2 h-2 rounded-full shrink-0 {color.accent}" aria-hidden="true"></span>
@@ -96,6 +124,17 @@
                   {@html renderFormattedText(slide.content, previewFormatOptions)}
                 </span>
               </span>
+            </button>
+
+            <button
+              type="button"
+              onclick={(event) => onslideactions(event, slide, idx)}
+              class="absolute right-1 top-1 w-7 h-7 rounded-md border border-border bg-card/90 text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center shadow-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              title="Ações do slide"
+              aria-label={`Ações do slide ${idx + 1}`}
+              aria-haspopup="menu"
+            >
+              <MoreVertical size={14} aria-hidden="true" />
             </button>
           </article>
         {/each}
