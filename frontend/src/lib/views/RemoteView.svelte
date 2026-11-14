@@ -656,7 +656,10 @@
     const totalCh = book?.chapter_count || 1;
     chapters = Array.from({ length: totalCh }, (_, i) => i + 1);
     const safeChapter = Math.min(Math.max(1, chapterTarget), totalCh);
-    await selectChapter(safeChapter, bibleId, switchToChapters);
+    if (switchToChapters) {
+      bibleNavTab = 'chapters';
+    }
+    await selectChapter(safeChapter, bibleId, false);
   }
 
   async function selectChapter(chapter: number, bibleId = selectedBibleId, switchToVerses = true) {

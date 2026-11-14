@@ -10,6 +10,7 @@
     X,
   } from 'lucide-svelte';
   import type { BibleBook, BibleSearchResult, BibleVerse } from '$lib/types';
+  import { triggerHaptic } from '$lib/remoteData';
 
   interface Props {
     activeBibleAbbr: string;
@@ -87,10 +88,10 @@
     });
   });
 
-  const subTabs: Array<{ id: 'verses' | 'books' | 'chapters'; label: string }> = [
-    { id: 'verses', label: 'Versículos' },
+  const subTabs: Array<{ id: 'books' | 'chapters' | 'verses'; label: string }> = [
     { id: 'books', label: 'Livros' },
     { id: 'chapters', label: 'Capítulos' },
+    { id: 'verses', label: 'Versículos' },
   ];
 
   function handleTabKeyDown(e: KeyboardEvent, idx: number) {
@@ -272,7 +273,10 @@
           aria-selected={active}
           aria-controls="bible-panel-{tab.id}"
           tabindex={active ? 0 : -1}
-          onclick={() => onSetNavTab(tab.id)}
+          onclick={() => {
+            triggerHaptic('light');
+            onSetNavTab(tab.id);
+          }}
           onkeydown={(e) => handleTabKeyDown(e, idx)}
           class="min-h-10 rounded-lg text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer {active
             ? 'bg-emerald-700 text-white shadow-xs'
@@ -335,7 +339,10 @@
               <button
                 type="button"
                 aria-pressed={isSelected}
-                onclick={() => onSelectBook(book.id)}
+                onclick={() => {
+                  triggerHaptic('light');
+                  onSelectBook(book.id);
+                }}
                 class="min-h-12 px-3 py-2 rounded-xl border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer {isSelected
                   ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs'
                   : 'bg-card hover:bg-muted border-border text-foreground'}"
@@ -361,7 +368,10 @@
           <button
             type="button"
             aria-pressed={isSelected}
-            onclick={() => onSelectChapter(ch)}
+            onclick={() => {
+              triggerHaptic('light');
+              onSelectChapter(ch);
+            }}
             class="min-h-12 rounded-xl border font-mono tabular-nums text-sm font-bold flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer {isSelected
               ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs'
               : 'bg-card hover:bg-muted border-border text-foreground'}"
@@ -399,6 +409,7 @@
                 <button
                   type="button"
                   onclick={() => {
+                    triggerHaptic('light');
                     if (!safeDispatch || cuedVerseId === verse.id) {
                       cuedVerseId = null;
                       onProjectVerse(verse);
@@ -433,6 +444,7 @@
                   <button
                     type="button"
                     onclick={() => {
+                      triggerHaptic('medium');
                       cuedVerseId = null;
                       onProjectVerse(verse);
                     }}
