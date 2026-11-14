@@ -343,6 +343,11 @@
 - [Spec — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](specs/2026-11-14-refatoracao-modulo-6-command-palette.md)
 - [Plano — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](plans/2026-11-14-refatoracao-modulo-6-command-palette.md)
 
+## Refatoração do Módulo 10 (Seletor de Fundos & Gradientes)
+
+- [Spec — Refatoração do Módulo 10 (Seletor de Fundos & Gradientes)](specs/2026-11-14-refatoracao-modulo-10-seletor-de-backgrounds.md)
+- [Plano — Refatoração do Módulo 10 (Seletor de Fundos & Gradientes)](plans/2026-11-14-refatoracao-modulo-10-seletor-de-backgrounds.md)
+
 ## Refatoração do Módulo 9 (Gerenciador de Setlists)
 
 - [Spec — Refatoração do Módulo 9 (Gerenciador de Setlists)](specs/2026-11-14-refatoracao-modulo-9-gerenciador-de-setlists.md)
