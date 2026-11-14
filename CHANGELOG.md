@@ -8,8 +8,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ### Adicionado
 - **Editor de Músicas — Maximização vertical da área de letra (`SongEditorModal.svelte`, `lib/components/song-editor/*`):**
-  - Novo modo de edição expandida que recolhe o formulário de metadados e entrega toda a altura livre da coluna esquerda à barra de formatação e ao `textarea`, com barra compacta exibindo título, artista, tom e BPM.
-  - Ações simétricas **Maximizar/Restaurar** na toolbar, **Recolher** no cabeçalho de metadados e **Editar metadados** na barra compacta, todas com `aria-pressed`, rótulos em português e alvos `>= 28px`.
+  - Novo modo de edição expandida que recolhe o formulário de metadados e entrega 100% da altura livre da coluna esquerda à barra de formatação e ao `textarea`, com barra compacta exibindo título, artista, tom e BPM.
+  - Controle centralizado no cabeçalho de metadados (**Recolher** no formulário aberto e **Editar metadados** na barra compacta), eliminando botões redundantes na barra de formatação e mantendo a toolbar compacta em linha única.
   - O modo é reiniciado ao fechar e reabrir o editor e não participa do estado de alterações não salvas.
 
 ### Refatorado

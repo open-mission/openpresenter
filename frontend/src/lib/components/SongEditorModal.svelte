@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AlertCircle, Save } from 'lucide-svelte';
+  import { AlertCircle, ChevronDown, Save } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import type { Song, MediaItem } from '../types';
@@ -127,12 +127,13 @@
               <button
                 type="button"
                 onclick={() => editor.toggleLyricsMaximized()}
-                class="h-7 px-2 rounded-md bg-secondary hover:bg-muted border border-border text-foreground text-[11px] font-medium flex items-center shrink-0 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                class="h-7 px-2 rounded-md bg-secondary hover:bg-muted border border-border text-foreground text-[11px] font-medium flex items-center gap-1 shrink-0 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 title={mode === 'song'
                   ? 'Abrir formulário de metadados da música'
                   : 'Abrir formulário de metadados da apresentação'}
               >
-                Editar metadados
+                <ChevronDown size={12} aria-hidden="true" />
+                <span>Editar metadados</span>
               </button>
             </div>
           {:else}
@@ -161,8 +162,6 @@
             onformatlines={() => editor.applyLinesPerSlide()}
             oninsertsection={(label) => editor.insertSectionTag(label)}
             onopensectionmenu={(event) => editor.handleOpenSectionMenu(event)}
-            isLyricsMaximized={editor.isLyricsMaximized}
-            ontogglelyricsmaximize={() => editor.toggleLyricsMaximized()}
           />
           <SongEditorLyrics
             {mode}
