@@ -388,6 +388,11 @@
 - [Spec — Maximização vertical da área de edição de letra no Editor de Músicas](specs/2026-11-14-editor-musicas-maximizar-area-letra.md)
 - [Plano — Maximização vertical da área de edição de letra](plans/2026-11-14-editor-musicas-maximizar-area-letra.md)
 
+## Controle Remoto Mobile — Correções e Polimento Ergonômico Impeccable
+
+- [Spec — Correções Críticas e Polimento Ergonômico no Controle Remoto Mobile](specs/2026-11-14-melhorias-remote-view-impeccable.md)
+- [Plano — Correções Críticas e Polimento Ergonômico no Controle Remoto Mobile](plans/2026-11-14-melhorias-remote-view-impeccable.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

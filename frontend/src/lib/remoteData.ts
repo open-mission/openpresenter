@@ -1,5 +1,6 @@
 import { readHttpError } from './media';
-import type { AudioPlaybackState, MediaItem } from './types';
+import { parseRawLyrics } from './songParser';
+import type { AudioPlaybackState, MediaItem, Slide } from './types';
 
 export const REMOTE_SAFE_DISPATCH_KEY = 'openpresenter:remote-safe-dispatch';
 
@@ -90,4 +91,81 @@ export function getStoredSafeDispatch(): boolean {
 export function setStoredSafeDispatch(enabled: boolean): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(REMOTE_SAFE_DISPATCH_KEY, String(enabled));
+}
+
+/**
+ * Dispara vibração tátil suave no dispositivo móvel para confirmação física de toques.
+ */
+export function triggerHaptic(type: 'light' | 'medium' | 'warning' = 'light'): void {
+  if (typeof window === 'undefined' || !('vibrate' in navigator)) return;
+  try {
+    if (type === 'light') {
+      navigator.vibrate(12);
+    } else if (type === 'medium') {
+      navigator.vibrate([18, 20, 18]);
+    } else if (type === 'warning') {
+      navigator.vibrate([35, 30, 45]);
+    }
+  } catch {
+    // Ignorado em ambientes sem suporte
+  }
+}
+
+/**
+ * Extrai de forma resiliente os slides de uma música retornada pela API ou setlist,
+ * suportando `slides`, `lyrics_raw`, `sections` e `lyrics`.
+ */
+export function extractSongSlides(song: unknown, fallbackId = 'song'): Slide[] {
+  if (!song || typeof song !== 'object') return [];
+
+  const candidate = song as {
+    id?: string;
+    slides?: Slide[];
+    lyrics_raw?: string;
+    lyrics?: string;
+    sections?: Array<{
+      label?: string;
+      section_type?: string;
+      lines?: string[];
+    }>;
+  };
+
+  const idPrefix = candidate.id || fallbackId;
+
+  // 1. Já possui slides previamente mapeados
+  if (Array.isArray(candidate.slides) && candidate.slides.length > 0) {
+    return candidate.slides;
+  }
+
+  // 2. Possui texto raw em Markdown (lyrics_raw ou lyrics)
+  const rawText = candidate.lyrics_raw || candidate.lyrics;
+  if (rawText && typeof rawText === 'string' && rawText.trim() !== '') {
+    const parsed = parseRawLyrics(rawText);
+    if (parsed.slides.length > 0) {
+      return parsed.slides.map((s, idx) => ({
+        ...s,
+        id: s.id || `${idPrefix}-s-${idx}`,
+      }));
+    }
+  }
+
+  // 3. Possui array estruturado de seções
+  if (Array.isArray(candidate.sections) && candidate.sections.length > 0) {
+    const slides: Slide[] = [];
+    let slideIdx = 0;
+    for (const sec of candidate.sections) {
+      const lines = Array.isArray(sec.lines) ? sec.lines : [];
+      if (lines.length > 0) {
+        slides.push({
+          id: `${idPrefix}-sec-${slideIdx}`,
+          label: sec.label || (sec.section_type ? sec.section_type.toUpperCase() : `Estrofe ${slideIdx + 1}`),
+          content: lines.join('\n'),
+        });
+        slideIdx += 1;
+      }
+    }
+    if (slides.length > 0) return slides;
+  }
+
+  return [];
 }

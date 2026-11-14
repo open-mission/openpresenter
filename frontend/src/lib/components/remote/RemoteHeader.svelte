@@ -1,7 +1,7 @@
 <script lang="ts">
   import { EyeOff, LogOut, Moon, Square, Sun, Type, Wifi, WifiOff } from 'lucide-svelte';
   import type { RemoteAuthSession } from '$lib/types';
-  import { getInitials } from '$lib/remoteData';
+  import { getInitials, triggerHaptic } from '$lib/remoteData';
   import { reconnectWebSocket } from '$lib/ws';
 
   interface Props {
@@ -31,6 +31,26 @@
     onToggleClearText,
     onRequestStop,
   }: Props = $props();
+
+  function handleTheme() {
+    triggerHaptic('light');
+    onToggleTheme();
+  }
+
+  function handleBlackout() {
+    triggerHaptic('medium');
+    onToggleBlackout();
+  }
+
+  function handleClearText() {
+    triggerHaptic('medium');
+    onToggleClearText();
+  }
+
+  function handleStop() {
+    triggerHaptic('warning');
+    onRequestStop();
+  }
 </script>
 
 <header class="shrink-0 bg-card/95 backdrop-blur-md border-b border-border pt-[env(safe-area-inset-top)]">
@@ -53,7 +73,10 @@
             <button
               type="button"
               onclick={() => {
-                if (!isConnected) reconnectWebSocket('remote');
+                if (!isConnected) {
+                  triggerHaptic('light');
+                  reconnectWebSocket('remote');
+                }
               }}
               aria-label={isConnected
                 ? 'Conectado ao servidor da mesa em tempo real'
@@ -78,7 +101,7 @@
       <div class="flex items-center gap-1.5 shrink-0 md:order-last">
         <button
           type="button"
-          onclick={onToggleTheme}
+          onclick={handleTheme}
           aria-label={isLightTheme ? 'Alternar para tema escuro' : 'Alternar para tema claro'}
           title={isLightTheme ? 'Mudar para tema escuro' : 'Mudar para tema claro'}
           class="h-9 w-9 rounded-xl bg-secondary hover:bg-muted border border-border text-foreground flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
@@ -108,7 +131,7 @@
       <div class="grid grid-cols-3 md:flex items-center gap-1.5" role="group" aria-label="Controles de tela pública">
         <button
           type="button"
-          onclick={onToggleBlackout}
+          onclick={handleBlackout}
           aria-pressed={isBlackout}
           class="min-h-9 px-2.5 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer {isBlackout
             ? 'bg-amber-700 hover:bg-amber-800 text-white border-amber-800 shadow-xs'
@@ -120,7 +143,7 @@
 
         <button
           type="button"
-          onclick={onToggleClearText}
+          onclick={handleClearText}
           aria-pressed={isClear}
           class="min-h-9 px-2.5 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer {isClear
             ? 'bg-sky-700 hover:bg-sky-800 text-white border-sky-800 shadow-xs'
@@ -132,7 +155,7 @@
 
         <button
           type="button"
-          onclick={onRequestStop}
+          onclick={handleStop}
           aria-label="Parar projeção ao vivo"
           class="min-h-9 px-2.5 rounded-xl text-xs font-semibold bg-red-500/15 hover:bg-red-500/25 text-red-700 dark:text-red-300 border border-red-600/35 dark:border-red-500/40 flex items-center justify-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
         >

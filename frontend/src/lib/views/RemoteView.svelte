@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { AlertTriangle, BookOpen, Check, ListMusic, Loader2, ShieldCheck } from 'lucide-svelte';
   import {
     presentationState,
     activeSetlist,
@@ -9,6 +8,7 @@
     initWebSocket,
     closeWebSocket,
     selectSlide,
+    quickPresentMedia,
     stopPresentation,
     toggleBlackout,
     toggleClearText,
@@ -29,7 +29,6 @@
     TeamMember,
   } from '$lib/types';
   import { parseBibleReference } from '$lib/bibleParser';
-  import { parseRawLyrics } from '$lib/songParser';
   import { updateRosterItemStatus, isRosterLeadRole } from '$lib/teams';
   import {
     remoteAuthStore,
@@ -45,10 +44,11 @@
     getStoredSafeDispatch,
     setStoredSafeDispatch,
     verifyRemoteOperatorPin,
+    extractSongSlides,
+    triggerHaptic,
   } from '$lib/remoteData';
   import { notifyError, notifySuccess } from '$lib/toast';
   import RemoteLogin from '$lib/components/RemoteLogin.svelte';
-  import RemoteDialog from '$lib/components/remote/RemoteDialog.svelte';
   import RemoteHeader from '$lib/components/remote/RemoteHeader.svelte';
   import RemoteLiveControlCard from '$lib/components/remote/RemoteLiveControlCard.svelte';
   import RemoteBottomNav, { type RemoteTab } from '$lib/components/remote/RemoteBottomNav.svelte';
@@ -57,7 +57,10 @@
   import RemoteSongsTab from '$lib/components/remote/RemoteSongsTab.svelte';
   import RemoteBibleTab from '$lib/components/remote/RemoteBibleTab.svelte';
   import RemoteTeamTab from '$lib/components/remote/RemoteTeamTab.svelte';
-  import { Eye, EyeOff } from 'lucide-svelte';
+  import RemoteSetlistSheet from '$lib/components/remote/RemoteSetlistSheet.svelte';
+  import RemoteBibleSheet from '$lib/components/remote/RemoteBibleSheet.svelte';
+  import RemotePinDialog from '$lib/components/remote/RemotePinDialog.svelte';
+  import RemoteStopDialog from '$lib/components/remote/RemoteStopDialog.svelte';
 
   // --- Navegação e Controles Gerais ---
   let activeTab = $state<RemoteTab>('home');
@@ -68,7 +71,6 @@
   let isPinModalOpen = $state(false);
   let operatorPinInput = $state('');
   let operatorPinError = $state('');
-  let showOperatorPin = $state(false);
   let isVerifyingOperatorPin = $state(false);
   let isStopConfirmOpen = $state(false);
   let isSetlistSelectorOpen = $state(false);
@@ -169,6 +171,53 @@
       ? currentMediaSlides[currentSlideIndex + 1]
       : null
   );
+
+  const currentSetlistItemIndex = $derived.by(() => {
+    if (!activeSetlistData || !$presentationState.active_media_id) return -1;
+    return activeSetlistData.items.findIndex((i) => i.id === $presentationState.active_media_id);
+  });
+
+  const nextSetlistItem = $derived.by(() => {
+    if (!activeSetlistData || currentSetlistItemIndex < 0) return null;
+    for (let i = currentSetlistItemIndex + 1; i < activeSetlistData.items.length; i++) {
+      const item = activeSetlistData.items[i];
+      if (item.kind !== 'header' && (item.slides?.length ?? 0) > 0) {
+        return item;
+      }
+    }
+    return null;
+  });
+
+  const prevSetlistItem = $derived.by(() => {
+    if (!activeSetlistData || currentSetlistItemIndex <= 0) return null;
+    for (let i = currentSetlistItemIndex - 1; i >= 0; i--) {
+      const item = activeSetlistData.items[i];
+      if (item.kind !== 'header' && (item.slides?.length ?? 0) > 0) {
+        return item;
+      }
+    }
+    return null;
+  });
+
+  const isAtEndOfMedia = $derived(totalSlides > 0 && currentSlideIndex >= totalSlides - 1);
+  const isAtStartOfMedia = $derived(currentSlideIndex <= 0);
+
+  const canAdvanceNext = $derived(
+    Boolean(
+      currentSlideIndex + 1 < totalSlides ||
+        (isAtEndOfMedia && nextSetlistItem && (nextSetlistItem.slides?.length ?? 0) > 0)
+    )
+  );
+
+  const canAdvancePrev = $derived(
+    Boolean(
+      currentSlideIndex > 0 ||
+        (isAtStartOfMedia && prevSetlistItem && (prevSetlistItem.slides?.length ?? 0) > 0)
+    )
+  );
+
+  const nextItemTitle = $derived(nextSetlistItem?.title || '');
+  const prevItemTitle = $derived(prevSetlistItem?.title || '');
 
   const activeBibleSummary = $derived(
     bibles.find((b) => b.id === selectedBibleId) || bibles[0]
@@ -353,7 +402,6 @@
   function openOperatorPinModal() {
     operatorPinInput = '';
     operatorPinError = '';
-    showOperatorPin = false;
     isPinModalOpen = true;
   }
 
@@ -627,7 +675,7 @@
     bibleError = null;
     try {
       verses = await fetchJsonWithError<BibleVerse[]>(
-        `/api/bibles/${encodeURIComponent(bibleId)}/books/${bookId}/chapters/${chapter}`,
+        `/api/bibles/${encodeURIComponent(bibleId)}/books/${bookId}/chapters/${chapter}/verses`,
         'Não foi possível carregar os versículos deste capítulo.',
         { signal: controller.signal }
       );
@@ -691,6 +739,10 @@
     if (!ensureOperator() || !currentMedia) return;
     if (currentSlideIndex > 0) {
       selectSlide(currentMedia.id, currentSlideIndex - 1);
+    } else if (prevSetlistItem && (prevSetlistItem.slides?.length ?? 0) > 0) {
+      const lastIndex = (prevSetlistItem.slides?.length ?? 1) - 1;
+      selectSlide(prevSetlistItem.id, lastIndex);
+      notifySuccess(`Item anterior: ${prevSetlistItem.title}`, 'Posicionado no último slide.');
     }
   }
 
@@ -698,49 +750,35 @@
     if (!ensureOperator() || !currentMedia) return;
     if (currentSlideIndex + 1 < totalSlides) {
       selectSlide(currentMedia.id, currentSlideIndex + 1);
+    } else if (nextSetlistItem && (nextSetlistItem.slides?.length ?? 0) > 0) {
+      selectSlide(nextSetlistItem.id, 0);
+      notifySuccess(`Próximo item: ${nextSetlistItem.title}`, 'Iniciando primeiro slide.');
     }
   }
 
-  async function presentSetlistItemSlide(item: MediaItem, slideIndex: number) {
+  function presentSetlistItemSlide(item: MediaItem, slideIndex: number) {
     if (!ensureOperator()) return;
-    try {
-      const res = await fetch('/api/presentation/quick', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ media: item, slide_index: slideIndex }),
-      });
-      if (!res.ok) throw new Error();
-    } catch {
-      selectSlide(item.id, slideIndex);
-    }
+    triggerHaptic('medium');
+    selectSlide(item.id, slideIndex);
   }
 
-  async function presentSong(song: MediaItem, slideIndex = 0) {
+  function presentSong(song: MediaItem, slideIndex = 0) {
     if (!ensureOperator()) return;
-    let slides = song.slides || [];
-    const rawLyrics = (song as unknown as { lyrics?: string }).lyrics;
-    if (slides.length === 0 && rawLyrics) {
-      slides = parseRawLyrics(rawLyrics).slides.map((s, idx) => ({
-        ...s,
-        id: `${song.id}-s-${idx}`,
-      }));
+    triggerHaptic('medium');
+    const slides = extractSongSlides(song, song.id);
+    if (slides.length === 0) {
+      notifyError('Música sem slides', 'Esta música não possui estrofes configuradas.');
+      return;
     }
 
     const mediaToSend: MediaItem = { ...song, kind: 'song', slides };
-    try {
-      const res = await fetch('/api/presentation/quick', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ media: mediaToSend, slide_index: slideIndex }),
-      });
-      if (!res.ok) throw new Error();
-    } catch {
-      notifyError('Falha ao projetar música', 'Verifique se o computador principal está conectado.');
-    }
+    quickPresentMedia(mediaToSend, slideIndex);
+    notifySuccess('Música projetada', song.title);
   }
 
-  async function presentVerse(verseObj: BibleVerse) {
+  function presentVerse(verseObj: BibleVerse) {
     if (!ensureOperator()) return;
+    triggerHaptic('medium');
     const book = books.find((b) => b.id === selectedBookId);
     const title = `${book?.name || 'Bíblia'} ${selectedChapter}`;
     const verAbbr = activeBibleSummary?.abbreviation || '';
@@ -763,16 +801,8 @@
     };
 
     const slideIdx = Math.max(0, verses.findIndex((v) => v.verse === verseObj.verse));
-    try {
-      const res = await fetch('/api/presentation/quick', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ media: mediaToSend, slide_index: slideIdx }),
-      });
-      if (!res.ok) throw new Error();
-    } catch {
-      notifyError('Falha ao projetar versículo', 'Verifique a conexão com a mesa.');
-    }
+    quickPresentMedia(mediaToSend, slideIdx);
+    notifySuccess('Versículo projetado', `${book?.name || 'Bíblia'} ${selectedChapter}:${verseObj.verse}`);
   }
 
   async function presentSearchResult(resObj: BibleSearchResult) {
@@ -831,6 +861,10 @@
           timer={$presentationState.timer}
           isCollapsed={isLiveCardCollapsed}
           {safeDispatch}
+          {canAdvanceNext}
+          {canAdvancePrev}
+          {nextItemTitle}
+          {prevItemTitle}
           onToggleCollapse={() => (isLiveCardCollapsed = !isLiveCardCollapsed)}
           onToggleSafeDispatch={handleToggleSafeDispatch}
           onPrevSlide={handlePrevSlide}
@@ -954,197 +988,42 @@
     />
   </div>
 
-  <!-- Sheet 1: Seletor de Setlists -->
-  <RemoteDialog
+  <RemoteSetlistSheet
     open={isSetlistSelectorOpen}
-    variant="sheet"
-    title="Escolher Setlist"
-    closeLabel="Fechar seletor de setlist"
-    maxWidthClass="max-w-md md:max-w-lg"
-    onclose={() => (isSetlistSelectorOpen = false)}
-  >
-    <div class="p-3 space-y-1.5">
-      {#if setlistsList.length === 0}
-        <p class="py-8 text-center text-xs text-muted-foreground">
-          Nenhuma setlist salva no computador principal.
-        </p>
-      {:else}
-        {#each setlistsList as s (s.id)}
-          {@const selected = activeSetlistData?.id === s.id}
-          <button
-            type="button"
-            onclick={() => void selectSetlist(s.id)}
-            class="w-full min-h-[56px] p-3 rounded-xl border flex items-center justify-between gap-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer {selected
-              ? 'bg-emerald-500/15 border-emerald-600/60 dark:border-emerald-500 text-foreground'
-              : 'bg-background hover:bg-muted border-border text-foreground'}"
-          >
-            <span class="flex items-center gap-3 min-w-0">
-              <ListMusic size={17} class="text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
-              <span class="min-w-0">
-                <span class="block text-sm font-bold truncate">{s.title}</span>
-                <span class="block text-xs text-muted-foreground">
-                  {s.item_count} {s.item_count === 1 ? 'item' : 'itens'}
-                  {s.is_active ? ' • Ativa no culto' : ''}
-                </span>
-              </span>
-            </span>
-            {#if selected}
-              <Check size={17} class="text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
-            {/if}
-          </button>
-        {/each}
-      {/if}
-    </div>
-  </RemoteDialog>
+    setlists={setlistsList}
+    activeSetlist={activeSetlistData}
+    onSelectSetlist={(id) => void selectSetlist(id)}
+    onClose={() => (isSetlistSelectorOpen = false)}
+  />
 
-  <!-- Sheet 2: Seletor de Versão da Bíblia -->
-  <RemoteDialog
+  <RemoteBibleSheet
     open={isBibleSelectorOpen}
-    variant="sheet"
-    title="Versão da Bíblia"
-    closeLabel="Fechar seletor de versão bíblica"
-    maxWidthClass="max-w-md md:max-w-lg"
-    onclose={() => (isBibleSelectorOpen = false)}
-  >
-    <div class="p-3 space-y-1.5">
-      {#if bibles.length === 0}
-        <p class="py-8 text-center text-xs text-muted-foreground">
-          Nenhuma versão bíblica encontrada no servidor.
-        </p>
-      {:else}
-        {#each bibles as b (b.id)}
-          {@const selected = selectedBibleId === b.id}
-          <button
-            type="button"
-            onclick={() => {
-              selectedBibleId = b.id;
-              isBibleSelectorOpen = false;
-              void loadBooks(b.id);
-            }}
-            class="w-full min-h-[56px] p-3 rounded-xl border flex items-center justify-between gap-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer {selected
-              ? 'bg-emerald-500/15 border-emerald-600/60 dark:border-emerald-500 text-foreground'
-              : 'bg-background hover:bg-muted border-border text-foreground'}"
-          >
-            <span class="flex items-center gap-3 min-w-0">
-              <BookOpen size={17} class="text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
-              <span class="min-w-0">
-                <span class="block text-sm font-bold truncate">{b.name}</span>
-                <span class="block text-xs text-muted-foreground">{b.abbreviation}</span>
-              </span>
-            </span>
-            {#if selected}
-              <Check size={17} class="text-emerald-700 dark:text-emerald-400 shrink-0" aria-hidden="true" />
-            {/if}
-          </button>
-        {/each}
-      {/if}
-    </div>
-  </RemoteDialog>
+    bibles={bibles}
+    selectedBibleId={selectedBibleId}
+    onSelectBible={(id) => {
+      selectedBibleId = id;
+      isBibleSelectorOpen = false;
+      void loadBooks(id);
+    }}
+    onClose={() => (isBibleSelectorOpen = false)}
+  />
 
-  <!-- Dialog 3: Desbloqueio de PIN de Operador -->
-  <RemoteDialog
+  <RemotePinDialog
     open={isPinModalOpen}
-    title="Liberar Controle ao Vivo"
-    description="Insira o PIN de operador configurado no OpenPresenter para enviar slides e controlar a projeção neste aparelho."
-    closeLabel="Fechar modal de PIN"
-    onclose={closeOperatorPinModal}
-  >
-    <form onsubmit={handleVerifyOperatorPin} class="p-4 space-y-4">
-      <div class="flex items-center gap-2 text-xs text-emerald-800 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-600/35 dark:border-emerald-500/40 rounded-xl p-3">
-        <ShieldCheck size={16} class="shrink-0" aria-hidden="true" />
-        <span>Solicite o PIN ao líder de mídia ou operador titular da mesa.</span>
-      </div>
+    inputPin={operatorPinInput}
+    errorMessage={operatorPinError}
+    isVerifying={isVerifyingOperatorPin}
+    onPinChange={(val) => (operatorPinInput = val)}
+    onSubmit={() => void handleVerifyOperatorPin()}
+    onClose={closeOperatorPinModal}
+  />
 
-      <div class="space-y-1.5">
-        <label for="remote-unlock-pin" class="block text-xs font-semibold text-foreground">
-          PIN do Operador
-        </label>
-        <div class="relative">
-          <input
-            id="remote-unlock-pin"
-            data-autofocus
-            type={showOperatorPin ? 'text' : 'password'}
-            inputmode="numeric"
-            bind:value={operatorPinInput}
-            placeholder="Digite o PIN numérico"
-            autocomplete="one-time-code"
-            class="w-full h-12 bg-background border border-border rounded-xl px-4 pr-12 text-center text-base sm:text-lg tracking-widest text-foreground font-mono placeholder:text-xs placeholder:tracking-normal focus:outline-none focus:border-ring focus-visible:ring-2 focus-visible:ring-ring"
-          />
-          <button
-            type="button"
-            onclick={() => (showOperatorPin = !showOperatorPin)}
-            aria-label={showOperatorPin ? 'Ocultar PIN de operador' : 'Mostrar PIN de operador'}
-            class="h-10 w-10 rounded-lg absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center transition-colors cursor-pointer"
-          >
-            {#if showOperatorPin}
-              <EyeOff size={18} aria-hidden="true" />
-            {:else}
-              <Eye size={18} aria-hidden="true" />
-            {/if}
-          </button>
-        </div>
-
-        {#if operatorPinError}
-          <p
-            role="alert"
-            class="text-xs text-red-700 dark:text-red-300 flex items-center gap-1.5 pt-1 font-medium"
-          >
-            <AlertTriangle size={14} aria-hidden="true" />
-            <span>{operatorPinError}</span>
-          </p>
-        {/if}
-      </div>
-
-      <div class="flex items-center gap-2 pt-1">
-        <button
-          type="button"
-          onclick={closeOperatorPinModal}
-          class="flex-1 min-h-11 rounded-xl bg-secondary hover:bg-muted border border-border text-foreground text-xs font-semibold transition-colors cursor-pointer"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={isVerifyingOperatorPin}
-          class="flex-1 min-h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-        >
-          {#if isVerifyingOperatorPin}
-            <Loader2 size={15} class="animate-spin" aria-hidden="true" />
-          {/if}
-          <span>Desbloquear</span>
-        </button>
-      </div>
-    </form>
-  </RemoteDialog>
-
-  <!-- Dialog 4: Confirmação para Parar Projeção -->
-  <RemoteDialog
+  <RemoteStopDialog
     open={isStopConfirmOpen}
-    role="alertdialog"
-    title="Parar projeção ao vivo?"
-    description="Esta ação remove imediatamente o slide atual da tela pública da igreja."
-    closeLabel="Fechar confirmação de parada"
-    onclose={() => (isStopConfirmOpen = false)}
-  >
-    <div class="p-4 flex items-center gap-2">
-      <button
-        type="button"
-        data-autofocus
-        onclick={() => (isStopConfirmOpen = false)}
-        class="flex-1 min-h-11 rounded-xl bg-secondary hover:bg-muted border border-border text-foreground text-xs font-semibold transition-colors cursor-pointer"
-      >
-        Cancelar
-      </button>
-      <button
-        type="button"
-        onclick={() => {
-          isStopConfirmOpen = false;
-          stopPresentation();
-        }}
-        class="flex-1 min-h-11 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-bold transition-colors cursor-pointer"
-      >
-        Parar Projeção
-      </button>
-    </div>
-  </RemoteDialog>
+    onConfirmStop={() => {
+      isStopConfirmOpen = false;
+      stopPresentation();
+    }}
+    onClose={() => (isStopConfirmOpen = false)}
+  />
 {/if}

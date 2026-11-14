@@ -7,9 +7,11 @@
     ChevronUp,
     Clock,
     Shield,
+    SkipForward,
+    SkipBack,
   } from 'lucide-svelte';
   import type { Slide, TimerState } from '$lib/types';
-  import { formatMediaTime } from '$lib/remoteData';
+  import { formatMediaTime, triggerHaptic } from '$lib/remoteData';
 
   interface Props {
     canControlRemote: boolean;
@@ -25,6 +27,10 @@
     timer: TimerState;
     isCollapsed: boolean;
     safeDispatch: boolean;
+    canAdvanceNext?: boolean;
+    canAdvancePrev?: boolean;
+    nextItemTitle?: string;
+    prevItemTitle?: string;
     onToggleCollapse: () => void;
     onToggleSafeDispatch: () => void;
     onPrevSlide: () => void;
@@ -45,6 +51,10 @@
     timer,
     isCollapsed,
     safeDispatch,
+    canAdvanceNext = false,
+    canAdvancePrev = false,
+    nextItemTitle = '',
+    prevItemTitle = '',
     onToggleCollapse,
     onToggleSafeDispatch,
     onPrevSlide,
@@ -58,6 +68,32 @@
   const isTimerUrgent = $derived(
     Boolean(timer.is_overtime) || timer.remaining_seconds <= timer.warning_threshold_seconds
   );
+
+  const isAtEndOfItem = $derived(totalSlides > 0 && currentSlideIndex >= totalSlides - 1);
+  const isAtStartOfItem = $derived(currentSlideIndex <= 0);
+
+  const isPrevDisabled = $derived(!canAdvancePrev && (!isLive || isAtStartOfItem));
+  const isNextDisabled = $derived(!canAdvanceNext && (totalSlides > 0 && isAtEndOfItem));
+
+  function handlePrev() {
+    triggerHaptic('light');
+    onPrevSlide();
+  }
+
+  function handleNext() {
+    triggerHaptic('light');
+    onNextSlide();
+  }
+
+  function handleToggleSafe() {
+    triggerHaptic('medium');
+    onToggleSafeDispatch();
+  }
+
+  function handleToggleCol() {
+    triggerHaptic('light');
+    onToggleCollapse();
+  }
 </script>
 
 {#if canControlRemote}
@@ -115,7 +151,7 @@
 
         <button
           type="button"
-          onclick={onToggleSafeDispatch}
+          onclick={handleToggleSafe}
           aria-pressed={safeDispatch}
           title={safeDispatch
             ? 'Disparo protegido ativo: tocar pré-seleciona antes de enviar ao vivo'
@@ -130,7 +166,7 @@
 
         <button
           type="button"
-          onclick={onToggleCollapse}
+          onclick={handleToggleCol}
           aria-expanded={!isCollapsed}
           aria-label={isCollapsed ? 'Expandir card de controle ao vivo' : 'Recolher card de controle ao vivo'}
           class="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
@@ -167,21 +203,29 @@
         </div>
         <button
           type="button"
-          onclick={onPrevSlide}
-          disabled={!isLive && currentSlideIndex <= 0}
-          aria-label="Slide anterior"
+          onclick={handlePrev}
+          disabled={isPrevDisabled}
+          aria-label={isAtStartOfItem && canAdvancePrev ? `Item anterior: ${prevItemTitle}` : 'Slide anterior'}
           class="h-10 w-10 rounded-xl bg-secondary hover:bg-muted disabled:opacity-40 text-foreground flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer shrink-0"
         >
-          <ChevronLeft size={18} aria-hidden="true" />
+          {#if isAtStartOfItem && canAdvancePrev}
+            <SkipBack size={18} aria-hidden="true" />
+          {:else}
+            <ChevronLeft size={18} aria-hidden="true" />
+          {/if}
         </button>
         <button
           type="button"
-          onclick={onNextSlide}
-          disabled={totalSlides > 0 && currentSlideIndex >= totalSlides - 1}
-          aria-label="Próximo slide"
+          onclick={handleNext}
+          disabled={isNextDisabled}
+          aria-label={isAtEndOfItem && canAdvanceNext ? `Próximo item: ${nextItemTitle}` : 'Próximo slide'}
           class="h-10 w-10 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer shrink-0"
         >
-          <ChevronRight size={18} aria-hidden="true" />
+          {#if isAtEndOfItem && canAdvanceNext}
+            <SkipForward size={18} aria-hidden="true" />
+          {:else}
+            <ChevronRight size={18} aria-hidden="true" />
+          {/if}
         </button>
       </div>
     {:else}
@@ -225,6 +269,11 @@
                 <strong class="font-semibold text-foreground/80">Próximo:</strong>
                 {nextSlide.content.replace(/\n/g, ' ')}
               </p>
+            {:else if nextItemTitle}
+              <p class="text-xs text-emerald-800 dark:text-emerald-300 border-t border-border/60 pt-1.5 line-clamp-1">
+                <strong class="font-semibold">Próximo na ordem do culto:</strong>
+                {nextItemTitle}
+              </p>
             {/if}
           {:else}
             <p class="text-xs text-muted-foreground text-center py-2">
@@ -237,22 +286,32 @@
         <div class="grid grid-cols-2 gap-2.5">
           <button
             type="button"
-            onclick={onPrevSlide}
-            disabled={!isLive && currentSlideIndex <= 0}
+            onclick={handlePrev}
+            disabled={isPrevDisabled}
             class="min-h-12 rounded-xl bg-secondary hover:bg-muted disabled:opacity-40 text-foreground font-bold text-sm flex items-center justify-center gap-1.5 border border-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
           >
-            <ChevronLeft size={18} aria-hidden="true" />
-            <span>Anterior</span>
+            {#if isAtStartOfItem && canAdvancePrev}
+              <SkipBack size={18} aria-hidden="true" />
+              <span>Item Anterior</span>
+            {:else}
+              <ChevronLeft size={18} aria-hidden="true" />
+              <span>Anterior</span>
+            {/if}
           </button>
 
           <button
             type="button"
-            onclick={onNextSlide}
-            disabled={totalSlides > 0 && currentSlideIndex >= totalSlides - 1}
+            onclick={handleNext}
+            disabled={isNextDisabled}
             class="min-h-12 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white font-bold text-sm flex items-center justify-center gap-1.5 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
           >
-            <span>Próximo</span>
-            <ChevronRight size={18} aria-hidden="true" />
+            {#if isAtEndOfItem && canAdvanceNext}
+              <span>Próximo Item</span>
+              <SkipForward size={18} aria-hidden="true" />
+            {:else}
+              <span>Próximo</span>
+              <ChevronRight size={18} aria-hidden="true" />
+            {/if}
           </button>
         </div>
       </div>

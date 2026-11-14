@@ -13,8 +13,7 @@
     X,
   } from 'lucide-svelte';
   import type { AudioPlaybackState, MediaItem, SongSummary } from '$lib/types';
-  import { parseRawLyrics } from '$lib/songParser';
-  import { formatMediaTime, isSameAudioTrack } from '$lib/remoteData';
+  import { extractSongSlides, formatMediaTime, isSameAudioTrack, triggerHaptic } from '$lib/remoteData';
   import { controlAudioPlayback } from '$lib/ws';
 
   interface Props {
@@ -55,23 +54,25 @@
 
   const parsedSongSlides = $derived.by(() => {
     if (!selectedSong) return [];
-    if (selectedSong.slides && selectedSong.slides.length > 0) return selectedSong.slides;
-    const raw = (selectedSong as unknown as { lyrics?: string }).lyrics;
-    if (!raw) return [];
-    return parseRawLyrics(raw).slides.map((slide, idx) => ({
-      ...slide,
-      id: `${selectedSong.id}-s-${idx}`,
-    }));
+    return extractSongSlides(selectedSong, selectedSong.id);
   });
 
   function handleSlideClick(idx: number) {
     if (!selectedSong) return;
     if (!safeDispatch || cuedSlideIndex === idx) {
       cuedSlideIndex = null;
+      triggerHaptic('light');
       onProjectSongSlide(selectedSong, idx);
     } else {
       cuedSlideIndex = idx;
+      triggerHaptic('medium');
     }
+  }
+
+  function handleOpen(song: SongSummary) {
+    cuedSlideIndex = null;
+    triggerHaptic('light');
+    onOpenSong(song);
   }
 </script>
 
@@ -101,7 +102,10 @@
       {#if songSearchQuery}
         <button
           type="button"
-          onclick={() => onSearchInput('')}
+          onclick={() => {
+            triggerHaptic('light');
+            onSearchInput('');
+          }}
           aria-label="Limpar busca de músicas"
           class="h-9 w-9 rounded-lg absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center transition-colors cursor-pointer"
         >
@@ -148,10 +152,7 @@
         {#each songs as song (song.id)}
           <button
             type="button"
-            onclick={() => {
-              cuedSlideIndex = null;
-              onOpenSong(song);
-            }}
+            onclick={() => handleOpen(song)}
             class="w-full min-h-[60px] p-3.5 rounded-2xl bg-card hover:bg-muted/70 border border-border flex items-center justify-between gap-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
           >
             <span class="min-w-0 flex-1">
@@ -165,6 +166,12 @@
               </span>
               {#if song.artist}
                 <span class="block text-xs text-muted-foreground truncate mt-0.5">{song.artist}</span>
+              {/if}
+              {#if song.preview_snippet}
+                <span class="block text-xs text-foreground/80 mt-1 line-clamp-2 italic [&>b]:text-emerald-800 dark:[&>b]:text-emerald-300 [&>b]:font-bold [&>b]:not-italic">
+                  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                  {@html song.preview_snippet}
+                </span>
               {/if}
             </span>
             <ChevronRight size={17} class="text-muted-foreground shrink-0" aria-hidden="true" />
@@ -184,6 +191,7 @@
           type="button"
           onclick={() => {
             cuedSlideIndex = null;
+            triggerHaptic('light');
             onCloseSong();
           }}
           aria-label="Voltar para a lista de músicas"
@@ -214,7 +222,10 @@
           {#if trackPlaying}
             <button
               type="button"
-              onclick={() => controlAudioPlayback('pause')}
+              onclick={() => {
+                triggerHaptic('medium');
+                controlAudioPlayback('pause');
+              }}
               class="min-h-10 px-3.5 rounded-xl bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               <Pause size={14} aria-hidden="true" />
@@ -223,12 +234,14 @@
           {:else}
             <button
               type="button"
-              onclick={() =>
+              onclick={() => {
+                triggerHaptic('medium');
                 controlAudioPlayback('play', {
                   url: selectedSong?.audio_url,
                   title: selectedSong?.title,
                   artist_or_ref: selectedSong?.artist_or_ref,
-                })}
+                });
+              }}
               class="min-h-10 px-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               <Play size={14} aria-hidden="true" />
@@ -271,7 +284,7 @@
                   {#if isSlideLive}
                     <span class="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">Ao Vivo</span>
                   {:else if isCued}
-                    <span class="text-[11px] font-bold text-amber-800 dark:text-amber-300">Selecionado</span>
+                    <span class="text-[11px] font-bold text-amber-800 dark:text-amber-300">Pronto</span>
                   {/if}
                 </span>
                 <span class="block text-sm text-foreground leading-relaxed whitespace-pre-line">
@@ -284,6 +297,7 @@
                   type="button"
                   onclick={() => {
                     cuedSlideIndex = null;
+                    triggerHaptic('light');
                     if (selectedSong) onProjectSongSlide(selectedSong, sIdx);
                   }}
                   class="m-2 min-h-10 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0 self-center"

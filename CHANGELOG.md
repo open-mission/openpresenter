@@ -6,6 +6,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Corrigido
+- **Controle Remoto Mobile — Correções Críticas e Polimento Ergonômico (`RemoteView.svelte`, `lib/components/remote/*`):**
+  - Correção na URL de versículos bíblicos (`/api/bibles/${id}/books/${bookId}/chapters/${chapter}/verses`), eliminando erro de parsing JSON (`Unexpected token '<'`) causado pelo retorno da SPA fallback.
+  - Parsing resiliente de slides de músicas via `extractSongSlides`, suportando `slides`, `lyrics_raw`, `sections` e `lyrics`, eliminando falso vazio ("Esta música não possui slides configurados") em louvores e hinos da Harpa Cristã.
+  - Despacho canônico de apresentações rápidas com `quickPresentMedia` e `selectSlide` de `$lib/ws` via WebSocket e fallback `/api/presentation/quick-media` (substituindo rota inexistente `/api/presentation/quick`).
+  - Navegação contínua entre itens da setlist ativa no card de controle ao vivo: ao alcançar o último slide de um item, o botão `Próximo Item` (`SkipForward`) avança diretamente para o primeiro slide do item seguinte (ignorando cabeçalhos de seção `kind === 'header'`); no primeiro slide, o botão `Item Anterior` (`SkipBack`) retorna para o último slide do item anterior.
+  - Feedback háptico tátil (`triggerHaptic`) integrado com `navigator.vibrate` em todas as ações críticas (avanço/recuo de slides, Blackout, Limpar, Parar e alternância de temas).
+  - Modularização de `RemoteView.svelte` com extração de 4 componentes acessíveis: `RemoteSetlistSheet.svelte`, `RemoteBibleSheet.svelte`, `RemotePinDialog.svelte` e `RemoteStopDialog.svelte` com conformidade WAI-ARIA completa (`role="alertdialog"`, foco automático com `data-autofocus`, armadilha de foco e fechamento em `Escape`).
+
 ### Adicionado
 - **Editor de Músicas — Maximização vertical da área de letra (`SongEditorModal.svelte`, `lib/components/song-editor/*`):**
   - Novo modo de edição expandida que recolhe o formulário de metadados e entrega 100% da altura livre da coluna esquerda à barra de formatação e ao `textarea`, com barra compacta exibindo título, artista, tom e BPM.
