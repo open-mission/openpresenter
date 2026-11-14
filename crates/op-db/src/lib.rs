@@ -2382,6 +2382,314 @@ impl BibleReader {
     }
 }
 
+/// Remove um eventual BOM UTF-8 no início dos bytes.
+fn strip_utf8_bom(bytes: &[u8]) -> &[u8] {
+    bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes)
+}
+
+/// Heurística rápida para detectar se o conteúdo parece um JSON de Bíblia.
+///
+/// Ignora BOM UTF-8 e espaços em branco iniciais e verifica se o primeiro byte
+/// é `[` ou `{`. Arquivos SQLite começam com `SQLite format 3\0` e, portanto,
+/// não são classificados como JSON.
+pub fn looks_like_bible_json(bytes: &[u8]) -> bool {
+    let without_bom = strip_utf8_bom(bytes);
+    let trimmed = without_bom
+        .iter()
+        .skip_while(|byte| byte.is_ascii_whitespace());
+    matches!(trimmed.into_iter().next(), Some(b'[') | Some(b'{'))
+}
+
+/// Estrutura intermediária de um livro extraído do JSON.
+struct JsonBibleBook {
+    book_id: i64,
+    testament_reference_id: i64,
+    name: String,
+    chapters: Vec<Vec<String>>,
+}
+
+/// Extrai o texto de um versículo em JSON, aceitando as formas:
+/// string simples, array de partes (unidas por espaço) ou objeto com as chaves
+/// `text`, `verse` ou `content`.
+fn extract_json_verse_text(verse_value: &serde_json::Value) -> Option<String> {
+    match verse_value {
+        serde_json::Value::String(text) => Some(text.trim().to_string()),
+        serde_json::Value::Array(parts) => Some(
+            parts
+                .iter()
+                .filter_map(|part| part.as_str())
+                .map(str::trim)
+                .filter(|part| !part.is_empty())
+                .collect::<Vec<_>>()
+                .join(" "),
+        ),
+        serde_json::Value::Object(map) => ["text", "verse", "content"]
+            .iter()
+            .find_map(|key| map.get(*key).and_then(|value| value.as_str()))
+            .map(|text| text.trim().to_string()),
+        _ => None,
+    }
+}
+
+/// Converte um JSON de Bíblia em um arquivo SQLite compatível com [`BibleReader`].
+///
+/// O JSON pode ser uma lista de livros ou um objeto com a chave `books`.
+/// Cada livro deve conter `name`, opcionalmente `abbrev` e `chapters`, sendo
+/// `chapters` uma lista de capítulos e cada capítulo uma lista de versículos.
+pub fn convert_bible_json_to_sqlite(
+    bytes: &[u8],
+    target_path: &Path,
+    name_hint: Option<&str>,
+    abbr_hint: Option<&str>,
+) -> Result<(), String> {
+    let cleaned = strip_utf8_bom(bytes);
+    let root: serde_json::Value = serde_json::from_slice(cleaned)
+        .map_err(|e| format!("JSON inválido: não foi possível interpretar o arquivo ({e})"))?;
+
+    let books_value =
+        match &root {
+            serde_json::Value::Array(books) => books,
+            serde_json::Value::Object(map) => match map.get("books") {
+                Some(serde_json::Value::Array(books)) => books,
+                _ => return Err(
+                    "JSON inválido: esperado um array de livros ou um objeto com a chave 'books'"
+                        .into(),
+                ),
+            },
+            _ => {
+                return Err(
+                    "JSON inválido: esperado um array de livros ou um objeto com a chave 'books'"
+                        .into(),
+                );
+            }
+        };
+
+    if books_value.is_empty() {
+        return Err("O arquivo JSON não contém nenhum livro".into());
+    }
+
+    let mut used_ids = std::collections::HashSet::new();
+    let mut books = Vec::with_capacity(books_value.len());
+
+    for (idx, book_value) in books_value.iter().enumerate() {
+        let book_obj = book_value
+            .as_object()
+            .ok_or_else(|| format!("Livro na posição {} inválido: esperado um objeto", idx + 1))?;
+
+        let raw_name = book_obj
+            .get("name")
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+            .trim();
+        let raw_abbrev = book_obj
+            .get("abbrev")
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+            .trim();
+
+        let canonical = if !raw_name.is_empty() {
+            op_core::find_canonical_book(raw_name)
+        } else {
+            None
+        }
+        .or_else(|| {
+            if !raw_abbrev.is_empty() {
+                op_core::find_canonical_book(raw_abbrev)
+            } else {
+                None
+            }
+        });
+
+        let book_id = if let Some(canonical_book) = canonical {
+            canonical_book.id
+        } else if idx < 66 && !used_ids.contains(&((idx + 1) as i64)) {
+            (idx + 1) as i64
+        } else {
+            return Err(format!(
+                "Livro na posição {} inválido: não foi possível identificar o livro canônico",
+                idx + 1
+            ));
+        };
+
+        if !used_ids.insert(book_id) {
+            return Err(format!(
+                "Livro duplicado no JSON: '{}' mapeia para o id {book_id}",
+                if raw_name.is_empty() {
+                    raw_abbrev
+                } else {
+                    raw_name
+                }
+            ));
+        }
+
+        let chapters_value = book_obj
+            .get("chapters")
+            .and_then(|value| value.as_array())
+            .ok_or_else(|| {
+                format!(
+                    "Livro '{}' inválido: campo 'chapters' ausente ou não é um array",
+                    if raw_name.is_empty() {
+                        raw_abbrev
+                    } else {
+                        raw_name
+                    }
+                )
+            })?;
+
+        let mut chapters = Vec::with_capacity(chapters_value.len());
+        for (chapter_idx, chapter_value) in chapters_value.iter().enumerate() {
+            let verses_value = chapter_value.as_array().ok_or_else(|| {
+                format!(
+                    "Livro '{}', capítulo {} inválido: esperado um array de versículos",
+                    if raw_name.is_empty() {
+                        raw_abbrev
+                    } else {
+                        raw_name
+                    },
+                    chapter_idx + 1
+                )
+            })?;
+
+            let mut verses = Vec::with_capacity(verses_value.len());
+            for (verse_idx, verse_value) in verses_value.iter().enumerate() {
+                let text = extract_json_verse_text(verse_value).ok_or_else(|| {
+                    format!(
+                        "Livro '{}', capítulo {}, versículo {} inválido: esperado texto",
+                        if raw_name.is_empty() {
+                            raw_abbrev
+                        } else {
+                            raw_name
+                        },
+                        chapter_idx + 1,
+                        verse_idx + 1
+                    )
+                })?;
+                verses.push(text);
+            }
+            chapters.push(verses);
+        }
+
+        let name = canonical.map(|b| b.name.to_string()).unwrap_or_else(|| {
+            if raw_name.is_empty() {
+                raw_abbrev.to_string()
+            } else {
+                raw_name.to_string()
+            }
+        });
+
+        books.push(JsonBibleBook {
+            book_id,
+            testament_reference_id: if (1..=39).contains(&book_id) { 1 } else { 2 },
+            name,
+            chapters,
+        });
+    }
+
+    // Garante que um arquivo antigo não interfira na nova importação.
+    let _ = std::fs::remove_file(target_path);
+
+    let write_result = write_json_bible_sqlite(target_path, &books, name_hint, abbr_hint);
+    match write_result {
+        Ok(0) => {
+            let _ = std::fs::remove_file(target_path);
+            Err("O arquivo JSON não contém nenhum versículo válido".into())
+        }
+        Ok(_) => Ok(()),
+        Err(err) => {
+            let _ = std::fs::remove_file(target_path);
+            Err(err)
+        }
+    }
+}
+
+fn write_json_bible_sqlite(
+    target_path: &Path,
+    books: &[JsonBibleBook],
+    name_hint: Option<&str>,
+    abbr_hint: Option<&str>,
+) -> Result<usize, String> {
+    let conn = Connection::open(target_path)
+        .map_err(|e| format!("Não foi possível criar o arquivo SQLite: {e}"))?;
+
+    let tx = conn
+        .unchecked_transaction()
+        .map_err(|e| format!("Não foi possível iniciar a transação SQLite: {e}"))?;
+
+    tx.execute_batch(
+        r#"
+        CREATE TABLE book (id INTEGER PRIMARY KEY, book_reference_id INTEGER, testament_reference_id INTEGER, name VARCHAR(50));
+        CREATE TABLE verse (id INTEGER PRIMARY KEY AUTOINCREMENT, book_id INTEGER, chapter INTEGER, verse INTEGER, text TEXT);
+        CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT);
+        CREATE INDEX IF NOT EXISTS idx_verse_book_chapter ON verse (book_id, chapter);
+        "#,
+    )
+    .map_err(|e| format!("Falha ao criar o schema da Bíblia: {e}"))?;
+
+    let mut total_verses = 0usize;
+    {
+        let mut insert_book = tx
+            .prepare(
+                "INSERT INTO book (id, book_reference_id, testament_reference_id, name) VALUES (?1, ?2, ?3, ?4)",
+            )
+            .map_err(|e| format!("Falha ao preparar a inserção de livros: {e}"))?;
+        let mut insert_verse = tx
+            .prepare("INSERT INTO verse (book_id, chapter, verse, text) VALUES (?1, ?2, ?3, ?4)")
+            .map_err(|e| format!("Falha ao preparar a inserção de versículos: {e}"))?;
+
+        for book in books {
+            insert_book
+                .execute(rusqlite::params![
+                    book.book_id,
+                    book.book_id,
+                    book.testament_reference_id,
+                    book.name
+                ])
+                .map_err(|e| format!("Falha ao inserir o livro '{}': {e}", book.name))?;
+
+            for (chapter_idx, verses) in book.chapters.iter().enumerate() {
+                let chapter = (chapter_idx + 1) as i64;
+                for (verse_idx, text) in verses.iter().enumerate() {
+                    if text.is_empty() {
+                        continue;
+                    }
+                    let verse = (verse_idx + 1) as i64;
+                    insert_verse
+                        .execute(rusqlite::params![book.book_id, chapter, verse, text])
+                        .map_err(|e| {
+                            format!(
+                                "Falha ao inserir o versículo {}:{} de '{}': {e}",
+                                chapter, verse, book.name
+                            )
+                        })?;
+                    total_verses += 1;
+                }
+            }
+        }
+    }
+
+    {
+        let mut insert_meta = tx
+            .prepare("INSERT INTO metadata (key, value) VALUES (?1, ?2)")
+            .map_err(|e| format!("Falha ao preparar a inserção de metadados: {e}"))?;
+
+        if let Some(name) = name_hint.map(str::trim).filter(|value| !value.is_empty()) {
+            insert_meta
+                .execute(rusqlite::params!["name", name])
+                .map_err(|e| format!("Falha ao gravar o metadado 'name': {e}"))?;
+        }
+        if let Some(abbr) = abbr_hint.map(str::trim).filter(|value| !value.is_empty()) {
+            insert_meta
+                .execute(rusqlite::params!["abbreviation", abbr])
+                .map_err(|e| format!("Falha ao gravar o metadado 'abbreviation': {e}"))?;
+        }
+    }
+
+    tx.commit()
+        .map_err(|e| format!("Falha ao confirmar a transação SQLite: {e}"))?;
+
+    Ok(total_verses)
+}
+
 /// Verifica se `query` ocorre como uma palavra inteira (isolada por caracteres não-alfanuméricos)
 /// dentro de `text`. A comparação é case-insensitive e respeita caracteres acentuados Unicode.
 pub fn matches_whole_word(text: &str, query: &str) -> bool {
@@ -3318,5 +3626,214 @@ mod tests {
         let mut target_db = Database::open(&target_path).unwrap();
         let err = target_db.restore_from_file(&corrupt_path).unwrap_err();
         assert!(matches!(err, DbError::Open(_) | DbError::Read(_)));
+    }
+
+    #[test]
+    fn test_looks_like_bible_json_detects_json_and_sqlite() {
+        assert!(looks_like_bible_json(b"[]"));
+        assert!(looks_like_bible_json(b"{\"books\": []}"));
+        assert!(looks_like_bible_json(b" \n\t{\"books\": []}"));
+        let mut with_bom = vec![0xEF, 0xBB, 0xBF];
+        with_bom.extend_from_slice("[{\"name\": \"Gênesis\"}]".as_bytes());
+        assert!(looks_like_bible_json(&with_bom));
+        assert!(!looks_like_bible_json(b"SQLite format 3\0"));
+        assert!(!looks_like_bible_json(b"\0\0\0\0"));
+    }
+
+    #[test]
+    fn test_convert_bible_json_with_bom_and_abbrev_typo() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_path = temp_dir.path().join("biblia.sqlite");
+
+        let json = serde_json::json!([
+            {
+                "name": "1 Timóteo",
+                "abbrev": "1Tn",
+                "chapters": [
+                    ["Paulo, apóstolo de Cristo Jesus", "a Timóteo, meu verdadeiro filho na fé"],
+                    ["Esta é uma palavra fiel"]
+                ]
+            },
+            {
+                "name": "João",
+                "abbrev": "Jo",
+                "chapters": [
+                    ["No princípio era o Verbo", "e o Verbo estava com Deus"],
+                    ["Porque Deus amou o mundo"]
+                ]
+            }
+        ]);
+        let mut bytes = vec![0xEF, 0xBB, 0xBF];
+        bytes.extend_from_slice(json.to_string().as_bytes());
+
+        assert!(looks_like_bible_json(&bytes));
+        convert_bible_json_to_sqlite(
+            &bytes,
+            &target_path,
+            Some("Nova Versão Transformadora"),
+            Some("NVT"),
+        )
+        .unwrap();
+
+        assert!(target_path.exists());
+
+        let reader = BibleReader::open(&target_path).unwrap();
+        reader.validate_schema().unwrap();
+        assert_eq!(reader.get_stats().unwrap(), (2, 6));
+        assert_eq!(
+            reader.get_metadata("name").unwrap().as_deref(),
+            Some("Nova Versão Transformadora")
+        );
+        assert_eq!(
+            reader.get_metadata("abbreviation").unwrap().as_deref(),
+            Some("NVT")
+        );
+
+        let books = reader.get_books().unwrap();
+        assert_eq!(books.len(), 2);
+
+        let timoteo = books.iter().find(|b| b.id == 54).unwrap();
+        assert_eq!(timoteo.name, "1 Timóteo");
+        assert_eq!(timoteo.testament_reference_id, 2);
+        assert_eq!(timoteo.chapter_count, 2);
+
+        let joao = books.iter().find(|b| b.id == 43).unwrap();
+        assert_eq!(joao.name, "João");
+        assert_eq!(joao.chapter_count, 2);
+
+        assert_eq!(reader.get_chapters(54).unwrap(), vec![1, 2]);
+        let verses = reader.get_verses(43, 1).unwrap();
+        assert_eq!(verses.len(), 2);
+        assert_eq!(verses[0].verse, 1);
+        assert_eq!(verses[0].text, "No princípio era o Verbo");
+
+        let search = reader.search_verses("Verbo", 10, false).unwrap();
+        assert_eq!(search.len(), 2);
+        assert_eq!(search[0].book_name, "João");
+        assert_eq!(search[0].chapter, 1);
+        assert_eq!(search[0].verse, 1);
+    }
+
+    #[test]
+    fn test_convert_bible_json_accepts_books_object() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_path = temp_dir.path().join("biblia.sqlite");
+        let bytes = r#"{"books":[{"name":"Gênesis","chapters":[["No princípio"]]}]}"#.as_bytes();
+
+        convert_bible_json_to_sqlite(bytes, &target_path, None, None).unwrap();
+
+        let reader = BibleReader::open(&target_path).unwrap();
+        assert_eq!(reader.get_stats().unwrap(), (1, 1));
+        assert!(reader.get_metadata("name").unwrap().is_none());
+        assert_eq!(reader.get_verses(1, 1).unwrap()[0].text, "No princípio");
+    }
+
+    #[test]
+    fn test_convert_bible_json_preserves_verse_numbers_with_empty_verse() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_path = temp_dir.path().join("biblia.sqlite");
+        let bytes = r#"[{"name":"Gênesis","chapters":[["v1", "", "v3"]]}]"#.as_bytes();
+
+        convert_bible_json_to_sqlite(bytes, &target_path, None, None).unwrap();
+
+        let reader = BibleReader::open(&target_path).unwrap();
+        let verses = reader.get_verses(1, 1).unwrap();
+        assert_eq!(verses.len(), 2);
+        assert_eq!(verses[0].verse, 1);
+        assert_eq!(verses[0].text, "v1");
+        assert_eq!(verses[1].verse, 3);
+        assert_eq!(verses[1].text, "v3");
+    }
+
+    #[test]
+    fn test_convert_bible_json_accepts_verse_as_string_array() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_path = temp_dir.path().join("biblia.sqlite");
+        let bytes =
+            r#"[{"name":"Gênesis","chapters":[[["parte 1","parte 2"],["","parte 3"," "],[]]]}]"#
+                .as_bytes();
+
+        convert_bible_json_to_sqlite(bytes, &target_path, None, None).unwrap();
+
+        let reader = BibleReader::open(&target_path).unwrap();
+        let verses = reader.get_verses(1, 1).unwrap();
+        assert_eq!(verses.len(), 2);
+        assert_eq!(verses[0].verse, 1);
+        assert_eq!(verses[0].text, "parte 1 parte 2");
+        assert_eq!(verses[1].verse, 2);
+        assert_eq!(verses[1].text, "parte 3");
+    }
+
+    #[test]
+    fn test_convert_bible_json_accepts_verse_as_object() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_path = temp_dir.path().join("biblia.sqlite");
+        let bytes = r#"[{"name":"Gênesis","chapters":[[{"text":"  No princípio  "},{"verse":"e a terra era sem forma"},{"content":"Haja luz"}]]}]"#.as_bytes();
+
+        convert_bible_json_to_sqlite(bytes, &target_path, None, None).unwrap();
+
+        let reader = BibleReader::open(&target_path).unwrap();
+        let verses = reader.get_verses(1, 1).unwrap();
+        assert_eq!(verses.len(), 3);
+        assert_eq!(verses[0].text, "No princípio");
+        assert_eq!(verses[1].text, "e a terra era sem forma");
+        assert_eq!(verses[2].text, "Haja luz");
+    }
+
+    #[test]
+    fn test_convert_bible_json_rejects_verse_object_without_text() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_path = temp_dir.path().join("biblia.sqlite");
+        let bytes = r#"[{"name":"Gênesis","chapters":[[{"number":1}]]}]"#.as_bytes();
+
+        let err = convert_bible_json_to_sqlite(bytes, &target_path, None, None).unwrap_err();
+        assert!(err.contains("inválido"), "erro inesperado: {err}");
+        assert!(!target_path.exists());
+    }
+
+    #[test]
+    fn test_convert_bible_json_rejects_invalid_json() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_path = temp_dir.path().join("biblia.sqlite");
+
+        let err = convert_bible_json_to_sqlite(b"{ isso nao e json", &target_path, None, None)
+            .unwrap_err();
+        assert!(err.contains("JSON inválido"), "erro inesperado: {err}");
+        assert!(!target_path.exists());
+    }
+
+    #[test]
+    fn test_convert_bible_json_rejects_without_verses() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_path = temp_dir.path().join("biblia.sqlite");
+        let bytes = r#"[{"name":"Gênesis","chapters":[[], ["   "]]}]"#.as_bytes();
+
+        let err = convert_bible_json_to_sqlite(bytes, &target_path, None, None).unwrap_err();
+        assert!(
+            err.contains("nenhum versículo válido"),
+            "erro inesperado: {err}"
+        );
+        assert!(!target_path.exists());
+    }
+
+    #[test]
+    fn test_convert_bible_json_rejects_empty_books() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_path = temp_dir.path().join("biblia.sqlite");
+
+        let err = convert_bible_json_to_sqlite(b"[]", &target_path, None, None).unwrap_err();
+        assert!(err.contains("nenhum livro"), "erro inesperado: {err}");
+        assert!(!target_path.exists());
+    }
+
+    #[test]
+    fn test_convert_bible_json_rejects_invalid_chapter() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target_path = temp_dir.path().join("biblia.sqlite");
+        let bytes = r#"[{"name":"Gênesis","chapters":[["ok", 42]]}]"#.as_bytes();
+
+        let err = convert_bible_json_to_sqlite(bytes, &target_path, None, None).unwrap_err();
+        assert!(err.contains("inválido"), "erro inesperado: {err}");
+        assert!(!target_path.exists());
     }
 }

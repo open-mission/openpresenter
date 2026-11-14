@@ -3121,6 +3121,17 @@ async fn list_bibles(
 
 static BIBLE_IMPORT_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
+/// Remove a extensão conhecida de um arquivo de Bíblia, preservando o restante do nome.
+fn strip_bible_extension(filename: &str) -> String {
+    let lower = filename.to_ascii_lowercase();
+    for ext in [".json", ".sqlite3", ".sqlite", ".db"] {
+        if lower.ends_with(ext) {
+            return filename[..filename.len() - ext.len()].to_string();
+        }
+    }
+    filename.to_string()
+}
+
 async fn import_bible(
     State(state): State<AppState>,
     Json(payload): Json<ImportBiblePayload>,
@@ -3138,7 +3149,21 @@ async fn import_bible(
     let target_filename = format!("{id}.sqlite");
     let target_path = bibles_dir.join(&target_filename);
 
-    if let Some(source_path_str) = payload.source_path.filter(|p| !p.trim().is_empty()) {
+    // Detecta o formato JSON pela extensão informada (case-insensitive).
+    let mut is_json = payload
+        .filename
+        .as_deref()
+        .is_some_and(|f| f.trim().to_ascii_lowercase().ends_with(".json"))
+        || payload
+            .source_path
+            .as_deref()
+            .is_some_and(|p| p.trim().to_ascii_lowercase().ends_with(".json"));
+
+    let bytes = if let Some(source_path_str) = payload
+        .source_path
+        .as_deref()
+        .filter(|p| !p.trim().is_empty())
+    {
         let src = std::path::PathBuf::from(source_path_str.trim());
         if !src.exists() {
             return Err((
@@ -3146,26 +3171,47 @@ async fn import_bible(
                 "Arquivo de origem não encontrado".into(),
             ));
         }
-        std::fs::copy(&src, &target_path).map_err(|e| {
+        std::fs::read(&src).map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Falha ao copiar arquivo de bíblia: {e}"),
+                format!("Falha ao ler arquivo de bíblia: {e}"),
             )
-        })?;
-    } else if let Some(base64_data) = payload.content_base64.filter(|b| !b.trim().is_empty()) {
-        let bytes = decode_base64(&base64_data)
-            .ok_or((StatusCode::BAD_REQUEST, "Base64 inválido".into()))?;
-        std::fs::write(&target_path, bytes).map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Falha ao gravar arquivo de bíblia: {e}"),
-            )
-        })?;
+        })?
+    } else if let Some(base64_data) = payload
+        .content_base64
+        .as_deref()
+        .filter(|b| !b.trim().is_empty())
+    {
+        decode_base64(base64_data).ok_or((StatusCode::BAD_REQUEST, "Base64 inválido".into()))?
     } else {
         return Err((
             StatusCode::BAD_REQUEST,
             "Forneça o arquivo (base64) ou o caminho local do arquivo SQLite".into(),
         ));
+    };
+
+    // Sem extensão explícita, usa a heurística de conteúdo para reconhecer JSON.
+    if !is_json {
+        is_json = op_db::looks_like_bible_json(&bytes);
+    }
+
+    if is_json {
+        if let Err(err) = op_db::convert_bible_json_to_sqlite(
+            &bytes,
+            &target_path,
+            payload.name.as_deref(),
+            payload.abbreviation.as_deref(),
+        ) {
+            let _ = std::fs::remove_file(&target_path);
+            return Err((StatusCode::BAD_REQUEST, err));
+        }
+    } else {
+        std::fs::write(&target_path, &bytes).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Falha ao gravar arquivo de bíblia: {e}"),
+            )
+        })?;
     }
 
     // Valida o arquivo SQLite
@@ -3189,16 +3235,31 @@ async fn import_bible(
 
     let (book_count, verse_count) = reader.get_stats().unwrap_or((66, 31104));
 
+    // Nome efetivo do arquivo: usa o `filename` informado ou, como fallback,
+    // o nome do arquivo apontado por `source_path`.
+    let effective_filename: Option<String> = payload
+        .filename
+        .as_deref()
+        .map(str::trim)
+        .filter(|f| !f.is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            payload
+                .source_path
+                .as_deref()
+                .map(|p| std::path::Path::new(p.trim()))
+                .and_then(|p| p.file_name())
+                .and_then(|name| name.to_str())
+                .map(str::to_string)
+        });
+
     // Determina o nome
     let mut name = payload.name.unwrap_or_default().trim().to_string();
     if name.is_empty() {
         if let Ok(Some(meta_name)) = reader.get_metadata("name") {
             name = meta_name;
-        } else if let Some(ref fname) = payload.filename {
-            name = fname
-                .trim_end_matches(".sqlite")
-                .trim_end_matches(".db")
-                .replace('_', " ");
+        } else if let Some(fname) = effective_filename.as_deref() {
+            name = strip_bible_extension(fname.trim()).replace('_', " ");
         } else {
             name = "Bíblia Sagrada".to_string();
         }
@@ -3218,7 +3279,7 @@ async fn import_bible(
             abbr = meta_abbr.to_uppercase();
         } else {
             let combined =
-                format!("{} {}", name, payload.filename.as_deref().unwrap_or("")).to_uppercase();
+                format!("{} {}", name, effective_filename.as_deref().unwrap_or("")).to_uppercase();
             if combined.contains("ARA") {
                 abbr = "ARA".into();
             } else if combined.contains("NVI") {

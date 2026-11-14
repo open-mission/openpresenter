@@ -105,7 +105,7 @@
           if (res.status === 413) {
             throw new Error('O arquivo excede o limite máximo de tamanho.');
           }
-          const msg = await readHttpError(res, 'Falha ao importar Bíblia SQLite');
+          const msg = await readHttpError(res, 'Falha ao importar Bíblia (SQLite ou JSON)');
           if (msg.includes('length limit exceeded')) {
             throw new Error('O arquivo excede o limite máximo de tamanho.');
           }
@@ -117,7 +117,7 @@
         await onReloadBibles();
       } catch (err) {
         const errorMsg =
-          err instanceof Error ? err.message : 'Erro ao importar arquivo de Bíblia';
+          err instanceof Error ? err.message : 'Erro ao importar arquivo de Bíblia (SQLite ou JSON)';
         failedFiles.push({ name: file.name, error: errorMsg });
         notifyError('Falha na importação', `${file.name}: ${errorMsg}`);
       }
@@ -145,7 +145,7 @@
   async function handleImportBibleByPath() {
     const raw = importPathInput.trim();
     if (!raw) {
-      actionError = 'Informe o caminho absoluto do arquivo SQLite da Bíblia.';
+      actionError = 'Informe o caminho absoluto do arquivo da Bíblia (.sqlite, .db ou .json).';
       return;
     }
     const paths = raw
@@ -170,11 +170,11 @@
 
     for (let i = 0; i < paths.length; i++) {
       const p = paths[i];
-      const filename = p.split(/[/\\]/).pop() || p;
+      const filename = p.split(/[/\\]/).pop()?.trim() || '';
       importProgress = {
         current: i + 1,
         total: paths.length,
-        currentFileName: filename,
+        currentFileName: filename || p,
         successCount,
         failedCount: failedPaths.length,
       };
@@ -185,20 +185,23 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             source_path: p,
+            ...(filename ? { filename } : {}),
           }),
         });
 
         if (!res.ok) {
-          throw new Error(await readHttpError(res, 'Falha ao importar Bíblia a partir do caminho'));
+          throw new Error(
+            await readHttpError(res, 'Falha ao importar Bíblia (SQLite ou JSON) a partir do caminho')
+          );
         }
 
         successCount++;
-        notifySuccess('Bíblia importada', `${filename} (${i + 1}/${paths.length})`);
+        notifySuccess('Bíblia importada', `${filename || p} (${i + 1}/${paths.length})`);
         await onReloadBibles();
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Erro ao importar';
+        const errorMsg = err instanceof Error ? err.message : 'Erro ao importar arquivo de Bíblia';
         failedPaths.push({ path: p, error: errorMsg });
-        notifyError('Falha na importação', `${filename}: ${errorMsg}`);
+        notifyError('Falha na importação', `${filename || p}: ${errorMsg}`);
       }
     }
 
@@ -284,7 +287,7 @@
   function requestDeleteBible(bible: BibleVersionSummary) {
     onRequestConfirm({
       title: 'Excluir Versão da Bíblia',
-      description: `Tem certeza que deseja excluir a versão "${bible.name}" (${bible.abbreviation})? O arquivo SQLite importado será removido da base do aplicativo.`,
+      description: `Tem certeza que deseja excluir a versão "${bible.name}" (${bible.abbreviation})? O arquivo importado será removido da base do aplicativo.`,
       confirmText: 'Excluir Bíblia',
       variant: 'danger',
       onConfirm: async () => {
@@ -307,10 +310,10 @@
     <div>
       <h3 class="text-sm font-semibold text-foreground flex items-center gap-2">
         <BookOpen size={16} class="text-primary shrink-0" />
-        <span>Gerenciamento de Bíblias (SQLite)</span>
+        <span>Gerenciamento de Bíblias (SQLite/JSON)</span>
       </h3>
       <p class="text-xs text-muted-foreground mt-0.5">
-        Gerencie e importe versões da Bíblia em formato SQLite (.sqlite). Os arquivos são copiados automaticamente para a pasta local de dados.
+        Gerencie e importe versões da Bíblia em SQLite (.sqlite/.db) ou JSON (.json). Os arquivos são copiados automaticamente para a pasta local de dados.
       </p>
     </div>
 
@@ -318,7 +321,7 @@
       <input
         type="file"
         multiple
-        accept=".sqlite,.db,.sqlite3"
+        accept=".sqlite,.db,.sqlite3,.json"
         bind:this={bibleFileInput}
         onchange={handleBibleFileSelect}
         class="hidden"
@@ -344,7 +347,7 @@
           <span>Importando ({importProgress.current}/{importProgress.total})...</span>
         {:else}
           <Upload size={13} />
-          <span>Importar Bíblias (.sqlite)</span>
+          <span>Importar Bíblias (SQLite/JSON)</span>
         {/if}
       </Button>
     </div>
@@ -395,11 +398,11 @@
   {#if visibleError}
     <div
       role="alert"
-      class="p-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300 text-xs flex items-center justify-between gap-2"
+      class="p-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300 text-xs flex items-start justify-between gap-2"
     >
-      <div class="flex items-center gap-2">
+      <div class="flex items-start gap-2 min-w-0">
         <AlertCircle size={15} class="shrink-0" />
-        <span>{visibleError}</span>
+        <span class="break-words [overflow-wrap:anywhere]">{visibleError}</span>
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <button
@@ -439,7 +442,7 @@
           id="bible-path-import-input"
           type="text"
           bind:value={importPathInput}
-          placeholder="/caminho/para/biblia1.sqlite, /caminho/para/biblia2.sqlite"
+          placeholder="/caminho/para/NVT.json, /caminho/para/NVI.sqlite"
           class="flex-1 h-8 px-3 rounded-md bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         <Button
@@ -453,7 +456,7 @@
         </Button>
       </div>
       <p class="text-[11px] text-muted-foreground">
-        Separe múltiplos caminhos por vírgula ou nova linha. Os arquivos serão validados e copiados sequencialmente para a pasta de dados do OpenPresenter (<code class="text-foreground font-mono">bibles/</code>).
+        Separe múltiplos caminhos por vírgula ou nova linha. Arquivos SQLite (.sqlite/.db) e JSON (.json) serão validados e copiados sequencialmente para a pasta de dados do OpenPresenter (<code class="text-foreground font-mono">bibles/</code>).
       </p>
     </div>
   {/if}
@@ -476,7 +479,7 @@
         <div class="max-w-sm mx-auto">
           <h4 class="text-xs font-semibold text-foreground">Nenhuma versão bíblica instalada</h4>
           <p class="text-[11px] text-muted-foreground mt-1">
-            Importe um arquivo de Bíblia SQLite (.sqlite) para habilitar a pesquisa de passagens, projeção de versículos e controle de slides.
+            Importe um arquivo de Bíblia SQLite (.sqlite/.db) ou JSON (.json) para habilitar a pesquisa de passagens, projeção de versículos e controle de slides.
           </p>
         </div>
         <Button
@@ -486,7 +489,7 @@
           onclick={() => bibleFileInput?.click()}
         >
           <Upload size={13} />
-          Selecionar Arquivo(s) SQLite
+          Selecionar Arquivo(s) (SQLite/JSON)
         </Button>
       </div>
     {:else}

@@ -44,7 +44,7 @@
         dayOrDate: ev.dayOrDate.trim(),
         time: ev.time.trim(),
         title: ev.title.trim(),
-        details: ev.details.trim(),
+        details: (ev.details || '').trim(),
       })),
     });
   }

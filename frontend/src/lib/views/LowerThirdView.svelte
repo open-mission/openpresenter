@@ -405,7 +405,7 @@
             {:else if lt.theme === 'bar'}
               <div
                 class="w-full px-8 py-4 shadow-2xl backdrop-blur-md flex flex-col {lt.text_align === 'left' ? 'items-start text-left' : lt.text_align === 'right' ? 'items-end text-right' : 'items-center text-center'} relative overflow-hidden"
-                style="{boxHasImage ? '' : `background-color: ${bgRgba};`} border-radius: {borderRadiusPx}px; border-left: 6px solid {resolvedBg.textColor || '#3b82f6'}; {edgeFadeMask}"
+                style="{boxHasImage ? '' : `background-color: ${bgRgba};`} border-radius: {borderRadiusPx}px; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25), inset 3px 0 0 0 {resolvedBg.textColor || '#3b82f6'}; {edgeFadeMask}"
               >
                 {#if boxHasImage}
                   <div class="absolute inset-0 w-full h-full pointer-events-none z-0" style={boxImageLayerStyle}></div>

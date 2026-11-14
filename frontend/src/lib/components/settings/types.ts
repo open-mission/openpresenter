@@ -93,7 +93,7 @@ export const SETTINGS_TABS: SettingsTabMeta[] = [
     id: 'bibles',
     label: 'Bíblias',
     group: 'content',
-    keywords: 'versões sqlite importar xml biblia livro',
+    keywords: 'versões sqlite json importar xml biblia livro',
   },
   {
     id: 'songs',

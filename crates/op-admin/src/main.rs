@@ -2710,4 +2710,277 @@ mod tests {
 
         let _ = (dir1, dir2);
     }
+
+    #[tokio::test]
+    async fn bible_json_import_works() {
+        let _env_guard = ENV_LOCK.lock().await;
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test_bible_json.db");
+        let db = op_db::Database::open(&db_path).unwrap();
+
+        let dummy_view = crate::session::SessionView {
+            app_version: op_core::VERSION.to_string(),
+            tagline: op_core::TAGLINE.to_string(),
+            stack: op_core::STACK.to_string(),
+            db_path: db_path.to_string_lossy().to_string(),
+            media_path: dir.path().join("media").to_string_lossy().to_string(),
+            db_ready: true,
+            db_error: String::new(),
+            schema_version: 7,
+            theme_label: "Sistema".into(),
+            locale: "pt-BR".into(),
+            first_run_at: "agora".into(),
+            last_run_at: "agora".into(),
+            is_first_run: true,
+        };
+
+        unsafe {
+            std::env::set_var("OPENPRESENTER_DATA_DIR", dir.path());
+        }
+
+        let state = AppState::new(dummy_view, OutputsConfig::default(), Some(db));
+        let app = create_routes(state);
+
+        let json = serde_json::json!([
+            {
+                "name": "João",
+                "abbrev": "Jo",
+                "chapters": [
+                    ["No princípio era o Verbo", "e o Verbo estava com Deus"],
+                    ["Porque Deus amou o mundo"]
+                ]
+            }
+        ])
+        .to_string();
+        let b64 = encode_base64_test(json.as_bytes());
+
+        let import_payload = serde_json::to_string(&serde_json::json!({
+            "content_base64": b64,
+            "filename": "NVT.json"
+        }))
+        .unwrap();
+
+        let import_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/bibles/import")
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(import_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(import_resp.status(), StatusCode::OK);
+
+        let body_bytes = axum::body::to_bytes(import_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let imported: op_core::BibleVersionSummary = serde_json::from_slice(&body_bytes).unwrap();
+        assert_eq!(imported.name, "NVT");
+        assert_eq!(imported.abbreviation, "NVT");
+        assert!(imported.is_default);
+        assert_eq!(imported.book_count, 1);
+        assert_eq!(imported.verse_count, 3);
+
+        // Livros
+        let books_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!("/api/bibles/{}/books", imported.id))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(books_resp.status(), StatusCode::OK);
+        let books_bytes = axum::body::to_bytes(books_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let books: Vec<op_core::BibleBook> = serde_json::from_slice(&books_bytes).unwrap();
+        assert_eq!(books.len(), 1);
+        assert_eq!(books[0].id, 43);
+        assert_eq!(books[0].name, "João");
+        assert_eq!(books[0].chapter_count, 2);
+
+        // Capítulos
+        let chapters_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!("/api/bibles/{}/books/43/chapters", imported.id))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(chapters_resp.status(), StatusCode::OK);
+        let chapters_bytes = axum::body::to_bytes(chapters_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let chapters: Vec<i64> = serde_json::from_slice(&chapters_bytes).unwrap();
+        assert_eq!(chapters, vec![1, 2]);
+
+        // Versículos
+        let verses_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!(
+                        "/api/bibles/{}/books/43/chapters/1/verses",
+                        imported.id
+                    ))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(verses_resp.status(), StatusCode::OK);
+        let verses_bytes = axum::body::to_bytes(verses_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let verses: Vec<op_core::BibleVerse> = serde_json::from_slice(&verses_bytes).unwrap();
+        assert_eq!(verses.len(), 2);
+        assert_eq!(verses[0].verse, 1);
+        assert_eq!(verses[0].text, "No princípio era o Verbo");
+
+        // Busca
+        let search_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!("/api/bibles/{}/search?q=Verbo", imported.id))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(search_resp.status(), StatusCode::OK);
+        let search_bytes = axum::body::to_bytes(search_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let hits: Vec<op_core::BibleSearchResult> = serde_json::from_slice(&search_bytes).unwrap();
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].chapter, 1);
+    }
+
+    #[tokio::test]
+    async fn bible_json_import_rejects_invalid_json() {
+        let _env_guard = ENV_LOCK.lock().await;
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test_bible_json_invalid.db");
+        let db = op_db::Database::open(&db_path).unwrap();
+
+        let dummy_view = crate::session::SessionView {
+            app_version: op_core::VERSION.to_string(),
+            tagline: op_core::TAGLINE.to_string(),
+            stack: op_core::STACK.to_string(),
+            db_path: db_path.to_string_lossy().to_string(),
+            media_path: dir.path().join("media").to_string_lossy().to_string(),
+            db_ready: true,
+            db_error: String::new(),
+            schema_version: 7,
+            theme_label: "Sistema".into(),
+            locale: "pt-BR".into(),
+            first_run_at: "agora".into(),
+            last_run_at: "agora".into(),
+            is_first_run: true,
+        };
+
+        unsafe {
+            std::env::set_var("OPENPRESENTER_DATA_DIR", dir.path());
+        }
+
+        let state = AppState::new(dummy_view, OutputsConfig::default(), Some(db));
+        let app = create_routes(state);
+
+        let b64 = encode_base64_test(b"{ isso nao e um json valido");
+        let import_payload = serde_json::to_string(&serde_json::json!({
+            "content_base64": b64,
+            "filename": "quebrado.json"
+        }))
+        .unwrap();
+
+        let import_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/bibles/import")
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(import_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(import_resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn bible_json_import_from_source_path_derives_name_and_abbreviation() {
+        let _env_guard = ENV_LOCK.lock().await;
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test_bible_source_path.db");
+        let db = op_db::Database::open(&db_path).unwrap();
+
+        let json_path = dir.path().join("NVT.json");
+        let json = serde_json::json!([
+            {
+                "name": "João",
+                "abbrev": "Jo",
+                "chapters": [["No princípio era o Verbo"]]
+            }
+        ])
+        .to_string();
+        std::fs::write(&json_path, json.as_bytes()).unwrap();
+
+        let dummy_view = crate::session::SessionView {
+            app_version: op_core::VERSION.to_string(),
+            tagline: op_core::TAGLINE.to_string(),
+            stack: op_core::STACK.to_string(),
+            db_path: db_path.to_string_lossy().to_string(),
+            media_path: dir.path().join("media").to_string_lossy().to_string(),
+            db_ready: true,
+            db_error: String::new(),
+            schema_version: 7,
+            theme_label: "Sistema".into(),
+            locale: "pt-BR".into(),
+            first_run_at: "agora".into(),
+            last_run_at: "agora".into(),
+            is_first_run: true,
+        };
+
+        unsafe {
+            std::env::set_var("OPENPRESENTER_DATA_DIR", dir.path());
+        }
+
+        let state = AppState::new(dummy_view, OutputsConfig::default(), Some(db));
+        let app = create_routes(state);
+
+        let import_payload = serde_json::to_string(&serde_json::json!({
+            "source_path": json_path.to_string_lossy().to_string()
+        }))
+        .unwrap();
+
+        let import_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/bibles/import")
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(import_payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(import_resp.status(), StatusCode::OK);
+
+        let body_bytes = axum::body::to_bytes(import_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let imported: op_core::BibleVersionSummary = serde_json::from_slice(&body_bytes).unwrap();
+        assert_eq!(imported.name, "NVT");
+        assert_eq!(imported.abbreviation, "NVT");
+    }
 }
