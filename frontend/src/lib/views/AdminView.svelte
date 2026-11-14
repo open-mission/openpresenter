@@ -4084,7 +4084,6 @@
     onimportsong={handleImportSong}
     onopenbible={handleOpenBibleFromPalette}
     onpresentscripture={handlePresentScriptureFromPalette}
-    onopenbibletab={handleOpenBibleTab}
   />
 
   <SongEditorModal

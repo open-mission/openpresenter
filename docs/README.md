@@ -338,6 +338,11 @@
 - [Spec — Refatoração do Módulo 5 (Equipes & Escalas)](specs/2026-11-14-refatoracao-modulo-5-equipes-e-escalas.md)
 - [Plano — Refatoração do Módulo 5 (Equipes & Escalas)](plans/2026-11-14-refatoracao-modulo-5-equipes-e-escalas.md)
 
+## Refatoração do Módulo 6 (Paleta de Comandos ⌘K)
+
+- [Spec — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](specs/2026-11-14-refatoracao-modulo-6-command-palette.md)
+- [Plano — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](plans/2026-11-14-refatoracao-modulo-6-command-palette.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

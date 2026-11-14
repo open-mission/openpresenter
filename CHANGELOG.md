@@ -7,6 +7,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Refatorado
+- **Módulo 6 — Paleta de Comandos ⌘K (`CommandPalette.svelte`, `lib/components/command-palette/*`):**
+  - Decomposição do monólito de 1.311 linhas em um orquestrador de 167 linhas e subcomponentes coesos (`CommandPaletteHeader`, `CommandPaletteTabs`, `LocalSongsResults`, `BibleSearchResults`, `OnlineLyricsResults`, `CommandPaletteShortcuts`), com estado e regras centralizados em `controller.svelte.ts`.
+  - Tema Claro/Escuro real em todo o módulo: remoção total de `zinc-*`, `bg-black/80` e `text-white` em favor de tokens semânticos (`bg-popover`, `bg-card`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`).
+  - Acessibilidade WAI-ARIA: combobox com `aria-controls`/`aria-activedescendant`, `listbox` próprio por aba contendo apenas `option`/`group` (seletor de versão, alertas e estados vazios ficam fora do listbox), abas com setas/`Home`/`End` e atalhos `Ctrl/Cmd+1/2/3`; a tecla `Tab` deixa de ser sequestrada.
+  - Buscas bíblica e online com `AbortController` e sequência de requisições, eliminando respostas fora de ordem em digitação rápida; falhas exibem `role="alert"` com “Tentar novamente”.
+  - Piso tipográfico de 11px em dicas e `<kbd>`, alvos interativos `>= 24×24px` e remoção da classe Tailwind inválida `py-0.2`.
 - **Módulo 5 — Equipes & Escalas (`TeamsModal.svelte`, `lib/components/teams/*`, `lib/teams.ts`):**
   - Decomposição do modal monolítico (1.788 → 350 linhas) em um orquestrador enxuto e módulos coesos: `TeamsHeader.svelte`, `TeamsRosterTab.svelte`, `TeamsMembersTab.svelte`, `TeamsDepartmentsTab.svelte`, `TeamsSubDialog.svelte`, `TeamsConfirmDialog.svelte`, `RosterFormModal.svelte`, `AssignMemberModal.svelte`, `MemberFormModal.svelte`, `DeptFormModal.svelte` e `teamConstants.ts`.
   - Carga acionada apenas na borda de abertura (`open: false → true`) com `AbortController` e sequência de requisições, eliminando loops em `$effect` e respostas fora de ordem; abas visitadas permanecem montadas (`class:hidden` + `visitedTabs`).
