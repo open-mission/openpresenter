@@ -973,6 +973,10 @@
         if (isSettingsOpen) {
           return;
         }
+        // TeamsModal gerencia a própria pilha de submodais e confirmações (Escape fecha só o topo)
+        if (isTeamsModalOpen) {
+          return;
+        }
         e.preventDefault();
         contextMenuOpen = false;
         isCommandPaletteOpen = false;

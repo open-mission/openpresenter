@@ -333,6 +333,11 @@
 - [Spec — Otimização do Pipeline Docker com Compilação Paralela Nativa ARM64 e AMD64](specs/2026-11-08-otimizacao-ci-cd-docker-arm64-nativo.md)
 - [Plano — Otimização do Pipeline Docker com Compilação Paralela Nativa ARM64 e AMD64](plans/2026-11-08-otimizacao-ci-cd-docker-arm64-nativo.md)
 
+## Refatoração do Módulo 5 (Equipes & Escalas)
+
+- [Spec — Refatoração do Módulo 5 (Equipes & Escalas)](specs/2026-11-14-refatoracao-modulo-5-equipes-e-escalas.md)
+- [Plano — Refatoração do Módulo 5 (Equipes & Escalas)](plans/2026-11-14-refatoracao-modulo-5-equipes-e-escalas.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

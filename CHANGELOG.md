@@ -6,6 +6,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Refatorado
+- **Módulo 5 — Equipes & Escalas (`TeamsModal.svelte`, `lib/components/teams/*`, `lib/teams.ts`):**
+  - Decomposição do modal monolítico (1.788 → 350 linhas) em um orquestrador enxuto e módulos coesos: `TeamsHeader.svelte`, `TeamsRosterTab.svelte`, `TeamsMembersTab.svelte`, `TeamsDepartmentsTab.svelte`, `TeamsSubDialog.svelte`, `TeamsConfirmDialog.svelte`, `RosterFormModal.svelte`, `AssignMemberModal.svelte`, `MemberFormModal.svelte`, `DeptFormModal.svelte` e `teamConstants.ts`.
+  - Carga acionada apenas na borda de abertura (`open: false → true`) com `AbortController` e sequência de requisições, eliminando loops em `$effect` e respostas fora de ordem; abas visitadas permanecem montadas (`class:hidden` + `visitedTabs`).
+  - Pilha de `Escape` fecha somente o topo (confirmação → submodal → modal) e o foco retorna ao gatilho ao fechar.
+  - Abas WAI-ARIA (`tablist`/`tabpanel`) com navegação por setas, `Home` e `End`; alvos de toque `>= 24×24px`, texto funcional `>= 11px` e `aria-label` em controles apenas com ícone.
+  - Tema Claro/Escuro real em todo o módulo: chips de departamento, status de presença, cartões, formulários, controles e minimapa do Svelte Flow passam a usar tokens semânticos (`bg-card`, `text-foreground`, `border-border`, `bg-muted`), inclusive `colorMode` reativo no canvas.
+  - Zero `alert()`/`confirm()` nativos: confirmações destrutivas usam `ConfirmModal` (z-50), submodais em `z-[45]` e o backdrop principal em `z-40`; falhas exibem banner `role="alert"` com “Tentar novamente” e toasts.
+  - Funções reais de escala (`Titular`, `Auxiliar`, `Apoio`) propagadas para o fluxo, a grade e o controle remoto por meio de `isRosterLeadRole`/`formatRosterRoleLabel`.
+  - `lib/teams.ts` ganhou `ensureOk` (mensagens de erro reais do backend) nas mutações e `AbortSignal` nas leituras.
+
 ## [0.6.1] - 2026-11-14
 
 ### Destaques da Versão

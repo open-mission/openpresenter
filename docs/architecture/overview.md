@@ -17,6 +17,7 @@ Esta página descreve a arquitetura vigente do OpenPresenter Minimal. Ela deve s
 │   │   │   ├── components/bottom-panel/ # subcomponentes e modais do BottomPanel (SongsTab, ImagesTab, VideosTab, AudiosTab, BackgroundsTab, OthersTab, ConfirmModal, CreateFolderModal, folderTree)
 │   │   │   ├── components/remote/ # subcomponentes modulares do RemoteView (/remote): RemoteDialog, RemoteHeader, RemoteLiveControlCard, RemoteBottomNav, RemoteHomeTab, RemoteSetlistTab, RemoteSongsTab, RemoteBibleTab, RemoteTeamTab
 │   │   │   ├── components/settings/ # subcomponentes, abas e primitivos do SettingsModal (tabs/*, BibleEditModal, SettingsRangeField, SettingsSelectMenu, SettingsToggle, types.ts)
+│   │   │   ├── components/teams/ # subcomponentes do TeamsModal (TeamsHeader, TeamsRosterTab, TeamsMembersTab, TeamsDepartmentsTab, TeamsSubDialog, TeamsConfirmDialog, RosterFormModal, AssignMemberModal, MemberFormModal, DeptFormModal, RosterFlowCanvas, ServiceNode, DepartmentNode, MemberNode, teamConstants.ts)
 │   │   │   ├── components/     # CommandPalette, SongEditorModal (Música/Texto), SettingsModal, SetlistModal, QuickItemModal, ContextMenu, BottomPanel, BiblePanel, TimerControlPanel, RemoteLogin
 │   │   │   ├── views/          # visões principais: AdminView, PublicView, StageView (com 4 presets), LowerThirdView, RemoteView
 │   │   │   ├── audioPlayer.ts  # estado global persistente de reprodução de áudio
@@ -28,6 +29,7 @@ Esta página descreve a arquitetura vigente do OpenPresenter Minimal. Ela deve s
 │   │   │   ├── settings.ts     # gerenciamento de tema (dark/light/system), Base Colors e Theme Accents (Shadcn), seções customizadas
 │   │   │   ├── displaySettings.ts # gerenciamento persistente de margens públicas, marca da igreja e presets do monitor de palco
 │   │   │   ├── songParser.ts   # segmentador de letras e textos estilo Holyrics (## Partes, quebras de slides)
+│   │   │   ├── teams.ts        # cliente REST do módulo Equipes & Escalas (ensureOk, AbortSignal, papéis e WhatsApp)
 │   │   │   ├── types.ts        # tipagens e contratos de dados sincronizados com op-core
 │   │   │   ├── utils.ts        # utilitários de classe (cn, twMerge, clsx)
 │   │   │   └── ws.ts           # cliente WebSocket reativo e disparo de ações

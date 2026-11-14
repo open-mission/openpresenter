@@ -1,4 +1,5 @@
 import type {
+  RosterStatus,
   ServiceRoster,
   ServiceRosterItem,
   ServiceRosterSummary,
@@ -14,9 +15,30 @@ import type {
 // API REST CLIENT
 // ==========================================
 
-export async function fetchDepartments(): Promise<TeamDepartment[]> {
-  const res = await fetch('/api/teams/departments');
-  if (!res.ok) throw new Error('Falha ao carregar departamentos');
+/**
+ * Converte respostas HTTP de erro em `Error` com a mensagem do backend.
+ * O corpo pode ser texto puro ou JSON (`error` / `message` / `detail`).
+ */
+async function ensureOk(res: Response, fallbackMessage: string): Promise<void> {
+  if (res.ok) return;
+  const body = await res.text().catch(() => '');
+  const trimmed = body.trim();
+  let detail = '';
+  if (trimmed) {
+    try {
+      const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+      const raw = parsed.error ?? parsed.message ?? parsed.detail;
+      if (typeof raw === 'string') detail = raw.trim();
+    } catch {
+      // Corpo não é JSON: usa o texto puro abaixo.
+    }
+  }
+  throw new Error(detail || trimmed || fallbackMessage);
+}
+
+export async function fetchDepartments(signal?: AbortSignal): Promise<TeamDepartment[]> {
+  const res = await fetch('/api/teams/departments', { signal });
+  await ensureOk(res, 'Falha ao carregar departamentos');
   return res.json();
 }
 
@@ -26,27 +48,27 @@ export async function saveDepartment(
 ): Promise<TeamDepartment> {
   const isNew = !id;
   const url = isNew ? '/api/teams/departments' : `/api/teams/departments/${id}`;
-  const method = isNew ? 'POST' : 'PUT';
   const res = await fetch(url, {
-    method,
+    method: isNew ? 'POST' : 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(errText || 'Falha ao salvar departamento');
-  }
+  await ensureOk(res, 'Falha ao salvar departamento');
   return res.json();
 }
 
 export async function deleteDepartment(id: string): Promise<boolean> {
   const res = await fetch(`/api/teams/departments/${id}`, { method: 'DELETE' });
-  return res.ok;
+  await ensureOk(res, 'Falha ao excluir departamento');
+  return true;
 }
 
-export async function fetchMembers(includeInactive = false): Promise<TeamMember[]> {
-  const res = await fetch(`/api/teams/members?include_inactive=${includeInactive}`);
-  if (!res.ok) throw new Error('Falha ao carregar membros');
+export async function fetchMembers(
+  includeInactive = false,
+  signal?: AbortSignal
+): Promise<TeamMember[]> {
+  const res = await fetch(`/api/teams/members?include_inactive=${includeInactive}`, { signal });
+  await ensureOk(res, 'Falha ao carregar membros');
   return res.json();
 }
 
@@ -55,40 +77,37 @@ export async function saveMember(
   data: UpsertTeamMember
 ): Promise<TeamMember> {
   const url = id ? `/api/teams/members/${id}` : '/api/teams/members';
-  const method = id ? 'PUT' : 'POST';
   const res = await fetch(url, {
-    method,
+    method: id ? 'PUT' : 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(errText || 'Falha ao salvar membro');
-  }
+  await ensureOk(res, 'Falha ao salvar membro');
   return res.json();
 }
 
 export async function deleteMember(id: string): Promise<boolean> {
   const res = await fetch(`/api/teams/members/${id}`, { method: 'DELETE' });
-  return res.ok;
+  await ensureOk(res, 'Falha ao excluir membro');
+  return true;
 }
 
-export async function fetchRosters(): Promise<ServiceRosterSummary[]> {
-  const res = await fetch('/api/teams/rosters');
-  if (!res.ok) throw new Error('Falha ao carregar escalas');
+export async function fetchRosters(signal?: AbortSignal): Promise<ServiceRosterSummary[]> {
+  const res = await fetch('/api/teams/rosters', { signal });
+  await ensureOk(res, 'Falha ao carregar escalas');
   return res.json();
 }
 
-export async function fetchActiveRoster(): Promise<ServiceRoster | null> {
-  const res = await fetch('/api/teams/rosters/active');
+export async function fetchActiveRoster(signal?: AbortSignal): Promise<ServiceRoster | null> {
+  const res = await fetch('/api/teams/rosters/active', { signal });
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error('Falha ao carregar escala ativa');
+  await ensureOk(res, 'Falha ao carregar escala ativa');
   return res.json();
 }
 
-export async function fetchRoster(id: string): Promise<ServiceRoster> {
-  const res = await fetch(`/api/teams/rosters/${id}`);
-  if (!res.ok) throw new Error('Falha ao carregar escala');
+export async function fetchRoster(id: string, signal?: AbortSignal): Promise<ServiceRoster> {
+  const res = await fetch(`/api/teams/rosters/${id}`, { signal });
+  await ensureOk(res, 'Falha ao carregar escala');
   return res.json();
 }
 
@@ -97,24 +116,25 @@ export async function saveRoster(
   data: UpsertServiceRoster
 ): Promise<ServiceRoster> {
   const url = id ? `/api/teams/rosters/${id}` : '/api/teams/rosters';
-  const method = id ? 'PUT' : 'POST';
   const res = await fetch(url, {
-    method,
+    method: id ? 'PUT' : 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Falha ao salvar escala');
+  await ensureOk(res, 'Falha ao salvar escala');
   return res.json();
 }
 
 export async function activateRoster(id: string): Promise<boolean> {
   const res = await fetch(`/api/teams/rosters/${id}/active`, { method: 'POST' });
-  return res.ok;
+  await ensureOk(res, 'Falha ao ativar escala');
+  return true;
 }
 
 export async function deleteRoster(id: string): Promise<boolean> {
   const res = await fetch(`/api/teams/rosters/${id}`, { method: 'DELETE' });
-  return res.ok;
+  await ensureOk(res, 'Falha ao excluir escala');
+  return true;
 }
 
 export async function addRosterItem(
@@ -126,7 +146,7 @@ export async function addRosterItem(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(item),
   });
-  if (!res.ok) throw new Error('Falha ao alocar voluntário');
+  await ensureOk(res, 'Falha ao alocar voluntário');
   return res.json();
 }
 
@@ -134,20 +154,22 @@ export async function removeRosterItem(rosterId: string, itemId: string): Promis
   const res = await fetch(`/api/teams/rosters/${rosterId}/items/${itemId}`, {
     method: 'DELETE',
   });
-  return res.ok;
+  await ensureOk(res, 'Falha ao remover voluntário da escala');
+  return true;
 }
 
 export async function updateRosterItemStatus(
   rosterId: string,
   itemId: string,
-  status: 'confirmed' | 'pending' | 'declined'
+  status: RosterStatus
 ): Promise<boolean> {
   const res = await fetch(`/api/teams/rosters/${rosterId}/items/${itemId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
   });
-  return res.ok;
+  await ensureOk(res, 'Falha ao atualizar presença');
+  return true;
 }
 
 // ==========================================
@@ -178,7 +200,14 @@ export function getDepartmentEmoji(deptName: string): string {
   if (lower.includes('proje') || lower.includes('tel')) return '🖥️';
   if (lower.includes('foto')) return '📸';
   if (lower.includes('stori') || lower.includes('rede') || lower.includes('insta')) return '📱';
-  if (lower.includes('transm') || lower.includes('live') || lower.includes('obs') || lower.includes('vídeo') || lower.includes('video')) return '🎥';
+  if (
+    lower.includes('transm') ||
+    lower.includes('live') ||
+    lower.includes('obs') ||
+    lower.includes('vídeo') ||
+    lower.includes('video')
+  )
+    return '🎥';
   if (lower.includes('som') || lower.includes('áudio') || lower.includes('audio')) return '🔊';
   if (lower.includes('ilu') || lower.includes('luz')) return '💡';
   return '👥';
@@ -212,7 +241,7 @@ export function formatRosterWhatsApp(
 
   const lines: string[] = [];
   lines.push(`📋 *Escala de Mídia — ${roster.title}*`);
-  
+
   // Data e horário
   const parts: string[] = [];
   if (roster.service_date) {
@@ -250,7 +279,7 @@ export function formatRosterWhatsApp(
       const member = memberMap.get(item.member_id);
       const name = member ? member.name : 'Voluntário';
       const roleLabel = formatRosterRoleLabel(item.role);
-      
+
       let statusEmoji = '⏳ Pendente';
       if (item.status === 'confirmed') statusEmoji = '✅ Confirmado';
       else if (item.status === 'declined') statusEmoji = '❌ Não comparece';

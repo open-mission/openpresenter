@@ -1,14 +1,10 @@
 <script lang="ts">
   import '@xyflow/svelte/dist/style.css';
-  import {
-    SvelteFlow,
-    Background,
-    Controls,
-    MiniMap,
-    type Node,
-    type Edge,
-  } from '@xyflow/svelte';
-  import type { ServiceRoster, TeamDepartment, TeamMember } from '$lib/types';
+  import { onMount } from 'svelte';
+  import { SvelteFlow, Background, Controls, MiniMap, type Node, type Edge } from '@xyflow/svelte';
+  import type { RosterStatus, ServiceRoster, TeamDepartment, TeamMember } from '$lib/types';
+  import { isRosterLeadRole } from '$lib/teams';
+  import { themeStore } from '$lib/settings';
   import ServiceNode from './ServiceNode.svelte';
   import DepartmentNode from './DepartmentNode.svelte';
   import MemberNode from './MemberNode.svelte';
@@ -17,7 +13,7 @@
     roster: ServiceRoster | null;
     departments: TeamDepartment[];
     allMembers: TeamMember[];
-    onUpdateRosterItemStatus: (itemId: string, status: 'confirmed' | 'pending' | 'declined') => Promise<void> | void;
+    onUpdateRosterItemStatus: (itemId: string, status: RosterStatus) => Promise<void> | void;
     onRemoveRosterItem: (itemId: string) => Promise<void> | void;
     onAddMemberToDept: (deptId: string) => void;
   }
@@ -40,6 +36,22 @@
   let nodes = $state.raw<Node[]>([]);
   let edges = $state.raw<Edge[]>([]);
 
+  let systemPrefersDark = $state(false);
+
+  onMount(() => {
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    systemPrefersDark = query.matches;
+    const onChange = (event: MediaQueryListEvent) => {
+      systemPrefersDark = event.matches;
+    };
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  });
+
+  const isLightMode = $derived(
+    $themeStore === 'light' ? true : $themeStore === 'dark' ? false : !systemPrefersDark
+  );
+
   // Calcula os nós e arestas de forma reativa a partir da escala atual
   const flowElements = $derived.by(() => {
     if (!roster) {
@@ -49,14 +61,12 @@
     const calculatedNodes: Node[] = [];
     const calculatedEdges: Edge[] = [];
 
-    const activeDepts = departments;
-    const deptCount = Math.max(activeDepts.length, 1);
+    const deptCount = Math.max(departments.length, 1);
     const colSpacing = 270;
     const totalWidth = deptCount * colSpacing;
     const startX = 60;
     const serviceX = startX + totalWidth / 2 - 120;
 
-    // 1. Nó Raiz: Culto / Serviço
     calculatedNodes.push({
       id: 'service-root',
       type: 'service',
@@ -70,18 +80,15 @@
       selectable: false,
     });
 
-    // 2. Nós dos Departamentos e Voluntários
-    activeDepts.forEach((dept, index) => {
+    departments.forEach((dept, index) => {
       const deptX = startX + index * colSpacing;
-      const deptY = 160;
-
-      const deptItems = roster.items.filter((it) => it.department_id === dept.id);
-      const hasLead = deptItems.some((it) => it.role === 'lead');
+      const deptItems = roster.items.filter((item) => item.department_id === dept.id);
+      const hasLead = deptItems.some((item) => isRosterLeadRole(item.role));
 
       calculatedNodes.push({
         id: `dept-${dept.id}`,
         type: 'department',
-        position: { x: deptX, y: deptY },
+        position: { x: deptX, y: 160 },
         data: {
           id: dept.id,
           name: dept.name,
@@ -94,25 +101,21 @@
         selectable: false,
       });
 
-      // Aresta Culto -> Departamento
       calculatedEdges.push({
         id: `edge-root-dept-${dept.id}`,
         source: 'service-root',
         target: `dept-${dept.id}`,
         animated: roster.is_active,
-        style: `stroke: ${dept.color || '#3b82f6'}; stroke-width: 2px;`,
+        style: `stroke: ${dept.color || 'var(--primary)'}; stroke-width: 2px;`,
       });
 
-      // 3. Voluntários escalados neste departamento
       deptItems.forEach((item, itemIdx) => {
-        const memberY = 280 + itemIdx * 86;
-        const memberX = deptX + 5;
-        const member = allMembers.find((m) => m.id === item.member_id);
+        const member = allMembers.find((entry) => entry.id === item.member_id);
 
         calculatedNodes.push({
           id: `item-${item.id}`,
           type: 'member',
-          position: { x: memberX, y: memberY },
+          position: { x: deptX + 5, y: 280 + itemIdx * 86 },
           data: {
             id: item.id,
             memberId: item.member_id,
@@ -121,18 +124,17 @@
             role: item.role,
             status: item.status,
             departmentColor: dept.color,
-            onUpdateStatus: (id: string, st: 'confirmed' | 'pending' | 'declined') =>
-              onUpdateRosterItemStatus(id, st),
+            onUpdateStatus: (id: string, status: RosterStatus) =>
+              onUpdateRosterItemStatus(id, status),
             onRemove: (id: string) => onRemoveRosterItem(id),
           },
         });
 
-        // Aresta Departamento -> Voluntário
         calculatedEdges.push({
           id: `edge-dept-${dept.id}-item-${item.id}`,
           source: `dept-${dept.id}`,
           target: `item-${item.id}`,
-          style: `stroke: ${dept.color || '#6b7280'}77; stroke-width: 1.5px; stroke-dasharray: 3 3;`,
+          style: `stroke: ${dept.color || 'var(--border)'}; stroke-width: 1.5px; stroke-dasharray: 3 3;`,
         });
       });
     });
@@ -146,9 +148,9 @@
   });
 </script>
 
-<div class="w-full h-full min-h-[520px] rounded-2xl overflow-hidden bg-neutral-950/80 border border-neutral-800/80 relative">
+<div class="flow-shell w-full h-full min-h-[420px] rounded-2xl overflow-hidden bg-card border border-border relative">
   {#if !roster}
-    <div class="h-full flex flex-col items-center justify-center p-8 text-center text-neutral-400">
+    <div class="h-full flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
       <p class="text-sm font-medium">Nenhuma escala selecionada para visualização.</p>
     </div>
   {:else}
@@ -161,27 +163,54 @@
       minZoom={0.3}
       maxZoom={1.5}
       proOptions={{ hideAttribution: true }}
-      class="bg-neutral-950"
+      colorMode={isLightMode ? 'light' : 'dark'}
     >
-      <Background color="#262626" gap={20} size={1.2} />
-      <Controls class="!bg-neutral-900 !border-neutral-800 !text-neutral-200 !shadow-xl [&>button]:!border-neutral-800 hover:[&>button]:!bg-neutral-800" />
+      <Background patternColor={isLightMode ? '#d4d4d8' : '#262626'} gap={20} size={1.2} />
+      <Controls />
       <MiniMap
-        nodeColor={(n) => {
-          if (n.type === 'service') return '#3b82f6';
-          if (n.type === 'department') return (n.data as any)?.color || '#10b981';
+        nodeColor={(node) => {
+          if (node.type === 'service') return '#3b82f6';
+          if (node.type === 'department') return (node.data as { color?: string })?.color ?? '#10b981';
           return '#6b7280';
         }}
-        class="!bg-neutral-900/90 !border-neutral-800 !rounded-xl overflow-hidden shadow-2xl"
       />
     </SvelteFlow>
   {/if}
 </div>
 
 <style>
-  :global(.svelte-flow) {
+  .flow-shell :global(.svelte-flow) {
     background-color: transparent !important;
   }
-  :global(.svelte-flow__handle) {
+  .flow-shell :global(.svelte-flow__handle) {
     border-radius: 50% !important;
+  }
+  .flow-shell :global(.svelte-flow__controls) {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: none;
+  }
+  .flow-shell :global(.svelte-flow__controls-button) {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    color: var(--foreground);
+  }
+  .flow-shell :global(.svelte-flow__controls-button:hover) {
+    background: var(--muted);
+  }
+  .flow-shell :global(.svelte-flow__controls-button:disabled) {
+    opacity: 0.5;
+  }
+  .flow-shell :global(.svelte-flow__minimap) {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+  .flow-shell :global(.svelte-flow__minimap-mask) {
+    fill: var(--muted);
+    opacity: 0.45;
   }
 </style>
