@@ -6,12 +6,43 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-14
+
+### Destaques da Versão
+A versão **0.6.1** entrega um amplo endurecimento de estabilidade, acessibilidade, suporte real ao Tema Claro/Escuro, segurança operacional ao vivo e modularização em quatro áreas centrais da interface do OpenPresenter, além da compilação Docker nativa paralela para ARM64 e AMD64:
+- 🛡️ **Segurança Ao Vivo & Controle Remoto PWA (`/remote`):** Proteção contra disparo acidental com Modo **`2 Toques`**, confirmação acessível antes de parar a projeção ao vivo (`Parar`), bloqueio do bypass por PIN padrão `'1234'` quando há PIN configurado ou falha de rede, confirmação em 2 etapas para voluntários sem PIN, correção do crash em `Bíblia → Livros` (`filteredBooks`) e acesso de consulta na aba `Setlist` para voluntários.
+- 🎨 **Tema Claro & Escuro Reais + Tokens Semânticos:** Inicialização de tema compartilhada em toda a aplicação (`initAppTheme()`), sincronização entre abas via `storage`, remoção de superfícies fixas escuras (`neutral-*`/`black`) nos 4 módulos refatorados, contraste WCAG AA em alertas e adaptação completa dos cartões, previews e notificações (`Sonner.svelte`).
+- ♿ **Acessibilidade (WAI-ARIA), Teclado & Proteção de Atalhos:** Modais e diálogos acessíveis (`ConfirmModal.svelte` e `RemoteDialog.svelte`) com `role="dialog"`/`alertdialog`, `Escape`, armadilha de `Tab` e retorno de foco; `tablist` sem controles misturados e navegação por setas; bloqueio de atalhos globais de palco sobre botões, inputs e modais abertos; destravamento do zoom mobile em `index.html`; piso tipográfico `>= 11px` e alvos `>= 24×24px`.
+- 🧩 **Modularização & Resiliência de Rede Offline:** Decomposição de `BottomPanel.svelte` (4.673 → 832 linhas em `bottom-panel/*`), `SettingsModal.svelte` (7.535 → 1.270 linhas em `settings/*`) e `RemoteView.svelte` (2.578 → 1.150 linhas em `remote/*` + `remoteData.ts`); eliminação de loops de refetch/retry em `$effect` no preview sem servidor e backoff exponencial no WebSocket (`ws.ts`).
+- ⚡ **CI/CD Docker Multi-Arquitetura Nativo:** Pipeline paralela em runners nativos `ubuntu-latest` (`linux/amd64`) e `ubuntu-24.04-arm` (`linux/arm64`) eliminando emulação QEMU.
+
+### Adicionado
+- **Arquitetura Modular do Frontend (`frontend/src/lib/components/` e `frontend/src/lib/remoteData.ts`):**
+  - **Painel Inferior (`bottom-panel/`):** Extração de `SongsTab.svelte`, `ImagesTab.svelte`, `VideosTab.svelte`, `AudiosTab.svelte`, `BackgroundsTab.svelte`, `OthersTab.svelte`, `ConfirmModal.svelte`, `CreateFolderModal.svelte` e `folderTree.ts`.
+  - **Configurações (`settings/` e `settings/tabs/`):** Extração dos primitivos reutilizáveis (`SettingsToggle.svelte`, `SettingsRangeField.svelte`, `SettingsSelectMenu.svelte`, `BibleEditModal.svelte`, `types.ts`) e das 14 abas de domínio (`AppearanceTab`, `PublicDisplayTab`, `StageMonitorTab`, `LowerThirdTab`, `OutputsTab`, `LyricsBackgroundsTab`, `SongsTab`, `BiblesTab`, `FilesTab`, `SectionsTab`, `ChurchBrandTab`, `ShortcutsTab`, `LogsTab`, `AboutTab`).
+  - **Controle Remoto PWA (`remote/` e `remoteData.ts`):** Extração de `RemoteDialog.svelte`, `RemoteHeader.svelte`, `RemoteLiveControlCard.svelte`, `RemoteBottomNav.svelte`, `RemoteHomeTab.svelte`, `RemoteSetlistTab.svelte`, `RemoteSongsTab.svelte`, `RemoteBibleTab.svelte` e `RemoteTeamTab.svelte`, além de `remoteData.ts` com fetchers tipados e validação de PIN.
+  - **Diretrizes Permanentes (`docs/architecture/frontend-standards.md`, `PRODUCT.md`, `AGENTS.md`, `GEMINI.md`, `docs/architecture/overview.md`):** Documentação consolidada de tema dual WCAG AA, WAI-ARIA, prevenção de loops em `$effect`, modularização e validação em browser (`1024×768` e `1440×900`).
+
 ### Otimizado
 - **CI/CD Docker Multi-Arquitetura com Runners Nativos ARM64 e AMD64 (`.github/workflows/docker-publish.yml`):**
   - Substituição da emulação por software com QEMU por compilação nativa distribuída em matriz de runners paralelos (`ubuntu-latest` para `linux/amd64` e `ubuntu-24.04-arm` com 4 vCPUs nativas para `linux/arm64`).
   - Publicação das imagens por digest imutável com escopos de cache isolados por arquitetura (`type=gha,scope=build-${{ matrix.platform-id }}`).
   - Job de merge leve que coleta os digests via artefatos do GitHub Actions e monta a lista de manifestos fat multi-plataforma usando `docker buildx imagetools create` no GHCR e Docker Hub.
   - Redução drástica do tempo de execução total de build de > 1h30 para aproximadamente 4 a 6 minutos.
+- **Desempenho e Rede Offline-First (`BottomPanel.svelte`, `RemoteView.svelte`, `ws.ts`):**
+  - Carregamento sob demanda das abas do painel inferior e do controle remoto com guarda de tentativa (`*Attempted`), preservando abas montadas via `class:hidden` e mantendo zero requisições ociosas ao carregar em estado recolhido/deslogado.
+  - WebSocket (`ws.ts`) com reconexão em backoff exponencial (`2s` até o teto de `15s`), pausa quando a aba está oculta (`document.hidden`) e encerramento explícito via `closeWebSocket()`.
+  - Remoção de refetch repetido de setlist em cada evento `state_updated` (`lastSyncedSetlistId` em `RemoteView.svelte`) e uso consistente de `AbortController` nas buscas.
+
+### Corrigido
+- **Mesa Principal & Painéis de Apoio (`AdminView.svelte`, `SystemMetricsFooter.svelte`, `TimerControlPanel.svelte`, `ContextMenu.svelte`, `MediaItemRow.svelte`):**
+  - Proteção dos atalhos globais de teclado para não interferir em botões, campos de texto ou modais abertos; correção do scroll para cards de slide por ID composto estável; distinção entre `Limpar` e `Fundo`; renderização clara de `fetchError` na telemetria de sistema; navegação por teclado em menus de contexto e reordenação na setlist (`Alt+Seta`).
+  - Preservação do estado de capítulo/busca no `BiblePanel.svelte` ao alternar abas ou recolher o painel e eliminação de controles `<button>` aninhados nos cartões de versículo.
+- **Painel de Configurações (`SettingsModal.svelte`, `displaySettings.ts`, `updater.ts`, `media.ts`):**
+  - Substituição de `confirm()`/`alert()` nativos e fechamento inseguro com alterações não salvas por confirmação via `ConfirmModal.svelte`; persistência assíncrona honesta com `readHttpError` em configurações de exibição/atualizações; remoção de chamada inexistente `savePublicSettings()`; foco e `Escape` em camadas nas janelas e seletores.
+- **Controle Remoto PWA (`RemoteView.svelte`, `RemoteLogin.svelte`, `remoteData.ts`, `teams.ts`, `types.ts`, `index.html`, `manifest-remote.webmanifest`):**
+  - Correção do crash em `Bíblia → Livros` (`filteredBooks`), assinatura de `controlAudioPlayback(action, options?)` com suporte a `AudioPlaybackState.url`, parser de letras (`parseRawLyrics(...).slides`) e rótulo correto de liderança (`isRosterLeadRole('lead')` / `formatRosterRoleLabel`).
+  - Correção do rodapé cortado em viewport mobile (`h-dvh overflow-hidden` em `RemoteLogin.svelte`), destravamento de zoom em `index.html`, `orientation: "any"` no manifesto PWA e encerramento limpo da sessão ao sair.
 
 ## [0.6.0] - 2026-11-08
 

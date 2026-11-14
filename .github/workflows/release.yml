@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag de release a publicar/atualizar (ex: v0.6.0)'
+        description: 'Tag de release a publicar/atualizar (ex: v0.6.1)'
         required: false
-        default: 'v0.6.0'
+        default: 'v0.6.1'
 
 permissions:
   contents: write
@@ -106,7 +106,7 @@ jobs:
 
       - name: Extract Release Notes from CHANGELOG.md
         run: |
-          TAG="${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.tag || 'v0.6.0' }}"
+          TAG="${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.tag || 'v0.6.1' }}"
           VERSION="${TAG#v}"
           python3 -c "
           import re, sys
@@ -128,7 +128,7 @@ jobs:
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.tag || 'v0.6.0' }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.tag || 'v0.6.1' }}
           body_path: RELEASE_NOTES.md
           files: release-artifacts/*
           generate_release_notes: false

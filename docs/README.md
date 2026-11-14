@@ -317,6 +317,11 @@
 - [Plano — Pipeline CI/CD de Publicação Automática de Imagens Docker](plans/2026-11-07-ci-cd-publicacao-docker-hub.md)
 - [ADR 0015 — Suporte a Docker e Servidor Headless sem System Tray](decisions/0015-suporte-docker-e-servidor-headless-sem-system-tray.md)
 
+## Release v0.6.1: Estabilidade Ao Vivo, Tema Claro/Escuro Reais, Modularização dos Painéis, Controle Remoto PWA e CI Docker Nativo
+
+- [Spec — Preparação e Lançamento da Versão 0.6.1](specs/2026-11-14-release-0-6-1.md)
+- [Plano — Preparação e Lançamento da Versão 0.6.1](plans/2026-11-14-release-0-6-1.md)
+
 ## Release v0.6.0: Suporte a Docker Headless, Pastas e File Explorer em Mídias, Timer no Stage e Correção Bíblica
 
 - [Spec — Preparação e Lançamento da Versão 0.6.0](specs/2026-11-08-release-0-6-0.md)

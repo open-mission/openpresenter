@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/open-mission/openpresenter/releases">
-    <img src="https://img.shields.io/badge/release-v0.7.0-blue?style=flat-square" alt="Versão v0.7.0" />
+    <img src="https://img.shields.io/badge/release-v0.6.1-blue?style=flat-square" alt="Versão v0.6.1" />
   </a>
   <a href="https://github.com/open-mission/openpresenter/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-GPL--3.0-green?style=flat-square" alt="Licença GPL-3.0" />
@@ -194,7 +194,7 @@ docker run -d \
 
 O repositório conta com a pipeline `.github/workflows/docker-publish.yml` para compilação multi-arquitetura (`linux/amd64` e `linux/arm64`) e publicação automática no Docker Hub e GitHub Container Registry (`ghcr.io`):
 
-- **Gatilhos:** criação de tags de versão (`git tag v0.6.0 && git push origin v0.6.0`) ou disparo manual em **Actions > Docker Publish**.
+- **Gatilhos:** criação de tags de versão (`git tag v0.6.1 && git push origin v0.6.1`) ou disparo manual em **Actions > Docker Publish**.
 - **Configuração de Segredos:**
   - `DOCKERHUB_USERNAME`: seu nome de usuário ou organização no Docker Hub.
   - `DOCKERHUB_TOKEN`: Personal Access Token gerado no Docker Hub (*Account Settings > Security > New Access Token*).
