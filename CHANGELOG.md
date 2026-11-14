@@ -13,6 +13,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - O modo é reiniciado ao fechar e reabrir o editor e não participa do estado de alterações não salvas.
 
 ### Refatorado
+- **Módulo 8 — Cronogramas & Agendas de Culto (`ScheduleEditorModal.svelte`, `lib/components/schedule-editor/*`):**
+  - Decomposição do monólito de 653 linhas em um orquestrador de 172 linhas e módulos coesos em `frontend/src/lib/components/schedule-editor/`: `ScheduleEditorHeader`, `ScheduleEditorMetadata`, `ScheduleEditorPresets`, `ScheduleEditorEventsList`, `ScheduleEditorEventCard`, `ScheduleEditorPreview`, `ScheduleEditorConfirmDiscard`, `controller.svelte.ts`, `types.ts` e `defaults.ts`.
+  - Tema Claro/Escuro real: eliminação total de `neutral-*`, `zinc-*`, `bg-black/80` e `text-white` em favor de tokens semânticos (`bg-card`, `bg-background`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`), com badges e destaques contrastantes nos dois modos.
+  - Eliminação de `confirm()` nativo em favor do modal acessível `ScheduleEditorConfirmDiscard` com `role="alertdialog"`, trap de foco e retorno ao botão gatilho.
+  - Acessibilidade WAI-ARIA completa: modal com `aria-labelledby`/`aria-describedby`, cards de evento com `role="group"`, botões de reordenação com `aria-label` descritivo contextual e alvos `>= 28×28px`.
+  - Piso tipográfico `>= 11px` em todos os badges, campos e prévias de palco; atalhos multiplataforma `⌘Enter` / `Ctrl+Enter` para salvar e `Escape` hierárquico.
 - **Módulo 7 — Editor de Músicas e Repertório (`SongEditorModal.svelte`, `lib/components/song-editor/*`):**
   - Decomposição do monólito de 1.362 linhas em um orquestrador de 198 linhas e módulos coesos em `frontend/src/lib/components/song-editor/`: `SongEditorHeader`, `SongEditorMetadata`, `SongEditorToolbar`, `SongEditorLyrics`, `SongEditorPreview`, `SongEditorConfirmDiscard`, `controller.svelte.ts`, `defaults.ts`, `menus.ts`, `payload.ts`, `slides.ts`, `songEditorApi.ts` e `types.ts`.
   - Tema Claro/Escuro real: remoção de `neutral-*`, `bg-black/80` e `text-white` em favor de tokens semânticos (`bg-card`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`); o preview usa formatação segura por tema e as badges de seção ganharam contraste no tema claro.

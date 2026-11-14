@@ -343,6 +343,11 @@
 - [Spec — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](specs/2026-11-14-refatoracao-modulo-6-command-palette.md)
 - [Plano — Refatoração do Módulo 6 (Paleta de Comandos ⌘K)](plans/2026-11-14-refatoracao-modulo-6-command-palette.md)
 
+## Refatoração do Módulo 8 (Cronogramas & Agendas de Culto)
+
+- [Spec — Refatoração do Módulo 8 (Cronogramas & Agendas de Culto)](specs/2026-11-14-refatoracao-modulo-8-cronogramas-e-agendas.md)
+- [Plano — Refatoração do Módulo 8 (Cronogramas & Agendas de Culto)](plans/2026-11-14-refatoracao-modulo-8-cronogramas-e-agendas.md)
+
 ## Refatoração do Módulo 7 (Editor de Músicas e Repertório)
 
 - [Spec — Refatoração do Módulo 7 (Editor de Músicas e Repertório)](specs/2026-11-14-refatoracao-modulo-7-editor-de-musicas.md)
