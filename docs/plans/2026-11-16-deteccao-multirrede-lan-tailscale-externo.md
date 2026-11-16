@@ -30,4 +30,4 @@ Este plano orienta a implementação da especificação [`docs/specs/2026-11-16-
 - [x] `cd frontend && npm run check` (0 erros e 0 warnings).
 - [x] `cd frontend && npm run build` (sucesso).
 - [x] `npx impeccable detect src --json` (0 problemas).
-- [ ] Registro das entregas no `TODO.md` e `CHANGELOG.md`.
+- [x] Registro das entregas no `TODO.md` e `CHANGELOG.md`.
