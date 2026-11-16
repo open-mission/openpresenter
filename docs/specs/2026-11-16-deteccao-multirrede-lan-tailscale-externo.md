@@ -34,7 +34,25 @@ Durante testes em ambiente real (servidor local da igreja), foi constatado que o
    - Mensagens contextuais claras para cada tipo de rede selecionada.
    - Persistência da preferência de rede no `localStorage`.
 
-3. **Garantia de Qualidade**:
-   - 100% de testes passando no backend (`cargo test`).
-   - 0 erros no typecheck (`npm run check`) e build limpo (`npm run build`).
-   - Conformidade WCAG AA nos temas Claro e Escuro.
+---
+
+## 3. Decisões de Implementação no Frontend
+
+1. **Fonte da verdade**: `NetworkInfoResponse.interfaces` é opcional para retrocompatibilidade; quando ausente ou vazio, o modal continua usando as URLs de topo (`public_url`, `stage_url`, `remote_url`, `lower_third_url`) e nenhum seletor é exibido.
+2. **Uma opção por tipo de rede**: o seletor mostra no máximo quatro chips (Rede Local, Tailscale, IP Externo, Este computador), reaproveitando a primeira interface de cada `kind` na ordem já priorizada pelo backend (LAN > Tailscale > Externo > local). Isso evita poluir o modal quando a máquina possui várias placas LAN.
+3. **Seleção padrão**: o estado inicial é a sentinela `default`, resolvida para a primeira opção disponível (sempre a LAN quando existir). A escolha é persistida em `localStorage` na chave `openpresenter_selected_network`; um id que não existe mais no sistema é descartado automaticamente, voltando para `default`.
+4. **Reatividade**: `activeUrl` é derivado da interface escolhida e do tipo de saída ativo; trocar de chip atualiza imediatamente o QR Code, o link exibido, o botão de copiar e o rodapé (`IP da máquina`).
+5. **Acessibilidade e tema**: `role="radiogroup"` com `aria-labelledby`, chips `role="radio"` com `aria-checked`, foco itinerante (`tabindex` 0 apenas no selecionado), navegação por `ArrowLeft`/`ArrowRight`/`ArrowUp`/`ArrowDown`/`Home`/`End`, alvos de 34px, foco visível via `ring-ring` e apenas tokens semânticos (`bg-primary`, `bg-muted`, `border-border`, `text-muted-foreground`).
+6. **Dicas contextuais**: texto abaixo do seletor em região `aria-live="polite"` explicando o requisito de cada rede (mesmo Wi-Fi, mesma Tailnet, porta 18080 no roteador ou uso apenas neste computador).
+7. **Host do Navegador**: o tipo `localhost` permanece suportado no modelo e renderiza chip próprio se o backend um dia o devolver, mas o frontend não o sintetiza. A descoberta atual filtra loopback e, quando o Admin é aberto por `localhost`/`127.0.0.1` fora do próprio servidor, o fallback já reescreve as URLs para o hostname do navegador, evitando uma opção redundante.
+
+---
+
+## 4. Garantia de Qualidade
+
+- 100% de testes passando no backend (`cargo test`).
+- 0 erros no typecheck (`npm run check`) e build limpo (`npm run build`).
+- Conformidade WCAG AA nos temas Claro e Escuro.
+- `npx impeccable detect src --json` sem ocorrências.
+
+

@@ -2,12 +2,20 @@ import QRCode from 'qrcode';
 import type { NetworkInfoResponse } from '$lib/types';
 import { focusInitialElement, trapTabKey } from '../focusTrap';
 import { SHARE_OUTPUT_TABS } from './defaults';
+import {
+  DEFAULT_NETWORK_SELECTION,
+  networkOptionsFrom,
+  readStoredNetworkSelection,
+  resolveNetworkInterface,
+  storeNetworkSelection,
+} from './network';
 import type { ShareOutputsCallbacks, ShareOutputTab } from './types';
 
 export class ShareOutputsController {
   open = $state(false);
   activeTab = $state<ShareOutputTab>('stage');
   networkInfo = $state<NetworkInfoResponse | null>(null);
+  selectedInterfaceId = $state<string>(readStoredNetworkSelection());
   isLoading = $state(false);
   qrCodeDataUrl = $state<string>('');
   isCopied = $state(false);
@@ -19,12 +27,17 @@ export class ShareOutputsController {
   #previouslyFocused: HTMLElement | null = null;
   #copiedTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  selectedInterface = $derived.by(() =>
+    resolveNetworkInterface(this.networkInfo?.interfaces, this.selectedInterfaceId)
+  );
+
   activeUrl = $derived.by(() => {
     if (!this.networkInfo) return '';
-    if (this.activeTab === 'public') return this.networkInfo.public_url;
-    if (this.activeTab === 'remote') return this.networkInfo.remote_url;
-    if (this.activeTab === 'lower') return this.networkInfo.lower_third_url;
-    return this.networkInfo.stage_url;
+    const source = this.selectedInterface ?? this.networkInfo;
+    if (this.activeTab === 'public') return source.public_url;
+    if (this.activeTab === 'remote') return source.remote_url;
+    if (this.activeTab === 'lower') return source.lower_third_url;
+    return source.stage_url;
   });
 
   currentDescription = $derived(
@@ -91,6 +104,7 @@ export class ShareOutputsController {
           data.lower_third_url = `http://${data.local_ip}:${p}/lower-third`;
         }
         this.networkInfo = data;
+        this.#pruneStaleSelection();
       } else {
         this.fallbackNetworkInfo();
       }
@@ -112,7 +126,32 @@ export class ShareOutputsController {
       stage_url: `${origin}/stage`,
       remote_url: `${origin}/remote`,
       lower_third_url: `${origin}/lower-third`,
+      interfaces: [],
     };
+  }
+
+  /** Descarta uma rede persistida que não existe mais no sistema. */
+  #pruneStaleSelection() {
+    if (this.selectedInterfaceId === DEFAULT_NETWORK_SELECTION) return;
+    const options = networkOptionsFrom(this.networkInfo?.interfaces);
+    if (options.length === 0) return;
+    if (!options.some((option) => option.id === this.selectedInterfaceId)) {
+      this.selectedInterfaceId = DEFAULT_NETWORK_SELECTION;
+      storeNetworkSelection(DEFAULT_NETWORK_SELECTION);
+    }
+  }
+
+  selectInterface(id: string) {
+    if (id === this.selectedInterfaceId) return;
+    if (
+      id !== DEFAULT_NETWORK_SELECTION &&
+      !networkOptionsFrom(this.networkInfo?.interfaces).some((option) => option.id === id)
+    ) {
+      return;
+    }
+    this.selectedInterfaceId = id;
+    storeNetworkSelection(id);
+    void this.refreshQrCode();
   }
 
   async refreshQrCode() {

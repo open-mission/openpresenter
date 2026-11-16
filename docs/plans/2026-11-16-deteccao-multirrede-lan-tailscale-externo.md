@@ -13,19 +13,21 @@ Este plano orienta a implementação da especificação [`docs/specs/2026-11-16-
 - [x] Validar com `cargo test -p op-admin`.
 
 ### Fase 2: Tipos e Controller no Frontend (`frontend/src/lib/components/share-outputs/`)
-- [ ] Atualizar `NetworkInfoResponse` e adicionar `NetworkInterfaceInfo` em `frontend/src/lib/types.ts` e `frontend/src/lib/components/share-outputs/types.ts`.
-- [ ] Atualizar `ShareOutputsController` com suporte à seleção de interface ativa (`selectedInterfaceId` ou `selectedIp`), gerando `activeUrl` reativamente com base na interface escolhida.
-- [ ] Adicionar persistência da escolha de interface via `localStorage`.
+- [x] Atualizar `NetworkInfoResponse` e adicionar `NetworkInterfaceInfo` em `frontend/src/lib/types.ts` e `frontend/src/lib/components/share-outputs/types.ts`.
+- [x] Criar `share-outputs/network.ts` com deduplicação por tipo, resolução da interface ativa, dicas contextuais e persistência em `localStorage`.
+- [x] Atualizar `ShareOutputsController` com suporte à seleção de interface ativa (`selectedInterfaceId`), gerando `activeUrl` reativamente com base na interface escolhida.
+- [x] Adicionar persistência da escolha de interface via `localStorage` (`openpresenter_selected_network`), descartando ids que não existem mais.
+- [x] Refletir o IP da interface escolhida no rodapé (`IP da máquina`).
 
 ### Fase 3: Interface do Modal (`ShareOutputsQrView.svelte` & `ShareOutputsModal.svelte`)
-- [ ] Inserir seletor de rede acessível (chips com ícones: Wifi para LAN, Shield/VPN para Tailscale, Globe para Externo).
-- [ ] Atualizar dinamicamente o QR Code e o botão de copiar com base no IP selecionado.
-- [ ] Exibir dicas contextuais acessíveis conforme a interface (ex: "Conecte no mesmo Wi-Fi", "Necessário Tailscale ativo no celular").
-- [ ] Validar acessibilidade WAI-ARIA, foco e tema Claro/Escuro.
+- [x] Inserir seletor de rede acessível (chips com ícones: Wifi para LAN, Shield/VPN para Tailscale, Globe para Externo).
+- [x] Atualizar dinamicamente o QR Code e o botão de copiar com base no IP selecionado.
+- [x] Exibir dicas contextuais acessíveis conforme a interface (ex: "Conecte no mesmo Wi-Fi", "Necessário Tailscale ativo no celular").
+- [x] Validar acessibilidade WAI-ARIA, foco e tema Claro/Escuro.
 
 ### Fase 4: Portões de Qualidade & Verificação
-- [ ] `cargo test -p op-db -p op-admin` (todos passando).
-- [ ] `cd frontend && npm run check` (0 erros).
-- [ ] `cd frontend && npm run build` (sucesso).
-- [ ] `npx impeccable detect src --json` (0 problemas).
+- [x] `cargo test -p op-db -p op-admin` (todos passando).
+- [x] `cd frontend && npm run check` (0 erros e 0 warnings).
+- [x] `cd frontend && npm run build` (sucesso).
+- [x] `npx impeccable detect src --json` (0 problemas).
 - [ ] Registro das entregas no `TODO.md` e `CHANGELOG.md`.

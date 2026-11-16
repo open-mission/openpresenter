@@ -84,6 +84,9 @@
               activeUrl={controller.activeUrl}
               isCopied={controller.isCopied}
               oncopy={() => controller.copyUrl()}
+              interfaces={controller.networkInfo?.interfaces ?? []}
+              selectedInterfaceId={controller.selectedInterfaceId}
+              onselectinterface={(id) => controller.selectInterface(id)}
             />
           </div>
         {/if}
@@ -92,7 +95,7 @@
       <!-- Rodapé -->
       <ShareOutputsFooter
         activeTab={controller.activeTab}
-        localIp={controller.networkInfo?.local_ip || '127.0.0.1'}
+        localIp={controller.selectedInterface?.ip || controller.networkInfo?.local_ip || '127.0.0.1'}
         onopenexternal={() => controller.openExternal()}
       />
     </div>

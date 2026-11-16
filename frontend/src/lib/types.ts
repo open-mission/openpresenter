@@ -404,6 +404,20 @@ export interface LowerThirdSettings {
   box_edge_fade_amount?: number;
 }
 
+export type NetworkInterfaceKind = 'lan' | 'tailscale' | 'external' | 'localhost';
+
+export interface NetworkInterfaceInfo {
+  id: string;
+  name: string;
+  ip: string;
+  kind: NetworkInterfaceKind;
+  label: string;
+  public_url: string;
+  stage_url: string;
+  remote_url: string;
+  lower_third_url: string;
+}
+
 export interface NetworkInfoResponse {
   local_ip: string;
   port: number;
@@ -411,6 +425,10 @@ export interface NetworkInfoResponse {
   stage_url: string;
   remote_url: string;
   lower_third_url: string;
+  interfaces?: NetworkInterfaceInfo[];
+  lan_ip?: string | null;
+  tailscale_ip?: string | null;
+  external_ip?: string | null;
 }
 
 export interface ChurchBrandSettings {
