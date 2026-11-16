@@ -520,7 +520,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors_headers_on_static_and_media_routes() {
-        let (state, _dir) = mock_state_with_db();
+        // A rota /media resolve o diretório de dados global; serializa com os
+        // testes que alteram OPENPRESENTER_DATA_DIR e fixa um diretório próprio.
+        let _env_guard = ENV_LOCK.lock().await;
+        let (state, dir) = mock_state_with_db();
+        unsafe {
+            std::env::set_var("OPENPRESENTER_DATA_DIR", dir.path());
+        }
         let app = create_routes(state.clone());
 
         // 1. Testa rota de mídia /media/dark-ambient.svg sem header Origin (ex: curl -I)
@@ -826,6 +832,11 @@ mod tests {
 
     #[tokio::test]
     async fn system_paths_and_media_folders_work() {
+        let _env_guard = ENV_LOCK.lock().await;
+        let data_dir = tempfile::tempdir().unwrap();
+        unsafe {
+            std::env::set_var("OPENPRESENTER_DATA_DIR", data_dir.path());
+        }
         let (state, dir) = mock_state_with_db();
         let app = create_routes(state.clone());
 
@@ -970,6 +981,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_media_directory_and_app_subfolders() {
+        let _env_guard = ENV_LOCK.lock().await;
+        let data_dir = tempfile::tempdir().unwrap();
+        unsafe {
+            std::env::set_var("OPENPRESENTER_DATA_DIR", data_dir.path());
+        }
         let state = mock_state();
         let app = create_routes(state.clone());
 
@@ -1384,6 +1400,80 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(net_resp.status(), StatusCode::OK);
+        let net_body = axum::body::to_bytes(net_resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let network: routes::NetworkInfoResponse =
+            serde_json::from_slice(&net_body).expect("network-info deve desserializar");
+
+        assert!(network.port > 0);
+        assert!(!network.local_ip.is_empty());
+        assert_eq!(
+            network.public_url,
+            format!("http://{}:{}/public", network.local_ip, network.port)
+        );
+        assert_eq!(
+            network.remote_url,
+            format!("http://{}:{}/remote", network.local_ip, network.port)
+        );
+
+        let kinds: Vec<&str> = network
+            .interfaces
+            .iter()
+            .map(|interface| interface.kind.as_str())
+            .collect();
+        assert!(
+            kinds
+                .iter()
+                .all(|kind| matches!(*kind, "lan" | "tailscale" | "external" | "localhost")),
+            "kinds inesperados: {kinds:?}"
+        );
+
+        let ranks: Vec<u8> = network
+            .interfaces
+            .iter()
+            .map(|interface| match interface.kind.as_str() {
+                "lan" => 0,
+                "tailscale" => 1,
+                "external" => 2,
+                _ => 3,
+            })
+            .collect();
+        assert!(
+            ranks.windows(2).all(|pair| pair[0] <= pair[1]),
+            "interfaces devem vir ordenadas (LAN, Tailscale, Externo): {kinds:?}"
+        );
+
+        let first_ip_of = |kind: &str| {
+            network
+                .interfaces
+                .iter()
+                .find(|interface| interface.kind == kind)
+                .map(|interface| interface.ip.clone())
+        };
+        assert_eq!(first_ip_of("lan"), network.lan_ip);
+        assert_eq!(first_ip_of("tailscale"), network.tailscale_ip);
+        assert_eq!(first_ip_of("external"), network.external_ip);
+
+        let expected_local_ip = network
+            .lan_ip
+            .clone()
+            .or_else(|| network.tailscale_ip.clone())
+            .or_else(|| network.external_ip.clone())
+            .unwrap_or_else(|| "127.0.0.1".to_string());
+        assert_eq!(network.local_ip, expected_local_ip);
+
+        let mut interface_ids = std::collections::HashSet::new();
+        for interface in &network.interfaces {
+            assert!(!interface.ip.starts_with("127."));
+            assert!(!interface.ip.starts_with("169.254."));
+            assert!(interface_ids.insert(interface.id.clone()));
+            assert!(interface.label.contains(&interface.ip));
+            assert_eq!(
+                interface.remote_url,
+                format!("http://{}:{}/remote", interface.ip, network.port)
+            );
+        }
 
         // POST /api/outputs/reload
         let mut rx = state.broadcast_tx.subscribe();
@@ -2044,6 +2134,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_wallpaper_endpoint() {
+        let _env_guard = ENV_LOCK.lock().await;
+        let data_dir = tempfile::tempdir().unwrap();
+        unsafe {
+            std::env::set_var("OPENPRESENTER_DATA_DIR", data_dir.path());
+        }
         let (state, _dir) = mock_state_with_db();
         let app = create_routes(state.clone());
 
@@ -2982,5 +3077,98 @@ mod tests {
         let imported: op_core::BibleVersionSummary = serde_json::from_slice(&body_bytes).unwrap();
         assert_eq!(imported.name, "NVT");
         assert_eq!(imported.abbreviation, "NVT");
+    }
+
+    #[test]
+    fn network_interface_classification_covers_all_ranges() {
+        let classify = routes::classify_network_kind;
+
+        // RFC 1918 → LAN
+        assert_eq!(classify("en0", "10.1.2.3"), "lan");
+        assert_eq!(classify("en0", "172.16.0.5"), "lan");
+        assert_eq!(classify("en0", "172.31.255.254"), "lan");
+        assert_eq!(classify("en0", "192.168.0.10"), "lan");
+
+        // Fora do intervalo RFC 1918 → externo
+        assert_eq!(classify("en0", "172.15.0.5"), "external");
+        assert_eq!(classify("en0", "172.32.0.5"), "external");
+        assert_eq!(classify("en0", "8.8.8.8"), "external");
+
+        // CGNAT do Tailscale (100.64.0.0/10)
+        assert_eq!(classify("utun3", "100.64.0.1"), "tailscale");
+        assert_eq!(classify("utun3", "100.100.100.100"), "tailscale");
+        assert_eq!(classify("utun3", "100.127.255.254"), "tailscale");
+        assert_eq!(classify("utun3", "100.63.255.255"), "external");
+        assert_eq!(classify("utun3", "100.128.0.1"), "external");
+
+        // Nome da interface tem prioridade sobre a faixa do IP
+        assert_eq!(classify("tailscale0", "192.168.1.5"), "tailscale");
+        assert_eq!(classify("Tailscale", "8.8.8.8"), "tailscale");
+
+        // Loopback é classificado para o fallback local
+        assert_eq!(classify("lo0", "127.0.0.1"), "localhost");
+    }
+
+    #[test]
+    fn network_interfaces_sort_lan_tailscale_then_external() {
+        let make = |name: &str, ip: &str| {
+            routes::NetworkInterfaceInfo::new(name, ip.parse().unwrap(), 18080)
+        };
+        let mut interfaces = vec![
+            make("en1", "203.0.113.10"),
+            make("tailscale0", "100.100.1.2"),
+            make("en0", "192.168.0.42"),
+            make("utun3", "100.64.0.9"),
+            make("en0", "10.0.0.7"),
+        ];
+
+        routes::sort_network_interfaces(&mut interfaces, Some("10.0.0.7"));
+
+        let order: Vec<&str> = interfaces
+            .iter()
+            .map(|interface| interface.ip.as_str())
+            .collect();
+        assert_eq!(
+            order,
+            vec![
+                "10.0.0.7",
+                "192.168.0.42",
+                "100.100.1.2",
+                "100.64.0.9",
+                "203.0.113.10"
+            ]
+        );
+        assert_eq!(interfaces[0].kind, "lan");
+        assert_eq!(interfaces[2].kind, "tailscale");
+        assert_eq!(interfaces[4].kind, "external");
+        assert_eq!(interfaces[0].remote_url, "http://10.0.0.7:18080/remote");
+        assert_eq!(interfaces[0].label, "Rede Local (10.0.0.7)");
+    }
+
+    #[test]
+    fn discovered_interfaces_skip_loopback_and_link_local() {
+        let interfaces = routes::discover_network_interfaces(18080);
+
+        let mut unique_ids = std::collections::HashSet::new();
+        for interface in &interfaces {
+            assert!(!interface.ip.starts_with("127."), "{}", interface.ip);
+            assert!(!interface.ip.starts_with("169.254."), "{}", interface.ip);
+            assert!(unique_ids.insert(interface.id.clone()));
+            assert_eq!(
+                interface.kind,
+                routes::classify_network_kind(&interface.name, &interface.ip)
+            );
+        }
+
+        let ranks: Vec<u8> = interfaces
+            .iter()
+            .map(|interface| match interface.kind.as_str() {
+                "lan" => 0,
+                "tailscale" => 1,
+                "external" => 2,
+                _ => 3,
+            })
+            .collect();
+        assert!(ranks.windows(2).all(|pair| pair[0] <= pair[1]));
     }
 }

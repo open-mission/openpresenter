@@ -14,8 +14,165 @@ use op_core::{
     WsMessage,
 };
 use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashSet,
+    net::{IpAddr, Ipv4Addr},
+};
 
 use crate::{session::SessionView, state::AppState};
+
+/// Interface de rede ativa descoberta no sistema operacional.
+///
+/// `kind` assume um dos valores: `lan`, `tailscale`, `external` ou `localhost`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NetworkInterfaceInfo {
+    pub id: String,
+    pub name: String,
+    pub ip: String,
+    pub kind: String,
+    pub label: String,
+    pub public_url: String,
+    pub stage_url: String,
+    pub remote_url: String,
+    pub lower_third_url: String,
+}
+
+impl NetworkInterfaceInfo {
+    pub(crate) fn new(name: &str, ip: Ipv4Addr, port: u16) -> Self {
+        let ip = ip.to_string();
+        let kind = classify_network_kind(name, &ip);
+        Self {
+            id: format!("{name}:{ip}"),
+            name: name.to_string(),
+            label: network_kind_label(kind, &ip),
+            public_url: format!("http://{ip}:{port}/public"),
+            stage_url: format!("http://{ip}:{port}/stage"),
+            remote_url: format!("http://{ip}:{port}/remote"),
+            lower_third_url: format!("http://{ip}:{port}/lower-third"),
+            ip,
+            kind: kind.to_string(),
+        }
+    }
+}
+
+const KIND_LOCALHOST: &str = "localhost";
+const KIND_LAN: &str = "lan";
+const KIND_TAILSCALE: &str = "tailscale";
+const KIND_EXTERNAL: &str = "external";
+
+fn kind_sort_rank(kind: &str) -> u8 {
+    match kind {
+        KIND_LAN => 0,
+        KIND_TAILSCALE => 1,
+        KIND_EXTERNAL => 2,
+        _ => 3,
+    }
+}
+
+fn network_kind_label(kind: &str, ip: &str) -> String {
+    match kind {
+        KIND_LAN => format!("Rede Local ({ip})"),
+        KIND_TAILSCALE => format!("Tailscale VPN ({ip})"),
+        KIND_EXTERNAL => format!("IP Externo ({ip})"),
+        _ => format!("Este computador ({ip})"),
+    }
+}
+
+/// Classifica um IPv4 conforme a prioridade de exposição do servidor:
+/// rede local (RFC 1918) > Tailscale (CGNAT) > IP público.
+pub(crate) fn classify_network_kind(interface_name: &str, ip: &str) -> &'static str {
+    if interface_name.to_ascii_lowercase().contains("tailscale") {
+        return KIND_TAILSCALE;
+    }
+    let Ok(addr) = ip.parse::<Ipv4Addr>() else {
+        return KIND_EXTERNAL;
+    };
+    if addr.is_loopback() {
+        return KIND_LOCALHOST;
+    }
+    if is_tailscale_cgnat(addr) {
+        return KIND_TAILSCALE;
+    }
+    if addr.is_private() {
+        return KIND_LAN;
+    }
+    KIND_EXTERNAL
+}
+
+/// Faixa CGNAT reservada ao Tailscale: `100.64.0.0/10`.
+fn is_tailscale_cgnat(addr: Ipv4Addr) -> bool {
+    let [first, second, _, _] = addr.octets();
+    first == 100 && (64..=127).contains(&second)
+}
+
+fn is_ignored_ipv4(addr: Ipv4Addr) -> bool {
+    addr.is_loopback() || addr.is_link_local() || addr.is_unspecified()
+}
+
+pub(crate) fn sort_network_interfaces(
+    interfaces: &mut [NetworkInterfaceInfo],
+    preferred_ip: Option<&str>,
+) {
+    interfaces.sort_by(|a, b| {
+        kind_sort_rank(&a.kind)
+            .cmp(&kind_sort_rank(&b.kind))
+            .then_with(|| {
+                let a_preferred = preferred_ip == Some(a.ip.as_str());
+                let b_preferred = preferred_ip == Some(b.ip.as_str());
+                b_preferred.cmp(&a_preferred)
+            })
+            .then_with(|| a.name.cmp(&b.name))
+            .then_with(|| a.ip.cmp(&b.ip))
+    });
+}
+
+/// Varre as interfaces ativas do SO e devolve os IPv4 utilizáveis, já
+/// classificados e ordenados (LAN, Tailscale, Externo).
+pub(crate) fn discover_network_interfaces(port: u16) -> Vec<NetworkInterfaceInfo> {
+    let default_route_ip = probe_default_route_ip();
+    let mut interfaces = Vec::new();
+    let mut seen_ips = HashSet::new();
+
+    if let Ok(networks) = sysinfo::Networks::new_with_refreshed_list() {
+        for (interface_name, data) in &networks {
+            let name = interface_name.to_string_lossy().to_string();
+            for network in data.ip_networks() {
+                let IpAddr::V4(addr) = network.addr else {
+                    continue;
+                };
+                if is_ignored_ipv4(addr) || !seen_ips.insert(addr) {
+                    continue;
+                }
+                interfaces.push(NetworkInterfaceInfo::new(&name, addr, port));
+            }
+        }
+    }
+
+    if interfaces.is_empty()
+        && let Some(ip) = default_route_ip
+            .as_deref()
+            .and_then(|ip| ip.parse::<Ipv4Addr>().ok())
+    {
+        // Sistemas sem enumeração por `sysinfo`: usa o IP de saída da rota padrão.
+        interfaces.push(NetworkInterfaceInfo::new("default", ip, port));
+    }
+
+    sort_network_interfaces(&mut interfaces, default_route_ip.as_deref());
+    interfaces
+}
+
+/// Resolve o IP primário segundo a prioridade LAN > Tailscale > Externo.
+fn resolve_local_ip(interfaces: &[NetworkInterfaceInfo]) -> String {
+    [KIND_LAN, KIND_TAILSCALE, KIND_EXTERNAL]
+        .iter()
+        .find_map(|kind| {
+            interfaces
+                .iter()
+                .find(|interface| interface.kind == *kind)
+                .map(|interface| interface.ip.clone())
+        })
+        .unwrap_or_else(|| "127.0.0.1".to_string())
+}
 
 #[derive(Serialize)]
 pub struct StatusResponse {
@@ -557,7 +714,7 @@ async fn quick_present_media(
     Json(updated)
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkInfoResponse {
     pub local_ip: String,
     pub port: u16,
@@ -565,35 +722,42 @@ pub struct NetworkInfoResponse {
     pub stage_url: String,
     pub remote_url: String,
     pub lower_third_url: String,
+    pub interfaces: Vec<NetworkInterfaceInfo>,
+    pub lan_ip: Option<String>,
+    pub tailscale_ip: Option<String>,
+    pub external_ip: Option<String>,
+}
+
+/// Sonda UDP de rota (sem emitir tráfego) para descobrir qual IP o SO usa
+/// como saída padrão. Serve apenas como desempate entre interfaces do mesmo tipo.
+pub fn probe_default_route_ip() -> Option<String> {
+    // Tenta múltiplos alvos para cobrir cenários com internet, redes internas
+    // isoladas e multicast.
+    let targets = [
+        "8.8.8.8:80",
+        "1.1.1.1:80",
+        "192.168.1.1:80",
+        "192.168.0.1:80",
+        "10.0.0.1:80",
+        "172.16.0.1:80",
+        "224.0.0.1:80",
+    ];
+    for target in targets {
+        if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0")
+            && socket.connect(target).is_ok()
+            && let Ok(addr) = socket.local_addr()
+        {
+            let ip = addr.ip().to_string();
+            if !ip.starts_with("127.") && ip != "0.0.0.0" {
+                return Some(ip);
+            }
+        }
+    }
+    None
 }
 
 pub fn get_local_ip() -> String {
-    let try_get_ip = || -> Option<String> {
-        // Tenta múltiplos alvos de sonda na tabela de rotas do SO sem emitir tráfego real.
-        // Cobre conexões ativas com internet (8.8.8.8, 1.1.1.1), sub-redes comuns de roteadores (192.168.x, 10.x, 172.x) e multicast (224.0.0.1)
-        let targets = [
-            "8.8.8.8:80",
-            "1.1.1.1:80",
-            "192.168.1.1:80",
-            "192.168.0.1:80",
-            "10.0.0.1:80",
-            "172.16.0.1:80",
-            "224.0.0.1:80",
-        ];
-        for target in targets {
-            if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0")
-                && socket.connect(target).is_ok()
-                && let Ok(addr) = socket.local_addr()
-            {
-                let ip = addr.ip().to_string();
-                if !ip.starts_with("127.") && ip != "0.0.0.0" {
-                    return Some(ip);
-                }
-            }
-        }
-        None
-    };
-    try_get_ip().unwrap_or_else(|| "127.0.0.1".to_string())
+    resolve_local_ip(&discover_network_interfaces(18080))
 }
 
 async fn get_network_info(State(state): State<AppState>) -> Json<NetworkInfoResponse> {
@@ -611,7 +775,20 @@ async fn get_network_info(State(state): State<AppState>) -> Json<NetworkInfoResp
             })
         })
         .unwrap_or(18080);
-    let local_ip = get_local_ip();
+    let interfaces = discover_network_interfaces(port);
+    let lan_ip = interfaces
+        .iter()
+        .find(|interface| interface.kind == KIND_LAN)
+        .map(|interface| interface.ip.clone());
+    let tailscale_ip = interfaces
+        .iter()
+        .find(|interface| interface.kind == KIND_TAILSCALE)
+        .map(|interface| interface.ip.clone());
+    let external_ip = interfaces
+        .iter()
+        .find(|interface| interface.kind == KIND_EXTERNAL)
+        .map(|interface| interface.ip.clone());
+    let local_ip = resolve_local_ip(&interfaces);
     let public_url = format!("http://{}:{}/public", local_ip, port);
     let stage_url = format!("http://{}:{}/stage", local_ip, port);
     let remote_url = format!("http://{}:{}/remote", local_ip, port);
@@ -624,6 +801,10 @@ async fn get_network_info(State(state): State<AppState>) -> Json<NetworkInfoResp
         stage_url,
         remote_url,
         lower_third_url,
+        interfaces,
+        lan_ip,
+        tailscale_ip,
+        external_ip,
     })
 }
 

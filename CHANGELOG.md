@@ -6,6 +6,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Adicionado
+- **Detecção multirrede (LAN, Tailscale e Externo) no backend (`crates/op-admin`):** a rota `GET /api/system/network-info` agora varre todas as interfaces IPv4 ativas do sistema via `sysinfo::Networks`, ignorando loopback e link-local, e devolve a lista `interfaces` classificada em `lan` (RFC 1918), `tailscale` (`100.64.0.0/10` ou interface `tailscale*`) e `external` (IP público), além de `lan_ip`, `tailscale_ip` e `external_ip`. O `local_ip` passa a priorizar sempre a rede local, evitando links e QR Codes inacessíveis por NAT loopback em redes da igreja.
+
 ## [0.6.2] - 2026-11-14
 
 ### Destaques da Versão

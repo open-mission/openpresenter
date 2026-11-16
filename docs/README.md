@@ -398,6 +398,11 @@
 - [Spec — Correções Críticas e Polimento Ergonômico no Controle Remoto Mobile](specs/2026-11-14-melhorias-remote-view-impeccable.md)
 - [Plano — Correções Críticas e Polimento Ergonômico no Controle Remoto Mobile](plans/2026-11-14-melhorias-remote-view-impeccable.md)
 
+## Detecção Multirrede (LAN, Tailscale e Externo)
+
+- [Spec — Detecção Multirrede (LAN, Tailscale e Externo) para Compartilhamento e /remote](specs/2026-11-16-deteccao-multirrede-lan-tailscale-externo.md)
+- [Plano — Detecção Multirrede (LAN, Tailscale e Externo) para /remote](plans/2026-11-16-deteccao-multirrede-lan-tailscale-externo.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
