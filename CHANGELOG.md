@@ -6,6 +6,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-11-16
+
+### Destaques da Versão
+A versão **0.6.3** soluciona a falha de conectividade do `/remote` em redes de igreja com IP público direto, introduzindo detecção inteligente e suporte multirrede com priorização estrita da LAN privada, suporte nativo a Tailscale VPN e seletor dinâmico no modal de compartilhamento de saídas:
+- 🌐 **Detecção Multirrede Inteligente (Rust Backend):** Mapeamento automático de todas as interfaces de rede ativas com `sysinfo::Networks`, classificando em Rede Local (RFC 1918), Tailscale (`100.64.0.0/10`) e IP Externo (WAN). O `local_ip` padrão agora prioriza rigorosamente a rede local, eliminando conexões travadas causadas por ausência de NAT loopback nos roteadores de igreja.
+- 📱 **Seletor de Conexão no Compartilhamento (Svelte Frontend):** O modal de compartilhamento (`ShareOutputsModal`) passa a exibir chips acessíveis para seleção direta entre Wi-Fi Local, Tailscale VPN e IP Externo. A troca da rede atualiza instantaneamente o QR Code, a URL, a cópia para a área de transferência e as instruções contextuais para os voluntários.
+- 🔒 **Suporte Oficial a Tailscale:** Permite que operadores e líderes acessem o `/remote` e monitores com segurança através de Tailscale de qualquer lugar (dados móveis ou residência) sem necessidade de abrir portas no roteador da igreja.
+
 ### Adicionado
 - **Detecção multirrede (LAN, Tailscale e Externo) no backend (`crates/op-admin`):** a rota `GET /api/system/network-info` agora varre todas as interfaces IPv4 ativas do sistema via `sysinfo::Networks`, ignorando loopback e link-local, e devolve a lista `interfaces` classificada em `lan` (RFC 1918), `tailscale` (`100.64.0.0/10` ou interface `tailscale*`) e `external` (IP público), além de `lan_ip`, `tailscale_ip` e `external_ip`. O `local_ip` passa a priorizar sempre a rede local, evitando links e QR Codes inacessíveis por NAT loopback em redes da igreja.
 - **Seletor multirrede no compartilhamento de saídas (`frontend/src/lib/components/share-outputs/`):** o modal de Compartilhar Saídas agora exibe chips acessíveis para escolher entre Rede Local (Wi-Fi), Tailscale e IP Externo, com dica contextual de cada rede (`role="radiogroup"`, navegação por setas, foco visível e tema Claro/Escuro). A escolha `openpresenter_selected_network` é persistida no navegador, atualiza imediatamente o QR Code, o link, o botão de copiar e o rodapé, e uma interface removida do sistema volta automaticamente para a rede padrão (LAN).

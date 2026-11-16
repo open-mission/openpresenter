@@ -317,6 +317,13 @@
 - [Plano — Pipeline CI/CD de Publicação Automática de Imagens Docker](plans/2026-11-07-ci-cd-publicacao-docker-hub.md)
 - [ADR 0015 — Suporte a Docker e Servidor Headless sem System Tray](decisions/0015-suporte-docker-e-servidor-headless-sem-system-tray.md)
 
+## Release v0.6.3: Detecção Multirrede (LAN, Tailscale VPN e Externo) para Compartilhamento e /remote
+
+- [Spec — Preparação e Lançamento da Versão 0.6.3](specs/2026-11-16-release-0-6-3.md)
+- [Plano — Preparação e Lançamento da Versão 0.6.3](plans/2026-11-16-release-0-6-3.md)
+- [Spec — Detecção Multirrede (LAN, Tailscale e Externo) para Compartilhamento e /remote](specs/2026-11-16-deteccao-multirrede-lan-tailscale-externo.md)
+- [Plano — Detecção Multirrede (LAN, Tailscale e Externo) para Compartilhamento e /remote](plans/2026-11-16-deteccao-multirrede-lan-tailscale-externo.md)
+
 ## Release v0.6.2: Consolidação dos 14 Módulos Impeccable, Acessibilidade Universal, Tema Dual Real e Polimento do Controle Remoto Mobile
 
 - [Spec — Preparação e Lançamento da Versão 0.6.2](specs/2026-11-14-release-0-6-2.md)
