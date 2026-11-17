@@ -133,6 +133,19 @@ export class ImageSelectorController {
     }
   }
 
+  handleDoubleClick(url: string) {
+    if (this.isLowerThird) {
+      this.#callbacks.onselectimage?.(url);
+      this.close();
+      return;
+    }
+
+    const img = this.images.find((i) => i.url === url);
+    if (!img) return;
+    this.selectedImageIds = new Set([img.id]);
+    this.confirmSingle();
+  }
+
   confirmSingle() {
     if (this.selectedImageIds.size === 0) return;
 

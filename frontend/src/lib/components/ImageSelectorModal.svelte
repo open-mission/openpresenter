@@ -21,10 +21,19 @@
     onselectimage,
   }: ImageSelectorProps = $props();
 
+  // Mantém undefined quando a prop não existe: o controller usa onselectimage
+  // para decidir o modo Lower Third, então um wrapper sempre definido o
+  // colocaria nesse modo mesmo em fluxos de adição à Setlist.
+  // Capturamos o valor inicial de propósito: os callbacks são estáticos por instância.
+  // svelte-ignore state_referenced_locally
+  const addItemsCallback = onadditems;
+  // svelte-ignore state_referenced_locally
+  const selectImageCallback = onselectimage;
+
   const controller = new ImageSelectorController({
     onclose: () => onclose(),
-    onadditems: (items) => onadditems?.(items),
-    onselectimage: (url) => onselectimage?.(url),
+    onadditems: addItemsCallback ? (items) => addItemsCallback(items) : undefined,
+    onselectimage: selectImageCallback ? (url) => selectImageCallback(url) : undefined,
   });
 
   $effect(() => {
@@ -106,12 +115,7 @@
             selectedImageIds={controller.selectedImageIds}
             isLowerThird={controller.isLowerThird}
             ontoggle={(id) => controller.toggleImageSelection(id)}
-            ondoubleclick={(url) => {
-              if (onselectimage) {
-                onselectimage(url);
-                controller.close();
-              }
-            }}
+            ondoubleclick={(url) => controller.handleDoubleClick(url)}
           />
         {:else}
           <ImageSelectorFolderList
