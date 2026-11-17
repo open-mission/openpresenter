@@ -410,6 +410,11 @@
 - [Spec — Detecção Multirrede (LAN, Tailscale e Externo) para Compartilhamento e /remote](specs/2026-11-16-deteccao-multirrede-lan-tailscale-externo.md)
 - [Plano — Detecção Multirrede (LAN, Tailscale e Externo) para /remote](plans/2026-11-16-deteccao-multirrede-lan-tailscale-externo.md)
 
+## Correção do IP do QR Code do Remote em Docker
+
+- [Spec — Correção do IP Exibido no QR Code do Remote em Docker](specs/2026-11-17-fix-network-info-access-host.md)
+- [Plano — Correção do IP Exibido no QR Code do Remote em Docker](plans/2026-11-17-fix-network-info-access-host.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)
