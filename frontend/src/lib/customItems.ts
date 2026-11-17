@@ -117,38 +117,74 @@ export async function loadCustomItems(force = false): Promise<MediaItem[]> {
     try {
       const res = await fetch(`/api/settings/${CUSTOM_ITEMS_KEY}`);
       if (!res.ok) {
-        const message = `Falha ao carregar catálogo Outros (HTTP ${res.status}).`;
+        const message = await readHttpError(res, 'Falha ao carregar catálogo Outros');
         customItemsErrorStore.set(message);
         if (get(customItemsStore).length === 0) {
           customItemsStore.set(DEFAULT_CUSTOM_ITEMS);
         }
+        isInitialized = true;
         return get(customItemsStore);
       }
 
       const data = await res.json();
-      if (data?.value) {
-        const parsed: MediaItem[] = JSON.parse(data.value);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          customItemsStore.set(parsed);
+      const rawValue: unknown = data?.value;
+
+      if (typeof rawValue === 'string' && rawValue.trim() !== '') {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(rawValue);
+        } catch (err) {
+          console.error('Catálogo Outros com conteúdo inválido no servidor:', err);
+          customItemsErrorStore.set(
+            'Os itens do catálogo Outros estão salvos em formato inválido. Salve um item novamente para corrigir o catálogo.'
+          );
           isInitialized = true;
-          return parsed;
+          return get(customItemsStore);
+        }
+
+        if (!Array.isArray(parsed)) {
+          customItemsErrorStore.set(
+            'Os itens do catálogo Outros estão salvos em formato inesperado. Salve um item novamente para corrigir o catálogo.'
+          );
+          isInitialized = true;
+          return get(customItemsStore);
+        }
+
+        // Array vazio é um estado válido: o operador removeu todos os itens de propósito.
+        customItemsStore.set(parsed as MediaItem[]);
+        isInitialized = true;
+        return get(customItemsStore);
+      }
+
+      // Backend respondeu 200 sem valor salvo ainda: semeia os exemplos padrão uma única vez por sessão.
+      if (!hasSeededDefaults) {
+        hasSeededDefaults = true;
+        try {
+          const seeded = await requestCustomItems(
+            '/api/custom-items/import',
+            { items: DEFAULT_CUSTOM_ITEMS },
+            'Falha ao inicializar catálogo Outros'
+          );
+          return seeded;
+        } catch (err) {
+          console.error('Falha ao semear catálogo Outros no servidor:', err);
+          const message = err instanceof Error ? err.message : 'Falha ao inicializar catálogo Outros.';
+          customItemsErrorStore.set(message);
         }
       }
 
-      // Backend respondeu 200 sem itens salvos ainda: inicializa exemplos padrão uma única vez
-      customItemsStore.set(DEFAULT_CUSTOM_ITEMS);
-      isInitialized = true;
-      if (!hasSeededDefaults) {
-        hasSeededDefaults = true;
-        await persistCustomItemsToBackend(DEFAULT_CUSTOM_ITEMS).catch(() => {});
+      if (get(customItemsStore).length === 0) {
+        customItemsStore.set(DEFAULT_CUSTOM_ITEMS);
       }
-      return DEFAULT_CUSTOM_ITEMS;
+      isInitialized = true;
+      return get(customItemsStore);
     } catch (err) {
       console.error('Falha ao buscar itens customizados do backend:', err);
       customItemsErrorStore.set('Não foi possível conectar ao servidor para carregar o catálogo.');
       if (get(customItemsStore).length === 0) {
         customItemsStore.set(DEFAULT_CUSTOM_ITEMS);
       }
+      isInitialized = true;
       return get(customItemsStore);
     } finally {
       inFlightLoad = null;
@@ -158,50 +194,64 @@ export async function loadCustomItems(force = false): Promise<MediaItem[]> {
   return inFlightLoad;
 }
 
-async function persistCustomItemsToBackend(items: MediaItem[]): Promise<void> {
-  const res = await fetch(`/api/settings/${CUSTOM_ITEMS_KEY}`, {
+async function requestCustomItems(
+  endpoint: string,
+  body: unknown,
+  fallbackMessage: string
+): Promise<MediaItem[]> {
+  const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ value: JSON.stringify(items) }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
-    throw new Error(await readHttpError(res, 'Falha ao salvar catálogo Outros'));
+    throw new Error(await readHttpError(res, fallbackMessage));
   }
-}
 
-export async function saveCustomItems(items: MediaItem[]): Promise<void> {
-  const previous = get(customItemsStore);
+  const data: unknown = await res.json();
+  if (!Array.isArray(data)) {
+    throw new Error('Resposta inválida do servidor ao atualizar o catálogo Outros.');
+  }
+
+  const items = data as MediaItem[];
   customItemsStore.set(items);
   customItemsErrorStore.set(null);
+  isInitialized = true;
+  return items;
+}
+
+export async function saveOrUpdateCustomItem(item: MediaItem): Promise<void> {
   try {
-    await persistCustomItemsToBackend(items);
-    isInitialized = true;
+    await requestCustomItems('/api/custom-items', { item }, 'Falha ao salvar item no catálogo Outros');
   } catch (err) {
-    customItemsStore.set(previous);
-    const message = err instanceof Error ? err.message : 'Falha ao salvar itens customizados no servidor.';
+    const message = err instanceof Error ? err.message : 'Falha ao salvar item no catálogo Outros.';
     customItemsErrorStore.set(message);
-    console.error('Falha ao salvar itens customizados no backend:', err);
+    console.error('Falha ao salvar item no catálogo Outros:', err);
     throw err;
   }
 }
 
-export async function saveOrUpdateCustomItem(item: MediaItem): Promise<void> {
-  const current = get(customItemsStore);
-  const idx = current.findIndex((i) => i.id === item.id);
-  let updated: MediaItem[];
-  if (idx >= 0) {
-    updated = [...current];
-    updated[idx] = { ...item };
-  } else {
-    updated = [{ ...item }, ...current];
-  }
-  await saveCustomItems(updated);
-}
-
 export async function deleteCustomItem(id: string): Promise<void> {
-  const current = get(customItemsStore);
-  const updated = current.filter((i) => i.id !== id);
-  await saveCustomItems(updated);
+  try {
+    const res = await fetch(`/api/custom-items/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!res.ok) {
+      throw new Error(await readHttpError(res, 'Falha ao excluir item do catálogo Outros'));
+    }
+
+    const data: unknown = await res.json();
+    if (!Array.isArray(data)) {
+      throw new Error('Resposta inválida do servidor ao excluir item do catálogo Outros.');
+    }
+
+    customItemsStore.set(data as MediaItem[]);
+    customItemsErrorStore.set(null);
+    isInitialized = true;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Falha ao excluir item do catálogo Outros.';
+    customItemsErrorStore.set(message);
+    console.error('Falha ao excluir item do catálogo Outros:', err);
+    throw err;
+  }
 }
 
 export async function importItemsFromSetlist(setlistItems: MediaItem[]): Promise<number> {
@@ -209,14 +259,19 @@ export async function importItemsFromSetlist(setlistItems: MediaItem[]): Promise
   const candidates = setlistItems.filter((i) => supportedKinds.has(i.kind));
   if (candidates.length === 0) return 0;
 
-  const current = get(customItemsStore);
-  const existingIds = new Set(current.map((i) => i.id));
-  const newItems = candidates.filter((i) => !existingIds.has(i.id));
+  const previousIds = new Set(get(customItemsStore).map((i) => i.id));
 
-  if (newItems.length > 0) {
-    const updated = [...newItems, ...current];
-    await saveCustomItems(updated);
-    return newItems.length;
+  try {
+    const updated = await requestCustomItems(
+      '/api/custom-items/import',
+      { items: candidates },
+      'Falha ao importar itens para o catálogo Outros'
+    );
+    return updated.filter((i) => !previousIds.has(i.id)).length;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Falha ao importar itens para o catálogo Outros.';
+    customItemsErrorStore.set(message);
+    console.error('Falha ao importar itens para o catálogo Outros:', err);
+    throw err;
   }
-  return 0;
 }
