@@ -317,6 +317,11 @@
 - [Plano — Pipeline CI/CD de Publicação Automática de Imagens Docker](plans/2026-11-07-ci-cd-publicacao-docker-hub.md)
 - [ADR 0015 — Suporte a Docker e Servidor Headless sem System Tray](decisions/0015-suporte-docker-e-servidor-headless-sem-system-tray.md)
 
+## Release v0.6.4: Correções de Catálogo, IP do QR Code do Remote e Seletor de Imagens
+
+- [Spec — Preparação e Lançamento da Versão 0.6.4](specs/2026-11-17-release-0-6-4.md)
+- [Plano — Preparação e Lançamento da Versão 0.6.4](plans/2026-11-17-release-0-6-4.md)
+
 ## Release v0.6.3: Detecção Multirrede (LAN, Tailscale VPN e Externo) para Compartilhamento e /remote
 
 - [Spec — Preparação e Lançamento da Versão 0.6.3](specs/2026-11-16-release-0-6-3.md)
