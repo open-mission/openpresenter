@@ -3260,4 +3260,217 @@ mod tests {
         assert_eq!(first_lan.ip, "192.168.0.231");
         assert_eq!(first_lan.id, "access:192.168.0.231");
     }
+
+    fn custom_item_json(id: &str, title: &str) -> serde_json::Value {
+        serde_json::json!({
+            "id": id,
+            "title": title,
+            "artist_or_ref": "",
+            "kind": "text",
+            "slides": [],
+            "align_h": "center",
+            "align_v": "center",
+            "lower_image_url": null,
+            "audio_url": null
+        })
+    }
+
+    async fn json_body(response: axum::response::Response) -> serde_json::Value {
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        serde_json::from_slice(&body).unwrap()
+    }
+
+    #[tokio::test]
+    async fn custom_items_endpoints_preserve_existing_items() {
+        let _env_guard = ENV_LOCK.lock().await;
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("open-presenter.db");
+        let db = op_db::Database::open(&db_path).unwrap();
+        let view = session::SessionView {
+            app_version: op_core::VERSION.into(),
+            tagline: "Projeção".into(),
+            stack: "Rust + Axum".into(),
+            db_path: db_path.to_string_lossy().to_string(),
+            media_path: dir.path().join("media").to_string_lossy().to_string(),
+            db_ready: true,
+            db_error: String::new(),
+            schema_version: 5,
+            theme_label: "Sistema".into(),
+            locale: "pt-BR".into(),
+            first_run_at: "agora".into(),
+            last_run_at: "agora".into(),
+            is_first_run: true,
+        };
+        let app = create_routes(AppState::new(view, OutputsConfig::default(), Some(db)));
+
+        // Base legada: dois itens gravados via a rota genérica de settings.
+        let base = vec![custom_item_json("a", "A"), custom_item_json("b", "B")];
+        let seed = serde_json::json!({ "value": serde_json::to_string(&base).unwrap() });
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/settings/custom_media_items")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(seed.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Inserir um terceiro item não apaga os dois existentes.
+        let payload = serde_json::json!({ "item": custom_item_json("c", "C") });
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/custom-items")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(payload.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let items = json_body(resp).await;
+        let ids: Vec<&str> = items
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|i| i["id"].as_str().unwrap())
+            .collect();
+        assert_eq!(ids, vec!["c", "a", "b"]);
+
+        // Atualizar um item existente não duplica nem apaga os demais.
+        let payload = serde_json::json!({ "item": custom_item_json("c", "C atualizado") });
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/custom-items")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(payload.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let items = json_body(resp).await;
+        assert_eq!(items.as_array().unwrap().len(), 3);
+        assert_eq!(items[0]["title"], "C atualizado");
+
+        // Excluir um item específico.
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("DELETE")
+                    .uri("/api/custom-items/a")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let items = json_body(resp).await;
+        assert_eq!(items.as_array().unwrap().len(), 2);
+        assert!(items.as_array().unwrap().iter().all(|i| i["id"] != "a"));
+
+        // Importação com id repetido não duplica o item existente.
+        let payload = serde_json::json!({
+            "items": [custom_item_json("b", "B duplicado"), custom_item_json("d", "D")]
+        });
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/custom-items/import")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(payload.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let items = json_body(resp).await;
+        assert_eq!(items.as_array().unwrap().len(), 3);
+        assert_eq!(items[0]["id"], "d");
+        assert!(
+            items
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|i| i["id"] == "b")
+                .count()
+                == 1
+        );
+
+        // A listagem e a configuração persistida refletem o mesmo catálogo.
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/custom-items")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let listed = json_body(resp).await;
+        assert_eq!(listed, items);
+
+        let resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/settings/custom_media_items")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let setting = json_body(resp).await;
+        let persisted: serde_json::Value =
+            serde_json::from_str(setting["value"].as_str().unwrap()).unwrap();
+        assert_eq!(persisted, items);
+    }
+
+    #[tokio::test]
+    async fn custom_items_endpoints_report_unavailable_database() {
+        let app = create_routes(mock_state());
+        let payload = serde_json::json!({ "item": custom_item_json("x", "X") });
+
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/custom-items")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(payload.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+
+        let resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("DELETE")
+                    .uri("/api/custom-items/x")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
 }

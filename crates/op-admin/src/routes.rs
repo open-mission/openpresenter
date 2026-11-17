@@ -3,7 +3,7 @@ use axum::{
     extract::{DefaultBodyLimit, Path, Query, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use op_core::{
     BackupExportOptions, BackupInspectResult, BackupRestoreResult, BibleBook, BibleSearchResult,
@@ -546,6 +546,12 @@ pub fn create_routes(state: AppState) -> Router {
             "/api/settings/{key}",
             get(get_app_setting).post(save_app_setting),
         )
+        .route(
+            "/api/custom-items",
+            get(list_custom_items).post(upsert_custom_item),
+        )
+        .route("/api/custom-items/import", post(import_custom_items))
+        .route("/api/custom-items/{id}", delete(remove_custom_item))
         .route("/api/outputs/reload", post(reload_outputs))
         .route("/api/church/upload-logo", post(upload_church_logo))
         .route("/api/outputs/{kind}/toggle", post(toggle_output))
@@ -1031,6 +1037,159 @@ async fn save_app_setting(
         key,
         value: Some(payload.value),
     }))
+}
+
+const CUSTOM_ITEMS_SETTING_KEY: &str = "custom_media_items";
+
+#[derive(Debug, Deserialize)]
+pub struct UpsertCustomItemRequest {
+    pub item: MediaItem,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ImportCustomItemsRequest {
+    pub items: Vec<MediaItem>,
+}
+
+fn custom_items_from_setting(
+    value: Option<String>,
+) -> Result<Vec<MediaItem>, (StatusCode, String)> {
+    match value {
+        None => Ok(Vec::new()),
+        Some(raw) => serde_json::from_str(&raw).map_err(|err| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Catálogo Outros corrompido: {err}"),
+            )
+        }),
+    }
+}
+
+fn read_custom_items(db: &op_db::Database) -> Result<Vec<MediaItem>, (StatusCode, String)> {
+    let value = db
+        .get_setting(CUSTOM_ITEMS_SETTING_KEY)
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+    custom_items_from_setting(value)
+}
+
+fn persist_custom_items(
+    db: &op_db::Database,
+    items: &[MediaItem],
+) -> Result<String, (StatusCode, String)> {
+    let serialized = serde_json::to_string(items).map_err(|err| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao serializar catálogo Outros: {err}"),
+        )
+    })?;
+    db.set_setting(CUSTOM_ITEMS_SETTING_KEY, &serialized)
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+    Ok(serialized)
+}
+
+fn database_unavailable() -> (StatusCode, String) {
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Banco de dados indisponível.".to_string(),
+    )
+}
+
+async fn list_custom_items(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<MediaItem>>, (StatusCode, String)> {
+    let Some(ref db) = state.db else {
+        return Err(database_unavailable());
+    };
+    let db_guard = db.lock().await;
+    Ok(Json(read_custom_items(&db_guard)?))
+}
+
+/// Insere ou atualiza um único item no catálogo, lendo e gravando o valor mais
+/// recente dentro do mesmo lock. Elimina a perda de itens causada por escritas
+/// de arrays inteiros calculados a partir de um store local desatualizado.
+async fn upsert_custom_item(
+    State(state): State<AppState>,
+    Json(payload): Json<UpsertCustomItemRequest>,
+) -> Result<Json<Vec<MediaItem>>, (StatusCode, String)> {
+    let Some(ref db) = state.db else {
+        return Err(database_unavailable());
+    };
+
+    let (items, serialized) = {
+        let db_guard = db.lock().await;
+        let mut items = read_custom_items(&db_guard)?;
+        if let Some(position) = items.iter().position(|item| item.id == payload.item.id) {
+            items[position] = payload.item.clone();
+        } else {
+            items.insert(0, payload.item.clone());
+        }
+        let serialized = persist_custom_items(&db_guard, &items)?;
+        (items, serialized)
+    };
+
+    let _ = state.broadcast_tx.send(WsMessage::SettingUpdated {
+        key: CUSTOM_ITEMS_SETTING_KEY.to_string(),
+        value: Some(serialized),
+    });
+
+    Ok(Json(items))
+}
+
+/// Remove um único item do catálogo de forma atômica.
+async fn remove_custom_item(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<Vec<MediaItem>>, (StatusCode, String)> {
+    let Some(ref db) = state.db else {
+        return Err(database_unavailable());
+    };
+
+    let (items, serialized) = {
+        let db_guard = db.lock().await;
+        let mut items = read_custom_items(&db_guard)?;
+        items.retain(|item| item.id != id);
+        let serialized = persist_custom_items(&db_guard, &items)?;
+        (items, serialized)
+    };
+
+    let _ = state.broadcast_tx.send(WsMessage::SettingUpdated {
+        key: CUSTOM_ITEMS_SETTING_KEY.to_string(),
+        value: Some(serialized),
+    });
+
+    Ok(Json(items))
+}
+
+/// Importa itens para o catálogo, ignorando os que já existem (dedupe por id).
+async fn import_custom_items(
+    State(state): State<AppState>,
+    Json(payload): Json<ImportCustomItemsRequest>,
+) -> Result<Json<Vec<MediaItem>>, (StatusCode, String)> {
+    let Some(ref db) = state.db else {
+        return Err(database_unavailable());
+    };
+
+    let (items, serialized) = {
+        let db_guard = db.lock().await;
+        let mut items = read_custom_items(&db_guard)?;
+        let existing: HashSet<String> = items.iter().map(|item| item.id.clone()).collect();
+        let mut new_items: Vec<MediaItem> = payload
+            .items
+            .into_iter()
+            .filter(|item| !existing.contains(&item.id))
+            .collect();
+        new_items.extend(items);
+        items = new_items;
+        let serialized = persist_custom_items(&db_guard, &items)?;
+        (items, serialized)
+    };
+
+    let _ = state.broadcast_tx.send(WsMessage::SettingUpdated {
+        key: CUSTOM_ITEMS_SETTING_KEY.to_string(),
+        value: Some(serialized),
+    });
+
+    Ok(Json(items))
 }
 
 #[derive(Debug, Deserialize)]

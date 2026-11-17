@@ -415,6 +415,11 @@
 - [Spec — Correção do IP Exibido no QR Code do Remote em Docker](specs/2026-11-17-fix-network-info-access-host.md)
 - [Plano — Correção do IP Exibido no QR Code do Remote em Docker](plans/2026-11-17-fix-network-info-access-host.md)
 
+## Correção da Sobrescrita do Catálogo Outros
+
+- [Spec — Correção da Sobrescrita do Catálogo Outros](specs/2026-11-17-fix-catalogo-outros-sobrescrita.md)
+- [Plano — Correção da Sobrescrita do Catálogo Outros](plans/2026-11-17-fix-catalogo-outros-sobrescrita.md)
+
 ## Arquitetura e decisões
 
 - [Visão da arquitetura](architecture/overview.md)

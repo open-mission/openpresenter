@@ -7,6 +7,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ## [Unreleased]
 
 ### Corrigido
+- **Perda de itens do catálogo "Outros" (`crates/op-admin` e frontend):** o catálogo persistido em `app_settings.custom_media_items` deixou de ser sobrescrito por arrays calculados a partir de um store local desatualizado. Novos endpoints atômicos (`GET/POST /api/custom-items`, `POST /api/custom-items/import` e `DELETE /api/custom-items/{id}`) fazem leitura e escrita sob o mesmo lock do banco, com dedupe por `id` na importação e `503` explícito quando não há banco disponível. O frontend passa a carregar o catálogo no startup, a aceitar um array vazio salvo como catálogo válido e a exibir erro quando a gravação falha, em vez de engoli-lo.
 - **IP do QR Code do `/remote` em servidores Docker (`crates/op-admin`):** o endpoint `GET /api/system/network-info` agora usa o host da própria requisição (header `Host`) como endereço preferencial e remove o IP interno do bridge do Docker (`172.17.0.0/16`–`172.31.0.0/16`). Em instalações em container, o modal de compartilhamento passa a exibir e gerar o QR Code com o endereço realmente alcançável pela rede local (por exemplo, `http://192.168.0.231:18080/remote`) em vez do IP interno do container. Hosts `localhost`, loopback, link-local e IPv6 continuam ignorados, preservando o comportamento anterior quando não há host de acesso válido.
 
 ## [0.6.3] - 2026-11-16
