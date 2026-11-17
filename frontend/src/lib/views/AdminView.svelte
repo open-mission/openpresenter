@@ -26,7 +26,7 @@
     quickPresentMedia,
     reloadOutputs,
   } from '$lib/ws';
-  import { formatDuration } from '$lib/media';
+  import { formatDuration, readHttpError } from '$lib/media';
   import type {
     MediaItem,
     MediaKind,
@@ -1691,18 +1691,46 @@
   }
 
   async function handleAddImageItems(items: MediaItem[]) {
+    if (items.length === 0) return;
+
+    let lastAddedId: string | null = null;
+
     for (const item of items) {
       try {
-        await fetch('/api/setlist/add', {
+        const res = await fetch('/api/setlist/add', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ item }),
         });
-        selectedMediaId = item.id;
+
+        if (!res.ok) {
+          const message = await readHttpError(res, 'Falha ao adicionar imagem à setlist');
+          console.error('Erro ao adicionar imagem à setlist:', message);
+          notifyError('Falha ao adicionar imagem à setlist', `"${item.title}": ${message}`);
+          return;
+        }
+
+        lastAddedId = item.id;
       } catch (err) {
         console.error('Erro ao adicionar imagem à setlist:', err);
+        notifyError(
+          'Falha ao adicionar imagem à setlist',
+          `Não foi possível adicionar "${item.title}". Verifique a conexão e tente novamente.`
+        );
+        return;
       }
     }
+
+    if (lastAddedId) {
+      selectedMediaId = lastAddedId;
+    }
+
+    notifySuccess(
+      items.length === 1 ? 'Imagem adicionada à Setlist' : 'Imagens adicionadas à Setlist',
+      items.length === 1
+        ? `"${items[0].title}" foi adicionada à setlist.`
+        : `${items.length} imagens foram adicionadas à setlist.`
+    );
   }
 
   async function handleSelectLowerThirdImage(url: string) {
