@@ -81,7 +81,7 @@
     getSectionStyle,
   } from '$lib/settings';
   import { resolveBackground } from '$lib/backgrounds';
-  import { saveOrUpdateCustomItem } from '$lib/customItems';
+  import { loadCustomItems, saveOrUpdateCustomItem } from '$lib/customItems';
   import {
     Search,
     MonitorPlay,
@@ -300,6 +300,7 @@
     initAppTheme();
     syncDisplaySettingsFromBackend();
     loadSetlists();
+    void loadCustomItems();
 
     fetch('/api/connections')
       .then((res) => (res.ok ? res.json() : []))
@@ -1803,9 +1804,17 @@
     }
   }
 
-  function handleItemSaved(item: MediaItem) {
-    selectedMediaId = item.id;
-    saveOrUpdateCustomItem(item).catch(() => {});
+  async function handleItemSaved(item: MediaItem) {
+    try {
+      await saveOrUpdateCustomItem(item);
+      selectedMediaId = item.id;
+    } catch (err) {
+      console.error('Erro ao salvar item no catálogo Outros:', err);
+      notifyError(
+        'Falha ao salvar item',
+        'Não foi possível salvar o item no catálogo Outros. Verifique a conexão e tente novamente.'
+      );
+    }
   }
 
   function handleOpenRename(item: MediaItem) {
@@ -1840,10 +1849,14 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ item }),
       });
+      await saveOrUpdateCustomItem(item);
       selectedMediaId = item.id;
-      saveOrUpdateCustomItem(item).catch(() => {});
     } catch (err) {
       console.error('Erro ao adicionar item:', err);
+      notifyError(
+        'Falha ao salvar item',
+        'Não foi possível salvar o item no catálogo Outros. Verifique a conexão e tente novamente.'
+      );
     }
   }
 
@@ -1854,10 +1867,14 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ item }),
       });
+      await saveOrUpdateCustomItem(item);
       selectedMediaId = item.id;
-      saveOrUpdateCustomItem(item).catch(() => {});
     } catch (err) {
       console.error('Erro ao salvar agenda na setlist:', err);
+      notifyError(
+        'Falha ao salvar programação',
+        'Não foi possível salvar a programação no catálogo Outros. Verifique a conexão e tente novamente.'
+      );
     }
   }
 
@@ -1893,12 +1910,30 @@
   }
 
   async function handleSaveTimerItem(item: MediaItem) {
-    await saveOrUpdateCustomItem(item);
+    try {
+      await saveOrUpdateCustomItem(item);
+    } catch (err) {
+      console.error('Erro ao salvar cronômetro no catálogo Outros:', err);
+      notifyError(
+        'Falha ao salvar cronômetro',
+        'Não foi possível salvar o cronômetro no catálogo Outros. Verifique a conexão e tente novamente.'
+      );
+      return;
+    }
     notifySuccess('Cronômetro Salvo', `"${item.title}" salvo com sucesso.`);
   }
 
   async function handleAddTimerItemToSetlist(item: MediaItem) {
-    await saveOrUpdateCustomItem(item);
+    try {
+      await saveOrUpdateCustomItem(item);
+    } catch (err) {
+      console.error('Erro ao salvar cronômetro no catálogo Outros:', err);
+      notifyError(
+        'Falha ao salvar cronômetro',
+        'Não foi possível salvar o cronômetro no catálogo Outros. Verifique a conexão e tente novamente.'
+      );
+      return;
+    }
     await handleAddCustomItemToSetlist(item);
   }
 
