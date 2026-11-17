@@ -1,7 +1,7 @@
 use axum::{
     Json, Router,
     extract::{DefaultBodyLimit, Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
 };
@@ -107,6 +107,74 @@ fn is_tailscale_cgnat(addr: Ipv4Addr) -> bool {
 
 fn is_ignored_ipv4(addr: Ipv4Addr) -> bool {
     addr.is_loopback() || addr.is_link_local() || addr.is_unspecified()
+}
+
+/// Extrai o host usado pelo cliente para acessar o servidor a partir do header
+/// `Host`, descartando portas, loopback, link-local e IPv6 (não suportado).
+///
+/// Em ambientes com Docker o host da requisição é o endereço realmente
+/// alcançável pela rede (por exemplo, `192.168.0.231:18080`), enquanto as
+/// interfaces do container expõem apenas o IP interno do bridge (`172.19.0.2`).
+pub(crate) fn extract_access_host(headers: &HeaderMap) -> Option<String> {
+    let raw = headers.get(axum::http::header::HOST)?.to_str().ok()?;
+    let host = raw.split_once(':').map_or(raw, |(host, _port)| host).trim();
+    if host.is_empty()
+        || host.eq_ignore_ascii_case("localhost")
+        || host.starts_with("127.")
+        || host.starts_with("169.254.")
+        || host.starts_with("0.")
+        || host.contains('[')
+        || host.contains(':')
+    {
+        return None;
+    }
+    Some(host.to_string())
+}
+
+/// Identifica o IP interno do bridge padrão do Docker (`172.17.0.0/16` até
+/// `172.31.0.0/16`), que não é alcançável a partir da rede local.
+pub(crate) fn is_docker_bridge_ip(addr: Ipv4Addr) -> bool {
+    let [first, second, _, _] = addr.octets();
+    first == 172 && (17..=31).contains(&second)
+}
+
+/// Ajusta a lista de interfaces para priorizar o host pelo qual o operador
+/// acessou o servidor, removendo o IP interno do container Docker e eventuais
+/// duplicatas do próprio host.
+pub(crate) fn apply_access_host(
+    mut interfaces: Vec<NetworkInterfaceInfo>,
+    access_host: Option<&str>,
+    port: u16,
+) -> Vec<NetworkInterfaceInfo> {
+    let Some(host) = access_host else {
+        return interfaces;
+    };
+
+    interfaces.retain(|interface| {
+        let is_bridge = interface
+            .ip
+            .parse::<Ipv4Addr>()
+            .map(is_docker_bridge_ip)
+            .unwrap_or(false);
+        !is_bridge && interface.ip != host
+    });
+
+    interfaces.insert(
+        0,
+        NetworkInterfaceInfo {
+            id: format!("access:{host}"),
+            name: "access".to_string(),
+            ip: host.to_string(),
+            kind: KIND_LAN.to_string(),
+            label: format!("Rede Local (acesso atual: {host})"),
+            public_url: format!("http://{host}:{port}/public"),
+            stage_url: format!("http://{host}:{port}/stage"),
+            remote_url: format!("http://{host}:{port}/remote"),
+            lower_third_url: format!("http://{host}:{port}/lower-third"),
+        },
+    );
+    sort_network_interfaces(&mut interfaces, Some(host));
+    interfaces
 }
 
 pub(crate) fn sort_network_interfaces(
@@ -760,7 +828,10 @@ pub fn get_local_ip() -> String {
     resolve_local_ip(&discover_network_interfaces(18080))
 }
 
-async fn get_network_info(State(state): State<AppState>) -> Json<NetworkInfoResponse> {
+async fn get_network_info(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Json<NetworkInfoResponse> {
     let port: u16 = std::env::var("PORT")
         .ok()
         .and_then(|p| p.parse::<u16>().ok())
@@ -775,7 +846,12 @@ async fn get_network_info(State(state): State<AppState>) -> Json<NetworkInfoResp
             })
         })
         .unwrap_or(18080);
-    let interfaces = discover_network_interfaces(port);
+    let access_host = extract_access_host(&headers);
+    let interfaces = apply_access_host(
+        discover_network_interfaces(port),
+        access_host.as_deref(),
+        port,
+    );
     let lan_ip = interfaces
         .iter()
         .find(|interface| interface.kind == KIND_LAN)
@@ -788,7 +864,7 @@ async fn get_network_info(State(state): State<AppState>) -> Json<NetworkInfoResp
         .iter()
         .find(|interface| interface.kind == KIND_EXTERNAL)
         .map(|interface| interface.ip.clone());
-    let local_ip = resolve_local_ip(&interfaces);
+    let local_ip = access_host.unwrap_or_else(|| resolve_local_ip(&interfaces));
     let public_url = format!("http://{}:{}/public", local_ip, port);
     let stage_url = format!("http://{}:{}/stage", local_ip, port);
     let remote_url = format!("http://{}:{}/remote", local_ip, port);

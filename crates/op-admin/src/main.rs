@@ -3080,6 +3080,57 @@ mod tests {
     }
 
     #[test]
+    fn extract_access_host_uses_request_host_header() {
+        let with_host = |value: &str| {
+            let mut headers = axum::http::HeaderMap::new();
+            headers.insert("host", value.parse().unwrap());
+            routes::extract_access_host(&headers)
+        };
+
+        assert_eq!(
+            with_host("192.168.0.231:18080"),
+            Some("192.168.0.231".to_string())
+        );
+        assert_eq!(with_host("localhost:18080"), None);
+        assert_eq!(with_host("127.0.0.1:18080"), None);
+        assert_eq!(with_host("[::1]:18080"), None);
+        assert_eq!(
+            routes::extract_access_host(&axum::http::HeaderMap::new()),
+            None
+        );
+    }
+
+    #[test]
+    fn docker_bridge_range_is_detected() {
+        assert!(routes::is_docker_bridge_ip("172.19.0.2".parse().unwrap()));
+        assert!(!routes::is_docker_bridge_ip("172.16.0.1".parse().unwrap()));
+        assert!(!routes::is_docker_bridge_ip(
+            "192.168.0.231".parse().unwrap()
+        ));
+    }
+
+    #[test]
+    fn access_host_replaces_docker_bridge_interface() {
+        let make = |name: &str, ip: &str| {
+            routes::NetworkInterfaceInfo::new(name, ip.parse().unwrap(), 18080)
+        };
+        let interfaces = vec![make("eth0", "172.19.0.2"), make("eth1", "8.8.8.8")];
+
+        let adjusted = routes::apply_access_host(interfaces, Some("192.168.0.231"), 18080);
+
+        assert!(
+            adjusted
+                .iter()
+                .all(|interface| interface.ip != "172.19.0.2"),
+            "o IP interno do Docker deve ser removido: {adjusted:?}"
+        );
+        let first = adjusted.first().expect("deve conter a interface de acesso");
+        assert_eq!(first.ip, "192.168.0.231");
+        assert_eq!(first.kind, "lan");
+        assert_eq!(first.remote_url, "http://192.168.0.231:18080/remote");
+    }
+
+    #[test]
     fn network_interface_classification_covers_all_ranges() {
         let classify = routes::classify_network_kind;
 
@@ -3170,5 +3221,43 @@ mod tests {
             })
             .collect();
         assert!(ranks.windows(2).all(|pair| pair[0] <= pair[1]));
+    }
+
+    #[tokio::test]
+    async fn network_info_prefers_request_host_over_container_ip() {
+        let state = mock_state();
+        let app = create_routes(state);
+
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/system/network-info")
+                    .header("Host", "192.168.0.231:18080")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let network: routes::NetworkInfoResponse =
+            serde_json::from_slice(&body).expect("network-info deve desserializar");
+
+        assert_eq!(network.local_ip, "192.168.0.231");
+        assert_eq!(
+            network.remote_url,
+            format!("http://192.168.0.231:{}/remote", network.port)
+        );
+
+        let first_lan = network
+            .interfaces
+            .iter()
+            .find(|interface| interface.kind == "lan")
+            .expect("deve existir interface LAN");
+        assert_eq!(first_lan.ip, "192.168.0.231");
+        assert_eq!(first_lan.id, "access:192.168.0.231");
     }
 }
